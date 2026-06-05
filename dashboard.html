@@ -1479,7 +1479,10 @@ function renderAnalytics() {
 
       const phaseCells = PHASES.map((p, i) => {
         const pct = Math.round(pCounts[i] / tot * 100);
-        return `<td class="ph-count" style="color:${p.color}">${pCounts[i]}<span class="ph-pct">${pct}%</span></td>`;
+        const clickable = pCounts[i] > 0
+          ? `style="cursor:pointer;color:${p.color}" onclick="event.stopPropagation();navToDev('${esc(dev)}','${esc(p.label)}')" title="Open ${esc(dev)} in Team View filtered by ${esc(p.label)}"`
+          : `style="color:${p.color}"`;
+        return `<td class="ph-count" ${clickable}>${pCounts[i]}<span class="ph-pct">${pct}%</span></td>`;
       }).join('');
 
       return `<tr style="cursor:pointer" onclick="navToDev('${esc(dev)}')" title="Open ${esc(dev)} in Team View">
@@ -1755,12 +1758,13 @@ function renderTeam() {
   body.innerHTML = `<div style="font-size:12px;color:var(--text3);margin-bottom:12px">${filtered.length} ticket${filtered.length!==1?'s':''} across ${Object.keys(devMap).length} developer${Object.keys(devMap).length!==1?'s':''}</div>${blocks}`;
 }
 
-function navToDev(devName) {
+function navToDev(devName, phaseLabel) {
   if (!S._msState) S._msState = { project: new Set(), phase: new Set(), dev: new Set() };
   S._msState.project.clear();
   S._msState.phase.clear();
   S._msState.dev.clear();
   S._msState.dev.add(devName);
+  if (phaseLabel) S._msState.phase.add(phaseLabel);
   nav('team');
 }
 
