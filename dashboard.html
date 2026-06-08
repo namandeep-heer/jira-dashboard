@@ -196,12 +196,20 @@ table.issues tr:hover td { background: var(--bg2); }
 .pipeline-table tr:last-child td { border-bottom:none; }
 .pipeline-table tr:hover td { background:var(--bg2); }
 .proj-name-cell { display:flex; align-items:center; gap:8px; font-size:13px; font-weight:600; white-space:nowrap; }
+.proj-name-cell .expand-icon { transition:transform .2s; cursor:pointer; width:14px; height:14px; flex-shrink:0; }
+.proj-name-cell .expand-icon.expanded { transform:rotate(90deg); }
 .ph-count { text-align:center; font-size:15px; font-weight:700; }
 .ph-count .ph-pct { display:block; font-size:10px; font-weight:400; color:var(--text3); margin-top:1px; }
+.ph-count.clickable { cursor:pointer; transition:opacity .15s; }
+.ph-count.clickable:hover { opacity:.7; }
 .pipeline-bar-cell { width:100%; min-width:120px; }
 .pipeline-bar { display:flex; height:12px; border-radius:6px; overflow:hidden; gap:1px; }
 .pipeline-bar-seg { flex:0 0 auto; transition:flex .3s; }
 .progress-pill { display:inline-flex; align-items:center; gap:5px; font-size:12px; font-weight:600; padding:3px 9px; border-radius:20px; background:var(--green-bg); color:var(--green); white-space:nowrap; }
+.scope-drill-row { background:var(--bg3); }
+.scope-drill-row td { padding:8px 14px 8px 48px; font-size:12px; border-bottom:0.5px solid var(--border); }
+.scope-drill-row.hidden { display:none; }
+.scope-name { font-weight:500; color:var(--text2); }
 /* ── Refresh overlay ── */
 #refresh-overlay { position:fixed; inset:0; z-index:999; background:rgba(0,0,0,.45); display:flex; align-items:center; justify-content:center; backdrop-filter:blur(3px); }
 #refresh-overlay.hidden { display:none; }
@@ -1067,18 +1075,42 @@ async function renderProject(proj) {
   renderIssueTable(proj, issues, null);
 }
 
-function navToPhase(projId, phaseLabel) {
+function navToPhase(projId, phaseLabel, scopeCommitment) {
   nav(projId);
   if (!phaseLabel) return;
   // Wait for the project page to render, then apply the filter
   const proj = getAllProjects().find(p => p.id === projId);
   if (!proj) return;
   requestAnimationFrame(() => {
-    filterByCard(proj.key, phaseLabel);
+    filterByCard(proj.key, phaseLabel, scopeCommitment);
   });
 }
 
-function filterByCard(projKey, label) {
+function toggleScopeDrilldown(projKey) {
+  const rows = document.querySelectorAll(`.scope-drill-${projKey}`);
+  const icon = document.getElementById(`expand-${projKey}`);
+  
+  if (!rows.length) return;
+  
+  const isHidden = rows[0].classList.contains('hidden');
+  rows.forEach(row => {
+    if (isHidden) {
+      row.classList.remove('hidden');
+    } else {
+      row.classList.add('hidden');
+    }
+  });
+  
+  if (icon) {
+    if (isHidden) {
+      icon.classList.add('expanded');
+    } else {
+      icon.classList.remove('expanded');
+    }
+  }
+}
+
+function filterByCard(projKey, label, scopeCommitment) {
   if (!S.activeFilter) S.activeFilter = {};
   const prev = S.activeFilter[projKey];
   // Toggle off if same card clicked again
@@ -1105,6 +1137,19 @@ function filterByCard(projKey, label) {
       filtered = d.issues.filter(i => (i.fields?.status?.name||'') === next);
     }
   }
+  
+  // Apply scope commitment filter if provided
+  if (scopeCommitment) {
+    const scopeField = ALL_FIELDS.find(f => f.id === 'cf_scopesc');
+    if (scopeField) {
+      filtered = filtered.filter(i => {
+        const val = i.fields?.[jiraId(scopeField)];
+        const scopeVal = val?.value || val || '';
+        return scopeVal === scopeCommitment;
+      });
+    }
+  }
+  
   renderIssueTable({ key: projKey }, filtered, next);
 }
 
@@ -1632,16 +1677,72 @@ function renderAnalytics() {
 
       const phaseCells = PHASES.map((p,i) => {
         const pct = Math.round(pCounts[i] / tot * 100);
-        const clickable = pCounts[i] > 0 ? `style="cursor:pointer;color:${p.color}" onclick="navToPhase('${proj.id}','${esc(p.label)}')" title="View ${esc(p.label)} in ${esc(proj.name)}"` : `style="color:${p.color}"`;
-        return `<td class="ph-count" ${clickable}>${pCounts[i]}<span class="ph-pct">${pct}%</span></td>`;
+        const clickable = pCounts[i] > 0 ? `class="ph-count clickable" style="color:${p.color}" onclick="navToPhase('${proj.id}','${esc(p.label)}')" title="View ${esc(p.label)} in ${esc(proj.name)}"` : `class="ph-count" style="color:${p.color}"`;
+        return `<td ${clickable}>${pCounts[i]}<span class="ph-pct">${pct}%</span></td>`;
       }).join('');
 
-      return `<tr>
-        <td style="cursor:pointer" onclick="navToPhase('${proj.id}',null)"><div class="proj-name-cell"><span style="width:9px;height:9px;border-radius:50%;background:${proj.color};flex-shrink:0"></span>${esc(proj.name)}</div></td>
+      // Group issues by Scope Commitment At SC
+      const scopeField = ALL_FIELDS.find(f => f.id === 'cf_scopesc');
+      const scopeGroups = {};
+      issues.forEach(i => {
+        const val = i.fields?.[jiraId(scopeField)];
+        const scopeVal = val?.value || val || 'Not Set';
+        if (!scopeGroups[scopeVal]) scopeGroups[scopeVal] = [];
+        scopeGroups[scopeVal].push(i);
+      });
+      
+      const scopeEntries = Object.entries(scopeGroups).sort((a, b) => {
+        // Sort "Not Set" to the end, otherwise alphabetically
+        if (a[0] === 'Not Set') return 1;
+        if (b[0] === 'Not Set') return -1;
+        return a[0].localeCompare(b[0]);
+      });
+
+      // Build drill-down rows for each scope commitment
+      const drilldownRows = scopeEntries.map(([scopeVal, scopeIssues]) => {
+        const scopeTot = scopeIssues.length || 1;
+        const scopePCounts = PHASES.map(p => scopeIssues.filter(i => p.re.test((i.fields?.status?.name||'').trim())).length);
+        const scopeOther = scopeIssues.filter(i => !getPhaseForStatus(i.fields?.status?.name||'')).length;
+        
+        const scopeBarSegs = PHASES.map((p,i) => {
+          const w = Math.round(scopePCounts[i] / scopeTot * 100);
+          return w > 0 ? `<div class="pipeline-bar-seg" style="flex:${scopePCounts[i]};background:${p.color}" title="${esc(p.label)}: ${scopePCounts[i]}"></div>` : '';
+        }).join('');
+        const scopeOtherSeg = scopeOther > 0 ? `<div class="pipeline-bar-seg" style="flex:${scopeOther};background:#888780" title="Other: ${scopeOther}"></div>` : '';
+        
+        const scopePhaseCells = PHASES.map((p,i) => {
+          const pct = Math.round(scopePCounts[i] / scopeTot * 100);
+          const clickable = scopePCounts[i] > 0 ? `class="ph-count clickable" style="color:${p.color}" onclick="navToPhase('${proj.id}','${esc(p.label)}','${esc(scopeVal)}')" title="View ${esc(p.label)} with ${esc(scopeVal)} in ${esc(proj.name)}"` : `class="ph-count" style="color:${p.color}"`;
+          return `<td ${clickable}>${scopePCounts[i]}<span class="ph-pct">${pct}%</span></td>`;
+        }).join('');
+        
+        const scopeDoneCount = (qaIdx >= 0 ? scopePCounts[qaIdx] : 0) + (closedIdx >= 0 ? scopePCounts[closedIdx] : 0);
+        const scopeDonePct = Math.round(scopeDoneCount / scopeTot * 100);
+        
+        return `<tr class="scope-drill-row scope-drill-${proj.key} hidden">
+          <td><div class="scope-name">${esc(scopeVal)} (${scopeIssues.length})</div></td>
+          <td class="pipeline-bar-cell"><div class="pipeline-bar">${scopeBarSegs}${scopeOtherSeg}</div></td>
+          ${scopePhaseCells}
+          <td style="text-align:right"><span class="progress-pill">${scopeDonePct}%&nbsp;complete</span></td>
+        </tr>`;
+      }).join('');
+
+      const mainRow = `<tr>
+        <td style="cursor:pointer" onclick="toggleScopeDrilldown('${proj.key}')">
+          <div class="proj-name-cell">
+            <svg id="expand-${proj.key}" class="expand-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+              <polyline points="9 18 15 12 9 6"/>
+            </svg>
+            <span style="width:9px;height:9px;border-radius:50%;background:${proj.color};flex-shrink:0"></span>
+            ${esc(proj.name)}
+          </div>
+        </td>
         <td class="pipeline-bar-cell"><div class="pipeline-bar">${barSegs}${otherSeg}</div></td>
         ${phaseCells}
         <td style="text-align:right" title="${doneCount} of ${issues.length} issues are in QA or Closed"><span class="progress-pill">${donePct}%&nbsp;complete</span></td>
       </tr>`;
+
+      return mainRow + drilldownRows;
     }).join('');
 
     const headerCells = PHASES.map(p =>
