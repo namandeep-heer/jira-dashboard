@@ -577,6 +577,17 @@ code { font-family: monospace; font-size: 12px; background: var(--bg3); padding:
                   <div class="ms-footer"><button onclick="selectAllMs('dev')">Select all</button><button onclick="clearMs('dev')">Clear</button></div>
                 </div>
               </div>
+              <div class="ms-wrap" id="ms-wrap-scope">
+                <div class="ms-btn" id="ms-btn-scope" onclick="toggleMs('scope')">
+                  <span id="ms-label-scope">Scope Commitment</span>
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="6 9 12 15 18 9"/></svg>
+                </div>
+                <div class="ms-dropdown" id="ms-drop-scope">
+                  <div class="ms-dropdown-search"><input type="text" placeholder="Search…" oninput="filterMsOptions('scope',this.value)"></div>
+                  <div class="ms-options" id="ms-opts-scope"></div>
+                  <div class="ms-footer"><button onclick="selectAllMs('scope')">Select all</button><button onclick="clearMs('scope')">Clear</button></div>
+                </div>
+              </div>
               <input id="team-search" class="team-search" type="text" placeholder="Search key or summary…" oninput="renderTeam()" />
             </div>
           </div>
@@ -2407,7 +2418,20 @@ function renderTeam() {
 
   // Helper to extract developer name
   // ── Multi-select state (keyed by filter id)
-  if (!S._msState) S._msState = { project: new Set(), phase: new Set(), dev: new Set() };
+  if (!S._msState) S._msState = { project: new Set(), phase: new Set(), dev: new Set(), scope: new Set() };
+
+  // Helper to get Scope Commitment value
+  function getScopeCommitment(issue) {
+    const scopeField = ALL_FIELDS.find(f => f.id === 'cf_scope');
+    if (!scopeField) {
+      console.warn('[getScopeCommitment] cf_scope field not found in ALL_FIELDS');
+      return '';
+    }
+    const fieldId = jiraId(scopeField);
+    const val = issue.fields?.[fieldId];
+    const result = val?.value || val || '';
+    return result;
+  }
 
   // Populate multi-select dropdowns
   function populateMs(id, values) {
@@ -2436,19 +2460,27 @@ function renderTeam() {
   const allDevs = [...new Set(allIssues.map(({issue}) => getDev(issue)).filter(Boolean))].sort();
   const allPhaseLabels = [...PHASES.map(p => p.label), 'Other'];
   const loadedProjNames = getAllProjects().filter(p => S.cache[p.key] && !S.cache[p.key].err).map(p => p.name);
+  const allScopeCommitments = [...new Set(allIssues.map(({issue}) => getScopeCommitment(issue)).filter(Boolean))].sort();
+  
   populateMs('project', loadedProjNames);
   populateMs('phase',   allPhaseLabels);
   populateMs('dev',     allDevs);
-  ['project','phase','dev'].forEach(updateMsBtn);
+  populateMs('scope',   allScopeCommitments);
+  ['project','phase','dev','scope'].forEach(updateMsBtn);
 
   // Remove dev entries no longer in data
   const devSet = new Set(allDevs);
   S._msState.dev.forEach(v => { if (!devSet.has(v)) S._msState.dev.delete(v); });
+  
+  // Remove scope entries no longer in data
+  const scopeSet = new Set(allScopeCommitments);
+  S._msState.scope.forEach(v => { if (!scopeSet.has(v)) S._msState.scope.delete(v); });
 
   // Read filters
   const fProjs  = S._msState.project;
   const fPhases = S._msState.phase;
   const fDevs   = S._msState.dev;
+  const fScopes = S._msState.scope;
   const fSearch = (document.getElementById('team-search')?.value || '').toLowerCase();
 
   // Filter
@@ -2461,6 +2493,7 @@ function renderTeam() {
       if (!fPhases.has(phLabel)) return false;
     }
     if (fDevs.size && !fDevs.has(getDev(issue))) return false;
+    if (fScopes.size && !fScopes.has(getScopeCommitment(issue))) return false;
     if (fSearch) {
       const key = (issue.key || '').toLowerCase();
       const sum = (issue.fields?.summary || '').toLowerCase();
@@ -2511,6 +2544,16 @@ function renderTeam() {
       const phLabel = phase ? phase.label : 'Other';
       const link = S.creds.url ? S.creds.url + '/browse/' + (issue.key || '') : '#';
       const priority = issue.fields?.priority?.name || '';
+      
+      // Get Scope Commitment value (cf_scope, not cf_scopesc)
+      let scopeValue = '';
+      const scopeField = ALL_FIELDS.find(f => f.id === 'cf_scope');
+      if (scopeField) {
+        const fieldId = jiraId(scopeField);
+        const val = issue.fields?.[fieldId];
+        scopeValue = val?.value || val || '';
+      }
+      
       return `<tr onclick="window.open('${esc(link)}','_blank')">
         <td><a class="log-key-link" href="${esc(link)}" target="_blank" onclick="event.stopPropagation()">${esc(issue.key || '')}</a></td>
         <td style="max-width:340px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${esc(issue.fields?.summary || '')}">${esc(issue.fields?.summary || '')}</td>
@@ -2518,6 +2561,7 @@ function renderTeam() {
         <td><span class="log-badge-to" style="background:${phColor}20;color:${phColor}">${esc(phLabel)}</span></td>
         <td><span class="log-badge-from">${esc(status)}</span></td>
         <td style="color:var(--text3);font-size:12px">${esc(priority)}</td>
+        <td style="font-weight:500;color:var(--text)">${scopeValue ? esc(scopeValue) : '<span style="color:var(--text3)">—</span>'}</td>
       </tr>`;
     }).join('');
 
@@ -2535,6 +2579,7 @@ function renderTeam() {
           ${thSort('phase','Phase')}
           ${thSort('status','Status')}
           ${thSort('priority','Priority')}
+          <th>Scope Commitment</th>
         </tr></thead>
         <tbody>${rows}</tbody>
       </table>
@@ -2545,7 +2590,7 @@ function renderTeam() {
 }
 
 function navToDev(devName, phaseLabel) {
-  if (!S._msState) S._msState = { project: new Set(), phase: new Set(), dev: new Set() };
+  if (!S._msState) S._msState = { project: new Set(), phase: new Set(), dev: new Set(), scope: new Set() };
   S._msState.project.clear();
   S._msState.phase.clear();
   S._msState.dev.clear();
@@ -3800,9 +3845,9 @@ function deleteCustomProject(idx) {
 hydrate();
 if (!S.log) S.log = [];
 if (!S.customProjects) S.customProjects = [];
-if (!S._msState) S._msState = { project: new Set(), phase: new Set(), dev: new Set() };
+if (!S._msState) S._msState = { project: new Set(), phase: new Set(), dev: new Set(), scope: new Set() };
 // Sets are not JSON-serialisable, so always re-create as empty on load
-S._msState = { project: new Set(), phase: new Set(), dev: new Set() };
+S._msState = { project: new Set(), phase: new Set(), dev: new Set(), scope: new Set() };
 applyTheme(S.theme || getPreferredTheme(), false);
 rebuildDynamicUI();
 renderFields();
