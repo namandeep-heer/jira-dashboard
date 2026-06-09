@@ -625,15 +625,39 @@ code { font-family: monospace; font-size: 12px; background: var(--bg3); padding:
 
       <!-- Daily Progress -->
       <div class="page" id="page-log">
-        <div style="max-width:860px">
-          <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:18px">
-            <div>
+        <div style="max-width:1400px">
+          <div style="display:flex;align-items:flex-start;justify-content:space-between;margin-bottom:18px;gap:20px">
+            <div style="flex:1">
               <h2 style="font-size:18px;font-weight:600;margin-bottom:3px">Daily Progress</h2>
-              <p style="font-size:13px;color:var(--text2)">Daily ticket movements with drill-down by project and assignee.</p>
+              <p style="font-size:13px;color:var(--text2)">Track ticket status movements over time across all projects.</p>
             </div>
-            <button class="btn btn-sm" onclick="clearLog()">Clear history</button>
+            <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;justify-content:flex-end">
+              <div class="ms-wrap">
+                <button class="ms-btn" id="log-project-filter-btn" onclick="toggleLogProjectFilter()">
+                  <span id="log-project-filter-label">All Projects</span>
+                  <span class="ms-badge" id="log-project-filter-count" style="display:none">0</span>
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"/></svg>
+                </button>
+                <div class="ms-dropdown" id="log-project-filter-dropdown">
+                  <div class="ms-options" id="log-project-filter-options"></div>
+                  <div class="ms-footer">
+                    <button onclick="clearLogProjectFilter()">Clear</button>
+                    <button onclick="selectAllLogProjects()">Select All</button>
+                  </div>
+                </div>
+              </div>
+              <select id="log-period" class="section-control" onchange="renderDailyProgress()">
+                <option value="day">By Day</option>
+                <option value="week" selected>By Week</option>
+              </select>
+              <select id="log-range" class="section-control" onchange="renderDailyProgress()">
+                <option value="30">Last 30 days</option>
+                <option value="60">Last 60 days</option>
+                <option value="90" selected>Last 90 days</option>
+              </select>
+            </div>
           </div>
-          <div id="log-body"></div>
+          <div id="log-content"></div>
         </div>
       </div>
 
@@ -827,7 +851,7 @@ function nav(id) {
     renderPhaseTimeline();
   } else if (id === 'log') {
     document.getElementById('topbar-title').textContent = 'Daily Progress';
-    renderLog();
+    renderDailyProgress();
   } else if (id === 'projects-config') {
     document.getElementById('topbar-title').textContent = 'Projects';
     renderProjectsConfig();
@@ -2759,6 +2783,398 @@ function formatDateTime(date) {
     hour: '2-digit',
     minute: '2-digit'
   });
+}
+
+// ── Daily Progress (Historical Movements) ─────────────────────────────────────
+function renderDailyProgress() {
+  const contentEl = document.getElementById('log-content');
+  if (!contentEl) return;
+
+  const period = document.getElementById('log-period').value;
+  const range = parseInt(document.getElementById('log-range').value);
+  
+  // Gather all issues from all loaded projects
+  const loaded = getAllProjects().filter(p => S.cache[p.key] && !S.cache[p.key].err);
+  if (!loaded.length) {
+    contentEl.innerHTML = '<div class="info-box">No project data loaded. Click "Refresh All" to load data.</div>';
+    buildLogProjectFilterOptions(loaded);
+    return;
+  }
+
+  // Build filter options
+  buildLogProjectFilterOptions(loaded);
+
+  // Get selected projects for filtering
+  const selectedProjects = getSelectedLogProjects();
+  const filteredProjects = selectedProjects.size > 0 
+    ? loaded.filter(p => selectedProjects.has(p.key))
+    : loaded;
+
+  const allIssues = [];
+  filteredProjects.forEach(proj => {
+    const issues = S.cache[proj.key].issues || [];
+    issues.forEach(issue => {
+      allIssues.push({ proj, issue });
+    });
+  });
+
+  // Get current date and range start date
+  const now = new Date();
+  const rangeStart = new Date(now.getTime() - (range * 24 * 60 * 60 * 1000));
+
+  // Parse changelog to find all status changes in range
+  const movementData = [];
+  allIssues.forEach(({ proj, issue }) => {
+    const changelog = issue.changelog?.histories || [];
+    
+    changelog.forEach(history => {
+      const changeDate = new Date(history.created);
+      if (changeDate >= rangeStart && changeDate <= now) {
+        const statusChanges = (history.items || []).filter(item => 
+          item.field === 'status' && item.fromString && item.toString
+        );
+        
+        statusChanges.forEach(change => {
+          const fromPhase = getPhaseForStatus(change.fromString);
+          const toPhase = getPhaseForStatus(change.toString);
+          
+          movementData.push({
+            proj,
+            issue,
+            changeDate,
+            key: issue.key,
+            summary: issue.fields?.summary || '',
+            from: change.fromString,
+            to: change.toString,
+            fromPhase: fromPhase?.label || 'Other',
+            toPhase: toPhase?.label || 'Other',
+            fromColor: fromPhase?.color || '#888780',
+            toColor: toPhase?.color || '#888780',
+            author: history.author?.displayName || 'Unknown',
+            assignee: issue.fields?.assignee?.displayName || 'Unassigned'
+          });
+        });
+      }
+    });
+  });
+
+  if (movementData.length === 0) {
+    contentEl.innerHTML = '<div class="info-box">No ticket movements in the selected time range.</div>';
+    return;
+  }
+
+  // Group by time period
+  const periodMap = {};
+  movementData.forEach(item => {
+    let periodKey;
+    const d = item.changeDate;
+    
+    if (period === 'day') {
+      periodKey = d.toISOString().split('T')[0]; // YYYY-MM-DD
+    } else if (period === 'week') {
+      const weekStart = new Date(d);
+      weekStart.setDate(d.getDate() - d.getDay()); // Start of week (Sunday)
+      periodKey = weekStart.toISOString().split('T')[0];
+    }
+    
+    if (!periodMap[periodKey]) {
+      periodMap[periodKey] = {
+        key: periodKey,
+        date: d,
+        movements: [],
+        byProject: {},
+        byPhase: {},
+        byType: { forward: 0, backward: 0 }
+      };
+    }
+    
+    periodMap[periodKey].movements.push(item);
+    
+    // Count by project
+    const projKey = item.proj.key;
+    if (!periodMap[periodKey].byProject[projKey]) {
+      periodMap[periodKey].byProject[projKey] = { name: item.proj.name, color: item.proj.color, count: 0 };
+    }
+    periodMap[periodKey].byProject[projKey].count++;
+    
+    // Count by target phase
+    const phaseLabel = item.toPhase;
+    if (!periodMap[periodKey].byPhase[phaseLabel]) {
+      periodMap[periodKey].byPhase[phaseLabel] = { color: item.toColor, count: 0 };
+    }
+    periodMap[periodKey].byPhase[phaseLabel].count++;
+    
+    // Classify movement type (forward vs backward)
+    const phaseOrder = ['Backlog', 'Analysis', 'Dev', 'Code Review', 'QA', 'Closed'];
+    const fromIdx = phaseOrder.indexOf(item.fromPhase);
+    const toIdx = phaseOrder.indexOf(item.toPhase);
+    if (toIdx > fromIdx) {
+      periodMap[periodKey].byType.forward++;
+    } else if (toIdx < fromIdx) {
+      periodMap[periodKey].byType.backward++;
+    }
+  });
+
+  // Sort by date
+  const periods = Object.values(periodMap).sort((a, b) => a.date - b.date);
+
+  // Build table
+  const rows = periods.map(p => {
+    const dateLabel = formatPeriodLabel(p.key, period);
+    const total = p.movements.length;
+    
+    // Build project breakdown
+    const projectBreakdown = Object.entries(p.byProject)
+      .map(([key, data]) => `<span style="display:inline-flex;align-items:center;gap:4px;margin-right:10px"><span style="width:8px;height:8px;border-radius:50%;background:${data.color}"></span><span style="font-size:11px">${esc(data.name)}: ${data.count}</span></span>`)
+      .join('');
+    
+    // Build phase breakdown
+    const phaseBreakdown = Object.entries(p.byPhase)
+      .map(([label, data]) => `<span style="display:inline-flex;align-items:center;gap:4px;margin-right:10px"><span style="width:8px;height:8px;border-radius:50%;background:${data.color}"></span><span style="font-size:11px">${esc(label)}: ${data.count}</span></span>`)
+      .join('');
+    
+    // Movement direction indicator
+    const movementIndicator = p.byType.forward > 0 || p.byType.backward > 0
+      ? `<span style="font-size:11px;color:var(--text3)">↑${p.byType.forward} ↓${p.byType.backward}</span>`
+      : '';
+    
+    return `<tr class="period-summary-row" onclick="togglePeriodDetails('log-${esc(p.key)}')" style="cursor:pointer">
+      <td style="font-weight:600">${esc(dateLabel)}</td>
+      <td style="text-align:center;font-size:16px;font-weight:700;color:var(--blue)">${total} ${movementIndicator}</td>
+      <td style="font-size:12px">${projectBreakdown}</td>
+      <td style="font-size:12px">${phaseBreakdown}</td>
+      <td style="text-align:center">
+        <svg class="expand-icon period-expand-log-${esc(p.key)}" style="width:14px;height:14px;transition:transform .2s" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+          <polyline points="9 18 15 12 9 6"/>
+        </svg>
+      </td>
+    </tr>
+    <tr class="period-details period-details-log-${esc(p.key)} hidden">
+      <td colspan="5" style="padding:0;background:var(--bg3)">
+        <div style="padding:14px 20px">
+          <table class="issues" style="width:100%;font-size:12px">
+            <thead>
+              <tr>
+                <th style="width:120px">Key</th>
+                <th>Summary</th>
+                <th style="width:140px">Project</th>
+                <th style="width:120px">From → To</th>
+                <th style="width:120px">Assignee</th>
+                <th style="width:140px">Changed</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${p.movements.map(m => {
+                const link = S.creds.url ? S.creds.url + '/browse/' + m.key : '#';
+                return `<tr onclick="window.open('${link}','_blank');event.stopPropagation()" style="cursor:pointer">
+                  <td><span class="key-link">${esc(m.key)}</span></td>
+                  <td style="max-width:300px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(m.summary)}</td>
+                  <td><span style="display:inline-flex;align-items:center;gap:6px"><span style="width:8px;height:8px;border-radius:50%;background:${m.proj.color}"></span>${esc(m.proj.name)}</span></td>
+                  <td style="font-size:11px">
+                    <span style="color:${m.fromColor}">${esc(m.from)}</span>
+                    <span style="color:var(--text3)"> → </span>
+                    <span style="color:${m.toColor}">${esc(m.to)}</span>
+                  </td>
+                  <td style="font-size:11px">${esc(m.assignee)}</td>
+                  <td style="font-size:11px;color:var(--text3)">${formatDateTime(m.changeDate)}</td>
+                </tr>`;
+              }).join('')}
+            </tbody>
+          </table>
+        </div>
+      </td>
+    </tr>`;
+  }).join('');
+
+  // Build trend chart data
+  const chartLabels = periods.map(p => formatPeriodLabel(p.key, period));
+  const forwardData = periods.map(p => p.byType.forward);
+  const backwardData = periods.map(p => p.byType.backward);
+  const totalData = periods.map(p => p.movements.length);
+  const periodKeys = periods.map(p => p.key);
+
+  contentEl.innerHTML = `
+    <div class="card" style="margin-bottom:20px">
+      <h3 style="font-size:15px;font-weight:600;margin-bottom:4px">Movement Trend</h3>
+      <p style="font-size:12px;color:var(--text3);margin-bottom:14px">Click on data points to expand period details below</p>
+      <div style="position:relative;width:100%;height:280px">
+        <canvas id="log-chart"></canvas>
+      </div>
+    </div>
+    
+    <div class="card">
+      <h3 style="font-size:15px;font-weight:600;margin-bottom:14px">Ticket Movements (${movementData.length} total)</h3>
+      <table class="pipeline-table" style="margin-bottom:0">
+        <thead>
+          <tr>
+            <th style="width:200px">Period</th>
+            <th style="width:120px;text-align:center">Total</th>
+            <th>By Project</th>
+            <th>To Phase</th>
+            <th style="width:50px"></th>
+          </tr>
+        </thead>
+        <tbody>${rows}</tbody>
+      </table>
+    </div>
+  `;
+
+  // Render chart with click handler
+  const ctx = document.getElementById('log-chart');
+  if (ctx) {
+    if (S.charts.logChart) S.charts.logChart.destroy();
+    S.charts.logChart = new Chart(ctx, {
+      type: 'bar',
+      data: {
+        labels: chartLabels,
+        datasets: [
+          {
+            label: 'Forward Progress',
+            data: forwardData,
+            backgroundColor: 'rgba(45, 106, 16, 0.8)',
+            borderColor: '#2d6a10',
+            borderWidth: 1
+          },
+          {
+            label: 'Backward Movement',
+            data: backwardData,
+            backgroundColor: 'rgba(163, 45, 45, 0.8)',
+            borderColor: '#A32D2D',
+            borderWidth: 1
+          }
+        ]
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        scales: {
+          x: { stacked: true },
+          y: {
+            stacked: true,
+            beginAtZero: true,
+            ticks: { precision: 0 }
+          }
+        },
+        plugins: {
+          legend: { display: true, position: 'top' },
+          tooltip: {
+            callbacks: {
+              footer: (items) => {
+                const index = items[0].dataIndex;
+                return `Total: ${totalData[index]} movements`;
+              }
+            }
+          }
+        },
+        onClick: (event, elements) => {
+          if (elements.length > 0) {
+            const index = elements[0].index;
+            const periodKey = periodKeys[index];
+            // Expand the corresponding period details
+            const detailRow = document.querySelector(`.period-details-log-${periodKey}`);
+            if (detailRow && detailRow.classList.contains('hidden')) {
+              togglePeriodDetails('log-' + periodKey);
+            }
+            // Scroll to the row
+            if (detailRow) {
+              detailRow.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+            }
+          }
+        }
+      }
+    });
+  }
+}
+
+function buildLogProjectFilterOptions(projects) {
+  const optionsEl = document.getElementById('log-project-filter-options');
+  if (!optionsEl) return;
+  
+  // Only rebuild if needed
+  if (optionsEl.children.length > 0) return;
+  
+  optionsEl.innerHTML = projects.map(proj => `
+    <label class="ms-option">
+      <input type="checkbox" value="${esc(proj.key)}" onchange="updateLogProjectFilter()">
+      <span class="ms-option-label">
+        <span style="width:8px;height:8px;border-radius:50%;background:${proj.color};display:inline-block;margin-right:6px"></span>
+        ${esc(proj.name)}
+      </span>
+    </label>
+  `).join('');
+}
+
+function toggleLogProjectFilter() {
+  const dropdown = document.getElementById('log-project-filter-dropdown');
+  dropdown.classList.toggle('open');
+  
+  if (dropdown.classList.contains('open')) {
+    setTimeout(() => {
+      document.addEventListener('click', closeLogProjectFilterOnOutside);
+    }, 0);
+  }
+}
+
+function closeLogProjectFilterOnOutside(e) {
+  const dropdown = document.getElementById('log-project-filter-dropdown');
+  const btn = document.getElementById('log-project-filter-btn');
+  if (!dropdown.contains(e.target) && !btn.contains(e.target)) {
+    dropdown.classList.remove('open');
+    document.removeEventListener('click', closeLogProjectFilterOnOutside);
+  }
+}
+
+function getSelectedLogProjects() {
+  const optionsEl = document.getElementById('log-project-filter-options');
+  if (!optionsEl) return new Set();
+  
+  const selected = new Set();
+  optionsEl.querySelectorAll('input[type="checkbox"]:checked').forEach(cb => {
+    selected.add(cb.value);
+  });
+  return selected;
+}
+
+function updateLogProjectFilter() {
+  const selected = getSelectedLogProjects();
+  const btn = document.getElementById('log-project-filter-btn');
+  const label = document.getElementById('log-project-filter-label');
+  const badge = document.getElementById('log-project-filter-count');
+  
+  if (selected.size === 0) {
+    label.textContent = 'All Projects';
+    badge.style.display = 'none';
+    btn.classList.remove('has-selection');
+  } else {
+    label.textContent = 'Projects';
+    badge.textContent = selected.size;
+    badge.style.display = '';
+    btn.classList.add('has-selection');
+  }
+  
+  renderDailyProgress();
+}
+
+function clearLogProjectFilter() {
+  const optionsEl = document.getElementById('log-project-filter-options');
+  if (!optionsEl) return;
+  
+  optionsEl.querySelectorAll('input[type="checkbox"]').forEach(cb => {
+    cb.checked = false;
+  });
+  
+  updateLogProjectFilter();
+}
+
+function selectAllLogProjects() {
+  const optionsEl = document.getElementById('log-project-filter-options');
+  if (!optionsEl) return;
+  
+  optionsEl.querySelectorAll('input[type="checkbox"]').forEach(cb => {
+    cb.checked = true;
+  });
+  
+  updateLogProjectFilter();
 }
 
 function renderLog() {
