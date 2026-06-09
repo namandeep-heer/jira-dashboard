@@ -67,6 +67,7 @@ body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sa
 .brand-text { font-size: 13px; font-weight: 600; }
 .brand-sub { font-size: 10px; color: var(--text3); margin-top: 1px; }
 .sec-label { padding: 14px 14px 4px; font-size: 10px; font-weight: 600; color: var(--text3); letter-spacing: 0.07em; text-transform: uppercase; }
+.category-label { padding: 10px 14px 4px; font-size: 9px; font-weight: 600; color: var(--text3); letter-spacing: 0.06em; text-transform: uppercase; opacity: 0.8; }
 .nav-item { display: flex; align-items: center; gap: 9px; padding: 7px 12px; margin: 1px 6px; border-radius: var(--radius); cursor: pointer; font-size: 13px; color: var(--text2); background: none; border: none; width: calc(100% - 12px); text-align: left; font-family: inherit; transition: background .12s, color .12s; }
 .nav-item:hover { background: var(--bg3); color: var(--text); }
 .nav-item.active { background: var(--bg); color: var(--text); font-weight: 600; box-shadow: 0 0 0 0.5px var(--border); }
@@ -210,6 +211,9 @@ table.issues tr:hover td { background: var(--bg2); }
 .scope-drill-row td { padding:8px 14px 8px 48px; font-size:12px; border-bottom:0.5px solid var(--border); }
 .scope-drill-row.hidden { display:none; }
 .scope-name { font-weight:500; color:var(--text2); }
+.period-details { background:var(--bg3); }
+.period-details.hidden { display:none; }
+.period-summary-row:hover td { background:var(--bg2); }
 /* ── Refresh overlay ── */
 #refresh-overlay { position:fixed; inset:0; z-index:999; background:rgba(0,0,0,.45); display:flex; align-items:center; justify-content:center; backdrop-filter:blur(3px); }
 #refresh-overlay.hidden { display:none; }
@@ -316,13 +320,8 @@ code { font-family: monospace; font-size: 12px; background: var(--bg3); padding:
       <div><div class="brand-text">Jira Dashboard</div><div class="brand-sub">N2026.R2 Release</div></div>
     </div>
 
-    <div class="sec-label">Projects</div>
-    <button class="nav-item" onclick="nav('p0')" id="nav-p0"><span class="proj-dot" style="background:#185FA5"></span>Lease Accounting 6.x</button>
-    <button class="nav-item" onclick="nav('p1')" id="nav-p1"><span class="proj-dot" style="background:#3B6D11"></span>FOS, Sync Bot &amp; User Aux</button>
-    <button class="nav-item" onclick="nav('p2')" id="nav-p2"><span class="proj-dot" style="background:#c47a0f"></span>SAP Posting Bot</button>
-    <button class="nav-item" onclick="nav('p3')" id="nav-p3"><span class="proj-dot" style="background:#533AB7"></span>General Ledger</button>
-    <button class="nav-item" onclick="nav('p4')" id="nav-p4"><span class="proj-dot" style="background:#993556"></span>Fixed Asset Accounting</button>
-    <button class="nav-item" onclick="nav('p5')" id="nav-p5"><span class="proj-dot" style="background:#0F6E56"></span>Procure To Pay</button>
+    <div class="sec-label" id="projects-section-label">Projects</div>
+    <div id="projects-container"></div>
 
     <div class="sec-label">Insights</div>
     <button class="nav-item" onclick="nav('analytics')" id="nav-analytics">
@@ -338,6 +337,10 @@ code { font-family: monospace; font-size: 12px; background: var(--bg3); padding:
     <button class="nav-item" onclick="nav('team')" id="nav-team">
       <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
       Team View
+    </button>
+    <button class="nav-item" onclick="nav('phase-timeline')" id="nav-phase-timeline">
+      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 3v18h18"/><path d="M18 17V9"/><path d="M13 17V5"/><path d="M8 17v-3"/></svg>
+      Project Phase
     </button>
 
     <div class="sec-label">Config</div>
@@ -394,9 +397,15 @@ code { font-family: monospace; font-size: 12px; background: var(--bg3); padding:
           <label>Short key (used for caching, e.g. MNM)</label>
           <input type="text" id="pmod-key" placeholder="e.g. MNM" style="padding:7px 10px;border:0.5px solid var(--border2);border-radius:var(--radius);background:var(--bg);color:var(--text);font-size:13px;font-family:inherit;width:100%;box-sizing:border-box" />
         </div>
-        <div class="field-row" style="margin-bottom:12px">
-          <label>Color</label>
-          <input type="color" id="pmod-color" value="#185FA5" style="height:36px;width:72px;border:0.5px solid var(--border2);border-radius:var(--radius);background:var(--bg);cursor:pointer;padding:2px" />
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:12px">
+          <div class="field-row">
+            <label>Color</label>
+            <input type="color" id="pmod-color" value="#185FA5" style="height:36px;width:100%;border:0.5px solid var(--border2);border-radius:var(--radius);background:var(--bg);cursor:pointer;padding:2px" />
+          </div>
+          <div class="field-row">
+            <label>Category</label>
+            <input type="text" id="pmod-category" placeholder="e.g. Core Modules" style="padding:7px 10px;border:0.5px solid var(--border2);border-radius:var(--radius);background:var(--bg);color:var(--text);font-size:13px;font-family:inherit;width:100%;box-sizing:border-box" />
+          </div>
         </div>
         <div class="field-row" style="margin-bottom:18px">
           <label>JQL query</label>
@@ -573,6 +582,47 @@ code { font-family: monospace; font-size: 12px; background: var(--bg3); padding:
         </div>
       </div>
 
+      <!-- Project Phase -->
+      <div class="page" id="page-phase-timeline">
+        <div style="max-width:1400px">
+          <div style="display:flex;align-items:flex-start;justify-content:space-between;margin-bottom:18px;gap:20px">
+            <div style="flex:1">
+              <h2 style="font-size:18px;font-weight:600;margin-bottom:3px">Project Phase Timeline</h2>
+              <p style="font-size:13px;color:var(--text2)">Track ticket completion over time across all projects.</p>
+            </div>
+            <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;justify-content:flex-end">
+              <div class="ms-wrap">
+                <button class="ms-btn" id="phase-project-filter-btn" onclick="togglePhaseProjectFilter()">
+                  <span id="phase-project-filter-label">All Projects</span>
+                  <span class="ms-badge" id="phase-project-filter-count" style="display:none">0</span>
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"/></svg>
+                </button>
+                <div class="ms-dropdown" id="phase-project-filter-dropdown">
+                  <div class="ms-options" id="phase-project-filter-options"></div>
+                  <div class="ms-footer">
+                    <button onclick="clearPhaseProjectFilter()">Clear</button>
+                    <button onclick="selectAllPhaseProjects()">Select All</button>
+                  </div>
+                </div>
+              </div>
+              <select id="phase-period" class="section-control" onchange="renderPhaseTimeline()">
+                <option value="day">By Day</option>
+                <option value="week" selected>By Week</option>
+                <option value="month">By Month</option>
+              </select>
+              <select id="phase-range" class="section-control" onchange="renderPhaseTimeline()">
+                <option value="30">Last 30 days</option>
+                <option value="60" selected>Last 60 days</option>
+                <option value="90">Last 90 days</option>
+                <option value="180">Last 6 months</option>
+                <option value="365">Last year</option>
+              </select>
+            </div>
+          </div>
+          <div id="phase-timeline-content"></div>
+        </div>
+      </div>
+
       <!-- Daily Progress -->
       <div class="page" id="page-log">
         <div style="max-width:860px">
@@ -617,18 +667,20 @@ function getPhaseForStatus(statusName) {
 }
 
 const PROJECTS = [
-  { id:'p0', name:'Lease Accounting 6.x',    key:'NFS', color:'#185FA5',
+  { id:'p0', name:'Lease Accounting 6.x',    key:'NFS', color:'#185FA5', category: 'Core Modules',
     jql:'project in (NFS) AND issuetype in (Enhancement, Epic) AND fixVersion = N2026.R2 ORDER BY "Scope Commitment At SC", status DESC, Priority DESC' },
-  { id:'p1', name:'FOS, Sync Bot & User Aux', key:'FCO', color:'#3B6D11',
+  { id:'p1', name:'FOS, Sync Bot & User Aux', key:'FCO', color:'#3B6D11', category: 'Infrastructure',
     jql:'project in (FCO) AND issuetype in (Enhancement, Epic) AND fixVersion = N2026.R2 ORDER BY "Scope Commitment At SC", status DESC, Priority DESC' },
-  { id:'p2', name:'SAP Posting Bot',          key:'INC', color:'#c47a0f',
+  { id:'p2', name:'SAP Posting Bot',          key:'INC', color:'#c47a0f', category: 'Infrastructure',
     jql:'project in (INC) AND issuetype in (Enhancement, Epic) AND fixVersion = N2026.R2 ORDER BY "Scope Commitment At SC", status DESC, Priority DESC' },
-  { id:'p3', name:'General Ledger',           key:'GL',  color:'#533AB7',
+  { id:'p3', name:'General Ledger',           key:'GL',  color:'#533AB7', category: 'Core Modules',
     jql:'project in (GL) AND issuetype in (Enhancement, Epic) AND fixVersion = N2026.R2 ORDER BY "Scope Commitment At SC", status desc, Priority DESC' },
-  { id:'p4', name:'Fixed Asset Accounting',   key:'FAA', color:'#993556',
+  { id:'p4', name:'Fixed Asset Accounting',   key:'FAA', color:'#993556', category: 'Core Modules',
     jql:'project in (FAA) AND issuetype in (Enhancement, Epic) AND fixVersion = N2026.R2 ORDER BY "Scope Commitment At SC" asc, status desc, Priority DESC' },
-  { id:'p5', name:'Procure To Pay',           key:'P2P', color:'#0F6E56',
+  { id:'p5', name:'Procure To Pay',           key:'P2P', color:'#0F6E56', category: 'Core Modules',
     jql:'project in (P2P) AND issuetype in (Enhancement) AND fixVersion = N2026.R2 ORDER BY "Scope Commitment At SC", status desc, Priority DESC' },
+  { id:'p6', name:'Open Bugs (All Projects)', key:'BUGS', color:'#D32F2F', category: 'Quality',
+    jql:'project in (NFS, GL, FCO, FAA, INC, P2P) AND issuetype = Bug AND status not in (QA, PQA, "Pending DEP", "EOA Pending", Closed, Done, Resolved, Cancelled, "Won\'t Fix") ORDER BY priority DESC, created DESC' },
 ];
 
 const ALL_FIELDS = [
@@ -770,6 +822,9 @@ function nav(id) {
   } else if (id === 'team') {
     document.getElementById('topbar-title').textContent = 'Team View';
     renderTeam();
+  } else if (id === 'phase-timeline') {
+    document.getElementById('topbar-title').textContent = 'Project Phase Timeline';
+    renderPhaseTimeline();
   } else if (id === 'log') {
     document.getElementById('topbar-title').textContent = 'Daily Progress';
     renderLog();
@@ -981,8 +1036,13 @@ async function fetchIssues(proj) {
   const { url, email, token } = S.creds;
   if (!url) return { err: 'not_configured' };
 
-  // Request all navigable fields so we always get data regardless of custom field ID configuration.
-  const body = JSON.stringify({ jql: getProjectJql(proj), fields: ['*navigable'], maxResults: 100 });
+  // Request all navigable fields and expand changelog for history tracking
+  const body = JSON.stringify({ 
+    jql: getProjectJql(proj), 
+    fields: ['*navigable'], 
+    expand: 'changelog',
+    maxResults: 100 
+  });
   try {
     const auth = btoa(unescape(encodeURIComponent(S.creds.email + ':' + S.creds.token)));
     const proxyUrl = PROXY + '?target=' + encodeURIComponent(url + '/rest/api/3/search/jql');
@@ -2273,6 +2333,434 @@ function clearLog() {
   renderLog();
 }
 
+// ── Project Phase Timeline ────────────────────────────────────────────────────
+function renderPhaseTimeline() {
+  const contentEl = document.getElementById('phase-timeline-content');
+  if (!contentEl) return;
+
+  const period = document.getElementById('phase-period').value;
+  const range = parseInt(document.getElementById('phase-range').value);
+  
+  // Gather all issues from all loaded projects
+  const loaded = getAllProjects().filter(p => S.cache[p.key] && !S.cache[p.key].err);
+  if (!loaded.length) {
+    contentEl.innerHTML = '<div class="info-box">No project data loaded. Click "Refresh All" to load data.</div>';
+    buildPhaseProjectFilterOptions(loaded);
+    return;
+  }
+
+  // Build filter options if not already built
+  buildPhaseProjectFilterOptions(loaded);
+
+  // Get selected projects for filtering
+  const selectedProjects = getSelectedPhaseProjects();
+  const filteredProjects = selectedProjects.size > 0 
+    ? loaded.filter(p => selectedProjects.has(p.key))
+    : loaded;
+
+  const allIssues = [];
+  filteredProjects.forEach(proj => {
+    const issues = S.cache[proj.key].issues || [];
+    issues.forEach(issue => {
+      allIssues.push({ proj, issue });
+    });
+  });
+
+  // Get current date and range start date
+  const now = new Date();
+  const rangeStart = new Date(now.getTime() - (range * 24 * 60 * 60 * 1000));
+
+  // Parse changelog to find when tickets moved to "done" statuses (QA or Closed phases)
+  const completionData = [];
+  allIssues.forEach(({ proj, issue }) => {
+    const changelog = issue.changelog?.histories || [];
+    
+    // Check current status - is it in QA or Closed?
+    const currentStatus = issue.fields?.status?.name || '';
+    const currentPhase = getPhaseForStatus(currentStatus);
+    const isDone = currentPhase && (currentPhase.label === 'QA' || currentPhase.label === 'Closed');
+    
+    // Find when the ticket moved to a "done" status (QA or Closed)
+    let completionDate = null;
+    for (let i = changelog.length - 1; i >= 0; i--) {
+      const history = changelog[i];
+      const statusChanges = (history.items || []).filter(item => 
+        item.field === 'status' && item.toString
+      );
+      
+      for (const change of statusChanges) {
+        const toStatus = change.toString;
+        const toPhase = getPhaseForStatus(toStatus);
+        if (toPhase && (toPhase.label === 'QA' || toPhase.label === 'Closed')) {
+          const changeDate = new Date(history.created);
+          if (changeDate >= rangeStart && changeDate <= now) {
+            completionDate = changeDate;
+            break;
+          }
+        }
+      }
+      if (completionDate) break;
+    }
+    
+    if (completionDate) {
+      completionData.push({
+        proj,
+        issue,
+        completionDate,
+        key: issue.key,
+        summary: issue.fields?.summary || '',
+        status: currentStatus,
+        phase: currentPhase
+      });
+    }
+  });
+
+  if (completionData.length === 0) {
+    contentEl.innerHTML = '<div class="info-box">No tickets completed in the selected time range.</div>';
+    return;
+  }
+
+  // Group by time period
+  const periodMap = {};
+  completionData.forEach(item => {
+    let periodKey;
+    const d = item.completionDate;
+    
+    if (period === 'day') {
+      periodKey = d.toISOString().split('T')[0]; // YYYY-MM-DD
+    } else if (period === 'week') {
+      // Get ISO week number
+      const weekStart = new Date(d);
+      weekStart.setDate(d.getDate() - d.getDay()); // Start of week (Sunday)
+      periodKey = weekStart.toISOString().split('T')[0];
+    } else if (period === 'month') {
+      periodKey = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+    }
+    
+    if (!periodMap[periodKey]) {
+      periodMap[periodKey] = {
+        key: periodKey,
+        date: d,
+        tickets: [],
+        byProject: {},
+        byPhase: {}
+      };
+    }
+    
+    periodMap[periodKey].tickets.push(item);
+    
+    // Count by project
+    const projKey = item.proj.key;
+    if (!periodMap[periodKey].byProject[projKey]) {
+      periodMap[periodKey].byProject[projKey] = { name: item.proj.name, color: item.proj.color, count: 0 };
+    }
+    periodMap[periodKey].byProject[projKey].count++;
+    
+    // Count by phase
+    const phaseLabel = item.phase?.label || 'Other';
+    if (!periodMap[periodKey].byPhase[phaseLabel]) {
+      periodMap[periodKey].byPhase[phaseLabel] = { color: item.phase?.color || '#888780', count: 0 };
+    }
+    periodMap[periodKey].byPhase[phaseLabel].count++;
+  });
+
+  // Sort by date
+  const periods = Object.values(periodMap).sort((a, b) => a.date - b.date);
+
+  // Build table
+  const rows = periods.map(p => {
+    const dateLabel = formatPeriodLabel(p.key, period);
+    const total = p.tickets.length;
+    
+    // Build project breakdown
+    const projectBreakdown = Object.entries(p.byProject)
+      .map(([key, data]) => `<span style="display:inline-flex;align-items:center;gap:4px;margin-right:10px"><span style="width:8px;height:8px;border-radius:50%;background:${data.color}"></span><span style="font-size:11px">${esc(data.name)}: ${data.count}</span></span>`)
+      .join('');
+    
+    // Build phase breakdown
+    const phaseBreakdown = Object.entries(p.byPhase)
+      .map(([label, data]) => `<span style="display:inline-flex;align-items:center;gap:4px;margin-right:10px"><span style="width:8px;height:8px;border-radius:50%;background:${data.color}"></span><span style="font-size:11px">${esc(label)}: ${data.count}</span></span>`)
+      .join('');
+    
+    return `<tr class="period-summary-row" onclick="togglePeriodDetails('${esc(p.key)}')" style="cursor:pointer">
+      <td style="font-weight:600">${esc(dateLabel)}</td>
+      <td style="text-align:center;font-size:16px;font-weight:700;color:var(--blue)">${total}</td>
+      <td style="font-size:12px">${projectBreakdown}</td>
+      <td style="font-size:12px">${phaseBreakdown}</td>
+      <td style="text-align:center">
+        <svg class="expand-icon period-expand-${esc(p.key)}" style="width:14px;height:14px;transition:transform .2s" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+          <polyline points="9 18 15 12 9 6"/>
+        </svg>
+      </td>
+    </tr>
+    <tr class="period-details period-details-${esc(p.key)} hidden">
+      <td colspan="5" style="padding:0;background:var(--bg3)">
+        <div style="padding:14px 20px">
+          <table class="issues" style="width:100%;font-size:12px">
+            <thead>
+              <tr>
+                <th style="width:120px">Key</th>
+                <th>Summary</th>
+                <th style="width:140px">Project</th>
+                <th style="width:100px">Status</th>
+                <th style="width:140px">Completed</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${p.tickets.map(t => {
+                const link = S.creds.url ? S.creds.url + '/browse/' + t.key : '#';
+                return `<tr onclick="window.open('${link}','_blank');event.stopPropagation()" style="cursor:pointer">
+                  <td><span class="key-link">${esc(t.key)}</span></td>
+                  <td style="max-width:300px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(t.summary)}</td>
+                  <td><span style="display:inline-flex;align-items:center;gap:6px"><span style="width:8px;height:8px;border-radius:50%;background:${t.proj.color}"></span>${esc(t.proj.name)}</span></td>
+                  <td>${esc(t.status)}</td>
+                  <td style="font-size:11px;color:var(--text3)">${formatDateTime(t.completionDate)}</td>
+                </tr>`;
+              }).join('')}
+            </tbody>
+          </table>
+        </div>
+      </td>
+    </tr>`;
+  }).join('');
+
+  // Build trend chart data
+  const chartLabels = periods.map(p => formatPeriodLabel(p.key, period));
+  const chartData = periods.map(p => p.tickets.length);
+  const periodKeys = periods.map(p => p.key);
+
+  contentEl.innerHTML = `
+    <div class="card" style="margin-bottom:20px">
+      <h3 style="font-size:15px;font-weight:600;margin-bottom:4px">Completion Trend</h3>
+      <p style="font-size:12px;color:var(--text3);margin-bottom:14px">Click on data points to expand period details below</p>
+      <div style="position:relative;width:100%;height:280px">
+        <canvas id="phase-timeline-chart"></canvas>
+      </div>
+    </div>
+    
+    <div class="card">
+      <h3 style="font-size:15px;font-weight:600;margin-bottom:14px">Completed Tickets (${completionData.length} total)</h3>
+      <table class="pipeline-table" style="margin-bottom:0">
+        <thead>
+          <tr>
+            <th style="width:200px">Period</th>
+            <th style="width:100px;text-align:center">Total</th>
+            <th>By Project</th>
+            <th>By Phase</th>
+            <th style="width:50px"></th>
+          </tr>
+        </thead>
+        <tbody>${rows}</tbody>
+      </table>
+    </div>
+  `;
+
+  // Render chart with click handler
+  const ctx = document.getElementById('phase-timeline-chart');
+  if (ctx) {
+    if (S.charts.phaseTimeline) S.charts.phaseTimeline.destroy();
+    S.charts.phaseTimeline = new Chart(ctx, {
+      type: 'line',
+      data: {
+        labels: chartLabels,
+        datasets: [{
+          label: 'Tickets Completed',
+          data: chartData,
+          borderColor: '#185FA5',
+          backgroundColor: 'rgba(24, 95, 165, 0.1)',
+          borderWidth: 2,
+          fill: true,
+          tension: 0.3,
+          pointRadius: 6,
+          pointHoverRadius: 8,
+          pointBackgroundColor: '#185FA5',
+          pointBorderColor: '#fff',
+          pointBorderWidth: 2,
+          pointHoverBackgroundColor: '#0d4275',
+          pointHoverBorderColor: '#fff'
+        }]
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        scales: {
+          y: {
+            beginAtZero: true,
+            ticks: { precision: 0 }
+          }
+        },
+        plugins: {
+          legend: { display: false },
+          tooltip: {
+            callbacks: {
+              label: (context) => ` ${context.parsed.y} tickets completed`
+            }
+          }
+        },
+        onClick: (event, elements) => {
+          if (elements.length > 0) {
+            const index = elements[0].index;
+            const periodKey = periodKeys[index];
+            // Expand the corresponding period details
+            const detailRow = document.querySelector(`.period-details-${periodKey}`);
+            const expandIcon = document.querySelector(`.period-expand-${periodKey}`);
+            if (detailRow && detailRow.classList.contains('hidden')) {
+              togglePeriodDetails(periodKey);
+            }
+            // Scroll to the row
+            const summaryRow = document.querySelector(`.period-summary-row`);
+            if (summaryRow) {
+              detailRow.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+            }
+          }
+        }
+      }
+    });
+  }
+}
+
+function buildPhaseProjectFilterOptions(projects) {
+  const optionsEl = document.getElementById('phase-project-filter-options');
+  if (!optionsEl) return;
+  
+  // Only rebuild if needed
+  if (optionsEl.children.length > 0) return;
+  
+  optionsEl.innerHTML = projects.map(proj => `
+    <label class="ms-option">
+      <input type="checkbox" value="${esc(proj.key)}" onchange="updatePhaseProjectFilter()">
+      <span class="ms-option-label">
+        <span style="width:8px;height:8px;border-radius:50%;background:${proj.color};display:inline-block;margin-right:6px"></span>
+        ${esc(proj.name)}
+      </span>
+    </label>
+  `).join('');
+}
+
+function togglePhaseProjectFilter() {
+  const dropdown = document.getElementById('phase-project-filter-dropdown');
+  dropdown.classList.toggle('open');
+  
+  // Close on outside click
+  if (dropdown.classList.contains('open')) {
+    setTimeout(() => {
+      document.addEventListener('click', closePhaseProjectFilterOnOutside);
+    }, 0);
+  }
+}
+
+function closePhaseProjectFilterOnOutside(e) {
+  const dropdown = document.getElementById('phase-project-filter-dropdown');
+  const btn = document.getElementById('phase-project-filter-btn');
+  if (!dropdown.contains(e.target) && !btn.contains(e.target)) {
+    dropdown.classList.remove('open');
+    document.removeEventListener('click', closePhaseProjectFilterOnOutside);
+  }
+}
+
+function getSelectedPhaseProjects() {
+  const optionsEl = document.getElementById('phase-project-filter-options');
+  if (!optionsEl) return new Set();
+  
+  const selected = new Set();
+  optionsEl.querySelectorAll('input[type="checkbox"]:checked').forEach(cb => {
+    selected.add(cb.value);
+  });
+  return selected;
+}
+
+function updatePhaseProjectFilter() {
+  const selected = getSelectedPhaseProjects();
+  const btn = document.getElementById('phase-project-filter-btn');
+  const label = document.getElementById('phase-project-filter-label');
+  const badge = document.getElementById('phase-project-filter-count');
+  
+  if (selected.size === 0) {
+    label.textContent = 'All Projects';
+    badge.style.display = 'none';
+    btn.classList.remove('has-selection');
+  } else {
+    label.textContent = 'Projects';
+    badge.textContent = selected.size;
+    badge.style.display = '';
+    btn.classList.add('has-selection');
+  }
+  
+  renderPhaseTimeline();
+}
+
+function clearPhaseProjectFilter() {
+  const optionsEl = document.getElementById('phase-project-filter-options');
+  if (!optionsEl) return;
+  
+  optionsEl.querySelectorAll('input[type="checkbox"]').forEach(cb => {
+    cb.checked = false;
+  });
+  
+  updatePhaseProjectFilter();
+}
+
+function selectAllPhaseProjects() {
+  const optionsEl = document.getElementById('phase-project-filter-options');
+  if (!optionsEl) return;
+  
+  optionsEl.querySelectorAll('input[type="checkbox"]').forEach(cb => {
+    cb.checked = true;
+  });
+  
+  updatePhaseProjectFilter();
+}
+
+function togglePeriodDetails(periodKey) {
+  const rows = document.querySelectorAll(`.period-details-${periodKey}`);
+  const icon = document.querySelector(`.period-expand-${periodKey}`);
+  
+  if (!rows.length) return;
+  
+  const isHidden = rows[0].classList.contains('hidden');
+  rows.forEach(row => {
+    if (isHidden) {
+      row.classList.remove('hidden');
+    } else {
+      row.classList.add('hidden');
+    }
+  });
+  
+  if (icon) {
+    if (isHidden) {
+      icon.style.transform = 'rotate(90deg)';
+    } else {
+      icon.style.transform = '';
+    }
+  }
+}
+
+function formatPeriodLabel(key, period) {
+  if (period === 'day') {
+    const d = new Date(key);
+    return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+  } else if (period === 'week') {
+    const d = new Date(key);
+    const endDate = new Date(d.getTime() + (6 * 24 * 60 * 60 * 1000));
+    return `Week of ${d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })} - ${endDate.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}`;
+  } else if (period === 'month') {
+    const [year, month] = key.split('-');
+    const d = new Date(year, parseInt(month) - 1, 1);
+    return d.toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
+  }
+  return key;
+}
+
+function formatDateTime(date) {
+  return date.toLocaleDateString('en-US', { 
+    month: 'short', 
+    day: 'numeric', 
+    year: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit'
+  });
+}
+
 function renderLog() {
   const body = document.getElementById('log-body');
   if (!body) return;
@@ -2408,43 +2896,60 @@ function esc(s) { return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;'
 function rebuildDynamicUI() {
   const sidebar  = document.getElementById('sidebar');
   const content  = document.getElementById('content');
-  const secLabels = sidebar.querySelectorAll('.sec-label');
-  const projectLabel = secLabels[0] || null;
-  const projectSectionEnd = secLabels[1] || null; // "Insights" label
+  const projectsContainer = document.getElementById('projects-container');
 
-  // Hide/show built-in nav items according to settings.
-  PROJECTS.forEach(p => {
-    const navEl = document.getElementById('nav-' + p.id);
-    if (navEl) navEl.style.display = isProjectVisible(p) ? '' : 'none';
+  // Remove old project pages
+  document.querySelectorAll('.custom-proj-page, .builtin-proj-page').forEach(el => el.remove());
+
+  // Get all visible projects
+  const allProjects = getAllProjects();
+  
+  // Group projects by category
+  const categoryMap = {};
+  allProjects.forEach(proj => {
+    const category = proj.category || 'Uncategorized';
+    if (!categoryMap[category]) categoryMap[category] = [];
+    categoryMap[category].push(proj);
   });
 
-  // Remove old custom project nav items
-  sidebar.querySelectorAll('.custom-proj-nav').forEach(el => el.remove());
+  // Sort categories alphabetically
+  const sortedCategories = Object.keys(categoryMap).sort((a, b) => {
+    // Keep "Uncategorized" at the end
+    if (a === 'Uncategorized') return 1;
+    if (b === 'Uncategorized') return -1;
+    return a.localeCompare(b);
+  });
 
-  // Remove old custom project pages
-  document.querySelectorAll('.custom-proj-page').forEach(el => el.remove());
-
-  const custom = (S.customProjects || []).filter(isProjectVisible);
-  custom.forEach(proj => {
-    // Sidebar nav button
-    const btn = document.createElement('button');
-    btn.className = 'nav-item custom-proj-nav';
-    btn.id = 'nav-' + proj.id;
-    btn.onclick = () => nav(proj.id);
-    btn.innerHTML = `<span class="proj-dot" style="background:${esc(proj.color)}"></span>${esc(proj.name)}`;
-    if (projectSectionEnd) sidebar.insertBefore(btn, projectSectionEnd);
-    else if (projectLabel) projectLabel.insertAdjacentElement('afterend', btn);
-    else sidebar.appendChild(btn);
-
-    // Page div
-    const page = document.createElement('div');
-    page.className = 'page custom-proj-page';
-    page.id = 'page-' + proj.id;
-    content.appendChild(page);
+  // Build sidebar grouped by category
+  projectsContainer.innerHTML = '';
+  sortedCategories.forEach(category => {
+    const projects = categoryMap[category];
+    
+    // Add category label
+    const categoryLabel = document.createElement('div');
+    categoryLabel.className = 'category-label';
+    categoryLabel.textContent = category;
+    projectsContainer.appendChild(categoryLabel);
+    
+    // Add projects in this category
+    projects.forEach(proj => {
+      const btn = document.createElement('button');
+      btn.className = 'nav-item';
+      btn.id = 'nav-' + proj.id;
+      btn.onclick = () => nav(proj.id);
+      btn.innerHTML = `<span class="proj-dot" style="background:${esc(proj.color)}"></span>${esc(proj.name)}`;
+      projectsContainer.appendChild(btn);
+      
+      // Create page div
+      const page = document.createElement('div');
+      page.className = 'page ' + (isBuiltinProjectKey(proj.key) ? 'builtin-proj-page' : 'custom-proj-page');
+      page.id = 'page-' + proj.id;
+      content.appendChild(page);
+    });
   });
 
   // If user is on a project page that became hidden/disabled, redirect.
-  const currentProjectVisible = getAllProjects().some(p => p.id === S.page);
+  const currentProjectVisible = allProjects.some(p => p.id === S.page);
   if (!currentProjectVisible && /^p\d+$|^cp_/.test(S.page || '')) {
     nav(getDefaultProjectPage());
   }
@@ -2490,11 +2995,13 @@ function openProjectJqlModal(key) {
   document.getElementById('pmod-name').value  = proj.name;
   document.getElementById('pmod-key').value   = proj.key;
   document.getElementById('pmod-color').value = proj.color;
+  document.getElementById('pmod-category').value = proj.category || '';
   document.getElementById('pmod-jql').value   = getProjectJql(proj);
   document.getElementById('pmod-msg').textContent = '';
   document.getElementById('pmod-name').disabled = true;
   document.getElementById('pmod-key').disabled = true;
   document.getElementById('pmod-color').disabled = true;
+  document.getElementById('pmod-category').disabled = true;
   document.getElementById('proj-modal-overlay').style.display = 'flex';
 }
 
@@ -2507,10 +3014,12 @@ function renderProjectsConfig() {
     const enabled = isProjectEnabled(p.key) && !removed;
     const effectiveJql = getProjectJql(p);
     const hasOverride = effectiveJql !== p.jql;
+    const category = p.category || 'Uncategorized';
     return `
     <div style="display:flex;align-items:center;gap:10px;padding:10px 14px;background:var(--bg2);border:0.5px solid var(--border);border-radius:var(--radius);font-size:13px;${removed ? 'opacity:.65' : ''}">
       <span style="width:10px;height:10px;border-radius:50%;background:${p.color};flex-shrink:0"></span>
       <span style="font-weight:500;flex:0 0 180px">${esc(p.name)}</span>
+      <span style="font-size:11px;color:var(--text3);flex:0 0 100px">${esc(category)}</span>
       <span style="font-size:11px;color:var(--text3);font-family:monospace;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;flex:1" title="${esc(effectiveJql)}">${esc(effectiveJql)}</span>
       ${hasOverride ? '<span style="font-size:10px;color:var(--blue);background:var(--blue-bg);padding:2px 8px;border-radius:999px;flex-shrink:0">JQL edited</span>' : ''}
       <label style="display:flex;align-items:center;gap:6px;font-size:11px;color:var(--text3);flex-shrink:0"><input type="checkbox" ${enabled ? 'checked' : ''} ${removed ? 'disabled' : ''} onchange="setProjectEnabled('${p.key}', this.checked)">Enabled</label>
@@ -2537,12 +3046,14 @@ function renderProjectsConfig() {
     const enabled = isProjectEnabled(p.key);
     const effectiveJql = getProjectJql(p);
     const hasOverride = effectiveJql !== p.jql;
+    const category = p.category || 'Uncategorized';
     const row = document.createElement('div');
     row.className = 'custom-proj-row';
     row.style.cssText = 'display:flex;align-items:center;gap:10px;padding:10px 14px;background:var(--bg2);border:0.5px solid var(--border2);border-radius:var(--radius);font-size:13px';
     row.innerHTML = `
       <span style="width:10px;height:10px;border-radius:50%;background:${esc(p.color)};flex-shrink:0"></span>
       <span style="font-weight:500;flex:0 0 180px">${esc(p.name)}</span>
+      <span style="font-size:11px;color:var(--text3);flex:0 0 100px">${esc(category)}</span>
       <span style="font-size:11px;color:var(--text3);font-family:monospace;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;flex:1" title="${esc(effectiveJql)}">${esc(effectiveJql)}</span>
       ${hasOverride ? '<span style="font-size:10px;color:var(--blue);background:var(--blue-bg);padding:2px 8px;border-radius:999px;flex-shrink:0">JQL edited</span>' : ''}
       <label style="display:flex;align-items:center;gap:6px;font-size:11px;color:var(--text3);flex-shrink:0"><input type="checkbox" ${enabled ? 'checked' : ''} onchange="setProjectEnabled('${p.key}', this.checked)">Enabled</label>
@@ -2567,11 +3078,13 @@ function openProjectModal(editIdx) {
   document.getElementById('pmod-name').value  = proj ? proj.name  : '';
   document.getElementById('pmod-key').value   = proj ? proj.key   : '';
   document.getElementById('pmod-color').value = proj ? proj.color : PROJECT_COLORS[((S.customProjects||[]).length) % PROJECT_COLORS.length];
+  document.getElementById('pmod-category').value = proj ? (proj.category || '') : '';
   document.getElementById('pmod-jql').value   = proj ? proj.jql   : '';
   document.getElementById('pmod-msg').textContent = '';
   document.getElementById('pmod-name').disabled = false;
   document.getElementById('pmod-key').disabled = isEdit; // key is immutable after creation
   document.getElementById('pmod-color').disabled = false;
+  document.getElementById('pmod-category').disabled = false;
   const overlay = document.getElementById('proj-modal-overlay');
   overlay.style.display = 'flex';
 }
@@ -2587,6 +3100,7 @@ function saveProjectModal() {
   const name  = document.getElementById('pmod-name').value.trim();
   const key   = document.getElementById('pmod-key').value.trim().toUpperCase();
   const color = document.getElementById('pmod-color').value;
+  const category = document.getElementById('pmod-category').value.trim();
   const jql   = document.getElementById('pmod-jql').value.trim();
   const msgEl = document.getElementById('pmod-msg');
 
@@ -2616,7 +3130,7 @@ function saveProjectModal() {
   }
 
   const id = 'cp_' + key.toLowerCase();
-  const proj = { id, name, key, color, jql };
+  const proj = { id, name, key, color, category: category || 'Uncategorized', jql };
 
   if (isEdit) {
     S.customProjects[_editingProjIdx] = proj;
