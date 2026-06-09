@@ -40,6 +40,14 @@ CUSTOM FIELD IDs
 FEATURES
 --------
   - Project pages with live Jira data
+  - Smart pagination with batch-by-batch control
+    * First 100 issues load automatically
+    * After each batch, prompts to load next 100 issues
+    * Shows progress: "Fetched X of Y, load next 100?"
+    * User can stop at any batch by clicking Cancel
+    * "Load All" button available to fetch remaining without prompts
+    * Works consistently for both individual projects and "Refresh All"
+    * Cancel button available during refresh operations
   - Configurable columns (toggle fields on/off)
   - Custom field ID mapping
   - Analytics page: status / priority / issue-type charts per project

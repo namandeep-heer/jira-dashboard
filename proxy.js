@@ -31,6 +31,11 @@ app.get('/', (req, res) => {
   res.sendFile(path.join(__dirname, 'dashboard.html'));
 });
 
+// ── Health check endpoint ─────────────────────────────────────────────────────
+app.get('/health', (req, res) => {
+  res.status(200).json({ status: 'ok', message: 'Proxy is running' });
+});
+
 // ── Proxy route: /jira-api/<encoded-jira-base-url>/<rest-of-path> ────────────
 //
 // The dashboard calls:

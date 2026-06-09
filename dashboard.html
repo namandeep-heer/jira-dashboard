@@ -377,10 +377,13 @@ code { font-family: monospace; font-size: 12px; background: var(--bg3); padding:
 
     <div id="refresh-overlay" class="hidden">
       <div class="refresh-modal">
-        <h3>Refreshing all projects…</h3>
+        <h3 id="refresh-title">Refreshing all projects…</h3>
         <div id="refresh-rows"></div>
         <div class="refresh-bar-wrap"><div class="refresh-bar" id="refresh-bar" style="width:0%"></div></div>
-        <div style="font-size:12px;color:var(--text3);text-align:right" id="refresh-summary">0 / …</div>
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-top:10px;">
+          <div style="font-size:12px;color:var(--text3);" id="refresh-summary">0 / …</div>
+          <button class="btn btn-sm" id="refresh-cancel-btn" onclick="cancelRefresh()" style="display:none;">Cancel</button>
+        </div>
       </div>
     </div>
 
@@ -813,15 +816,22 @@ async function checkProxy() {
   const text = document.getElementById('proxy-status-text');
   const ind  = document.getElementById('proxy-indicator');
   try {
-    const r = await fetch(PROXY + '?target=http://localhost:3131/health', { signal: AbortSignal.timeout(2000) }).catch(() => null);
-    // If proxy is running, even a 502 from forwarding means the proxy itself answered
-    dot.className = 'dot-ok';
-    text.textContent = 'Proxy running on port 3131';
-    ind.innerHTML = '<span style="font-size:12px;color:var(--green);display:flex;align-items:center;gap:5px"><span style="width:7px;height:7px;border-radius:50%;background:var(--green);display:inline-block"></span>Proxy online</span>';
+    const r = await fetch('http://localhost:3131/health', { 
+      signal: AbortSignal.timeout(2000),
+      method: 'GET'
+    });
+    // If proxy is running and responds
+    if (r && r.ok) {
+      dot.className = 'dot-ok';
+      text.textContent = 'Proxy running on port 3131';
+      if (ind) ind.innerHTML = '<span style="font-size:12px;color:var(--green);display:flex;align-items:center;gap:5px"><span style="width:7px;height:7px;border-radius:50%;background:var(--green);display:inline-block"></span>Proxy online</span>';
+    } else {
+      throw new Error('Proxy responded with error');
+    }
   } catch(e) {
     dot.className = 'dot-err';
     text.textContent = 'Proxy not running — start it with: node proxy.js';
-    ind.innerHTML = '<span style="font-size:12px;color:var(--red);display:flex;align-items:center;gap:5px"><span style="width:7px;height:7px;border-radius:50%;background:var(--red);display:inline-block"></span>Proxy offline</span>';
+    if (ind) ind.innerHTML = '<span style="font-size:12px;color:var(--red);display:flex;align-items:center;gap:5px"><span style="width:7px;height:7px;border-radius:50%;background:var(--red);display:inline-block"></span>Proxy offline</span>';
   }
 }
 
@@ -874,6 +884,8 @@ async function refreshAll() {
   const barEl   = document.getElementById('refresh-bar');
   const summEl  = document.getElementById('refresh-summary');
   const btn     = document.getElementById('refresh-btn');
+  const cancelBtn = document.getElementById('refresh-cancel-btn');
+  const titleEl = document.getElementById('refresh-title');
 
   const allProjects = getAllProjects();
   if (!allProjects.length) {
@@ -894,6 +906,12 @@ async function refreshAll() {
   barEl.style.width = '0%';
   overlay.classList.remove('hidden');
   btn.disabled = true;
+  cancelBtn.style.display = 'inline-flex';
+  titleEl.textContent = 'Refreshing projects…';
+
+  // Flag to track cancellation
+  let cancelled = false;
+  window._refreshCancelled = false;
 
   // Snapshot old cache for diffing
   const oldCache = {};
@@ -934,11 +952,18 @@ async function refreshAll() {
 
   // Fetch sequentially to avoid hammering Jira rate limits
   for (const proj of allProjects) {
+    // Check if cancelled
+    if (window._refreshCancelled) {
+      cancelled = true;
+      break;
+    }
+
     const statusEl = document.getElementById('rstatus-' + proj.key);
     statusEl.className = 'refresh-status loading';
     statusEl.textContent = 'Loading…';
 
-    const data = await fetchIssues(proj);
+    // Call fetchIssues without autoFetchAll - will prompt batch-by-batch
+    const data = await fetchIssues(proj, false);
 
     done++;
     barEl.style.width = Math.round(done / allProjects.length * 100) + '%';
@@ -947,7 +972,12 @@ async function refreshAll() {
     if (data && !data.err) {
       S.cache[proj.key] = data;
       statusEl.className = 'refresh-status ok';
-      statusEl.textContent = `✓ ${(data.issues||[]).length} issues`;
+      const issueCount = (data.issues||[]).length;
+      const totalCount = data.total || issueCount;
+      const statusMsg = data.partial 
+        ? `⚠ ${issueCount} of ${totalCount} issues (partial)`
+        : `✓ ${issueCount} issues`;
+      statusEl.textContent = statusMsg;
 
       // Diff against old snapshot
       const changes = [];
@@ -975,6 +1005,11 @@ async function refreshAll() {
     }
   }
 
+  // Update title if cancelled
+  if (cancelled) {
+    titleEl.textContent = 'Refresh cancelled';
+  }
+
   // Save log entry (keep last 20)
   if (Object.keys(logEntry.projects).length) {
     S.log.unshift(logEntry);
@@ -988,12 +1023,32 @@ async function refreshAll() {
   await new Promise(r => setTimeout(r, 900));
   overlay.classList.add('hidden');
   btn.disabled = false;
+  cancelBtn.style.display = 'none';
+  window._refreshCancelled = false;
 
   // Re-render current view
   const proj = getAllProjects().find(p => p.id === S.page);
   if (proj) renderProject(proj);
   else if (S.page === 'analytics') renderAnalytics();
   else if (S.page === 'log') renderLog();
+}
+
+function cancelRefresh() {
+  window._refreshCancelled = true;
+  const cancelBtn = document.getElementById('refresh-cancel-btn');
+  if (cancelBtn) {
+    cancelBtn.disabled = true;
+    cancelBtn.textContent = 'Cancelling...';
+  }
+}
+
+function cancelRefresh() {
+  window._refreshCancelled = true;
+  const cancelBtn = document.getElementById('refresh-cancel-btn');
+  if (cancelBtn) {
+    cancelBtn.disabled = true;
+    cancelBtn.textContent = 'Cancelling...';
+  }
 }
 
 // ── Credentials ──────────────────────────────────────────────────────────────
@@ -1055,30 +1110,168 @@ function autoMapFieldsFromNames(names) {
   if (changed) persist();
 }
 
-async function fetchIssues(proj) {
+async function fetchIssues(proj, autoFetchAll = false) {
   const { url, email, token } = S.creds;
   if (!url) return { err: 'not_configured' };
 
-  // Request all navigable fields and expand changelog for history tracking
-  const body = JSON.stringify({ 
-    jql: getProjectJql(proj), 
-    fields: ['*navigable'], 
-    expand: 'changelog',
-    maxResults: 100 
-  });
+  const jql = getProjectJql(proj);
+  let allIssues = [];
+  let startAt = 0;
+  const maxResults = 100;
+  let nextPageToken = null;
+  let isLast = false;
+
   try {
-    const auth = btoa(unescape(encodeURIComponent(S.creds.email + ':' + S.creds.token)));
-    const proxyUrl = PROXY + '?target=' + encodeURIComponent(url + '/rest/api/3/search/jql');
-    const r = await fetch(proxyUrl, {
-      method: 'POST',
-      headers: { 'Authorization': 'Basic ' + auth, 'Accept': 'application/json', 'Content-Type': 'application/json' },
-      body,
-    });
-    if (!r.ok) { const t = await r.text().catch(()=>''); return { err: 'HTTP ' + r.status + (t ? ': ' + t.slice(0,300) : '') }; }
-    const json = await r.json();
-    return json;
+    const auth = btoa(unescape(encodeURIComponent(email + ':' + token)));
+    
+    // First fetch
+    const firstResponse = await fetchJiraBatch(url, auth, jql, startAt, maxResults, nextPageToken);
+    if (firstResponse.err) return firstResponse;
+    
+    allIssues = firstResponse.issues || [];
+    isLast = firstResponse.isLast !== false; // Default to true if not present
+    nextPageToken = firstResponse.nextPageToken;
+    
+    // Estimate total (JIRA /search/jql doesn't return total count)
+    const hasMore = !isLast && nextPageToken;
+    
+    console.log('[fetchIssues]', proj.name, '- First batch:', allIssues.length, 'hasMore:', hasMore, 'isLast:', isLast, 'autoFetchAll:', autoFetchAll);
+    
+    // If autoFetchAll is true, fetch all without prompting per batch
+    if (hasMore && autoFetchAll) {
+      console.log('[fetchIssues] Auto-fetch mode enabled, fetching all batches...');
+      
+      while (!isLast && nextPageToken) {
+        const batchResponse = await fetchJiraBatch(url, auth, jql, 0, maxResults, nextPageToken);
+        if (batchResponse.err) {
+          return {
+            issues: allIssues,
+            total: allIssues.length,
+            partial: true,
+            err: `Fetched ${allIssues.length} issues. Error on batch: ${batchResponse.err}`
+          };
+        }
+        
+        allIssues = allIssues.concat(batchResponse.issues || []);
+        isLast = batchResponse.isLast !== false;
+        nextPageToken = batchResponse.nextPageToken;
+      }
+      
+      return {
+        issues: allIssues,
+        total: allIssues.length,
+        maxResults: maxResults,
+        startAt: 0
+      };
+    }
+    
+    // Interactive mode: prompt for each batch
+    if (hasMore) {
+      console.log('[fetchIssues] Interactive mode - will prompt for batches');
+      let fetchedCount = allIssues.length;
+      
+      while (!isLast && nextPageToken) {
+        console.log('[fetchIssues] Prompting for next batch. Fetched:', fetchedCount, 'hasMore:', !isLast);
+        
+        const confirmed = confirm(
+          `📊 ${proj.name}\n\n` +
+          `Fetched ${fetchedCount} issues so far\n\n` +
+          `Load next batch of up to 100 issues?\n\n` +
+          `(Click Cancel to stop here)`
+        );
+        
+        console.log('[fetchIssues] User response:', confirmed ? 'Continue' : 'Stop');
+        
+        if (!confirmed) {
+          // User chose to stop, return what we have with partial flag
+          return {
+            issues: allIssues,
+            total: allIssues.length,
+            partial: true,
+            message: `Showing ${allIssues.length} issues (user stopped)`
+          };
+        }
+        
+        // Fetch next batch
+        const batchResponse = await fetchJiraBatch(url, auth, jql, 0, maxResults, nextPageToken);
+        if (batchResponse.err) {
+          return {
+            issues: allIssues,
+            total: allIssues.length,
+            partial: true,
+            err: `Fetched ${allIssues.length} issues. Error on batch: ${batchResponse.err}`
+          };
+        }
+        
+        allIssues = allIssues.concat(batchResponse.issues || []);
+        fetchedCount = allIssues.length;
+        isLast = batchResponse.isLast !== false;
+        nextPageToken = batchResponse.nextPageToken;
+        console.log('[fetchIssues] Batch fetched. Total now:', fetchedCount, 'isLast:', isLast);
+      }
+    }
+    
+    console.log('[fetchIssues] Complete. Total issues:', allIssues.length);
+    
+    return {
+      issues: allIssues,
+      total: allIssues.length,
+      maxResults: maxResults,
+      startAt: 0
+    };
+    
   } catch(e) {
     return { err: e.message + ' — is the proxy running? (node proxy.js)' };
+  }
+}
+
+async function fetchJiraBatch(url, auth, jql, startAt, maxResults, nextPageToken = null) {
+  // Match the exact format that works in the original code
+  const payload = { 
+    jql: jql, 
+    fields: ['*navigable'], 
+    expand: 'changelog',
+    maxResults: maxResults
+  };
+  
+  // Only add startAt if not using cursor pagination
+  if (!nextPageToken && startAt > 0) {
+    payload.startAt = startAt;
+  }
+  
+  // Add nextPageToken for cursor-based pagination
+  if (nextPageToken) {
+    payload.nextPageToken = nextPageToken;
+  }
+  
+  const body = JSON.stringify(payload);
+  
+  try {
+    const proxyUrl = PROXY + '?target=' + encodeURIComponent(url + '/rest/api/3/search/jql');
+    console.log('[fetchJiraBatch] Requesting:', { startAt, maxResults, nextPageToken: nextPageToken ? 'present' : 'null', jqlPreview: jql.substring(0, 80) });
+    
+    const r = await fetch(proxyUrl, {
+      method: 'POST',
+      headers: { 
+        'Authorization': 'Basic ' + auth, 
+        'Accept': 'application/json', 
+        'Content-Type': 'application/json' 
+      },
+      body,
+    });
+    
+    if (!r.ok) { 
+      const t = await r.text().catch(()=>''); 
+      console.error('[fetchJiraBatch] Error response:', r.status, t);
+      return { err: 'HTTP ' + r.status + (t ? ': ' + t.slice(0,300) : '') }; 
+    }
+    
+    const json = await r.json();
+    console.log('[fetchJiraBatch] Success. Response keys:', Object.keys(json), 'total:', json.total, 'maxResults:', json.maxResults, 'startAt:', json.startAt, 'issues count:', json.issues?.length, 'isLast:', json.isLast, 'hasNextPageToken:', !!json.nextPageToken);
+    return json;
+  } catch(e) {
+    console.error('[fetchJiraBatch] Exception:', e);
+    return { err: e.message };
   }
 }
 
@@ -1113,6 +1306,17 @@ async function renderProject(proj) {
 
   const issues = data.issues || [];
   const total  = data.total ?? issues.length;
+  
+  // Show info box if partial results
+  let partialWarning = '';
+  if (data.partial) {
+    const remaining = total - issues.length;
+    partialWarning = `<div class="info-box" style="display:flex;align-items:center;justify-content:space-between;gap:10px;">
+      <span>ℹ️ Showing ${issues.length} of ${total} issues (${remaining} more available)</span>
+      <button class="btn btn-sm" onclick="loadAllIssues('${proj.key}')">Load All ${total} Issues</button>
+    </div>`;
+  }
+  
   const sm = {}; issues.forEach(i => { const s = i.fields?.status?.name||'Unknown'; sm[s]=(sm[s]||0)+1; });
 
   // Desired phases in display order; matched by regex against actual Jira status names
@@ -1141,7 +1345,7 @@ async function renderProject(proj) {
   PHASES.forEach(p => { cardCounts[p.label] = phaseCounts[p.label]; });
   Object.entries(otherCounts).forEach(([n,v]) => { cardCounts[n] = v; });
 
-  statsEl.innerHTML = cardDefs.map(({ label }) =>
+  statsEl.innerHTML = partialWarning + cardDefs.map(({ label }) =>
     `<div class="stat-card" data-filter-key="${esc(label)}" style="cursor:pointer" onclick="filterByCard('${proj.key}','${esc(label)}')">
       <div class="sl">${esc(label)}</div><div class="sv">${cardCounts[label]}</div>
     </div>`
@@ -1234,6 +1438,27 @@ function filterByCard(projKey, label, scopeCommitment) {
   }
   
   renderIssueTable({ key: projKey }, filtered, next);
+}
+
+async function loadAllIssues(projKey) {
+  const proj = getAllProjects().find(p => p.key === projKey);
+  if (!proj) return;
+  
+  const btn = event.target;
+  btn.disabled = true;
+  btn.textContent = 'Loading...';
+  
+  // Clear cache for this project and fetch with autoFetchAll = true
+  delete S.cache[projKey];
+  
+  const data = await fetchIssues(proj, true);
+  if (data && !data.err) { 
+    S.cache[projKey] = data; 
+    persist(); 
+  }
+  
+  // Re-render the project page
+  await renderProject(proj);
 }
 
 function renderIssueTable(proj, issues, activeFilter) {
