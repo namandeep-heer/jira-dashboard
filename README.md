@@ -50,7 +50,14 @@ FEATURES
     * Cancel button available during refresh operations
   - Configurable columns (toggle fields on/off)
   - Custom field ID mapping
-  - Analytics page: status / priority / issue-type charts per project
+  - Analytics page: 
+    * Developer Velocity tracking (behind/on-track/has capacity)
+    * Status, priority, and issue-type charts per project
+  - Developer Velocity metrics:
+    * Track estimated vs actual time per developer
+    * Visual indicators for behind schedule, on track, or has capacity
+    * Drill down into individual ticket breakdowns
+    * See DEVELOPER_VELOCITY.md for detailed documentation
   - CSV export per project
   - Click any row to open the issue in Jira
   - Dark mode (follows system preference)

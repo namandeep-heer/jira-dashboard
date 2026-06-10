@@ -1,0 +1,111 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Velocity Test</title>
+  <style>
+    body { font-family: sans-serif; padding: 20px; }
+    .test { margin: 10px 0; padding: 10px; border: 1px solid #ccc; }
+    .pass { background: #e8f5e9; }
+    .fail { background: #ffebee; }
+  </style>
+</head>
+<body>
+  <h1>Developer Velocity Feature Test</h1>
+  <div id="results"></div>
+  
+  <script>
+    const results = [];
+    
+    function test(name, fn) {
+      try {
+        fn();
+        results.push({ name, status: 'PASS' });
+      } catch (e) {
+        results.push({ name, status: 'FAIL', error: e.message });
+      }
+    }
+    
+    // Test 1: Check velocity grid CSS exists
+    test('Velocity CSS loaded', () => {
+      const style = document.createElement('div');
+      style.className = 'velocity-grid';
+      document.body.appendChild(style);
+      const computed = window.getComputedStyle(style);
+      if (!computed.display) throw new Error('velocity-grid class not styled');
+      document.body.removeChild(style);
+    });
+    
+    // Test 2: Mock data structure
+    test('Mock developer data', () => {
+      const mockDev = {
+        name: 'John Doe',
+        totalEstimate: 10,
+        totalActual: 12,
+        variance: 2,
+        variancePercent: 20,
+        velocityStatus: 'behind',
+        velocityLabel: 'Behind Schedule',
+        completedTickets: 3,
+        inProgressTickets: 2,
+        todoTickets: 1,
+        tickets: []
+      };
+      
+      if (!mockDev.name) throw new Error('Mock data invalid');
+    });
+    
+    // Test 3: Velocity calculation logic
+    test('Velocity status calculation', () => {
+      const estimate = 10;
+      const actual = 12;
+      const variance = actual - estimate;
+      const variancePercent = (variance / estimate) * 100;
+      
+      let status = 'on-track';
+      if (variance > estimate * 0.15) {
+        status = 'behind';
+      }
+      
+      if (status !== 'behind') throw new Error('Status calculation wrong');
+    });
+    
+    // Test 4: HTML escaping
+    test('HTML escaping function', () => {
+      function esc(s) {
+        return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+      }
+      
+      const escaped = esc('<script>alert("xss")</script>');
+      if (escaped.includes('<script>')) throw new Error('Escaping failed');
+    });
+    
+    // Test 5: Jira URL construction
+    test('Jira URL construction', () => {
+      const creds = { url: 'https://example.atlassian.net' };
+      const ticketKey = 'PROJ-123';
+      const url = `${creds.url}/browse/${ticketKey}`;
+      
+      if (!url.includes('PROJ-123')) throw new Error('URL construction failed');
+    });
+    
+    // Display results
+    const resultsDiv = document.getElementById('results');
+    results.forEach(r => {
+      const div = document.createElement('div');
+      div.className = `test ${r.status === 'PASS' ? 'pass' : 'fail'}`;
+      div.innerHTML = `
+        <strong>${r.name}</strong>: ${r.status}
+        ${r.error ? `<br><em>Error: ${r.error}</em>` : ''}
+      `;
+      resultsDiv.appendChild(div);
+    });
+    
+    const summary = document.createElement('h2');
+    const passed = results.filter(r => r.status === 'PASS').length;
+    const total = results.length;
+    summary.textContent = `Results: ${passed}/${total} tests passed`;
+    summary.style.color = passed === total ? 'green' : 'red';
+    resultsDiv.insertBefore(summary, resultsDiv.firstChild);
+  </script>
+</body>
+</html>

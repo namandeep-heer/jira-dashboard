@@ -189,6 +189,78 @@ table.issues tr:hover td { background: var(--bg2); }
 .effort-fill { height:100%; background:var(--blue); border-radius:999px; }
 .effort-gap-pos { color:var(--green); font-weight:600; }
 .effort-gap-neg { color:var(--red); font-weight:600; }
+
+/* ── Developer Velocity ── */
+.velocity-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(400px, 1fr)); gap: 16px; margin-bottom: 28px; }
+.velocity-card { background: var(--bg); border: 0.5px solid var(--border); border-radius: var(--radius-lg); padding: 18px; transition: border-color .2s; }
+.velocity-card.velocity-behind { border-color: var(--red); border-width: 2px; }
+.velocity-card.velocity-capacity { border-color: var(--green); border-width: 2px; }
+.velocity-card.velocity-on-track { border-color: var(--blue); }
+.velocity-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 16px; gap: 10px; }
+.velocity-name { font-size: 15px; font-weight: 600; color: var(--text); }
+.velocity-status-badge { display: inline-flex; align-items: center; gap: 5px; font-size: 11px; font-weight: 600; padding: 4px 10px; border-radius: 999px; white-space: nowrap; }
+.velocity-status-badge.velocity-behind { background: var(--red-bg); color: var(--red); }
+.velocity-status-badge.velocity-capacity { background: var(--green-bg); color: var(--green); }
+.velocity-status-badge.velocity-on-track { background: var(--blue-bg); color: var(--blue); }
+.velocity-stats { display: grid; grid-template-columns: repeat(2, 1fr); gap: 12px; margin-bottom: 14px; }
+.velocity-stat { background: var(--bg2); padding: 10px 12px; border-radius: var(--radius); }
+.velocity-stat-label { font-size: 10px; color: var(--text3); text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 4px; font-weight: 600; }
+.velocity-stat-value { font-size: 18px; font-weight: 700; color: var(--text); }
+.variance-neg { color: var(--red); }
+.variance-pos { color: var(--green); }
+.variance-percent { font-size: 12px; font-weight: 500; margin-left: 4px; }
+.velocity-tickets-summary { display: flex; gap: 12px; margin-bottom: 12px; flex-wrap: wrap; }
+.velocity-ticket-count { font-size: 12px; color: var(--text2); display: flex; align-items: center; gap: 5px; }
+.count-badge { display: inline-flex; align-items: center; justify-content: center; min-width: 24px; height: 24px; border-radius: 5px; font-size: 12px; font-weight: 700; padding: 0 6px; }
+.count-badge.count-done { background: var(--green-bg); color: var(--green); }
+.count-badge.count-ip { background: var(--blue-bg); color: var(--blue); }
+.count-badge.count-todo { background: var(--bg3); color: var(--text3); }
+.velocity-details { margin-top: 12px; border-top: 0.5px solid var(--border); padding-top: 12px; }
+.velocity-details-summary { cursor: pointer; font-size: 12px; color: var(--blue); font-weight: 600; user-select: none; list-style: none; padding: 4px 0; }
+.velocity-details-summary::-webkit-details-marker { display: none; }
+.velocity-details-summary:hover { text-decoration: underline; }
+.velocity-tickets { display: flex; flex-direction: column; gap: 10px; margin-top: 10px; }
+.velocity-ticket { background: var(--bg2); padding: 10px 12px; border-radius: var(--radius); border: 0.5px solid var(--border); }
+.velocity-ticket-header { display: flex; align-items: center; gap: 8px; margin-bottom: 4px; flex-wrap: wrap; }
+.velocity-ticket-project { font-size: 11px; font-weight: 600; }
+.velocity-ticket-phase { font-size: 10px; background: var(--bg3); color: var(--text3); padding: 2px 6px; border-radius: 4px; font-weight: 500; }
+.velocity-ticket-release { font-size: 10px; background: var(--purple); color: #fff; padding: 2px 6px; border-radius: 4px; font-weight: 500; }
+.velocity-ticket-summary { font-size: 12px; color: var(--text2); margin-bottom: 6px; line-height: 1.4; }
+.velocity-ticket-time { font-size: 11px; color: var(--text3); font-family: monospace; }
+
+/* ── Velocity Table ── */
+.velocity-table-wrap { background: var(--bg); border: 0.5px solid var(--border); border-radius: var(--radius-lg); overflow: hidden; margin-bottom: 28px; }
+.velocity-table { width: 100%; border-collapse: collapse; font-size: 13px; }
+.velocity-table thead { background: var(--bg2); position: sticky; top: 0; z-index: 1; }
+.velocity-table th { text-align: left; padding: 10px 14px; font-size: 11px; font-weight: 600; color: var(--text3); border-bottom: 0.5px solid var(--border); white-space: nowrap; text-transform: uppercase; letter-spacing: 0.05em; }
+.velocity-table td { padding: 10px 14px; border-bottom: 0.5px solid var(--border); vertical-align: middle; }
+.velocity-table tbody tr:last-child td { border-bottom: none; }
+.velocity-table tbody tr.velocity-row:hover { background: var(--bg2); cursor: pointer; }
+.velocity-table tr.velocity-row.velocity-behind { border-left: 3px solid var(--red); }
+.velocity-table tr.velocity-row.velocity-capacity { border-left: 3px solid var(--green); }
+.velocity-table tr.velocity-row.velocity-on-track { border-left: 3px solid var(--blue); }
+.velocity-dev-name { font-weight: 600; color: var(--text); }
+.velocity-releases { font-size: 11px; color: var(--text2); max-width: 150px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.velocity-details-row { background: var(--bg3); }
+.velocity-details-row td { padding: 0; }
+.velocity-tickets-details { padding: 16px; display: flex; flex-direction: column; gap: 10px; }
+
+/* ── Velocity Warning Card ── */
+.velocity-warning-card { background: var(--amber-bg); border: 2px solid var(--amber); border-radius: var(--radius-lg); padding: 18px; margin-bottom: 16px; grid-column: 1 / -1; }
+.velocity-warning-header { display: flex; align-items: center; gap: 10px; margin-bottom: 10px; }
+.velocity-warning-header svg { color: var(--amber); stroke: var(--amber); flex-shrink: 0; }
+.velocity-warning-title { font-size: 14px; font-weight: 600; color: var(--amber); }
+.velocity-warning-message { font-size: 13px; color: var(--amber); line-height: 1.5; margin-bottom: 12px; }
+.velocity-warning-details { margin-top: 12px; border-top: 1px solid var(--amber); padding-top: 12px; }
+.velocity-warning-summary { cursor: pointer; font-size: 12px; color: var(--amber); font-weight: 600; user-select: none; list-style: none; padding: 4px 0; }
+.velocity-warning-summary::-webkit-details-marker { display: none; }
+.velocity-warning-summary:hover { text-decoration: underline; }
+.velocity-warning-tickets { display: flex; flex-direction: column; gap: 10px; margin-top: 10px; }
+.velocity-warning-ticket { background: var(--bg); padding: 10px 12px; border-radius: var(--radius); border: 0.5px solid var(--border); }
+.velocity-warning-dev { font-size: 11px; font-weight: 600; color: var(--text2); background: var(--bg3); padding: 2px 6px; border-radius: 4px; }
+.velocity-warning-missing { margin-top: 6px; display: flex; gap: 6px; flex-wrap: wrap; }
+.velocity-missing-badge { font-size: 10px; font-weight: 600; background: var(--red-bg); color: var(--red); padding: 3px 8px; border-radius: 4px; }
+
 /* ── Phase pipeline ── */
 .pipeline-table { width:100%; border-collapse:collapse; margin-bottom:28px; background:var(--bg); border:0.5px solid var(--border); border-radius:var(--radius-lg); overflow:hidden; }
 .pipeline-table th { font-size:11px; font-weight:600; color:var(--text3); text-transform:uppercase; letter-spacing:.06em; padding:10px 14px; border-bottom:0.5px solid var(--border); text-align:left; white-space:nowrap; }
@@ -324,6 +396,10 @@ code { font-family: monospace; font-size: 12px; background: var(--bg3); padding:
     <div id="projects-container"></div>
 
     <div class="sec-label">Insights</div>
+    <button class="nav-item" onclick="nav('velocity')" id="nav-velocity">
+      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z"/></svg>
+      Developer Velocity
+    </button>
     <button class="nav-item" onclick="nav('analytics')" id="nav-analytics">
       <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>
       Analytics
@@ -542,6 +618,17 @@ code { font-family: monospace; font-size: 12px; background: var(--bg3); padding:
             <button class="btn" onclick="resetFields()">Reset to defaults</button>
           </div>
           <div id="fields-msg" style="margin-top:10px;font-size:13px;color:var(--green)"></div>
+        </div>
+      </div>
+
+      <!-- Developer Velocity -->
+      <div class="page" id="page-velocity">
+        <div style="max-width:1400px">
+          <div style="margin-bottom:18px">
+            <h2 style="font-size:18px;font-weight:600;margin-bottom:3px">Developer Velocity</h2>
+            <p style="font-size:13px;color:var(--text2)">Track whether developers are behind schedule, on track, or have capacity for more work based on estimated vs actual time.</p>
+          </div>
+          <div id="velocity-body"></div>
         </div>
       </div>
 
@@ -921,6 +1008,9 @@ function nav(id) {
   if (proj) {
     document.getElementById('topbar-title').textContent = proj.name;
     renderProject(proj);
+  } else if (id === 'velocity') {
+    document.getElementById('topbar-title').textContent = 'Developer Velocity';
+    renderVelocity();
   } else if (id === 'analytics') {
     document.getElementById('topbar-title').textContent = 'Analytics';
     renderAnalytics();
@@ -2368,6 +2458,280 @@ function renderAnalytics() {
 
   buildCharts('ch-priority', is=>{const m={};is.forEach(i=>{const s=i.fields?.priority?.name||'Unknown';m[s]=(m[s]||0)+1;});return{labels:Object.keys(m),counts:Object.values(m)};}, 'priority', S.analyticsViews.priority);
   buildCharts('ch-type',     is=>{const m={};is.forEach(i=>{const s=i.fields?.issuetype?.name||'Unknown';m[s]=(m[s]||0)+1;});return{labels:Object.keys(m),counts:Object.values(m)};}, 'type', S.analyticsViews.type);
+}
+
+// ── Developer Velocity ───────────────────────────────────────────────────────
+function renderVelocity() {
+  const body = document.getElementById('velocity-body');
+  const loaded = getAllProjects().filter(p => S.cache[p.key] && !S.cache[p.key].err);
+
+  if (!loaded.length) {
+    body.innerHTML = `<div class="info-box">No data loaded yet. Visit each project page and click <strong>Refresh</strong>, then come back here.</div>`;
+    return;
+  }
+
+  const devVelocity = {};
+  const missingDataTickets = [];
+  
+  loaded.forEach(proj => {
+    (S.cache[proj.key].issues || []).forEach(issue => {
+      const devName = getDev(issue);
+      if (devName === 'Unassigned') return;
+      
+      const status = issue.fields?.status?.name || '';
+      const phase = getPhaseForStatus(status);
+      const isCompleted = phase?.label === 'Closed';
+      
+      const estimate = getIssueDays(issue, 'cf_devest', 'customfield_10204');
+      const actual = getIssueDays(issue, 'cf_devact', 'customfield_10203');
+      
+      // Get release info
+      const fixVersions = issue.fields.fixVersions || [];
+      const releases = fixVersions.map(fv => fv.name).join(', ');
+      
+      // Flag tickets with missing estimate
+      if (estimate === 0) {
+        missingDataTickets.push({
+          key: issue.key,
+          summary: issue.fields.summary || '',
+          devName,
+          project: proj.name,
+          phase: phase?.label || 'Other',
+          releases,
+          missingEstimate: true,
+          missingActual: false
+        });
+        return;
+      }
+      
+      // Flag completed tickets with missing actual
+      if (isCompleted && actual === 0) {
+        missingDataTickets.push({
+          key: issue.key,
+          summary: issue.fields.summary || '',
+          devName,
+          project: proj.name,
+          phase: phase?.label || 'Other',
+          releases,
+          missingEstimate: false,
+          missingActual: true
+        });
+        return;
+      }
+      
+      if (!devVelocity[devName]) {
+        devVelocity[devName] = {
+          name: devName,
+          totalEstimate: 0,
+          totalActual: 0,
+          completedEstimate: 0,
+          tickets: [],
+          completedTickets: 0,
+          inProgressTickets: 0,
+          todoTickets: 0,
+          releases: new Set()
+        };
+      }
+      
+      devVelocity[devName].totalEstimate += estimate;
+      
+      // Track releases
+      fixVersions.forEach(fv => {
+        if (fv.name) devVelocity[devName].releases.add(fv.name);
+      });
+      
+      if (isCompleted) {
+        devVelocity[devName].totalActual += actual;
+        devVelocity[devName].completedEstimate += estimate;
+        devVelocity[devName].completedTickets++;
+      } else if (phase?.label === 'Developing') {
+        devVelocity[devName].inProgressTickets++;
+      } else {
+        devVelocity[devName].todoTickets++;
+      }
+      
+      devVelocity[devName].tickets.push({
+        key: issue.key,
+        summary: issue.fields.summary || '',
+        estimate,
+        actual: isCompleted ? actual : 0,
+        status,
+        phase: phase?.label || 'Other',
+        project: proj.name,
+        projectColor: proj.color,
+        releases,
+        isCompleted
+      });
+    });
+  });
+  
+  const devMetrics = Object.values(devVelocity).map(dev => {
+    // Capacity needed = actuals from completed + estimates from incomplete
+    const totalCapacityNeeded = dev.totalActual + (dev.totalEstimate - dev.completedEstimate);
+    const variance = totalCapacityNeeded - dev.totalEstimate;
+    const variancePercent = dev.totalEstimate > 0 
+      ? ((variance / dev.totalEstimate) * 100).toFixed(1)
+      : 0;
+    
+    let velocityStatus = 'on-track';
+    let velocityLabel = 'On Track';
+    
+    if (variance > dev.totalEstimate * 0.15) {
+      velocityStatus = 'behind';
+      velocityLabel = 'Behind Schedule';
+    } else if (variance < -dev.totalEstimate * 0.15) {
+      velocityStatus = 'capacity';
+      velocityLabel = 'Has Capacity';
+    }
+    
+    return {
+      ...dev,
+      totalCapacityNeeded,
+      variance,
+      variancePercent,
+      velocityStatus,
+      velocityLabel,
+      efficiency: dev.completedEstimate > 0 
+        ? ((dev.completedEstimate / Math.max(dev.totalActual, 0.1)) * 100).toFixed(0)
+        : 100
+    };
+  });
+  
+  devMetrics.sort((a, b) => b.variance - a.variance);
+  
+  if (devMetrics.length === 0) {
+    body.innerHTML = '<div class="info-box">No developer assignments found. Make sure "Assignee: Development" field is populated.</div>';
+    return;
+  }
+  
+  // Summary stats
+  const totalEstimate = devMetrics.reduce((sum, d) => sum + d.totalEstimate, 0);
+  const totalCapacityNeeded = devMetrics.reduce((sum, d) => sum + d.totalCapacityNeeded, 0);
+  const totalVariance = totalCapacityNeeded - totalEstimate;
+  const behindCount = devMetrics.filter(d => d.velocityStatus === 'behind').length;
+  const capacityCount = devMetrics.filter(d => d.velocityStatus === 'capacity').length;
+  const onTrackCount = devMetrics.filter(d => d.velocityStatus === 'on-track').length;
+  
+  const summaryCards = `
+    <div class="stat-strip" style="margin-bottom:24px">
+      <div class="stat-card"><div class="sl">Total Developers</div><div class="sv">${devMetrics.length}</div></div>
+      <div class="stat-card"><div class="sl">Estimated Days</div><div class="sv">${totalEstimate.toFixed(1)}</div></div>
+      <div class="stat-card"><div class="sl">Capacity Needed</div><div class="sv">${totalCapacityNeeded.toFixed(1)}</div></div>
+      <div class="stat-card"><div class="sl">Variance</div><div class="sv" style="color:${totalVariance>0?'var(--red)':'var(--green)'}">${totalVariance>0?'+':''}${totalVariance.toFixed(1)}d</div></div>
+      <div class="stat-card" style="border-color:var(--red)"><div class="sl">Behind Schedule</div><div class="sv" style="color:var(--red)">${behindCount}</div></div>
+      <div class="stat-card" style="border-color:var(--blue)"><div class="sl">On Track</div><div class="sv" style="color:var(--blue)">${onTrackCount}</div></div>
+      <div class="stat-card" style="border-color:var(--green)"><div class="sl">Has Capacity</div><div class="sv" style="color:var(--green)">${capacityCount}</div></div>
+    </div>
+  `;
+  
+  // Render table
+  let velocityTable = `
+    <div class="velocity-table-wrap">
+      <table class="velocity-table">
+        <thead>
+          <tr>
+            <th>Developer</th>
+            <th>Status</th>
+            <th>Release(s)</th>
+            <th>Est Days</th>
+            <th>Cap Needed</th>
+            <th>Variance</th>
+            <th>Efficiency</th>
+            <th>Completed</th>
+            <th>In Progress</th>
+            <th>To Do</th>
+            <th>Actions</th>
+          </tr>
+        </thead>
+        <tbody>
+  `;
+  
+  devMetrics.forEach(dev => {
+    const statusClass = dev.velocityStatus === 'behind' ? 'velocity-behind' 
+      : dev.velocityStatus === 'capacity' ? 'velocity-capacity' 
+      : 'velocity-on-track';
+    
+    const statusIcon = dev.velocityStatus === 'behind' ? '⚠️' 
+      : dev.velocityStatus === 'capacity' ? '✓' 
+      : '●';
+
+    const releases = [...dev.releases].sort().join(', ') || '-';
+    const devId = dev.name.replace(/[^a-zA-Z0-9]/g, '_');
+    
+    velocityTable += `
+      <tr class="velocity-row ${statusClass}">
+        <td class="velocity-dev-name">${esc(dev.name)}</td>
+        <td>
+          <span class="velocity-status-badge ${statusClass}">
+            ${statusIcon} ${esc(dev.velocityLabel)}
+          </span>
+        </td>
+        <td class="velocity-releases">${esc(releases)}</td>
+        <td>${dev.totalEstimate.toFixed(1)}d</td>
+        <td>${dev.totalCapacityNeeded.toFixed(1)}d</td>
+        <td class="${dev.variance > 0 ? 'variance-neg' : 'variance-pos'}">
+          ${dev.variance > 0 ? '+' : ''}${dev.variance.toFixed(1)}d
+          <span class="variance-percent">(${dev.variancePercent > 0 ? '+' : ''}${dev.variancePercent}%)</span>
+        </td>
+        <td>${dev.efficiency}%</td>
+        <td><span class="count-badge count-done">${dev.completedTickets}</span></td>
+        <td><span class="count-badge count-ip">${dev.inProgressTickets}</span></td>
+        <td><span class="count-badge count-todo">${dev.todoTickets}</span></td>
+        <td>
+          <button class="btn btn-sm" onclick="toggleVelocityDetailsHTML('${devId}')">View</button>
+        </td>
+      </tr>
+      <tr class="velocity-details-row" id="velocity-html-details-${devId}" style="display:none;">
+        <td colspan="11">
+          <div class="velocity-tickets-details">
+    `;
+    
+    dev.tickets.forEach(ticket => {
+      const jiraUrl = S.creds && S.creds.url ? S.creds.url : 'https://jira.atlassian.com';
+      velocityTable += `
+        <div class="velocity-ticket">
+          <div class="velocity-ticket-header">
+            <a href="${jiraUrl}/browse/${esc(ticket.key)}" target="_blank" class="key-link">${esc(ticket.key)}</a>
+            <span class="velocity-ticket-project" style="color:${ticket.projectColor}">${esc(ticket.project)}</span>
+            <span class="velocity-ticket-phase">${esc(ticket.phase)}</span>
+            ${ticket.releases ? `<span class="velocity-ticket-release">${esc(ticket.releases)}</span>` : ''}
+          </div>
+          <div class="velocity-ticket-summary">${esc(ticket.summary)}</div>
+          <div class="velocity-ticket-time">
+            Est: ${ticket.estimate.toFixed(1)}d
+            ${ticket.isCompleted ? `| Act: ${ticket.actual.toFixed(1)}d
+            <span class="${ticket.actual > ticket.estimate ? 'variance-neg' : 'variance-pos'}">
+              (${ticket.actual > ticket.estimate ? '+' : ''}${(ticket.actual - ticket.estimate).toFixed(1)}d)
+            </span>` : '| <span style="color:var(--text3)">Incomplete</span>'}
+          </div>
+        </div>
+      `;
+    });
+    
+    velocityTable += `
+          </div>
+        </td>
+      </tr>
+    `;
+  });
+  
+  velocityTable += `
+        </tbody>
+      </table>
+    </div>
+  `;
+  
+  // Add toggle function
+  if (!window.toggleVelocityDetailsHTML) {
+    window.toggleVelocityDetailsHTML = function(devId) {
+      const row = document.getElementById('velocity-html-details-' + devId);
+      if (row) {
+        row.style.display = row.style.display === 'none' ? 'table-row' : 'none';
+      }
+    };
+  }
+  
+  body.innerHTML = summaryCards + velocityTable;
 }
 
 // ── CSV export ────────────────────────────────────────────────────────────────
@@ -4471,8 +4835,8 @@ async function deleteCustomProject(idx) {
 const DEFAULT_MILESTONES = [
   { id: 'DA', label: 'Discovery Alignment', fullName: 'DISCOVERY ALIGNMENT', color: '#185FA5' },
   { id: 'KO', label: 'Release Kickoff', fullName: 'RELEASE KICKOFF', color: '#185FA5' },
-  { id: 'SC', label: 'Scope Close', fullName: 'SCOPE CLOSE', color: '#5b9fd6' },
   { id: 'SC2', label: 'Scope Commitment', fullName: 'SCOPE COMMITMENT', color: '#5b9fd6' },
+  { id: 'SC', label: 'Scope Close', fullName: 'SCOPE CLOSE', color: '#5b9fd6' },
   { id: 'FF', label: 'Feature Freeze', fullName: 'FEATURE FREEZE', color: '#e0a040' },
   { id: 'VR', label: 'Validation Results', fullName: 'VALIDATION RESULTS', color: '#c47a0f' },
   { id: 'PF', label: 'Preview Freeze', fullName: 'PREVIEW FREEZE', color: '#7cb842' },
