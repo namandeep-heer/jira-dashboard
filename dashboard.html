@@ -347,6 +347,10 @@ code { font-family: monospace; font-size: 12px; background: var(--bg3); padding:
       <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="3" width="7" height="7" rx="1.5"/><rect x="3" y="14" width="7" height="7" rx="1.5"/><rect x="14" y="14" width="7" height="7" rx="1.5"/></svg>
       Projects
     </button>
+    <button class="nav-item" onclick="nav('releases-config')" id="nav-releases-config">
+      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"/><line x1="9" y1="3" x2="9" y2="21"/><line x1="15" y1="3" x2="15" y2="21"/><line x1="3" y1="9" x2="21" y2="9"/><line x1="3" y1="15" x2="21" y2="15"/></svg>
+      Releases
+    </button>
     <button class="nav-item" onclick="nav('fields')" id="nav-fields">
       <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="8" y1="6" x2="21" y2="6"/><line x1="8" y1="12" x2="21" y2="12"/><line x1="8" y1="18" x2="21" y2="18"/><line x1="3" y1="6" x2="3.01" y2="6"/><line x1="3" y1="12" x2="3.01" y2="12"/><line x1="3" y1="18" x2="3.01" y2="18"/></svg>
       Field Configuration
@@ -477,7 +481,13 @@ code { font-family: monospace; font-size: 12px; background: var(--bg3); padding:
       <div class="page" id="page-projects-config">
         <div style="max-width:860px">
           <h2 style="font-size:18px;font-weight:600;margin-bottom:6px">Project Configuration</h2>
-          <p style="font-size:13px;color:var(--text2);line-height:1.65;margin-bottom:20px">Enable/disable projects, remove/restore built-ins, and edit JQL per project. Custom projects can also be added, edited, and deleted.</p>
+          <p style="font-size:13px;color:var(--text2);line-height:1.65;margin-bottom:16px">
+            Enable/disable projects, remove/restore built-ins, and edit JQL per project. Custom projects can also be added, edited, and deleted.
+            <br><strong>Configuration is saved to <code>config/projects.json</code></strong>
+          </p>
+          <div style="margin-bottom: 20px;">
+            <span id="projects-save-msg" style="font-size: 12px; color: var(--text3);"></span>
+          </div>
 
           <!-- Built-in -->
           <div class="section-h">Built-in projects</div>
@@ -493,6 +503,9 @@ code { font-family: monospace; font-size: 12px; background: var(--bg3); padding:
           </div>
         </div>
       </div>
+
+      <!-- Releases Config -->
+      <div class="page" id="page-releases-config"></div>
 
       <!-- Fields -->
       <div class="page" id="page-fields">
@@ -931,6 +944,9 @@ function nav(id) {
   } else if (id === 'projects-config') {
     document.getElementById('topbar-title').textContent = 'Projects';
     renderProjectsConfig();
+  } else if (id === 'releases-config') {
+    document.getElementById('topbar-title').textContent = 'Releases';
+    renderReleasesConfig();
   } else if (id === 'fields') {
     document.getElementById('topbar-title').textContent = 'Field Configuration';
     renderFields();
@@ -4066,29 +4082,92 @@ function rebuildDynamicUI() {
 // ── Projects config page ──────────────────────────────────────────────────────
 const PROJECT_COLORS = ['#185FA5','#3B6D11','#c47a0f','#533AB7','#993556','#0F6E56','#7C3085','#0F7070','#A33B1A','#1A6B4A'];
 
-function setProjectEnabled(key, enabled) {
+// Load projects configuration from server
+async function loadProjectsConfig() {
+  try {
+    const response = await fetch('http://localhost:3131/config/projects');
+    if (response.ok) {
+      const data = await response.json();
+      S.customProjects = data.customProjects || [];
+      S.projectSettings = data.projectSettings || {};
+      return true;
+    }
+  } catch (err) {
+    console.error('[loadProjectsConfig]', err.message);
+  }
+  // Fallback to defaults if load fails
+  S.customProjects = [];
+  S.projectSettings = {};
+  return false;
+}
+
+// Save projects configuration to server
+async function saveProjectsConfig() {
+  try {
+    const data = {
+      customProjects: S.customProjects || [],
+      projectSettings: S.projectSettings || {}
+    };
+    const response = await fetch('http://localhost:3131/config/projects', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(data)
+    });
+    if (response.ok) {
+      return true;
+    } else {
+      console.error('[saveProjectsConfig] Failed:', await response.text());
+    }
+  } catch (err) {
+    console.error('[saveProjectsConfig]', err.message);
+  }
+  return false;
+}
+
+// Helper to show save status message for projects
+function showProjectsSaveMessage(success) {
+  const msgEl = document.getElementById('projects-save-msg');
+  if (!msgEl) return;
+  
+  if (success) {
+    msgEl.style.color = 'var(--green)';
+    msgEl.textContent = '✓ Saved to config/projects.json';
+  } else {
+    msgEl.style.color = 'var(--red)';
+    msgEl.textContent = '✗ Failed to save';
+  }
+  
+  setTimeout(() => {
+    msgEl.textContent = '';
+  }, 3000);
+}
+
+async function setProjectEnabled(key, enabled) {
   getProjectSettings(key).enabled = !!enabled;
-  persist();
+  const saved = await saveProjectsConfig();
+  showProjectsSaveMessage(saved);
   rebuildDynamicUI();
   renderProjectsConfig();
 }
 
-function removeBuiltinProject(key) {
+async function removeBuiltinProject(key) {
   if (!confirm('Remove this built-in project from dashboard views? You can restore it later.')) return;
   const st = getProjectSettings(key);
   st.removed = true;
   st.enabled = false;
   delete S.cache[key];
-  persist();
+  const saved = await saveProjectsConfig();
+  showProjectsSaveMessage(saved);
   rebuildDynamicUI();
   renderProjectsConfig();
 }
 
-function restoreBuiltinProject(key) {
+async function restoreBuiltinProject(key) {
   const st = getProjectSettings(key);
   st.removed = false;
   st.enabled = true;
-  persist();
+  const saved = await saveProjectsConfig();
+  showProjectsSaveMessage(saved);
   rebuildDynamicUI();
   renderProjectsConfig();
 }
@@ -4113,7 +4192,10 @@ function openProjectJqlModal(key) {
   document.getElementById('proj-modal-overlay').style.display = 'flex';
 }
 
-function renderProjectsConfig() {
+async function renderProjectsConfig() {
+  // Load configuration from server
+  await loadProjectsConfig();
+
   // Built-in list
   const builtinEl = document.getElementById('pc-builtin');
   builtinEl.innerHTML = PROJECTS.map(p => {
@@ -4204,7 +4286,7 @@ function closeProjectModal() {
   document.getElementById('proj-modal-overlay').style.display = 'none';
 }
 
-function saveProjectModal() {
+async function saveProjectModal() {
   const name  = document.getElementById('pmod-name').value.trim();
   const key   = document.getElementById('pmod-key').value.trim().toUpperCase();
   const color = document.getElementById('pmod-color').value;
@@ -4218,10 +4300,13 @@ function saveProjectModal() {
     if (!_editingProjKey) { msgEl.textContent = 'Unknown project key.'; return; }
     getProjectSettings(_editingProjKey).jql = jql;
     delete S.cache[_editingProjKey];
-    persist();
+    const saved = await saveProjectsConfig();
     rebuildDynamicUI();
     renderProjectsConfig();
     closeProjectModal();
+    if (saved) {
+      showProjectsSaveMessage(true);
+    }
     return;
   }
 
@@ -4247,21 +4332,481 @@ function saveProjectModal() {
   }
   // Full project edit owns base JQL for custom projects; remove any stale override.
   if (S.projectSettings && S.projectSettings[key]) delete S.projectSettings[key].jql;
-  persist();
+  const saved = await saveProjectsConfig();
   rebuildDynamicUI();
   renderProjectsConfig();
   closeProjectModal();
+  if (saved) {
+    showProjectsSaveMessage(true);
+  }
 }
 
-function deleteCustomProject(idx) {
+async function deleteCustomProject(idx) {
   if (!confirm(`Delete project "${S.customProjects[idx].name}"? Its cached data will also be cleared.`)) return;
   const key = S.customProjects[idx].key;
   delete S.cache[key];
   S.customProjects.splice(idx, 1);
   if (S.projectSettings && S.projectSettings[key]) delete S.projectSettings[key];
-  persist();
+  const saved = await saveProjectsConfig();
+  showProjectsSaveMessage(saved);
   rebuildDynamicUI();
   renderProjectsConfig();
+}
+
+// ── Releases Configuration ─────────────────────────────────────────────────
+const DEFAULT_MILESTONES = [
+  { id: 'DA', label: 'Discovery Alignment', fullName: 'DISCOVERY ALIGNMENT', color: '#185FA5' },
+  { id: 'KO', label: 'Release Kickoff', fullName: 'RELEASE KICKOFF', color: '#185FA5' },
+  { id: 'SC', label: 'Scope Close', fullName: 'SCOPE CLOSE', color: '#5b9fd6' },
+  { id: 'SC2', label: 'Scope Commitment', fullName: 'SCOPE COMMITMENT', color: '#5b9fd6' },
+  { id: 'FF', label: 'Feature Freeze', fullName: 'FEATURE FREEZE', color: '#e0a040' },
+  { id: 'VR', label: 'Validation Results', fullName: 'VALIDATION RESULTS', color: '#c47a0f' },
+  { id: 'PF', label: 'Preview Freeze', fullName: 'PREVIEW FREEZE', color: '#7cb842' },
+  { id: 'GA', label: 'General Availability', fullName: 'GENERAL AVAILABILITY', color: '#7cb842' },
+  { id: 'GE', label: 'Globally Enabled (Nakisa)', fullName: 'GLOBALLY ENABLED Nakisa', color: '#7cb842' },
+  { id: 'GE2', label: 'Globally Enabled (Customer)', fullName: 'GLOBALLY ENABLED Customer', color: '#7cb842' },
+  { id: 'GL', label: 'Globally Live', fullName: 'GLOBALLY LIVE', color: '#533AB7' },
+  { id: 'EOS', label: 'End of Support', fullName: 'END OF SUPPORT', color: '#e07070' }
+];
+
+// Load releases configuration from server
+async function loadReleasesConfig() {
+  try {
+    const response = await fetch('http://localhost:3131/config/releases');
+    if (response.ok) {
+      const data = await response.json();
+      S.releases = data.releases || [];
+      if (data.milestones && data.milestones.length > 0) {
+        S.milestones = data.milestones;
+      } else {
+        S.milestones = JSON.parse(JSON.stringify(DEFAULT_MILESTONES));
+      }
+      return true;
+    }
+  } catch (err) {
+    console.error('[loadReleasesConfig]', err.message);
+  }
+  // Fallback to defaults if load fails
+  S.releases = [];
+  S.milestones = JSON.parse(JSON.stringify(DEFAULT_MILESTONES));
+  return false;
+}
+
+// Save releases configuration to server
+async function saveReleasesConfig() {
+  try {
+    const data = {
+      releases: S.releases || [],
+      milestones: S.milestones || DEFAULT_MILESTONES
+    };
+    const response = await fetch('http://localhost:3131/config/releases', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(data)
+    });
+    if (response.ok) {
+      return true;
+    } else {
+      console.error('[saveReleasesConfig] Failed:', await response.text());
+    }
+  } catch (err) {
+    console.error('[saveReleasesConfig]', err.message);
+  }
+  return false;
+}
+
+function getMilestones() {
+  if (!S.milestones || S.milestones.length === 0) {
+    S.milestones = JSON.parse(JSON.stringify(DEFAULT_MILESTONES));
+  }
+  return S.milestones;
+}
+
+async function renderReleasesConfig() {
+  const container = document.getElementById('page-releases-config');
+  if (!container) return;
+
+  // Show loading state
+  container.innerHTML = `<div class="state-box"><div class="spinner"></div><div>Loading configuration…</div></div>`;
+
+  // Load configuration from server
+  await loadReleasesConfig();
+
+  container.innerHTML = `
+    <div class="setup-wrap" style="max-width: 900px;">
+      <div class="card">
+        <h2>Release Configuration</h2>
+        <p class="desc">
+          Configure releases and their milestone dates. Each release tracks key dates for 
+          milestones like Discovery Alignment, Feature Freeze, General Availability, etc.
+          <br><strong>Configuration is saved to <code>config/releases.json</code></strong>
+        </p>
+        
+        <div style="margin-bottom: 20px; display: flex; gap: 10px; align-items: center;">
+          <button class="btn primary" onclick="addRelease()">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <line x1="12" y1="5" x2="12" y2="19"/>
+              <line x1="5" y1="12" x2="19" y2="12"/>
+            </svg>
+            Add New Release
+          </button>
+          <span id="releases-save-msg" style="font-size: 12px; color: var(--text3);"></span>
+        </div>
+
+        <div id="releases-list"></div>
+      </div>
+
+      <div class="card">
+        <h2>Milestone Definitions</h2>
+        <p class="desc">
+          These are the standard milestones tracked for each release. You can customize 
+          the labels and colors for your organization.
+        </p>
+        <div id="milestones-list"></div>
+        <div style="margin-top: 16px;">
+          <button class="btn" onclick="resetMilestones()">Reset to Defaults</button>
+        </div>
+      </div>
+    </div>
+  `;
+
+  renderReleasesList();
+  renderMilestonesList();
+}
+
+function renderReleasesList() {
+  const container = document.getElementById('releases-list');
+  if (!container) return;
+
+  if (S.releases.length === 0) {
+    container.innerHTML = `
+      <div style="padding: 40px 20px; text-align: center; color: var(--text3); font-size: 13px;">
+        No releases configured yet. Click "Add New Release" to get started.
+      </div>
+    `;
+    return;
+  }
+
+  let html = '';
+  S.releases.forEach((release, index) => {
+    html += `
+      <div class="release-card" style="
+        border: 0.5px solid var(--border);
+        border-radius: var(--radius);
+        padding: 16px;
+        margin-bottom: 12px;
+        background: var(--bg2);
+      ">
+        <div style="display: flex; align-items: center; gap: 12px; margin-bottom: 12px;">
+          <input 
+            type="text" 
+            value="${esc(release.name || '')}"
+            placeholder="Release name (e.g., N2026.R2)"
+            onchange="updateReleaseName(${index}, this.value)"
+            style="
+              flex: 1;
+              padding: 8px 12px;
+              border: 0.5px solid var(--border2);
+              border-radius: var(--radius);
+              background: var(--bg);
+              color: var(--text);
+              font-size: 14px;
+              font-weight: 600;
+              font-family: inherit;
+            "
+          />
+          <button 
+            class="btn btn-sm" 
+            onclick="duplicateRelease(${index})"
+            title="Duplicate this release"
+          >
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <rect x="9" y="9" width="13" height="13" rx="2" ry="2"/>
+              <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/>
+            </svg>
+            Duplicate
+          </button>
+          <button 
+            class="btn btn-sm" 
+            onclick="deleteRelease(${index})"
+            style="color: var(--red);"
+          >
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <polyline points="3 6 5 6 21 6"/>
+              <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/>
+            </svg>
+            Delete
+          </button>
+        </div>
+        
+        <div class="milestones-grid" style="
+          display: grid;
+          grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+          gap: 10px;
+        ">
+          ${getMilestones().map(milestone => `
+            <div class="milestone-field">
+              <label style="
+                display: block;
+                font-size: 11px;
+                font-weight: 600;
+                color: var(--text3);
+                margin-bottom: 4px;
+                text-transform: uppercase;
+                letter-spacing: 0.05em;
+              ">
+                <span style="
+                  display: inline-block;
+                  width: 10px;
+                  height: 10px;
+                  border-radius: 3px;
+                  background: ${milestone.color};
+                  margin-right: 5px;
+                "></span>
+                ${esc(milestone.id)} - ${esc(milestone.label)}
+              </label>
+              <input 
+                type="date"
+                value="${release.milestones && release.milestones[milestone.id] || ''}"
+                onchange="updateMilestone(${index}, '${milestone.id}', this.value)"
+                style="
+                  width: 100%;
+                  padding: 6px 8px;
+                  border: 0.5px solid var(--border2);
+                  border-radius: var(--radius);
+                  background: var(--bg);
+                  color: var(--text);
+                  font-size: 12px;
+                  font-family: inherit;
+                "
+              />
+            </div>
+          `).join('')}
+        </div>
+      </div>
+    `;
+  });
+
+  container.innerHTML = html;
+}
+
+function renderMilestonesList() {
+  const container = document.getElementById('milestones-list');
+  if (!container) return;
+
+  const milestones = getMilestones();
+  
+  let html = '<div style="display: flex; flex-direction: column; gap: 8px;">';
+  milestones.forEach((milestone, index) => {
+    html += `
+      <div style="
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        padding: 8px 12px;
+        border: 0.5px solid var(--border);
+        border-radius: var(--radius);
+        background: var(--bg2);
+      ">
+        <input 
+          type="color"
+          value="${milestone.color}"
+          onchange="updateMilestoneColor(${index}, this.value)"
+          style="
+            width: 32px;
+            height: 32px;
+            border: 0.5px solid var(--border2);
+            border-radius: var(--radius);
+            cursor: pointer;
+          "
+        />
+        <input 
+          type="text"
+          value="${esc(milestone.id)}"
+          onchange="updateMilestoneId(${index}, this.value)"
+          placeholder="ID (e.g., DA)"
+          style="
+            width: 60px;
+            padding: 6px 8px;
+            border: 0.5px solid var(--border2);
+            border-radius: var(--radius);
+            background: var(--bg);
+            color: var(--text);
+            font-size: 12px;
+            font-weight: 600;
+            font-family: monospace;
+          "
+        />
+        <input 
+          type="text"
+          value="${esc(milestone.label)}"
+          onchange="updateMilestoneLabel(${index}, this.value)"
+          placeholder="Short label"
+          style="
+            flex: 1;
+            padding: 6px 8px;
+            border: 0.5px solid var(--border2);
+            border-radius: var(--radius);
+            background: var(--bg);
+            color: var(--text);
+            font-size: 12px;
+            font-family: inherit;
+          "
+        />
+        <input 
+          type="text"
+          value="${esc(milestone.fullName || milestone.label)}"
+          onchange="updateMilestoneFullName(${index}, this.value)"
+          placeholder="Full name"
+          style="
+            flex: 1;
+            padding: 6px 8px;
+            border: 0.5px solid var(--border2);
+            border-radius: var(--radius);
+            background: var(--bg);
+            color: var(--text);
+            font-size: 12px;
+            font-family: inherit;
+          "
+        />
+      </div>
+    `;
+  });
+  html += '</div>';
+
+  container.innerHTML = html;
+}
+
+// Helper to show save status message
+function showSaveMessage(success) {
+  const msgEl = document.getElementById('releases-save-msg');
+  if (!msgEl) return;
+  
+  if (success) {
+    msgEl.style.color = 'var(--green)';
+    msgEl.textContent = '✓ Saved to config/releases.json';
+  } else {
+    msgEl.style.color = 'var(--red)';
+    msgEl.textContent = '✗ Failed to save';
+  }
+  
+  setTimeout(() => {
+    msgEl.textContent = '';
+  }, 3000);
+}
+
+async function addRelease() {
+  if (!S.releases) S.releases = [];
+  
+  S.releases.push({
+    name: `N${new Date().getFullYear()}.R${S.releases.length + 1}`,
+    milestones: {}
+  });
+  
+  const saved = await saveReleasesConfig();
+  showSaveMessage(saved);
+  renderReleasesList();
+}
+
+async function duplicateRelease(index) {
+  if (!S.releases || !S.releases[index]) return;
+  
+  const original = S.releases[index];
+  const duplicate = JSON.parse(JSON.stringify(original));
+  duplicate.name = `${duplicate.name} (Copy)`;
+  
+  S.releases.splice(index + 1, 0, duplicate);
+  const saved = await saveReleasesConfig();
+  showSaveMessage(saved);
+  renderReleasesList();
+}
+
+async function deleteRelease(index) {
+  if (!S.releases || !S.releases[index]) return;
+  
+  const releaseName = S.releases[index].name || 'this release';
+  if (!confirm(`Delete ${releaseName}? This cannot be undone.`)) return;
+  
+  S.releases.splice(index, 1);
+  const saved = await saveReleasesConfig();
+  showSaveMessage(saved);
+  renderReleasesList();
+}
+
+async function updateReleaseName(index, value) {
+  if (!S.releases || !S.releases[index]) return;
+  S.releases[index].name = value;
+  const saved = await saveReleasesConfig();
+  showSaveMessage(saved);
+}
+
+async function updateMilestone(releaseIndex, milestoneId, value) {
+  if (!S.releases || !S.releases[releaseIndex]) return;
+  if (!S.releases[releaseIndex].milestones) {
+    S.releases[releaseIndex].milestones = {};
+  }
+  S.releases[releaseIndex].milestones[milestoneId] = value;
+  const saved = await saveReleasesConfig();
+  showSaveMessage(saved);
+}
+
+async function updateMilestoneColor(index, value) {
+  const milestones = getMilestones();
+  if (!milestones[index]) return;
+  milestones[index].color = value;
+  const saved = await saveReleasesConfig();
+  showSaveMessage(saved);
+  renderMilestonesList();
+  renderReleasesList();
+}
+
+async function updateMilestoneId(index, value) {
+  const milestones = getMilestones();
+  if (!milestones[index]) return;
+  const oldId = milestones[index].id;
+  milestones[index].id = value;
+  
+  // Update all releases to use new ID
+  if (S.releases) {
+    S.releases.forEach(release => {
+      if (release.milestones && release.milestones[oldId] !== undefined) {
+        release.milestones[value] = release.milestones[oldId];
+        delete release.milestones[oldId];
+      }
+    });
+  }
+  
+  const saved = await saveReleasesConfig();
+  showSaveMessage(saved);
+  renderMilestonesList();
+  renderReleasesList();
+}
+
+async function updateMilestoneLabel(index, value) {
+  const milestones = getMilestones();
+  if (!milestones[index]) return;
+  milestones[index].label = value;
+  const saved = await saveReleasesConfig();
+  showSaveMessage(saved);
+  renderMilestonesList();
+  renderReleasesList();
+}
+
+async function updateMilestoneFullName(index, value) {
+  const milestones = getMilestones();
+  if (!milestones[index]) return;
+  milestones[index].fullName = value;
+  const saved = await saveReleasesConfig();
+  showSaveMessage(saved);
+}
+
+async function resetMilestones() {
+  if (!confirm('Reset milestones to default configuration? This will not affect your release dates.')) return;
+  S.milestones = JSON.parse(JSON.stringify(DEFAULT_MILESTONES));
+  const saved = await saveReleasesConfig();
+  showSaveMessage(saved);
+  renderMilestonesList();
+  renderReleasesList();
 }
 
 // ── Init ──────────────────────────────────────────────────────────────────────
@@ -4271,11 +4816,15 @@ if (!S.customProjects) S.customProjects = [];
 if (!S._msState) S._msState = { project: new Set(), phase: new Set(), dev: new Set(), product: new Set(), assignee: new Set(), scope: new Set() };
 // Sets are not JSON-serialisable, so always re-create as empty on load
 S._msState = { project: new Set(), phase: new Set(), dev: new Set(), product: new Set(), assignee: new Set(), scope: new Set() };
-applyTheme(S.theme || getPreferredTheme(), false);
-rebuildDynamicUI();
-renderFields();
-updateLogBadge();
-nav(S.creds.url ? getDefaultProjectPage() : 'setup');
+
+// Load projects config from server on startup
+loadProjectsConfig().then(() => {
+  applyTheme(S.theme || getPreferredTheme(), false);
+  rebuildDynamicUI();
+  renderFields();
+  updateLogBadge();
+  nav(S.creds.url ? getDefaultProjectPage() : 'setup');
+});
 </script>
 </body>
 </html>

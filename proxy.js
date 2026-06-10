@@ -11,9 +11,16 @@ const express = require('express');
 const fetch   = require('node-fetch');
 const path    = require('path');
 const http    = require('http');
+const fs      = require('fs');
 
 const app  = express();
 const PORT = 3131;
+
+// Config directory for storing JSON files
+const CONFIG_DIR = path.join(__dirname, 'config');
+if (!fs.existsSync(CONFIG_DIR)) {
+  fs.mkdirSync(CONFIG_DIR, { recursive: true });
+}
 
 app.use(express.json());
 
@@ -34,6 +41,64 @@ app.get('/', (req, res) => {
 // ── Health check endpoint ─────────────────────────────────────────────────────
 app.get('/health', (req, res) => {
   res.status(200).json({ status: 'ok', message: 'Proxy is running' });
+});
+
+// ── Config endpoints ──────────────────────────────────────────────────────────
+
+// Get releases configuration
+app.get('/config/releases', (req, res) => {
+  const filePath = path.join(CONFIG_DIR, 'releases.json');
+  if (!fs.existsSync(filePath)) {
+    res.json({ releases: [], milestones: [] });
+    return;
+  }
+  try {
+    const data = fs.readFileSync(filePath, 'utf8');
+    res.json(JSON.parse(data));
+  } catch (err) {
+    console.error('[config read error]', err.message);
+    res.status(500).json({ error: 'Failed to read config: ' + err.message });
+  }
+});
+
+// Save releases configuration
+app.post('/config/releases', (req, res) => {
+  const filePath = path.join(CONFIG_DIR, 'releases.json');
+  try {
+    fs.writeFileSync(filePath, JSON.stringify(req.body, null, 2), 'utf8');
+    res.json({ success: true, message: 'Configuration saved' });
+  } catch (err) {
+    console.error('[config write error]', err.message);
+    res.status(500).json({ error: 'Failed to save config: ' + err.message });
+  }
+});
+
+// Get projects configuration
+app.get('/config/projects', (req, res) => {
+  const filePath = path.join(CONFIG_DIR, 'projects.json');
+  if (!fs.existsSync(filePath)) {
+    res.json({ customProjects: [], projectSettings: {} });
+    return;
+  }
+  try {
+    const data = fs.readFileSync(filePath, 'utf8');
+    res.json(JSON.parse(data));
+  } catch (err) {
+    console.error('[config read error]', err.message);
+    res.status(500).json({ error: 'Failed to read config: ' + err.message });
+  }
+});
+
+// Save projects configuration
+app.post('/config/projects', (req, res) => {
+  const filePath = path.join(CONFIG_DIR, 'projects.json');
+  try {
+    fs.writeFileSync(filePath, JSON.stringify(req.body, null, 2), 'utf8');
+    res.json({ success: true, message: 'Configuration saved' });
+  } catch (err) {
+    console.error('[config write error]', err.message);
+    res.status(500).json({ error: 'Failed to save config: ' + err.message });
+  }
 });
 
 // ── Proxy route: /jira-api/<encoded-jira-base-url>/<rest-of-path> ────────────

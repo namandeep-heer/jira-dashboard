@@ -45,6 +45,10 @@ export function nav(id) {
         document.getElementById('topbar-title').textContent = 'Projects';
         import('./pages/projects-config.js').then(module => module.renderProjectsConfig());
         break;
+      case 'releases-config':
+        document.getElementById('topbar-title').textContent = 'Releases';
+        import('./pages/releases-config.js').then(module => module.renderReleasesConfig());
+        break;
       case 'fields':
         document.getElementById('topbar-title').textContent = 'Field Configuration';
         import('./pages/fields.js').then(module => module.renderFields());
