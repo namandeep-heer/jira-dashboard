@@ -3,7 +3,7 @@
 import { S, persist } from '../state.js';
 import { escapeHtml } from '../utils.js';
 
-// Default milestone definitions based on N2026.R2 structure
+// Default milestone definitions
 const DEFAULT_MILESTONES = [
   { id: 'DA', label: 'Discovery Alignment', fullName: 'DISCOVERY ALIGNMENT', color: '#185FA5' },
   { id: 'KO', label: 'Release Kickoff', fullName: 'RELEASE KICKOFF', color: '#185FA5' },
@@ -95,7 +95,7 @@ function renderReleasesList() {
           <input 
             type="text" 
             value="${escapeHtml(release.name || '')}"
-            placeholder="Release name (e.g., N2026.R2)"
+            placeholder="Release name (e.g., 2026 Q2)"
             onchange="window.app.updateReleaseName(${index}, this.value)"
             style="
               flex: 1;

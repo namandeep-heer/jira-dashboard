@@ -1,0 +1,65 @@
+{
+  "developers": [
+    {
+      "id": "dev-001",
+      "name": "John Doe"
+    },
+    {
+      "id": "dev-002",
+      "name": "Jane Smith"
+    }
+  ],
+  "releases": [
+    {
+      "releaseId": "N2026.R2",
+      "developers": [
+        {
+          "devId": "dev-001",
+          "phases": [
+            {
+              "phaseId": "DA-KO",
+              "availability": 100
+            },
+            {
+              "phaseId": "KO-SC",
+              "availability": 80
+            }
+          ],
+          "projects": [
+            {
+              "projectKey": "NFS",
+              "estimateDays": 25
+            },
+            {
+              "projectKey": "GL",
+              "estimateDays": 15
+            }
+          ]
+        },
+        {
+          "devId": "dev-002",
+          "phases": [
+            {
+              "phaseId": "DA-KO",
+              "availability": 100
+            },
+            {
+              "phaseId": "KO-SC",
+              "availability": 100
+            }
+          ],
+          "projects": [
+            {
+              "projectKey": "FCO",
+              "estimateDays": 30
+            },
+            {
+              "projectKey": "P2P",
+              "estimateDays": 20
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

@@ -29,6 +29,20 @@ export function nav(id) {
         document.getElementById('topbar-title').textContent = 'Analytics';
         import('./pages/analytics.js').then(module => module.renderAnalytics());
         break;
+      case 'dev-planning':
+        document.getElementById('topbar-title').textContent = 'Dev Planning';
+        import('./pages/dev-planning.js')
+          .then(module => {
+            console.log('Dev Planning module loaded:', module);
+            module.renderDevPlanning();
+          })
+          .catch(err => {
+            console.error('Failed to load dev-planning module:', err);
+            document.getElementById('dev-planning-content').innerHTML = `
+              <div class="err-box">Failed to load Dev Planning module: ${err.message}</div>
+            `;
+          });
+        break;
       case 'team':
         document.getElementById('topbar-title').textContent = 'Team View';
         import('./pages/team.js').then(module => module.renderTeam());
