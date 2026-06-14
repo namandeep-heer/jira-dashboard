@@ -3,11 +3,13 @@
   "projectSettings": {
     "NFS": {
       "jql": "project in (NFS) AND issuetype in (Enhancement, Epic) AND fixVersion = N2026.R2 ORDER BY \"Scope Commitment At SC\", status DESC, Priority DESC",
-      "release": "N2026.R2"
+      "release": "N2026.R2",
+      "enabled": true
     },
     "FCO": {
       "jql": "project in (FCO) AND issuetype in (Enhancement, Epic) AND fixVersion = N2026.R2 ORDER BY \"Scope Commitment At SC\", status DESC, Priority DESC",
-      "release": "N2026.R2"
+      "release": "N2026.R2",
+      "enabled": true
     },
     "INC": {
       "jql": "project in (INC) AND issuetype in (Enhancement, Epic) AND fixVersion = N2026.R2 ORDER BY \"Scope Commitment At SC\", status DESC, Priority DESC",
@@ -16,7 +18,8 @@
     },
     "GL": {
       "jql": "project in (GL) AND issuetype in (Enhancement, Epic) AND fixVersion = N2026.R2 ORDER BY \"Scope Commitment At SC\", status desc, Priority DESC",
-      "release": "N2026.R2"
+      "release": "N2026.R2",
+      "enabled": true
     },
     "FAA": {
       "jql": "project in (FAA) AND issuetype in (Enhancement, Epic) AND fixVersion = N2026.R2 ORDER BY \"Scope Commitment At SC\" asc, status desc, Priority DESC",
@@ -25,7 +28,8 @@
     },
     "P2P": {
       "jql": "project in (P2P) AND issuetype in (Enhancement) AND fixVersion = N2026.R2 ORDER BY \"Scope Commitment At SC\", status desc, Priority DESC",
-      "release": "N2026.R2"
+      "release": "N2026.R2",
+      "enabled": true
     },
     "BUGS": {
       "enabled": false

@@ -730,7 +730,7 @@ code { font-family: monospace; font-size: 12px; background: var(--bg3); padding:
           <div style="display:flex;align-items:flex-start;justify-content:space-between;margin-bottom:18px;gap:20px">
             <div style="flex:1">
               <h2 style="font-size:18px;font-weight:600;margin-bottom:3px">Project Phase Timeline</h2>
-              <p style="font-size:13px;color:var(--text2)">Track ticket completion over time across all projects.</p>
+              <p style="font-size:13px;color:var(--text2)">Track Dev→QA sends and QA Closed tickets separately over time across all projects.</p>
             </div>
             <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;justify-content:flex-end">
               <div class="ms-wrap">
@@ -3093,6 +3093,11 @@ function renderPhaseTimeline() {
   const contentEl = document.getElementById('phase-timeline-content');
   if (!contentEl) return;
 
+  // Clean previous trend chart(s)
+  ['phaseTimeline', 'phaseTimelineSent', 'phaseTimelineClosed'].forEach(k => {
+    if (S.charts[k]) { try { S.charts[k].destroy(); } catch(e){} delete S.charts[k]; }
+  });
+
   const period = document.getElementById('phase-period').value;
   const range = parseInt(document.getElementById('phase-range').value);
   
@@ -3160,18 +3165,22 @@ function renderPhaseTimeline() {
   const now = new Date();
   const rangeStart = new Date(now.getTime() - (range * 24 * 60 * 60 * 1000));
 
-  // Parse changelog to find when tickets moved to "done" statuses (QA or Closed phases)
-  const completionData = [];
+  // Parse changelog for two separate completion flows (but shown in one chart):
+  // 1. Dev sent tickets to QA (transitions into QA phase)
+  // 2. QA closed tickets (transitions into Closed phase)
+  const sentToQA = [];
+  const qaClosed = [];
   filteredIssues.forEach(({ proj, issue, developer, assignee, productAssignee }) => {
     const changelog = issue.changelog?.histories || [];
-    
-    // Check current status - is it in QA or Closed?
     const currentStatus = issue.fields?.status?.name || '';
     const currentPhase = getPhaseForStatus(currentStatus);
-    const isDone = currentPhase && (currentPhase.label === 'QA' || currentPhase.label === 'Closed');
-    
-    // Find when the ticket moved to a "done" status (QA or Closed)
-    let completionDate = null;
+
+    let qaDate = null;
+    let qaTargetStatus = '';
+    let closedDate = null;
+    let closedTargetStatus = '';
+
+    // Scan from most recent backwards to get the latest transition of each type within range
     for (let i = changelog.length - 1; i >= 0; i--) {
       const history = changelog[i];
       const statusChanges = (history.items || []).filter(item => 
@@ -3181,166 +3190,236 @@ function renderPhaseTimeline() {
       for (const change of statusChanges) {
         const toStatus = change.toString;
         const toPhase = getPhaseForStatus(toStatus);
-        if (toPhase && (toPhase.label === 'QA' || toPhase.label === 'Closed')) {
-          const changeDate = new Date(history.created);
-          if (changeDate >= rangeStart && changeDate <= now) {
-            completionDate = changeDate;
-            break;
+        const changeDate = new Date(history.created);
+        if (changeDate >= rangeStart && changeDate <= now) {
+          if (toPhase && toPhase.label === 'QA' && !qaDate) {
+            qaDate = changeDate;
+            qaTargetStatus = toStatus;
+          }
+          if (toPhase && toPhase.label === 'Closed' && !closedDate) {
+            closedDate = changeDate;
+            closedTargetStatus = toStatus;
           }
         }
       }
-      if (completionDate) break;
+      if (qaDate && closedDate) break;
     }
     
-    if (completionDate) {
-      completionData.push({
+    if (qaDate) {
+      sentToQA.push({
         proj,
         issue,
-        completionDate,
+        eventDate: qaDate,
         key: issue.key,
         summary: issue.fields?.summary || '',
-        status: currentStatus,
-        phase: currentPhase,
+        targetStatus: qaTargetStatus,
+        currentStatus,
+        currentPhase,
+        developer: developer,
+        assignee: assignee
+      });
+    }
+    if (closedDate) {
+      qaClosed.push({
+        proj,
+        issue,
+        eventDate: closedDate,
+        key: issue.key,
+        summary: issue.fields?.summary || '',
+        targetStatus: closedTargetStatus,
+        currentStatus,
+        currentPhase,
         developer: developer,
         assignee: assignee
       });
     }
   });
 
-  if (completionData.length === 0) {
-    contentEl.innerHTML = '<div class="info-box">No tickets completed in the selected time range.</div>';
+  const totalSent = sentToQA.length;
+  const totalClosed = qaClosed.length;
+
+  if (totalSent === 0 && totalClosed === 0) {
+    contentEl.innerHTML = '<div class="info-box">No Dev→QA or QA→Closed transitions found in the selected time range.</div>';
     return;
   }
 
-  // Group by time period
+  // Build unified periods so both series share the same time axis in one chart
   const periodMap = {};
-  completionData.forEach(item => {
+  function addEvent(item, isSentToQA) {
+    const d = item.eventDate;
     let periodKey;
-    const d = item.completionDate;
-    
     if (period === 'day') {
-      periodKey = d.toISOString().split('T')[0]; // YYYY-MM-DD
+      periodKey = d.toISOString().split('T')[0];
     } else if (period === 'week') {
-      // Get ISO week number
       const weekStart = new Date(d);
-      weekStart.setDate(d.getDate() - d.getDay()); // Start of week (Sunday)
+      weekStart.setDate(d.getDate() - d.getDay());
       periodKey = weekStart.toISOString().split('T')[0];
     } else if (period === 'month') {
       periodKey = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
     }
-    
+
     if (!periodMap[periodKey]) {
       periodMap[periodKey] = {
         key: periodKey,
         date: d,
-        tickets: [],
-        byProject: {},
-        byPhase: {}
+        sent: [],
+        closed: [],
+        byProject: {} // projKey -> {name, color, sent, closed}
       };
     }
-    
-    periodMap[periodKey].tickets.push(item);
-    
-    // Count by project
-    const projKey = item.proj.key;
-    if (!periodMap[periodKey].byProject[projKey]) {
-      periodMap[periodKey].byProject[projKey] = { name: item.proj.name, color: item.proj.color, count: 0 };
-    }
-    periodMap[periodKey].byProject[projKey].count++;
-    
-    // Count by phase
-    const phaseLabel = item.phase?.label || 'Other';
-    if (!periodMap[periodKey].byPhase[phaseLabel]) {
-      periodMap[periodKey].byPhase[phaseLabel] = { color: item.phase?.color || '#888780', count: 0 };
-    }
-    periodMap[periodKey].byPhase[phaseLabel].count++;
-  });
+    const bucket = periodMap[periodKey];
 
-  // Sort by date
+    if (isSentToQA) {
+      bucket.sent.push(item);
+    } else {
+      bucket.closed.push(item);
+    }
+
+    const projKey = item.proj.key;
+    if (!bucket.byProject[projKey]) {
+      bucket.byProject[projKey] = { name: item.proj.name, color: item.proj.color, sent: 0, closed: 0 };
+    }
+    if (isSentToQA) bucket.byProject[projKey].sent++;
+    else bucket.byProject[projKey].closed++;
+  }
+
+  sentToQA.forEach(item => addEvent(item, true));
+  qaClosed.forEach(item => addEvent(item, false));
+
   const periods = Object.values(periodMap).sort((a, b) => a.date - b.date);
 
-  // Build table
+  // Build summary rows + detail rows (one row per period, details contain both flows)
   const rows = periods.map(p => {
     const dateLabel = formatPeriodLabel(p.key, period);
-    const total = p.tickets.length;
-    
-    // Build project breakdown
+    const sentCnt = p.sent.length;
+    const closedCnt = p.closed.length;
+    const total = sentCnt + closedCnt;
+
+    // Project breakdown shows both numbers when present
     const projectBreakdown = Object.entries(p.byProject)
-      .map(([key, data]) => `<span style="display:inline-flex;align-items:center;gap:4px;margin-right:10px"><span style="width:8px;height:8px;border-radius:50%;background:${data.color}"></span><span style="font-size:11px">${esc(data.name)}: ${data.count}</span></span>`)
+      .map(([k, data]) => {
+        const parts = [];
+        if (data.sent > 0) parts.push(`${data.sent} sent`);
+        if (data.closed > 0) parts.push(`${data.closed} closed`);
+        const txt = parts.join(', ') || '0';
+        return `<span style="display:inline-flex;align-items:center;gap:4px;margin-right:8px"><span style="width:8px;height:8px;border-radius:50%;background:${data.color}"></span><span style="font-size:11px">${esc(data.name)}: ${txt}</span></span>`;
+      })
       .join('');
-    
-    // Build phase breakdown
-    const phaseBreakdown = Object.entries(p.byPhase)
-      .map(([label, data]) => `<span style="display:inline-flex;align-items:center;gap:4px;margin-right:10px"><span style="width:8px;height:8px;border-radius:50%;background:${data.color}"></span><span style="font-size:11px">${esc(label)}: ${data.count}</span></span>`)
-      .join('');
-    
-    return `<tr class="period-summary-row" onclick="togglePeriodDetails('${esc(p.key)}')" style="cursor:pointer">
+
+    const summaryRow = `<tr class="period-summary-row" onclick="togglePeriodDetails('${esc(p.key)}')" style="cursor:pointer">
       <td style="font-weight:600">${esc(dateLabel)}</td>
+      <td style="text-align:center;font-size:15px;font-weight:700;color:#2d6a10">${sentCnt}</td>
+      <td style="text-align:center;font-size:15px;font-weight:700;color:#185FA5">${closedCnt}</td>
       <td style="text-align:center;font-size:16px;font-weight:700;color:var(--blue)">${total}</td>
       <td style="font-size:12px">${projectBreakdown}</td>
-      <td style="font-size:12px">${phaseBreakdown}</td>
       <td style="text-align:center">
         <svg class="expand-icon period-expand-${esc(p.key)}" style="width:14px;height:14px;transition:transform .2s" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
           <polyline points="9 18 15 12 9 6"/>
         </svg>
       </td>
-    </tr>
-    <tr class="period-details period-details-${esc(p.key)} hidden">
-      <td colspan="5" style="padding:0;background:var(--bg3)">
-        <div style="padding:14px 20px">
-          <table class="issues" style="width:100%;font-size:12px">
+    </tr>`;
+
+    // Details: two separate mini lists/tables for clarity (still one expand row)
+    let detailsContent = '';
+    if (p.sent.length > 0) {
+      detailsContent += `
+        <div style="margin-bottom:10px">
+          <div style="font-size:12px;font-weight:600;margin-bottom:4px;color:#2d6a10">Dev → QA (${p.sent.length})</div>
+          <table class="issues" style="width:100%;font-size:11px">
             <thead>
               <tr>
-                <th style="width:120px">Key</th>
+                <th style="width:110px">Key</th>
                 <th>Summary</th>
-                <th style="width:140px">Project</th>
-                <th style="width:140px">Developer</th>
-                <th style="width:100px">Status</th>
-                <th style="width:140px">Completed</th>
+                <th style="width:120px">Project</th>
+                <th style="width:120px">Developer</th>
+                <th style="width:110px">Target</th>
+                <th style="width:130px">Date</th>
               </tr>
             </thead>
             <tbody>
-              ${p.tickets.map(t => {
+              ${p.sent.map(t => {
                 const link = S.creds.url ? S.creds.url + '/browse/' + t.key : '#';
                 return `<tr onclick="window.open('${link}','_blank');event.stopPropagation()" style="cursor:pointer">
                   <td><span class="key-link">${esc(t.key)}</span></td>
-                  <td style="max-width:300px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(t.summary)}</td>
-                  <td><span style="display:inline-flex;align-items:center;gap:6px"><span style="width:8px;height:8px;border-radius:50%;background:${t.proj.color}"></span>${esc(t.proj.name)}</span></td>
-                  <td style="font-size:11px;color:var(--text2)">${esc(t.developer)}</td>
-                  <td>${esc(t.status)}</td>
-                  <td style="font-size:11px;color:var(--text3)">${formatDateTime(t.completionDate)}</td>
+                  <td style="max-width:280px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(t.summary)}</td>
+                  <td><span style="display:inline-flex;align-items:center;gap:5px"><span style="width:7px;height:7px;border-radius:50%;background:${t.proj.color}"></span>${esc(t.proj.name)}</span></td>
+                  <td style="font-size:10px;color:var(--text2)">${esc(t.developer)}</td>
+                  <td style="font-size:10px">${esc(t.targetStatus || t.currentStatus)}</td>
+                  <td style="font-size:10px;color:var(--text3)">${formatDateTime(t.eventDate)}</td>
                 </tr>`;
               }).join('')}
             </tbody>
           </table>
+        </div>`;
+    }
+    if (p.closed.length > 0) {
+      detailsContent += `
+        <div>
+          <div style="font-size:12px;font-weight:600;margin-bottom:4px;color:#185FA5">QA Closed (${p.closed.length})</div>
+          <table class="issues" style="width:100%;font-size:11px">
+            <thead>
+              <tr>
+                <th style="width:110px">Key</th>
+                <th>Summary</th>
+                <th style="width:120px">Project</th>
+                <th style="width:120px">Developer</th>
+                <th style="width:110px">Target</th>
+                <th style="width:130px">Date</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${p.closed.map(t => {
+                const link = S.creds.url ? S.creds.url + '/browse/' + t.key : '#';
+                return `<tr onclick="window.open('${link}','_blank');event.stopPropagation()" style="cursor:pointer">
+                  <td><span class="key-link">${esc(t.key)}</span></td>
+                  <td style="max-width:280px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(t.summary)}</td>
+                  <td><span style="display:inline-flex;align-items:center;gap:5px"><span style="width:7px;height:7px;border-radius:50%;background:${t.proj.color}"></span>${esc(t.proj.name)}</span></td>
+                  <td style="font-size:10px;color:var(--text2)">${esc(t.developer)}</td>
+                  <td style="font-size:10px">${esc(t.targetStatus || t.currentStatus)}</td>
+                  <td style="font-size:10px;color:var(--text3)">${formatDateTime(t.eventDate)}</td>
+                </tr>`;
+              }).join('')}
+            </tbody>
+          </table>
+        </div>`;
+    }
+
+    const detailRow = `<tr class="period-details period-details-${esc(p.key)} hidden">
+      <td colspan="6" style="padding:0;background:var(--bg3)">
+        <div style="padding:12px 16px">
+          ${detailsContent || '<div style="font-size:12px;color:var(--text3)">No events</div>'}
         </div>
       </td>
     </tr>`;
+
+    return summaryRow + detailRow;
   }).join('');
 
-  // Build trend chart data
+  // Chart series data (aligned periods)
   const chartLabels = periods.map(p => formatPeriodLabel(p.key, period));
-  const chartData = periods.map(p => p.tickets.length);
+  const sentData = periods.map(p => p.sent.length);
+  const closedData = periods.map(p => p.closed.length);
   const periodKeys = periods.map(p => p.key);
 
   contentEl.innerHTML = `
     <div class="card" style="margin-bottom:20px">
       <h3 style="font-size:15px;font-weight:600;margin-bottom:4px">Completion Trend</h3>
-      <p style="font-size:12px;color:var(--text3);margin-bottom:14px">Click on data points to expand period details below</p>
+      <p style="font-size:12px;color:var(--text3);margin-bottom:14px">Dev → QA vs QA Closed (separate series). Click a point to expand that period's details below.</p>
       <div style="position:relative;width:100%;height:280px">
         <canvas id="phase-timeline-chart"></canvas>
       </div>
     </div>
     
     <div class="card">
-      <h3 style="font-size:15px;font-weight:600;margin-bottom:14px">Completed Tickets (${completionData.length} total)</h3>
+      <h3 style="font-size:15px;font-weight:600;margin-bottom:14px">Phase Transitions (${totalSent} sent to QA, ${totalClosed} closed)</h3>
       <table class="pipeline-table" style="margin-bottom:0">
         <thead>
           <tr>
-            <th style="width:200px">Period</th>
-            <th style="width:100px;text-align:center">Total</th>
+            <th style="width:160px">Period</th>
+            <th style="width:75px;text-align:center">Dev→QA</th>
+            <th style="width:85px;text-align:center">QA Closed</th>
+            <th style="width:65px;text-align:center">Total</th>
             <th>By Project</th>
-            <th>By Phase</th>
             <th style="width:50px"></th>
           </tr>
         </thead>
@@ -3349,7 +3428,7 @@ function renderPhaseTimeline() {
     </div>
   `;
 
-  // Render chart with click handler
+  // Render single combined line chart with two series
   const ctx = document.getElementById('phase-timeline-chart');
   if (ctx) {
     if (S.charts.phaseTimeline) S.charts.phaseTimeline.destroy();
@@ -3357,22 +3436,40 @@ function renderPhaseTimeline() {
       type: 'line',
       data: {
         labels: chartLabels,
-        datasets: [{
-          label: 'Tickets Completed',
-          data: chartData,
-          borderColor: '#185FA5',
-          backgroundColor: 'rgba(24, 95, 165, 0.1)',
-          borderWidth: 2,
-          fill: true,
-          tension: 0.3,
-          pointRadius: 6,
-          pointHoverRadius: 8,
-          pointBackgroundColor: '#185FA5',
-          pointBorderColor: '#fff',
-          pointBorderWidth: 2,
-          pointHoverBackgroundColor: '#0d4275',
-          pointHoverBorderColor: '#fff'
-        }]
+        datasets: [
+          {
+            label: 'Dev → QA',
+            data: sentData,
+            borderColor: '#2d6a10',
+            backgroundColor: 'rgba(45, 106, 16, 0.08)',
+            borderWidth: 2.5,
+            fill: false,
+            tension: 0.3,
+            pointRadius: 5,
+            pointHoverRadius: 7,
+            pointBackgroundColor: '#2d6a10',
+            pointBorderColor: '#fff',
+            pointBorderWidth: 2,
+            pointHoverBackgroundColor: '#1f4f0c',
+            pointHoverBorderColor: '#fff'
+          },
+          {
+            label: 'QA Closed',
+            data: closedData,
+            borderColor: '#185FA5',
+            backgroundColor: 'rgba(24, 95, 165, 0.08)',
+            borderWidth: 2.5,
+            fill: false,
+            tension: 0.3,
+            pointRadius: 5,
+            pointHoverRadius: 7,
+            pointBackgroundColor: '#185FA5',
+            pointBorderColor: '#fff',
+            pointBorderWidth: 2,
+            pointHoverBackgroundColor: '#0d4275',
+            pointHoverBorderColor: '#fff'
+          }
+        ]
       },
       options: {
         responsive: true,
@@ -3384,10 +3481,10 @@ function renderPhaseTimeline() {
           }
         },
         plugins: {
-          legend: { display: false },
+          legend: { display: true, position: 'top' },
           tooltip: {
             callbacks: {
-              label: (context) => ` ${context.parsed.y} tickets completed`
+              label: (context) => ` ${context.dataset.label}: ${context.parsed.y}`
             }
           }
         },
@@ -3395,15 +3492,11 @@ function renderPhaseTimeline() {
           if (elements.length > 0) {
             const index = elements[0].index;
             const periodKey = periodKeys[index];
-            // Expand the corresponding period details
             const detailRow = document.querySelector(`.period-details-${periodKey}`);
-            const expandIcon = document.querySelector(`.period-expand-${periodKey}`);
             if (detailRow && detailRow.classList.contains('hidden')) {
               togglePeriodDetails(periodKey);
             }
-            // Scroll to the row
-            const summaryRow = document.querySelector(`.period-summary-row`);
-            if (summaryRow) {
+            if (detailRow) {
               detailRow.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
             }
           }
