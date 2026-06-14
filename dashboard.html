@@ -327,16 +327,17 @@ table.issues tr:hover td { background: var(--bg2); }
 .ms-footer button { font-size:11px; color:var(--blue); background:none; border:none; cursor:pointer; font-family:inherit; padding:2px 4px; }
 .ms-footer button:hover { text-decoration:underline; }
 .team-dev-block { margin-bottom:24px; }
-.team-dev-header { display:flex; align-items:center; gap:10px; padding:8px 0 6px; border-bottom:2px solid var(--border2); margin-bottom:0; font-size:14px; font-weight:600; }
+.team-dev-header { display:flex; align-items:center; gap:10px; padding:10px 0 8px; border-bottom:2px solid var(--border2); margin-bottom:0; font-size:14px; font-weight:600; }
 .team-dev-count { font-size:11px; font-weight:400; color:var(--text3); margin-left:4px; }
 .team-table { width:100%; border-collapse:collapse; background:var(--bg); border:0.5px solid var(--border); border-radius:var(--radius-lg); overflow:hidden; }
-.team-table th { font-size:11px; font-weight:600; color:var(--text3); text-transform:uppercase; letter-spacing:.06em; padding:8px 14px; border-bottom:0.5px solid var(--border); background:var(--bg2); text-align:left; white-space:nowrap; cursor:pointer; user-select:none; }
+.team-table th { font-size:11px; font-weight:600; color:var(--text3); text-transform:uppercase; letter-spacing:.06em; padding:9px 16px; border-bottom:0.5px solid var(--border); background:var(--bg2); text-align:left; white-space:nowrap; cursor:pointer; user-select:none; }
 .team-table th:hover { color:var(--text); }
 .team-table th .sort-icon { opacity:.4; margin-left:3px; font-size:10px; }
 .team-table th.sorted .sort-icon { opacity:1; color:var(--blue); }
-.team-table td { padding:9px 14px; border-bottom:0.5px solid var(--border); font-size:13px; vertical-align:middle; }
+.team-table td { padding:10px 16px; border-bottom:0.5px solid var(--border); font-size:13px; vertical-align:middle; white-space:nowrap; }
 .team-table tr:last-child td { border-bottom:none; }
 .team-table tr:hover td { background:var(--bg2); cursor:pointer; }
+.team-table-wrap { overflow-x: auto; }
 .team-proj-dot { width:8px; height:8px; border-radius:50%; display:inline-block; flex-shrink:0; }
 .team-empty { font-size:13px; color:var(--text3); padding:32px 0; text-align:center; }
 .log-empty { font-size:13px; color:var(--text3); padding:32px 0; text-align:center; }
@@ -624,13 +625,11 @@ code { font-family: monospace; font-size: 12px; background: var(--bg3); padding:
 
       <!-- Developer Velocity -->
       <div class="page" id="page-velocity">
-        <div style="max-width:1400px">
-          <div style="margin-bottom:18px">
-            <h2 style="font-size:18px;font-weight:600;margin-bottom:3px">Developer Velocity</h2>
-            <p style="font-size:13px;color:var(--text2)">Track whether developers are behind schedule, on track, or have capacity for more work based on estimated vs actual time.</p>
-          </div>
-          <div id="velocity-body"></div>
+        <div style="margin-bottom:18px">
+          <h2 style="font-size:18px;font-weight:600;margin-bottom:3px">Developer Velocity</h2>
+          <p style="font-size:13px;color:var(--text2)">Track whether developers are behind schedule, on track, or have capacity for more work based on estimated vs actual time.</p>
         </div>
+        <div id="velocity-body"></div>
       </div>
 
       <!-- Analytics -->
@@ -644,90 +643,87 @@ code { font-family: monospace; font-size: 12px; background: var(--bg3); padding:
 
       <!-- Team View -->
       <div class="page" id="page-team">
-        <div style="max-width:1100px">
-          <div class="team-toolbar">
-            <div style="flex:1">
-              <h2 style="font-size:18px;font-weight:600;margin-bottom:2px">Team View</h2>
-              <p style="font-size:13px;color:var(--text2)">Tickets grouped by developer across all projects.</p>
-            </div>
-            <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
-              <div class="ms-wrap" id="ms-wrap-project">
-                <div class="ms-btn" id="ms-btn-project" onclick="toggleMs('project')">
-                  <span id="ms-label-project">Projects</span>
-                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="6 9 12 15 18 9"/></svg>
-                </div>
-                <div class="ms-dropdown" id="ms-drop-project">
-                  <div class="ms-dropdown-search"><input type="text" placeholder="Search…" oninput="filterMsOptions('project',this.value)"></div>
-                  <div class="ms-options" id="ms-opts-project"></div>
-                  <div class="ms-footer"><button onclick="selectAllMs('project')">Select all</button><button onclick="clearMs('project')">Clear</button></div>
-                </div>
-              </div>
-              <div class="ms-wrap" id="ms-wrap-phase">
-                <div class="ms-btn" id="ms-btn-phase" onclick="toggleMs('phase')">
-                  <span id="ms-label-phase">Phases</span>
-                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="6 9 12 15 18 9"/></svg>
-                </div>
-                <div class="ms-dropdown" id="ms-drop-phase">
-                  <div class="ms-dropdown-search"><input type="text" placeholder="Search…" oninput="filterMsOptions('phase',this.value)"></div>
-                  <div class="ms-options" id="ms-opts-phase"></div>
-                  <div class="ms-footer"><button onclick="selectAllMs('phase')">Select all</button><button onclick="clearMs('phase')">Clear</button></div>
-                </div>
-              </div>
-              <div class="ms-wrap" id="ms-wrap-dev">
-                <div class="ms-btn" id="ms-btn-dev" onclick="toggleMs('dev')">
-                  <span id="ms-label-dev">Developers</span>
-                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="6 9 12 15 18 9"/></svg>
-                </div>
-                <div class="ms-dropdown" id="ms-drop-dev">
-                  <div class="ms-dropdown-search"><input type="text" placeholder="Search…" oninput="filterMsOptions('dev',this.value)"></div>
-                  <div class="ms-options" id="ms-opts-dev"></div>
-                  <div class="ms-footer"><button onclick="selectAllMs('dev')">Select all</button><button onclick="clearMs('dev')">Clear</button></div>
-                </div>
-              </div>
-              <div class="ms-wrap" id="ms-wrap-product">
-                <div class="ms-btn" id="ms-btn-product" onclick="toggleMs('product')">
-                  <span id="ms-label-product">Product Assignees</span>
-                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="6 9 12 15 18 9"/></svg>
-                </div>
-                <div class="ms-dropdown" id="ms-drop-product">
-                  <div class="ms-dropdown-search"><input type="text" placeholder="Search…" oninput="filterMsOptions('product',this.value)"></div>
-                  <div class="ms-options" id="ms-opts-product"></div>
-                  <div class="ms-footer"><button onclick="selectAllMs('product')">Select all</button><button onclick="clearMs('product')">Clear</button></div>
-                </div>
-              </div>
-              <div class="ms-wrap" id="ms-wrap-assignee">
-                <div class="ms-btn" id="ms-btn-assignee" onclick="toggleMs('assignee')">
-                  <span id="ms-label-assignee">Assignees</span>
-                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="6 9 12 15 18 9"/></svg>
-                </div>
-                <div class="ms-dropdown" id="ms-drop-assignee">
-                  <div class="ms-dropdown-search"><input type="text" placeholder="Search…" oninput="filterMsOptions('assignee',this.value)"></div>
-                  <div class="ms-options" id="ms-opts-assignee"></div>
-                  <div class="ms-footer"><button onclick="selectAllMs('assignee')">Select all</button><button onclick="clearMs('assignee')">Clear</button></div>
-                </div>
-              </div>
-              <div class="ms-wrap" id="ms-wrap-scope">
-                <div class="ms-btn" id="ms-btn-scope" onclick="toggleMs('scope')">
-                  <span id="ms-label-scope">Scope Commitment</span>
-                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="6 9 12 15 18 9"/></svg>
-                </div>
-                <div class="ms-dropdown" id="ms-drop-scope">
-                  <div class="ms-dropdown-search"><input type="text" placeholder="Search…" oninput="filterMsOptions('scope',this.value)"></div>
-                  <div class="ms-options" id="ms-opts-scope"></div>
-                  <div class="ms-footer"><button onclick="selectAllMs('scope')">Select all</button><button onclick="clearMs('scope')">Clear</button></div>
-                </div>
-              </div>
-              <input id="team-search" class="team-search" type="text" placeholder="Search key or summary…" oninput="renderTeam()" />
-            </div>
+        <div class="team-toolbar">
+          <div style="flex:1">
+            <h2 style="font-size:18px;font-weight:600;margin-bottom:2px">Team View</h2>
+            <p style="font-size:13px;color:var(--text2)">Tickets grouped by developer across all projects.</p>
           </div>
-          <div id="team-body"></div>
+          <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
+            <div class="ms-wrap" id="ms-wrap-project">
+              <div class="ms-btn" id="ms-btn-project" onclick="toggleMs('project')">
+                <span id="ms-label-project">Projects</span>
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="6 9 12 15 18 9"/></svg>
+              </div>
+              <div class="ms-dropdown" id="ms-drop-project">
+                <div class="ms-dropdown-search"><input type="text" placeholder="Search…" oninput="filterMsOptions('project',this.value)"></div>
+                <div class="ms-options" id="ms-opts-project"></div>
+                <div class="ms-footer"><button onclick="selectAllMs('project')">Select all</button><button onclick="clearMs('project')">Clear</button></div>
+              </div>
+            </div>
+            <div class="ms-wrap" id="ms-wrap-phase">
+              <div class="ms-btn" id="ms-btn-phase" onclick="toggleMs('phase')">
+                <span id="ms-label-phase">Phases</span>
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="6 9 12 15 18 9"/></svg>
+              </div>
+              <div class="ms-dropdown" id="ms-drop-phase">
+                <div class="ms-dropdown-search"><input type="text" placeholder="Search…" oninput="filterMsOptions('phase',this.value)"></div>
+                <div class="ms-options" id="ms-opts-phase"></div>
+                <div class="ms-footer"><button onclick="selectAllMs('phase')">Select all</button><button onclick="clearMs('phase')">Clear</button></div>
+              </div>
+            </div>
+            <div class="ms-wrap" id="ms-wrap-dev">
+              <div class="ms-btn" id="ms-btn-dev" onclick="toggleMs('dev')">
+                <span id="ms-label-dev">Developers</span>
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="6 9 12 15 18 9"/></svg>
+              </div>
+              <div class="ms-dropdown" id="ms-drop-dev">
+                <div class="ms-dropdown-search"><input type="text" placeholder="Search…" oninput="filterMsOptions('dev',this.value)"></div>
+                <div class="ms-options" id="ms-opts-dev"></div>
+                <div class="ms-footer"><button onclick="selectAllMs('dev')">Select all</button><button onclick="clearMs('dev')">Clear</button></div>
+              </div>
+            </div>
+            <div class="ms-wrap" id="ms-wrap-product">
+              <div class="ms-btn" id="ms-btn-product" onclick="toggleMs('product')">
+                <span id="ms-label-product">Product Assignees</span>
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="6 9 12 15 18 9"/></svg>
+              </div>
+              <div class="ms-dropdown" id="ms-drop-product">
+                <div class="ms-dropdown-search"><input type="text" placeholder="Search…" oninput="filterMsOptions('product',this.value)"></div>
+                <div class="ms-options" id="ms-opts-product"></div>
+                <div class="ms-footer"><button onclick="selectAllMs('product')">Select all</button><button onclick="clearMs('product')">Clear</button></div>
+              </div>
+            </div>
+            <div class="ms-wrap" id="ms-wrap-assignee">
+              <div class="ms-btn" id="ms-btn-assignee" onclick="toggleMs('assignee')">
+                <span id="ms-label-assignee">Assignees</span>
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="6 9 12 15 18 9"/></svg>
+              </div>
+              <div class="ms-dropdown" id="ms-drop-assignee">
+                <div class="ms-dropdown-search"><input type="text" placeholder="Search…" oninput="filterMsOptions('assignee',this.value)"></div>
+                <div class="ms-options" id="ms-opts-assignee"></div>
+                <div class="ms-footer"><button onclick="selectAllMs('assignee')">Select all</button><button onclick="clearMs('assignee')">Clear</button></div>
+              </div>
+            </div>
+            <div class="ms-wrap" id="ms-wrap-scope">
+              <div class="ms-btn" id="ms-btn-scope" onclick="toggleMs('scope')">
+                <span id="ms-label-scope">Scope Commitment</span>
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="6 9 12 15 18 9"/></svg>
+              </div>
+              <div class="ms-dropdown" id="ms-drop-scope">
+                <div class="ms-dropdown-search"><input type="text" placeholder="Search…" oninput="filterMsOptions('scope',this.value)"></div>
+                <div class="ms-options" id="ms-opts-scope"></div>
+                <div class="ms-footer"><button onclick="selectAllMs('scope')">Select all</button><button onclick="clearMs('scope')">Clear</button></div>
+              </div>
+            </div>
+            <input id="team-search" class="team-search" type="text" placeholder="Search key or summary…" oninput="renderTeam()" />
+          </div>
         </div>
+        <div id="team-body"></div>
       </div>
 
       <!-- Project Phase -->
       <div class="page" id="page-phase-timeline">
-        <div style="max-width:1400px">
-          <div style="display:flex;align-items:flex-start;justify-content:space-between;margin-bottom:18px;gap:20px">
+        <div style="display:flex;align-items:flex-start;justify-content:space-between;margin-bottom:18px;gap:20px">
             <div style="flex:1">
               <h2 style="font-size:18px;font-weight:600;margin-bottom:3px">Project Phase Timeline</h2>
               <p style="font-size:13px;color:var(--text2)">Track Dev→QA sends and QA Closed tickets separately over time across all projects.</p>
@@ -779,62 +775,59 @@ code { font-family: monospace; font-size: 12px; background: var(--bg3); padding:
             </div>
           </div>
           <div id="phase-timeline-content"></div>
-        </div>
       </div>
 
       <!-- Daily Progress -->
       <div class="page" id="page-log">
-        <div style="max-width:1400px">
-          <div style="display:flex;align-items:flex-start;justify-content:space-between;margin-bottom:18px;gap:20px">
-            <div style="flex:1">
-              <h2 style="font-size:18px;font-weight:600;margin-bottom:3px">Daily Progress</h2>
-              <p style="font-size:13px;color:var(--text2)">Track ticket status movements over time across all projects.</p>
-            </div>
-            <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;justify-content:flex-end">
-              <div class="ms-wrap">
-                <button class="ms-btn" id="log-project-filter-btn" onclick="toggleLogProjectFilter()">
-                  <span id="log-project-filter-label">All Projects</span>
-                  <span class="ms-badge" id="log-project-filter-count" style="display:none">0</span>
-                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"/></svg>
-                </button>
-                <div class="ms-dropdown" id="log-project-filter-dropdown">
-                  <div class="ms-options" id="log-project-filter-options"></div>
-                  <div class="ms-footer">
-                    <button onclick="clearLogProjectFilter()">Clear</button>
-                    <button onclick="selectAllLogProjects()">Select All</button>
-                  </div>
-                </div>
-              </div>
-              <div class="ms-wrap">
-                <button class="ms-btn" id="log-developer-filter-btn" onclick="toggleLogDeveloperFilter()">
-                  <span id="log-developer-filter-label">All Developers</span>
-                  <span class="ms-badge" id="log-developer-filter-count" style="display:none">0</span>
-                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"/></svg>
-                </button>
-                <div class="ms-dropdown" id="log-developer-filter-dropdown">
-                  <div class="ms-dropdown-search">
-                    <input type="text" id="log-developer-search" placeholder="Search developers..." oninput="filterLogDeveloperOptions()">
-                  </div>
-                  <div class="ms-options" id="log-developer-filter-options"></div>
-                  <div class="ms-footer">
-                    <button onclick="clearLogDeveloperFilter()">Clear</button>
-                    <button onclick="selectAllLogDevelopers()">Select All</button>
-                  </div>
-                </div>
-              </div>
-              <select id="log-period" class="section-control" onchange="renderDailyProgress()">
-                <option value="day">By Day</option>
-                <option value="week" selected>By Week</option>
-              </select>
-              <select id="log-range" class="section-control" onchange="renderDailyProgress()">
-                <option value="30">Last 30 days</option>
-                <option value="60">Last 60 days</option>
-                <option value="90" selected>Last 90 days</option>
-              </select>
-            </div>
+        <div style="display:flex;align-items:flex-start;justify-content:space-between;margin-bottom:18px;gap:20px">
+          <div style="flex:1">
+            <h2 style="font-size:18px;font-weight:600;margin-bottom:3px">Daily Progress</h2>
+            <p style="font-size:13px;color:var(--text2)">Track ticket status movements over time across all projects.</p>
           </div>
-          <div id="log-content"></div>
+          <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;justify-content:flex-end">
+            <div class="ms-wrap">
+              <button class="ms-btn" id="log-project-filter-btn" onclick="toggleLogProjectFilter()">
+                <span id="log-project-filter-label">All Projects</span>
+                <span class="ms-badge" id="log-project-filter-count" style="display:none">0</span>
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"/></svg>
+              </button>
+              <div class="ms-dropdown" id="log-project-filter-dropdown">
+                <div class="ms-options" id="log-project-filter-options"></div>
+                <div class="ms-footer">
+                  <button onclick="clearLogProjectFilter()">Clear</button>
+                  <button onclick="selectAllLogProjects()">Select All</button>
+                </div>
+              </div>
+            </div>
+            <div class="ms-wrap">
+              <button class="ms-btn" id="log-developer-filter-btn" onclick="toggleLogDeveloperFilter()">
+                <span id="log-developer-filter-label">All Developers</span>
+                <span class="ms-badge" id="log-developer-filter-count" style="display:none">0</span>
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"/></svg>
+              </button>
+              <div class="ms-dropdown" id="log-developer-filter-dropdown">
+                <div class="ms-dropdown-search">
+                  <input type="text" id="log-developer-search" placeholder="Search developers..." oninput="filterLogDeveloperOptions()">
+                </div>
+                <div class="ms-options" id="log-developer-filter-options"></div>
+                <div class="ms-footer">
+                  <button onclick="clearLogDeveloperFilter()">Clear</button>
+                  <button onclick="selectAllLogDevelopers()">Select All</button>
+                </div>
+              </div>
+            </div>
+            <select id="log-period" class="section-control" onchange="renderDailyProgress()">
+              <option value="day">By Day</option>
+              <option value="week" selected>By Week</option>
+            </select>
+            <select id="log-range" class="section-control" onchange="renderDailyProgress()">
+              <option value="30">Last 30 days</option>
+              <option value="60">Last 60 days</option>
+              <option value="90" selected>Last 90 days</option>
+            </select>
+          </div>
         </div>
+        <div id="log-content"></div>
       </div>
 
       <!-- Project pages -->
@@ -3016,7 +3009,7 @@ function renderTeam() {
       
       return `<tr onclick="window.open('${esc(link)}','_blank')">
         <td><a class="log-key-link" href="${esc(link)}" target="_blank" onclick="event.stopPropagation()">${esc(issue.key || '')}</a></td>
-        <td style="max-width:340px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${esc(issue.fields?.summary || '')}">${esc(issue.fields?.summary || '')}</td>
+        <td style="max-width:460px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${esc(issue.fields?.summary || '')}">${esc(issue.fields?.summary || '')}</td>
         <td><span style="display:inline-flex;align-items:center;gap:5px"><span class="team-proj-dot" style="background:${proj.color}"></span>${esc(proj.name)}</span></td>
         <td><span class="log-badge-to" style="background:${phColor}20;color:${phColor}">${esc(phLabel)}</span></td>
         <td><span class="log-badge-from">${esc(status)}</span></td>
@@ -3031,6 +3024,7 @@ function renderTeam() {
         ${esc(dev)}
         <span class="team-dev-count">${items.length} ticket${items.length !== 1 ? 's' : ''}</span>
       </div>
+      <div class="team-table-wrap">
       <table class="team-table">
         <thead><tr>
           ${thSort('key','Key')}
@@ -3043,6 +3037,7 @@ function renderTeam() {
         </tr></thead>
         <tbody>${rows}</tbody>
       </table>
+      </div>
     </div>`;
   }).join('');
 
