@@ -3083,6 +3083,14 @@ function clearLog() {
   renderDailyProgress();
 }
 
+function togglePhaseSeriesVisibility(key, checked) {
+  if (!S.phaseTrendVisible) {
+    S.phaseTrendVisible = { prodDev: true, devQA: true, qaClosed: true };
+  }
+  S.phaseTrendVisible[key] = !!checked;
+  renderPhaseTimeline();
+}
+
 // ── Project Phase Timeline ────────────────────────────────────────────────────
 function renderPhaseTimeline() {
   const contentEl = document.getElementById('phase-timeline-content');
@@ -3095,6 +3103,10 @@ function renderPhaseTimeline() {
 
   const period = document.getElementById('phase-period').value;
   const range = parseInt(document.getElementById('phase-range').value);
+
+  if (!S.phaseTrendVisible) {
+    S.phaseTrendVisible = { prodDev: true, devQA: true, qaClosed: true };
+  }
   
   // Gather all issues from all loaded projects
   const loaded = getAllProjects().filter(p => S.cache[p.key] && !S.cache[p.key].err);
@@ -3473,6 +3485,21 @@ function renderPhaseTimeline() {
     <div class="card" style="margin-bottom:20px">
       <h3 style="font-size:15px;font-weight:600;margin-bottom:4px">Completion Trend</h3>
       <p style="font-size:12px;color:var(--text3);margin-bottom:14px">Prod → Dev, Dev → QA, QA → Closed (separate series on one chart). Click a point to expand that period's details below.</p>
+      <div style="display:flex; gap:14px; align-items:center; margin-bottom:8px; font-size:12px; flex-wrap:wrap">
+        <span style="color:var(--text3); margin-right:2px">Show:</span>
+        <label style="display:inline-flex; align-items:center; gap:4px; cursor:pointer">
+          <input type="checkbox" ${S.phaseTrendVisible.prodDev ? 'checked' : ''} onchange="togglePhaseSeriesVisibility('prodDev', this.checked)">
+          <span style="color:#7C3AED">Prod → Dev</span>
+        </label>
+        <label style="display:inline-flex; align-items:center; gap:4px; cursor:pointer">
+          <input type="checkbox" ${S.phaseTrendVisible.devQA ? 'checked' : ''} onchange="togglePhaseSeriesVisibility('devQA', this.checked)">
+          <span style="color:#059669">Dev → QA</span>
+        </label>
+        <label style="display:inline-flex; align-items:center; gap:4px; cursor:pointer">
+          <input type="checkbox" ${S.phaseTrendVisible.qaClosed ? 'checked' : ''} onchange="togglePhaseSeriesVisibility('qaClosed', this.checked)">
+          <span style="color:#2563EB">QA → Closed</span>
+        </label>
+      </div>
       <div style="position:relative;width:100%;height:280px">
         <canvas id="phase-timeline-chart"></canvas>
       </div>
@@ -3508,6 +3535,7 @@ function renderPhaseTimeline() {
         datasets: [
           {
             label: 'Prod → Dev',
+            hidden: !S.phaseTrendVisible.prodDev,
             data: prodDevData,
             borderColor: '#7C3AED',
             backgroundColor: 'rgba(124, 58, 237, 0.1)',
@@ -3524,6 +3552,7 @@ function renderPhaseTimeline() {
           },
           {
             label: 'Dev → QA',
+            hidden: !S.phaseTrendVisible.devQA,
             data: devQAData,
             borderColor: '#059669',
             backgroundColor: 'rgba(5, 150, 105, 0.1)',
@@ -3540,6 +3569,7 @@ function renderPhaseTimeline() {
           },
           {
             label: 'QA → Closed',
+            hidden: !S.phaseTrendVisible.qaClosed,
             data: qaClosedData,
             borderColor: '#2563EB',
             backgroundColor: 'rgba(37, 99, 235, 0.1)',
