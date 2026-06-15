@@ -726,7 +726,7 @@ code { font-family: monospace; font-size: 12px; background: var(--bg3); padding:
         <div style="display:flex;align-items:flex-start;justify-content:space-between;margin-bottom:18px;gap:20px">
             <div style="flex:1">
               <h2 style="font-size:18px;font-weight:600;margin-bottom:3px">Project Phase Timeline</h2>
-              <p style="font-size:13px;color:var(--text2)">Track Dev→QA sends and QA Closed tickets separately over time across all projects.</p>
+              <p style="font-size:13px;color:var(--text2)">Track Prod→Dev, Dev→QA, and QA→Closed flows separately over time across all projects.</p>
             </div>
             <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;justify-content:flex-end">
               <div class="ms-wrap">
@@ -3161,15 +3161,20 @@ function renderPhaseTimeline() {
   const rangeStart = new Date(now.getTime() - (range * 24 * 60 * 60 * 1000));
 
   // Parse changelog for two separate completion flows (but shown in one chart):
-  // 1. Dev sent tickets to QA (transitions into QA phase)
-  // 2. QA closed tickets (transitions into Closed phase)
-  const sentToQA = [];
+  // Parse changelog for three flows (shown as separate series on one chart):
+  // 1. Prod → Dev (from Product phase into Developing / Developer Pending)
+  // 2. Dev → QA (transitions into QA phase)
+  // 3. QA → Closed (transitions into Closed phase)
+  const prodToDev = [];
+  const devToQA = [];
   const qaClosed = [];
   filteredIssues.forEach(({ proj, issue, developer, assignee, productAssignee }) => {
     const changelog = issue.changelog?.histories || [];
     const currentStatus = issue.fields?.status?.name || '';
     const currentPhase = getPhaseForStatus(currentStatus);
 
+    let prodDevDate = null;
+    let prodDevTargetStatus = '';
     let qaDate = null;
     let qaTargetStatus = '';
     let closedDate = null;
@@ -3183,25 +3188,50 @@ function renderPhaseTimeline() {
       );
       
       for (const change of statusChanges) {
+        const fromStatus = change.fromString || '';
         const toStatus = change.toString;
+        const fromPhase = getPhaseForStatus(fromStatus);
         const toPhase = getPhaseForStatus(toStatus);
         const changeDate = new Date(history.created);
         if (changeDate >= rangeStart && changeDate <= now) {
+          // Prod → Dev
+          if (fromPhase && fromPhase.label === 'Product' &&
+              toPhase && (toPhase.label === 'Developing' || toPhase.label === 'Developer Pending') &&
+              !prodDevDate) {
+            prodDevDate = changeDate;
+            prodDevTargetStatus = toStatus;
+          }
+          // Dev → QA
           if (toPhase && toPhase.label === 'QA' && !qaDate) {
             qaDate = changeDate;
             qaTargetStatus = toStatus;
           }
+          // QA → Closed
           if (toPhase && toPhase.label === 'Closed' && !closedDate) {
             closedDate = changeDate;
             closedTargetStatus = toStatus;
           }
         }
       }
-      if (qaDate && closedDate) break;
+      if (prodDevDate && qaDate && closedDate) break;
     }
     
+    if (prodDevDate) {
+      prodToDev.push({
+        proj,
+        issue,
+        eventDate: prodDevDate,
+        key: issue.key,
+        summary: issue.fields?.summary || '',
+        targetStatus: prodDevTargetStatus,
+        currentStatus,
+        currentPhase,
+        developer: developer,
+        assignee: assignee
+      });
+    }
     if (qaDate) {
-      sentToQA.push({
+      devToQA.push({
         proj,
         issue,
         eventDate: qaDate,
@@ -3230,17 +3260,18 @@ function renderPhaseTimeline() {
     }
   });
 
-  const totalSent = sentToQA.length;
-  const totalClosed = qaClosed.length;
+  const totalProdDev = prodToDev.length;
+  const totalDevQA = devToQA.length;
+  const totalQAClosed = qaClosed.length;
 
-  if (totalSent === 0 && totalClosed === 0) {
-    contentEl.innerHTML = '<div class="info-box">No Dev→QA or QA→Closed transitions found in the selected time range.</div>';
+  if (totalProdDev === 0 && totalDevQA === 0 && totalQAClosed === 0) {
+    contentEl.innerHTML = '<div class="info-box">No Prod→Dev, Dev→QA or QA→Closed transitions found in the selected time range.</div>';
     return;
   }
 
-  // Build unified periods so both series share the same time axis in one chart
+  // Build unified periods so the three series share the same time axis in one chart
   const periodMap = {};
-  function addEvent(item, isSentToQA) {
+  function addEvent(item, type) { // 'prodDev' | 'devQA' | 'qaClosed'
     const d = item.eventDate;
     let periodKey;
     if (period === 'day') {
@@ -3257,45 +3288,54 @@ function renderPhaseTimeline() {
       periodMap[periodKey] = {
         key: periodKey,
         date: d,
-        sent: [],
-        closed: [],
-        byProject: {} // projKey -> {name, color, sent, closed}
+        prodDev: [],
+        devQA: [],
+        qaClosed: [],
+        byProject: {} // projKey -> {name, color, prodDev, devQA, qaClosed}
       };
     }
     const bucket = periodMap[periodKey];
 
-    if (isSentToQA) {
-      bucket.sent.push(item);
+    if (type === 'prodDev') {
+      bucket.prodDev.push(item);
+    } else if (type === 'devQA') {
+      bucket.devQA.push(item);
     } else {
-      bucket.closed.push(item);
+      bucket.qaClosed.push(item);
     }
 
     const projKey = item.proj.key;
     if (!bucket.byProject[projKey]) {
-      bucket.byProject[projKey] = { name: item.proj.name, color: item.proj.color, sent: 0, closed: 0 };
+      bucket.byProject[projKey] = { 
+        name: item.proj.name, 
+        color: item.proj.color, 
+        prodDev: 0, devQA: 0, qaClosed: 0 
+      };
     }
-    if (isSentToQA) bucket.byProject[projKey].sent++;
-    else bucket.byProject[projKey].closed++;
+    bucket.byProject[projKey][type]++;
   }
 
-  sentToQA.forEach(item => addEvent(item, true));
-  qaClosed.forEach(item => addEvent(item, false));
+  prodToDev.forEach(item => addEvent(item, 'prodDev'));
+  devToQA.forEach(item => addEvent(item, 'devQA'));
+  qaClosed.forEach(item => addEvent(item, 'qaClosed'));
 
   const periods = Object.values(periodMap).sort((a, b) => a.date - b.date);
 
-  // Build summary rows + detail rows (one row per period, details contain both flows)
+  // Build summary rows + detail rows (one row per period, details contain all three flows)
   const rows = periods.map(p => {
     const dateLabel = formatPeriodLabel(p.key, period);
-    const sentCnt = p.sent.length;
-    const closedCnt = p.closed.length;
-    const total = sentCnt + closedCnt;
+    const prodDevCnt = p.prodDev.length;
+    const devQACnt = p.devQA.length;
+    const qaClosedCnt = p.qaClosed.length;
+    const total = prodDevCnt + devQACnt + qaClosedCnt;
 
-    // Project breakdown shows both numbers when present
+    // Project breakdown shows all three numbers when present
     const projectBreakdown = Object.entries(p.byProject)
       .map(([k, data]) => {
         const parts = [];
-        if (data.sent > 0) parts.push(`${data.sent} sent`);
-        if (data.closed > 0) parts.push(`${data.closed} closed`);
+        if (data.prodDev > 0) parts.push(`${data.prodDev} prod→dev`);
+        if (data.devQA > 0) parts.push(`${data.devQA} dev→qa`);
+        if (data.qaClosed > 0) parts.push(`${data.qaClosed} qa closed`);
         const txt = parts.join(', ') || '0';
         return `<span style="display:inline-flex;align-items:center;gap:4px;margin-right:8px"><span style="width:8px;height:8px;border-radius:50%;background:${data.color}"></span><span style="font-size:11px">${esc(data.name)}: ${txt}</span></span>`;
       })
@@ -3303,8 +3343,9 @@ function renderPhaseTimeline() {
 
     const summaryRow = `<tr class="period-summary-row" onclick="togglePeriodDetails('${esc(p.key)}')" style="cursor:pointer">
       <td style="font-weight:600">${esc(dateLabel)}</td>
-      <td style="text-align:center;font-size:15px;font-weight:700;color:#2d6a10">${sentCnt}</td>
-      <td style="text-align:center;font-size:15px;font-weight:700;color:#185FA5">${closedCnt}</td>
+      <td style="text-align:center;font-size:15px;font-weight:700;color:#7C3AED">${prodDevCnt}</td>
+      <td style="text-align:center;font-size:15px;font-weight:700;color:#059669">${devQACnt}</td>
+      <td style="text-align:center;font-size:15px;font-weight:700;color:#2563EB">${qaClosedCnt}</td>
       <td style="text-align:center;font-size:16px;font-weight:700;color:var(--blue)">${total}</td>
       <td style="font-size:12px">${projectBreakdown}</td>
       <td style="text-align:center">
@@ -3314,12 +3355,12 @@ function renderPhaseTimeline() {
       </td>
     </tr>`;
 
-    // Details: two separate mini lists/tables for clarity (still one expand row)
+    // Details: three separate mini lists/tables for clarity (still one expand row)
     let detailsContent = '';
-    if (p.sent.length > 0) {
+    if (p.prodDev.length > 0) {
       detailsContent += `
         <div style="margin-bottom:10px">
-          <div style="font-size:12px;font-weight:600;margin-bottom:4px;color:#2d6a10">Dev → QA (${p.sent.length})</div>
+          <div style="font-size:12px;font-weight:600;margin-bottom:4px;color:#7C3AED">Prod → Dev (${p.prodDev.length})</div>
           <table class="issues" style="width:100%;font-size:11px">
             <thead>
               <tr>
@@ -3332,7 +3373,7 @@ function renderPhaseTimeline() {
               </tr>
             </thead>
             <tbody>
-              ${p.sent.map(t => {
+              ${p.prodDev.map(t => {
                 const link = S.creds.url ? S.creds.url + '/browse/' + t.key : '#';
                 return `<tr onclick="window.open('${link}','_blank');event.stopPropagation()" style="cursor:pointer">
                   <td><span class="key-link">${esc(t.key)}</span></td>
@@ -3347,10 +3388,10 @@ function renderPhaseTimeline() {
           </table>
         </div>`;
     }
-    if (p.closed.length > 0) {
+    if (p.devQA.length > 0) {
       detailsContent += `
-        <div>
-          <div style="font-size:12px;font-weight:600;margin-bottom:4px;color:#185FA5">QA Closed (${p.closed.length})</div>
+        <div style="margin-bottom:10px">
+          <div style="font-size:12px;font-weight:600;margin-bottom:4px;color:#059669">Dev → QA (${p.devQA.length})</div>
           <table class="issues" style="width:100%;font-size:11px">
             <thead>
               <tr>
@@ -3363,7 +3404,38 @@ function renderPhaseTimeline() {
               </tr>
             </thead>
             <tbody>
-              ${p.closed.map(t => {
+              ${p.devQA.map(t => {
+                const link = S.creds.url ? S.creds.url + '/browse/' + t.key : '#';
+                return `<tr onclick="window.open('${link}','_blank');event.stopPropagation()" style="cursor:pointer">
+                  <td><span class="key-link">${esc(t.key)}</span></td>
+                  <td style="max-width:280px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(t.summary)}</td>
+                  <td><span style="display:inline-flex;align-items:center;gap:5px"><span style="width:7px;height:7px;border-radius:50%;background:${t.proj.color}"></span>${esc(t.proj.name)}</span></td>
+                  <td style="font-size:10px;color:var(--text2)">${esc(t.developer)}</td>
+                  <td style="font-size:10px">${esc(t.targetStatus || t.currentStatus)}</td>
+                  <td style="font-size:10px;color:var(--text3)">${formatDateTime(t.eventDate)}</td>
+                </tr>`;
+              }).join('')}
+            </tbody>
+          </table>
+        </div>`;
+    }
+    if (p.qaClosed.length > 0) {
+      detailsContent += `
+        <div>
+          <div style="font-size:12px;font-weight:600;margin-bottom:4px;color:#2563EB">QA Closed (${p.qaClosed.length})</div>
+          <table class="issues" style="width:100%;font-size:11px">
+            <thead>
+              <tr>
+                <th style="width:110px">Key</th>
+                <th>Summary</th>
+                <th style="width:120px">Project</th>
+                <th style="width:120px">Developer</th>
+                <th style="width:110px">Target</th>
+                <th style="width:130px">Date</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${p.qaClosed.map(t => {
                 const link = S.creds.url ? S.creds.url + '/browse/' + t.key : '#';
                 return `<tr onclick="window.open('${link}','_blank');event.stopPropagation()" style="cursor:pointer">
                   <td><span class="key-link">${esc(t.key)}</span></td>
@@ -3380,7 +3452,7 @@ function renderPhaseTimeline() {
     }
 
     const detailRow = `<tr class="period-details period-details-${esc(p.key)} hidden">
-      <td colspan="6" style="padding:0;background:var(--bg3)">
+      <td colspan="7" style="padding:0;background:var(--bg3)">
         <div style="padding:12px 16px">
           ${detailsContent || '<div style="font-size:12px;color:var(--text3)">No events</div>'}
         </div>
@@ -3392,28 +3464,30 @@ function renderPhaseTimeline() {
 
   // Chart series data (aligned periods)
   const chartLabels = periods.map(p => formatPeriodLabel(p.key, period));
-  const sentData = periods.map(p => p.sent.length);
-  const closedData = periods.map(p => p.closed.length);
+  const prodDevData = periods.map(p => p.prodDev.length);
+  const devQAData = periods.map(p => p.devQA.length);
+  const qaClosedData = periods.map(p => p.qaClosed.length);
   const periodKeys = periods.map(p => p.key);
 
   contentEl.innerHTML = `
     <div class="card" style="margin-bottom:20px">
       <h3 style="font-size:15px;font-weight:600;margin-bottom:4px">Completion Trend</h3>
-      <p style="font-size:12px;color:var(--text3);margin-bottom:14px">Dev → QA vs QA Closed (separate series). Click a point to expand that period's details below.</p>
+      <p style="font-size:12px;color:var(--text3);margin-bottom:14px">Prod → Dev, Dev → QA, QA → Closed (separate series on one chart). Click a point to expand that period's details below.</p>
       <div style="position:relative;width:100%;height:280px">
         <canvas id="phase-timeline-chart"></canvas>
       </div>
     </div>
     
     <div class="card">
-      <h3 style="font-size:15px;font-weight:600;margin-bottom:14px">Phase Transitions (${totalSent} sent to QA, ${totalClosed} closed)</h3>
+      <h3 style="font-size:15px;font-weight:600;margin-bottom:14px">Phase Transitions (${totalProdDev} Prod→Dev, ${totalDevQA} Dev→QA, ${totalQAClosed} QA Closed)</h3>
       <table class="pipeline-table" style="margin-bottom:0">
         <thead>
           <tr>
             <th style="width:160px">Period</th>
-            <th style="width:75px;text-align:center">Dev→QA</th>
-            <th style="width:85px;text-align:center">QA Closed</th>
-            <th style="width:65px;text-align:center">Total</th>
+            <th style="width:72px;text-align:center">Prod→Dev</th>
+            <th style="width:72px;text-align:center">Dev→QA</th>
+            <th style="width:80px;text-align:center">QA Closed</th>
+            <th style="width:60px;text-align:center">Total</th>
             <th>By Project</th>
             <th style="width:50px"></th>
           </tr>
@@ -3423,7 +3497,7 @@ function renderPhaseTimeline() {
     </div>
   `;
 
-  // Render single combined line chart with two series
+  // Render single combined line chart with three series
   const ctx = document.getElementById('phase-timeline-chart');
   if (ctx) {
     if (S.charts.phaseTimeline) S.charts.phaseTimeline.destroy();
@@ -3433,35 +3507,51 @@ function renderPhaseTimeline() {
         labels: chartLabels,
         datasets: [
           {
-            label: 'Dev → QA',
-            data: sentData,
-            borderColor: '#2d6a10',
-            backgroundColor: 'rgba(45, 106, 16, 0.08)',
+            label: 'Prod → Dev',
+            data: prodDevData,
+            borderColor: '#7C3AED',
+            backgroundColor: 'rgba(124, 58, 237, 0.1)',
             borderWidth: 2.5,
             fill: false,
             tension: 0.3,
             pointRadius: 5,
             pointHoverRadius: 7,
-            pointBackgroundColor: '#2d6a10',
+            pointBackgroundColor: '#7C3AED',
             pointBorderColor: '#fff',
             pointBorderWidth: 2,
-            pointHoverBackgroundColor: '#1f4f0c',
+            pointHoverBackgroundColor: '#5B21B6',
             pointHoverBorderColor: '#fff'
           },
           {
-            label: 'QA Closed',
-            data: closedData,
-            borderColor: '#185FA5',
-            backgroundColor: 'rgba(24, 95, 165, 0.08)',
+            label: 'Dev → QA',
+            data: devQAData,
+            borderColor: '#059669',
+            backgroundColor: 'rgba(5, 150, 105, 0.1)',
             borderWidth: 2.5,
             fill: false,
             tension: 0.3,
             pointRadius: 5,
             pointHoverRadius: 7,
-            pointBackgroundColor: '#185FA5',
+            pointBackgroundColor: '#059669',
             pointBorderColor: '#fff',
             pointBorderWidth: 2,
-            pointHoverBackgroundColor: '#0d4275',
+            pointHoverBackgroundColor: '#047857',
+            pointHoverBorderColor: '#fff'
+          },
+          {
+            label: 'QA → Closed',
+            data: qaClosedData,
+            borderColor: '#2563EB',
+            backgroundColor: 'rgba(37, 99, 235, 0.1)',
+            borderWidth: 2.5,
+            fill: false,
+            tension: 0.3,
+            pointRadius: 5,
+            pointHoverRadius: 7,
+            pointBackgroundColor: '#2563EB',
+            pointBorderColor: '#fff',
+            pointBorderWidth: 2,
+            pointHoverBackgroundColor: '#1D4ED8',
             pointHoverBorderColor: '#fff'
           }
         ]
