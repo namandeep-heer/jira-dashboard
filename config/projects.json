@@ -3,36 +3,52 @@
   "projectSettings": {
     "NFS": {
       "jql": "project in (NFS) AND issuetype in (Enhancement, Epic) AND fixVersion = N2026.R2 ORDER BY \"Scope Commitment At SC\", status DESC, Priority DESC",
-      "release": "N2026.R2",
-      "enabled": true
+      "enabled": true,
+      "releases": [
+        "N2026.R2"
+      ]
     },
     "FCO": {
       "jql": "project in (FCO) AND issuetype in (Enhancement, Epic) AND fixVersion = N2026.R2 ORDER BY \"Scope Commitment At SC\", status DESC, Priority DESC",
-      "release": "N2026.R2",
-      "enabled": true
+      "enabled": true,
+      "releases": [
+        "N2026.R2"
+      ]
     },
     "INC": {
       "jql": "project in (INC) AND issuetype in (Enhancement, Epic) AND fixVersion = N2026.R2 ORDER BY \"Scope Commitment At SC\", status DESC, Priority DESC",
-      "release": "N2026.R2",
-      "enabled": false
+      "enabled": false,
+      "releases": [
+        "N2026.R2"
+      ]
     },
     "GL": {
       "jql": "project in (GL) AND issuetype in (Enhancement, Epic) AND fixVersion = N2026.R2 ORDER BY \"Scope Commitment At SC\", status desc, Priority DESC",
-      "release": "N2026.R2",
-      "enabled": true
+      "enabled": true,
+      "releases": [
+        "N2026.R2"
+      ]
     },
     "FAA": {
       "jql": "project in (FAA) AND issuetype in (Enhancement, Epic) AND fixVersion = N2026.R2 ORDER BY \"Scope Commitment At SC\" asc, status desc, Priority DESC",
-      "release": "N2026.R2",
-      "enabled": false
+      "enabled": false,
+      "releases": [
+        "N2026.R2"
+      ]
     },
     "P2P": {
       "jql": "project in (P2P) AND issuetype in (Enhancement) AND fixVersion = N2026.R2 ORDER BY \"Scope Commitment At SC\", status desc, Priority DESC",
-      "release": "N2026.R2",
-      "enabled": true
+      "enabled": true,
+      "releases": [
+        "N2026.R2"
+      ]
     },
     "BUGS": {
-      "enabled": false
+      "enabled": false,
+      "jql": "project in (NFS, GL, FCO, FAA, INC, P2P) AND issuetype = Bug AND status not in (QA, PQA, \"Pending DEP\", \"EOA Pending\", Closed, Done, Resolved, Cancelled, \"Won't Fix\")\") AND fixVersion = N2026.R2 ORDER BY priority DESC, created DESC",
+      "releases": [
+        "N2026.R2"
+      ]
     }
   }
 }
