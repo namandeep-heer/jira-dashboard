@@ -239,6 +239,10 @@ table.issues tr:hover td { background: var(--bg2); }
 .velocity-table { width: 100%; border-collapse: collapse; font-size: 13px; }
 .velocity-table thead { background: var(--bg2); position: sticky; top: 0; z-index: 1; }
 .velocity-table th { text-align: left; padding: 10px 14px; font-size: 11px; font-weight: 600; color: var(--text3); border-bottom: 0.5px solid var(--border); white-space: nowrap; text-transform: uppercase; letter-spacing: 0.05em; }
+.velocity-table th[onclick] { cursor: pointer; user-select: none; }
+.velocity-table th[onclick]:hover { color: var(--text2); }
+.velocity-table th .sort-icon { opacity: .4; margin-left: 3px; font-size: 10px; }
+.velocity-table th.sorted .sort-icon { opacity: 1; color: var(--blue); }
 .velocity-table td { padding: 10px 14px; border-bottom: 0.5px solid var(--border); vertical-align: middle; }
 .velocity-table tbody tr:last-child td { border-bottom: none; }
 .velocity-table tbody tr.velocity-row:hover { background: var(--bg2); cursor: pointer; }
@@ -641,9 +645,27 @@ code { font-family: monospace; font-size: 12px; background: var(--bg3); padding:
 
       <!-- Developer Velocity -->
       <div class="page" id="page-velocity">
-        <div style="margin-bottom:18px">
-          <h2 style="font-size:18px;font-weight:600;margin-bottom:3px">Developer Velocity</h2>
-          <p style="font-size:13px;color:var(--text2)">Track whether developers are behind schedule, on track, or have capacity for more work based on estimated vs actual time.</p>
+        <div style="display:flex;align-items:flex-start;justify-content:space-between;margin-bottom:18px;gap:20px">
+          <div style="flex:1">
+            <h2 style="font-size:18px;font-weight:600;margin-bottom:3px">Developer Velocity</h2>
+            <p style="font-size:13px;color:var(--text2)">Track whether developers are behind schedule, on track, or have capacity for more work based on estimated vs actual time.</p>
+          </div>
+          <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;justify-content:flex-end">
+            <div class="ms-wrap">
+              <button class="ms-btn" id="velocity-project-filter-btn" onclick="toggleVelocityProjectFilter()">
+                <span id="velocity-project-filter-label">All Projects</span>
+                <span class="ms-badge" id="velocity-project-filter-count" style="display:none">0</span>
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"/></svg>
+              </button>
+              <div class="ms-dropdown" id="velocity-project-filter-dropdown">
+                <div class="ms-options" id="velocity-project-filter-options"></div>
+                <div class="ms-footer">
+                  <button onclick="clearVelocityProjectFilter()">Clear</button>
+                  <button onclick="selectAllVelocityProjects()">Select All</button>
+                </div>
+              </div>
+            </div>
+          </div>
         </div>
         <div id="velocity-body"></div>
       </div>
@@ -2496,12 +2518,109 @@ function renderAnalytics() {
 }
 
 // ── Developer Velocity ───────────────────────────────────────────────────────
+function buildVelocityProjectFilterOptions(projects) {
+  const optionsEl = document.getElementById('velocity-project-filter-options');
+  if (!optionsEl) return;
+  if (optionsEl.children.length > 0) return;
+
+  optionsEl.innerHTML = projects.map(proj => `
+    <label class="ms-option">
+      <input type="checkbox" value="${esc(proj.key)}" onchange="updateVelocityProjectFilter()">
+      <span class="ms-option-label">
+        <span style="width:8px;height:8px;border-radius:50%;background:${proj.color};display:inline-block;margin-right:6px"></span>
+        ${esc(proj.name)}
+      </span>
+    </label>
+  `).join('');
+}
+
+function toggleVelocityProjectFilter() {
+  const dropdown = document.getElementById('velocity-project-filter-dropdown');
+  dropdown.classList.toggle('open');
+  if (dropdown.classList.contains('open')) {
+    setTimeout(() => {
+      document.addEventListener('click', closeVelocityProjectFilterOnOutside);
+    }, 0);
+  }
+}
+
+function closeVelocityProjectFilterOnOutside(e) {
+  const dropdown = document.getElementById('velocity-project-filter-dropdown');
+  const btn = document.getElementById('velocity-project-filter-btn');
+  if (!dropdown.contains(e.target) && !btn.contains(e.target)) {
+    dropdown.classList.remove('open');
+    document.removeEventListener('click', closeVelocityProjectFilterOnOutside);
+  }
+}
+
+function getSelectedVelocityProjects() {
+  const optionsEl = document.getElementById('velocity-project-filter-options');
+  if (!optionsEl) return new Set();
+  const selected = new Set();
+  optionsEl.querySelectorAll('input[type="checkbox"]:checked').forEach(cb => {
+    selected.add(cb.value);
+  });
+  return selected;
+}
+
+function updateVelocityProjectFilter() {
+  const selected = getSelectedVelocityProjects();
+  const btn = document.getElementById('velocity-project-filter-btn');
+  const label = document.getElementById('velocity-project-filter-label');
+  const badge = document.getElementById('velocity-project-filter-count');
+
+  if (selected.size === 0) {
+    label.textContent = 'All Projects';
+    badge.style.display = 'none';
+    btn.classList.remove('has-selection');
+  } else {
+    label.textContent = 'Projects';
+    badge.textContent = selected.size;
+    badge.style.display = '';
+    btn.classList.add('has-selection');
+  }
+
+  renderVelocity();
+}
+
+function clearVelocityProjectFilter() {
+  const optionsEl = document.getElementById('velocity-project-filter-options');
+  if (!optionsEl) return;
+  optionsEl.querySelectorAll('input[type="checkbox"]').forEach(cb => { cb.checked = false; });
+  updateVelocityProjectFilter();
+}
+
+function selectAllVelocityProjects() {
+  const optionsEl = document.getElementById('velocity-project-filter-options');
+  if (!optionsEl) return;
+  optionsEl.querySelectorAll('input[type="checkbox"]').forEach(cb => { cb.checked = true; });
+  updateVelocityProjectFilter();
+}
+
+function velocitySort(col) {
+  if (!S._velocitySort) S._velocitySort = { col: 'variance', dir: -1 };
+  if (S._velocitySort.col === col) S._velocitySort.dir *= -1;
+  else { S._velocitySort.col = col; S._velocitySort.dir = 1; }
+  renderVelocity();
+}
+
 function renderVelocity() {
   const body = document.getElementById('velocity-body');
-  const loaded = getAllProjects().filter(p => S.cache[p.key] && !S.cache[p.key].err);
+  const allLoaded = getAllProjects().filter(p => S.cache[p.key] && !S.cache[p.key].err);
+
+  if (!allLoaded.length) {
+    body.innerHTML = `<div class="info-box">No data loaded yet. Visit each project page and click <strong>Refresh</strong>, then come back here.</div>`;
+    return;
+  }
+
+  buildVelocityProjectFilterOptions(allLoaded);
+  const selectedProjects = getSelectedVelocityProjects();
+  const loaded = selectedProjects.size === 0
+    ? allLoaded
+    : allLoaded.filter(p => selectedProjects.has(p.key));
 
   if (!loaded.length) {
-    body.innerHTML = `<div class="info-box">No data loaded yet. Visit each project page and click <strong>Refresh</strong>, then come back here.</div>`;
+    body.innerHTML = `<div class="info-box">No projects match the current filter.</div>`;
     return;
   }
 
@@ -2645,7 +2764,40 @@ function renderVelocity() {
     };
   });
   
-  devMetrics.sort((a, b) => b.variance - a.variance);
+  if (!S._velocitySort) S._velocitySort = { col: 'variance', dir: -1 };
+  const vs = S._velocitySort;
+  const VEL_STATUS_ORDER = { behind: 0, 'on-track': 1, capacity: 2 };
+
+  function velSortVal(dev) {
+    switch (vs.col) {
+      case 'dev': return dev.name.toLowerCase();
+      case 'status': return VEL_STATUS_ORDER[dev.velocityStatus] ?? 99;
+      case 'releases': return [...dev.releases].sort().join(', ').toLowerCase();
+      case 'estimate': return dev.totalEstimate;
+      case 'capacity': return dev.totalCapacityNeeded;
+      case 'variance': return dev.variance;
+      case 'efficiency': return Number(dev.efficiency);
+      case 'product': return dev.productTickets;
+      case 'todo': return dev.todoTickets;
+      case 'inProgress': return dev.inProgressTickets;
+      case 'qa': return dev.qaTickets;
+      case 'completed': return dev.completedTickets;
+      default: return 0;
+    }
+  }
+
+  devMetrics.sort((a, b) => {
+    const av = velSortVal(a);
+    const bv = velSortVal(b);
+    const r = av < bv ? -1 : av > bv ? 1 : 0;
+    return r * vs.dir;
+  });
+
+  function velThSort(col, label) {
+    const active = vs.col === col;
+    const icon = active ? (vs.dir === 1 ? '▲' : '▼') : '▲';
+    return `<th class="${active ? 'sorted' : ''}" onclick="velocitySort('${col}')">${label} <span class="sort-icon">${icon}</span></th>`;
+  }
   
   if (devMetrics.length === 0) {
     body.innerHTML = '<div class="info-box">No developer assignments found. Make sure "Assignee: Development" field is populated.</div>';
@@ -2678,18 +2830,18 @@ function renderVelocity() {
       <table class="velocity-table">
         <thead>
           <tr>
-            <th>Developer</th>
-            <th>Status</th>
-            <th>Release(s)</th>
-            <th>Est Days</th>
-            <th>Cap Needed</th>
-            <th>Variance</th>
-            <th>Efficiency</th>
-            <th>Product</th>
-            <th>To Do</th>
-            <th>In Progress</th>
-            <th>QA</th>
-            <th>Completed</th>
+            ${velThSort('dev', 'Developer')}
+            ${velThSort('status', 'Status')}
+            ${velThSort('releases', 'Release(s)')}
+            ${velThSort('estimate', 'Est Days')}
+            ${velThSort('capacity', 'Cap Needed')}
+            ${velThSort('variance', 'Variance')}
+            ${velThSort('efficiency', 'Efficiency')}
+            ${velThSort('product', 'Product')}
+            ${velThSort('todo', 'To Do')}
+            ${velThSort('inProgress', 'In Progress')}
+            ${velThSort('qa', 'QA')}
+            ${velThSort('completed', 'Completed')}
             <th>Actions</th>
           </tr>
         </thead>
