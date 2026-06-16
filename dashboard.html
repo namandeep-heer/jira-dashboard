@@ -217,6 +217,7 @@ table.issues tr:hover td { background: var(--bg2); }
 .count-badge.count-ip { background: var(--blue-bg); color: var(--blue); }
 .count-badge.count-todo { background: var(--bg3); color: var(--text3); }
 .count-badge.count-qa { background: #E1F5EE; color: #0F6E56; }
+.count-badge.count-product { background: #EEEDFE; color: #533AB7; }
 .count-badge.clickable { cursor: pointer; transition: opacity .15s, transform .1s; }
 .count-badge.clickable:hover { opacity: .85; transform: scale(1.06); }
 .velocity-filter-label { font-size: 11px; font-weight: 600; color: var(--text3); text-transform: uppercase; letter-spacing: 0.04em; margin-bottom: 8px; }
@@ -2560,10 +2561,11 @@ function renderVelocity() {
           totalActual: 0,
           completedEstimate: 0,
           tickets: [],
-          completedTickets: 0,
+          productTickets: 0,
+          todoTickets: 0,
           inProgressTickets: 0,
           qaTickets: 0,
-          todoTickets: 0,
+          completedTickets: 0,
           releases: new Set()
         };
       }
@@ -2579,6 +2581,8 @@ function renderVelocity() {
         devVelocity[devName].totalActual += actual;
         devVelocity[devName].completedEstimate += estimate;
         devVelocity[devName].completedTickets++;
+      } else if (phase?.label === 'Product') {
+        devVelocity[devName].productTickets++;
       } else if (phase?.label === 'Developing') {
         devVelocity[devName].inProgressTickets++;
       } else if (phase?.label === 'QA') {
@@ -2588,6 +2592,7 @@ function renderVelocity() {
       }
       
       const bucket = isCompleted ? 'completed'
+        : phase?.label === 'Product' ? 'product'
         : phase?.label === 'Developing' ? 'developing'
         : phase?.label === 'QA' ? 'qa'
         : 'todo';
@@ -2680,18 +2685,21 @@ function renderVelocity() {
             <th>Cap Needed</th>
             <th>Variance</th>
             <th>Efficiency</th>
-            <th>Completed</th>
-            <th>In Progress</th>
-            <th>QA Phase</th>
+            <th>Product</th>
             <th>To Do</th>
+            <th>In Progress</th>
+            <th>QA</th>
+            <th>Completed</th>
             <th>Actions</th>
           </tr>
         </thead>
         <tbody>
   `;
   
+  const VEL_BUCKET_ORDER = { product: 0, todo: 1, developing: 2, qa: 3, completed: 4 };
+
   devMetrics.forEach(dev => {
-    const statusClass = dev.velocityStatus === 'behind' ? 'velocity-behind' 
+    const statusClass = dev.velocityStatus === 'behind' ? 'velocity-behind'
       : dev.velocityStatus === 'capacity' ? 'velocity-capacity' 
       : 'velocity-on-track';
     
@@ -2722,21 +2730,24 @@ function renderVelocity() {
           <span class="variance-percent">(${dev.variancePercent > 0 ? '+' : ''}${dev.variancePercent}%)</span>
         </td>
         <td>${dev.efficiency}%</td>
-        <td>${velCountBadge(dev.completedTickets, 'count-done', 'completed', 'completed')}</td>
-        <td>${velCountBadge(dev.inProgressTickets, 'count-ip', 'developing', 'in progress')}</td>
-        <td>${velCountBadge(dev.qaTickets, 'count-qa', 'qa', 'QA phase')}</td>
+        <td>${velCountBadge(dev.productTickets, 'count-product', 'product', 'product')}</td>
         <td>${velCountBadge(dev.todoTickets, 'count-todo', 'todo', 'to do')}</td>
+        <td>${velCountBadge(dev.inProgressTickets, 'count-ip', 'developing', 'in progress')}</td>
+        <td>${velCountBadge(dev.qaTickets, 'count-qa', 'qa', 'QA')}</td>
+        <td>${velCountBadge(dev.completedTickets, 'count-done', 'completed', 'completed')}</td>
         <td>
           <button class="btn btn-sm" onclick="event.stopPropagation();showVelocityDetails('${devId}','all')" title="View all tickets">All</button>
         </td>
       </tr>
       <tr class="velocity-details-row" id="velocity-html-details-${devId}" style="display:none;">
-        <td colspan="12">
+        <td colspan="13">
           <div class="velocity-tickets-details">
             <div class="velocity-filter-label" id="velocity-filter-label-${devId}" style="display:none"></div>
     `;
     
-    dev.tickets.forEach(ticket => {
+    [...dev.tickets]
+      .sort((a, b) => (VEL_BUCKET_ORDER[a.bucket] ?? 99) - (VEL_BUCKET_ORDER[b.bucket] ?? 99))
+      .forEach(ticket => {
       const jiraUrl = S.creds && S.creds.url ? S.creds.url : 'https://jira.atlassian.com';
       velocityTable += `
         <div class="velocity-ticket" data-bucket="${ticket.bucket}">
@@ -2772,10 +2783,11 @@ function renderVelocity() {
   `;
   
   const VEL_BUCKET_LABELS = {
-    completed: 'Completed',
-    developing: 'In Progress',
-    qa: 'QA Phase',
+    product: 'Product',
     todo: 'To Do',
+    developing: 'In Progress',
+    qa: 'QA',
+    completed: 'Completed',
     all: 'All tickets'
   };
 
