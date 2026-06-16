@@ -296,6 +296,25 @@ table.issues tr:hover td { background: var(--bg2); }
 .period-details { background:var(--bg3); }
 .period-details.hidden { display:none; }
 .period-summary-row:hover td { background:var(--bg2); }
+.phase-chart-card.is-fullscreen {
+  position: fixed;
+  inset: 0;
+  z-index: 1000;
+  margin: 0 !important;
+  border-radius: 0;
+  overflow: auto;
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+  height: 100%;
+  max-width: none;
+}
+.phase-chart-card.is-fullscreen #phase-chart-wrap {
+  flex: 1;
+  min-height: 320px;
+  height: auto !important;
+}
+body.phase-chart-fs-active { overflow: hidden; }
 /* ── Refresh overlay ── */
 #refresh-overlay { position:fixed; inset:0; z-index:999; background:rgba(0,0,0,.45); display:flex; align-items:center; justify-content:center; backdrop-filter:blur(3px); }
 #refresh-overlay.hidden { display:none; }
@@ -3526,6 +3545,43 @@ function togglePhaseSeriesVisibility(key, checked) {
   renderPhaseTimeline();
 }
 
+function updatePhaseChartFsBtn(isFullscreen) {
+  const btn = document.getElementById('phase-chart-fs-btn');
+  if (!btn) return;
+  btn.title = isFullscreen ? 'Exit full screen' : 'Full screen';
+  btn.setAttribute('aria-label', btn.title);
+  btn.innerHTML = isFullscreen
+    ? '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M8 3v3a2 2 0 0 1-2 2H3m18 0h-3a2 2 0 0 1-2-2V3m0 18v-3a2 2 0 0 1 2-2h3M3 16h3a2 2 0 0 1 2 2v3"/></svg><span>Exit</span>'
+    : '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M8 3H5a2 2 0 0 0-2 2v3m18 0V5a2 2 0 0 0-2-2h-3m0 18h3a2 2 0 0 0 2-2v-3M3 16v3a2 2 0 0 0 2 2h3"/></svg><span>Full screen</span>';
+}
+
+function resizePhaseTimelineChart() {
+  if (S.charts.phaseTimeline) {
+    requestAnimationFrame(() => {
+      try { S.charts.phaseTimeline.resize(); } catch (e) {}
+    });
+  }
+}
+
+function togglePhaseChartFullscreen(force) {
+  const card = document.getElementById('phase-chart-card');
+  if (!card) return;
+
+  const next = typeof force === 'boolean' ? force : !card.classList.contains('is-fullscreen');
+  S.phaseChartFullscreen = next;
+  card.classList.toggle('is-fullscreen', next);
+  document.body.classList.toggle('phase-chart-fs-active', next);
+  updatePhaseChartFsBtn(next);
+  resizePhaseTimelineChart();
+}
+
+if (!S._phaseChartFsBound) {
+  S._phaseChartFsBound = true;
+  document.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape' && S.phaseChartFullscreen) togglePhaseChartFullscreen(false);
+  });
+}
+
 // ── Project Phase Timeline ────────────────────────────────────────────────────
 function renderPhaseTimeline() {
   const contentEl = document.getElementById('phase-timeline-content');
@@ -3865,8 +3921,14 @@ function renderPhaseTimeline() {
   const periodKeys = periods.map(p => p.key);
 
   contentEl.innerHTML = `
-    <div class="card" style="margin-bottom:20px">
-      <h3 style="font-size:15px;font-weight:600;margin-bottom:4px">Completion Trend</h3>
+    <div class="card phase-chart-card" id="phase-chart-card" style="margin-bottom:20px">
+      <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:12px;margin-bottom:4px">
+        <h3 style="font-size:15px;font-weight:600;margin:0">Completion Trend</h3>
+        <button class="btn btn-sm" id="phase-chart-fs-btn" type="button" onclick="togglePhaseChartFullscreen()" title="Full screen" aria-label="Full screen">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M8 3H5a2 2 0 0 0-2 2v3m18 0V5a2 2 0 0 0-2-2h-3m0 18h3a2 2 0 0 0 2-2v-3M3 16v3a2 2 0 0 0 2 2h3"/></svg>
+          <span>Full screen</span>
+        </button>
+      </div>
       <p style="font-size:12px;color:var(--text3);margin-bottom:14px">Dotted lines: transitions per period (Prod → Dev, Dev → QA, QA → Closed). Solid lines: cumulative count of all open issues at each period — Prod-Pending, Dev-Pending, QA-Pending (incl. Pending DEP), Closed, and On-Hold. Click a point to expand details below.</p>
       <div style="display:flex; gap:14px; align-items:center; margin-bottom:8px; font-size:12px; flex-wrap:wrap">
         <span style="color:var(--text3); margin-right:2px">Show:</span>
@@ -3904,7 +3966,7 @@ function renderPhaseTimeline() {
           <span style="color:#B45309">On-Hold</span>
         </label>
       </div>
-      <div style="position:relative;width:100%;height:280px">
+      <div id="phase-chart-wrap" style="position:relative;width:100%;height:280px">
         <canvas id="phase-timeline-chart"></canvas>
       </div>
     </div>
@@ -4115,6 +4177,15 @@ function renderPhaseTimeline() {
         }
       }
     });
+    if (S.phaseChartFullscreen) {
+      const card = document.getElementById('phase-chart-card');
+      if (card) {
+        card.classList.add('is-fullscreen');
+        document.body.classList.add('phase-chart-fs-active');
+        updatePhaseChartFsBtn(true);
+        resizePhaseTimelineChart();
+      }
+    }
   }
 }
 
