@@ -217,6 +217,9 @@ table.issues tr:hover td { background: var(--bg2); }
 .count-badge.count-ip { background: var(--blue-bg); color: var(--blue); }
 .count-badge.count-todo { background: var(--bg3); color: var(--text3); }
 .count-badge.count-qa { background: #E1F5EE; color: #0F6E56; }
+.count-badge.clickable { cursor: pointer; transition: opacity .15s, transform .1s; }
+.count-badge.clickable:hover { opacity: .85; transform: scale(1.06); }
+.velocity-filter-label { font-size: 11px; font-weight: 600; color: var(--text3); text-transform: uppercase; letter-spacing: 0.04em; margin-bottom: 8px; }
 .velocity-details { margin-top: 12px; border-top: 0.5px solid var(--border); padding-top: 12px; }
 .velocity-details-summary { cursor: pointer; font-size: 12px; color: var(--blue); font-weight: 600; user-select: none; list-style: none; padding: 4px 0; }
 .velocity-details-summary::-webkit-details-marker { display: none; }
@@ -2584,6 +2587,11 @@ function renderVelocity() {
         devVelocity[devName].todoTickets++;
       }
       
+      const bucket = isCompleted ? 'completed'
+        : phase?.label === 'Developing' ? 'developing'
+        : phase?.label === 'QA' ? 'qa'
+        : 'todo';
+
       devVelocity[devName].tickets.push({
         key: issue.key,
         summary: issue.fields.summary || '',
@@ -2594,7 +2602,8 @@ function renderVelocity() {
         project: proj.name,
         projectColor: proj.color,
         releases,
-        isCompleted
+        isCompleted,
+        bucket
       });
     });
   });
@@ -2692,6 +2701,10 @@ function renderVelocity() {
 
     const releases = [...dev.releases].sort().join(', ') || '-';
     const devId = dev.name.replace(/[^a-zA-Z0-9]/g, '_');
+
+    const velCountBadge = (count, cls, bucket, label) => count > 0
+      ? `<span class="count-badge ${cls} clickable" onclick="event.stopPropagation();showVelocityDetails('${devId}','${bucket}')" title="View ${label} tickets">${count}</span>`
+      : `<span class="count-badge ${cls}">${count}</span>`;
     
     velocityTable += `
       <tr class="velocity-row ${statusClass}">
@@ -2709,23 +2722,24 @@ function renderVelocity() {
           <span class="variance-percent">(${dev.variancePercent > 0 ? '+' : ''}${dev.variancePercent}%)</span>
         </td>
         <td>${dev.efficiency}%</td>
-        <td><span class="count-badge count-done">${dev.completedTickets}</span></td>
-        <td><span class="count-badge count-ip">${dev.inProgressTickets}</span></td>
-        <td><span class="count-badge count-qa">${dev.qaTickets}</span></td>
-        <td><span class="count-badge count-todo">${dev.todoTickets}</span></td>
+        <td>${velCountBadge(dev.completedTickets, 'count-done', 'completed', 'completed')}</td>
+        <td>${velCountBadge(dev.inProgressTickets, 'count-ip', 'developing', 'in progress')}</td>
+        <td>${velCountBadge(dev.qaTickets, 'count-qa', 'qa', 'QA phase')}</td>
+        <td>${velCountBadge(dev.todoTickets, 'count-todo', 'todo', 'to do')}</td>
         <td>
-          <button class="btn btn-sm" onclick="toggleVelocityDetailsHTML('${devId}')">View</button>
+          <button class="btn btn-sm" onclick="event.stopPropagation();showVelocityDetails('${devId}','all')" title="View all tickets">All</button>
         </td>
       </tr>
       <tr class="velocity-details-row" id="velocity-html-details-${devId}" style="display:none;">
         <td colspan="12">
           <div class="velocity-tickets-details">
+            <div class="velocity-filter-label" id="velocity-filter-label-${devId}" style="display:none"></div>
     `;
     
     dev.tickets.forEach(ticket => {
       const jiraUrl = S.creds && S.creds.url ? S.creds.url : 'https://jira.atlassian.com';
       velocityTable += `
-        <div class="velocity-ticket">
+        <div class="velocity-ticket" data-bucket="${ticket.bucket}">
           <div class="velocity-ticket-header">
             <a href="${jiraUrl}/browse/${esc(ticket.key)}" target="_blank" class="key-link">${esc(ticket.key)}</a>
             <span class="velocity-ticket-project" style="color:${ticket.projectColor}">${esc(ticket.project)}</span>
@@ -2757,15 +2771,48 @@ function renderVelocity() {
     </div>
   `;
   
-  // Add toggle function
-  if (!window.toggleVelocityDetailsHTML) {
-    window.toggleVelocityDetailsHTML = function(devId) {
-      const row = document.getElementById('velocity-html-details-' + devId);
-      if (row) {
-        row.style.display = row.style.display === 'none' ? 'table-row' : 'none';
+  const VEL_BUCKET_LABELS = {
+    completed: 'Completed',
+    developing: 'In Progress',
+    qa: 'QA Phase',
+    todo: 'To Do',
+    all: 'All tickets'
+  };
+
+  window.showVelocityDetails = function(devId, filter) {
+    const row = document.getElementById('velocity-html-details-' + devId);
+    if (!row) return;
+    const activeFilter = filter || 'all';
+    const isOpen = row.style.display !== 'none' && row.dataset.filter === activeFilter;
+    if (isOpen) {
+      row.style.display = 'none';
+      row.dataset.filter = '';
+      return;
+    }
+    row.style.display = 'table-row';
+    row.dataset.filter = activeFilter;
+    const labelEl = document.getElementById('velocity-filter-label-' + devId);
+    const tickets = row.querySelectorAll('.velocity-ticket');
+    let visible = 0;
+    tickets.forEach(ticket => {
+      const show = activeFilter === 'all' || ticket.dataset.bucket === activeFilter;
+      ticket.style.display = show ? '' : 'none';
+      if (show) visible++;
+    });
+    if (labelEl) {
+      if (activeFilter === 'all') {
+        labelEl.style.display = 'none';
+        labelEl.textContent = '';
+      } else {
+        labelEl.style.display = '';
+        labelEl.textContent = `${VEL_BUCKET_LABELS[activeFilter] || activeFilter} (${visible})`;
       }
-    };
-  }
+    }
+  };
+
+  window.toggleVelocityDetailsHTML = function(devId) {
+    showVelocityDetails(devId, 'all');
+  };
   
   body.innerHTML = summaryCards + velocityTable;
 }
