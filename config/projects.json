@@ -17,7 +17,7 @@
     },
     "INC": {
       "jql": "project in (INC) AND issuetype in (Enhancement, Epic) AND fixVersion = N2026.R2 ORDER BY \"Scope Commitment At SC\", status DESC, Priority DESC",
-      "enabled": false,
+      "enabled": true,
       "releases": [
         "N2026.R2"
       ]
@@ -31,7 +31,7 @@
     },
     "FAA": {
       "jql": "project in (FAA) AND issuetype in (Enhancement, Epic) AND fixVersion = N2026.R2 ORDER BY \"Scope Commitment At SC\" asc, status desc, Priority DESC",
-      "enabled": false,
+      "enabled": true,
       "releases": [
         "N2026.R2"
       ]

@@ -764,7 +764,7 @@ code { font-family: monospace; font-size: 12px; background: var(--bg3); padding:
         <div style="display:flex;align-items:flex-start;justify-content:space-between;margin-bottom:18px;gap:20px">
             <div style="flex:1">
               <h2 style="font-size:18px;font-weight:600;margin-bottom:3px">Project Phase Timeline</h2>
-              <p style="font-size:13px;color:var(--text2)">Track Prod→Dev, Dev→QA, and QA→Closed flows separately over time across all projects.</p>
+              <p style="font-size:13px;color:var(--text2)">Track Prod→Dev, Dev→QA, and QA→Closed flows (dotted lines) plus cumulative Prod-Pending, Dev-Pending, QA-Pending, Closed, and On-Hold counts (solid lines) over time across all projects.</p>
             </div>
             <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;justify-content:flex-end">
               <div class="ms-wrap">
@@ -901,6 +901,175 @@ const PHASES = [
 
 function getPhaseForStatus(statusName) {
   return PHASES.find(p => p.re.test((statusName||'').trim())) || null;
+}
+
+const PENDING_STATUS = {
+  prod: /^(prod[\s-]*(pending|grooming|groomed)|creating)/i,
+  dev: /^dev[\s-]*(pending|reopened|developing|designing|grooming)/i,
+  qa: /^(pqa|pending[\s-]*dep|eoa[\s-]*pending)/i,
+  onHold: /^on[\s-]*hold/i,
+};
+
+const PHASE_SNAPSHOT_KEYS = ['prodPending', 'devPending', 'qaPending', 'closed', 'onHold'];
+const CLOSED_STATUS_RE = PHASES.find(p => p.label === 'Closed').re;
+
+function getPhaseSnapshotType(statusName) {
+  const s = (statusName || '').trim();
+  if (PENDING_STATUS.prod.test(s)) return 'prodPending';
+  if (PENDING_STATUS.dev.test(s)) return 'devPending';
+  if (PENDING_STATUS.qa.test(s)) return 'qaPending';
+  if (PENDING_STATUS.onHold.test(s)) return 'onHold';
+  if (CLOSED_STATUS_RE.test(s)) return 'closed';
+  return null;
+}
+
+function emptyPhaseByProjectEntry(name, color) {
+  return {
+    name,
+    color,
+    prodDev: 0, devQA: 0, qaClosed: 0,
+    prodPending: 0, devPending: 0, qaPending: 0, closed: 0, onHold: 0,
+  };
+}
+
+function emptyPhasePeriodBucket(key, date) {
+  return {
+    key,
+    date,
+    prodDev: [],
+    devQA: [],
+    qaClosed: [],
+    prodPending: [],
+    devPending: [],
+    qaPending: [],
+    closed: [],
+    onHold: [],
+    byProject: {},
+  };
+}
+
+function getPhasePeriodKey(d, period) {
+  if (period === 'day') {
+    return d.toISOString().split('T')[0];
+  }
+  if (period === 'week') {
+    const weekStart = new Date(d);
+    weekStart.setDate(d.getDate() - d.getDay());
+    return weekStart.toISOString().split('T')[0];
+  }
+  if (period === 'month') {
+    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+  }
+  return '';
+}
+
+function getPhasePeriodEndDate(periodKey, period) {
+  if (period === 'day') {
+    return new Date(periodKey + 'T23:59:59.999');
+  }
+  if (period === 'week') {
+    const end = new Date(periodKey + 'T00:00:00');
+    end.setDate(end.getDate() + 6);
+    end.setHours(23, 59, 59, 999);
+    return end;
+  }
+  if (period === 'month') {
+    const [year, month] = periodKey.split('-');
+    return new Date(parseInt(year, 10), parseInt(month, 10), 0, 23, 59, 59, 999);
+  }
+  return new Date();
+}
+
+function getIssueStatusAtDate(issue, atDate) {
+  const created = issue.fields?.created ? new Date(issue.fields.created) : null;
+  if (created && atDate < created) return null;
+
+  const currentStatus = (issue.fields?.status?.name || '').trim();
+  const changes = [];
+  (issue.changelog?.histories || []).forEach(history => {
+    const d = new Date(history.created);
+    (history.items || []).forEach(item => {
+      if (item.field === 'status' && item.toString) {
+        changes.push({
+          date: d,
+          to: (item.toString || '').trim(),
+          from: (item.fromString || '').trim(),
+        });
+      }
+    });
+  });
+  changes.sort((a, b) => a.date - b.date);
+
+  if (!changes.length) return currentStatus;
+  if (atDate >= changes[changes.length - 1].date) return currentStatus;
+
+  let status = changes[0].from || currentStatus;
+  for (const ch of changes) {
+    if (ch.date > atDate) break;
+    status = ch.to;
+  }
+  return status;
+}
+
+function ensurePhaseTimelinePeriods(periodMap, rangeStart, now, period) {
+  let cursor = new Date(rangeStart);
+  cursor.setHours(0, 0, 0, 0);
+  if (period === 'week') {
+    cursor.setDate(cursor.getDate() - cursor.getDay());
+  } else if (period === 'month') {
+    cursor = new Date(cursor.getFullYear(), cursor.getMonth(), 1);
+  }
+
+  while (cursor <= now) {
+    const periodKey = getPhasePeriodKey(cursor, period);
+    if (!periodMap[periodKey]) {
+      periodMap[periodKey] = emptyPhasePeriodBucket(periodKey, new Date(cursor));
+    }
+
+    if (period === 'day') cursor.setDate(cursor.getDate() + 1);
+    else if (period === 'week') cursor.setDate(cursor.getDate() + 7);
+    else cursor.setMonth(cursor.getMonth() + 1);
+  }
+}
+
+function applyPhaseSnapshots(periodMap, filteredIssues, periodType, now) {
+  Object.values(periodMap).forEach(p => {
+    const endDate = getPhasePeriodEndDate(p.key, periodType);
+    const atDate = endDate > now ? now : endDate;
+
+    PHASE_SNAPSHOT_KEYS.forEach(k => { p[k] = []; });
+
+    filteredIssues.forEach(({ proj, issue, developer, assignee }) => {
+      const status = getIssueStatusAtDate(issue, atDate);
+      const snapshotType = status ? getPhaseSnapshotType(status) : null;
+      if (!snapshotType) return;
+
+      p[snapshotType].push({
+        proj,
+        issue,
+        key: issue.key,
+        summary: issue.fields?.summary || '',
+        targetStatus: status,
+        currentStatus: issue.fields?.status?.name || '',
+        developer,
+        assignee,
+        eventDate: atDate,
+      });
+
+      const projKey = proj.key;
+      if (!p.byProject[projKey]) {
+        p.byProject[projKey] = emptyPhaseByProjectEntry(proj.name, proj.color);
+      }
+      p.byProject[projKey][snapshotType]++;
+    });
+  });
+}
+
+function countSnapshotAtDate(filteredIssues, snapshotType, atDate) {
+  return filteredIssues.filter(({ issue }) => {
+    const status = getIssueStatusAtDate(issue, atDate);
+    return status && getPhaseSnapshotType(status) === snapshotType;
+  }).length;
 }
 
 
@@ -3345,10 +3514,14 @@ function clearLog() {
   renderDailyProgress();
 }
 
+const PHASE_TREND_DEFAULT_VISIBLE = {
+  prodDev: true, devQA: true, qaClosed: true,
+  prodPending: true, devPending: true, qaPending: true,
+  closed: true, onHold: true,
+};
+
 function togglePhaseSeriesVisibility(key, checked) {
-  if (!S.phaseTrendVisible) {
-    S.phaseTrendVisible = { prodDev: true, devQA: true, qaClosed: true };
-  }
+  S.phaseTrendVisible = { ...PHASE_TREND_DEFAULT_VISIBLE, ...(S.phaseTrendVisible || {}) };
   S.phaseTrendVisible[key] = !!checked;
   renderPhaseTimeline();
 }
@@ -3366,9 +3539,7 @@ function renderPhaseTimeline() {
   const period = document.getElementById('phase-period').value;
   const range = parseInt(document.getElementById('phase-range').value);
 
-  if (!S.phaseTrendVisible) {
-    S.phaseTrendVisible = { prodDev: true, devQA: true, qaClosed: true };
-  }
+  S.phaseTrendVisible = { ...PHASE_TREND_DEFAULT_VISIBLE, ...(S.phaseTrendVisible || {}) };
   
   // Gather all issues from all loaded projects
   const loaded = getAllProjects().filter(p => S.cache[p.key] && !S.cache[p.key].err);
@@ -3434,11 +3605,11 @@ function renderPhaseTimeline() {
   const now = new Date();
   const rangeStart = new Date(now.getTime() - (range * 24 * 60 * 60 * 1000));
 
-  // Parse changelog for two separate completion flows (but shown in one chart):
-  // Parse changelog for three flows (shown as separate series on one chart):
+  // Parse changelog for completion flows (dotted lines):
   // 1. Prod → Dev (from Product phase into Developing / Developer Pending)
   // 2. Dev → QA (transitions into QA phase)
   // 3. QA → Closed (transitions into Closed phase)
+  // Snapshot solid lines are cumulative open-issue counts per period.
   const prodToDev = [];
   const devToQA = [];
   const qaClosed = [];
@@ -3537,54 +3708,34 @@ function renderPhaseTimeline() {
   const totalProdDev = prodToDev.length;
   const totalDevQA = devToQA.length;
   const totalQAClosed = qaClosed.length;
+  const totalProdPending = countSnapshotAtDate(filteredIssues, 'prodPending', now);
+  const totalDevPending = countSnapshotAtDate(filteredIssues, 'devPending', now);
+  const totalQAPending = countSnapshotAtDate(filteredIssues, 'qaPending', now);
+  const totalClosed = countSnapshotAtDate(filteredIssues, 'closed', now);
+  const totalOnHold = countSnapshotAtDate(filteredIssues, 'onHold', now);
 
-  if (totalProdDev === 0 && totalDevQA === 0 && totalQAClosed === 0) {
-    contentEl.innerHTML = '<div class="info-box">No Prod→Dev, Dev→QA or QA→Closed transitions found in the selected time range.</div>';
+  if (totalProdDev === 0 && totalDevQA === 0 && totalQAClosed === 0 &&
+      totalProdPending === 0 && totalDevPending === 0 && totalQAPending === 0 &&
+      totalClosed === 0 && totalOnHold === 0) {
+    contentEl.innerHTML = '<div class="info-box">No phase transitions or matching open issues found in the selected time range.</div>';
     return;
   }
 
   // Build unified periods so the three series share the same time axis in one chart
   const periodMap = {};
-  function addEvent(item, type) { // 'prodDev' | 'devQA' | 'qaClosed'
+  function addEvent(item, type) {
     const d = item.eventDate;
-    let periodKey;
-    if (period === 'day') {
-      periodKey = d.toISOString().split('T')[0];
-    } else if (period === 'week') {
-      const weekStart = new Date(d);
-      weekStart.setDate(d.getDate() - d.getDay());
-      periodKey = weekStart.toISOString().split('T')[0];
-    } else if (period === 'month') {
-      periodKey = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
-    }
+    const periodKey = getPhasePeriodKey(d, period);
 
     if (!periodMap[periodKey]) {
-      periodMap[periodKey] = {
-        key: periodKey,
-        date: d,
-        prodDev: [],
-        devQA: [],
-        qaClosed: [],
-        byProject: {} // projKey -> {name, color, prodDev, devQA, qaClosed}
-      };
+      periodMap[periodKey] = emptyPhasePeriodBucket(periodKey, d);
     }
     const bucket = periodMap[periodKey];
-
-    if (type === 'prodDev') {
-      bucket.prodDev.push(item);
-    } else if (type === 'devQA') {
-      bucket.devQA.push(item);
-    } else {
-      bucket.qaClosed.push(item);
-    }
+    bucket[type].push(item);
 
     const projKey = item.proj.key;
     if (!bucket.byProject[projKey]) {
-      bucket.byProject[projKey] = { 
-        name: item.proj.name, 
-        color: item.proj.color, 
-        prodDev: 0, devQA: 0, qaClosed: 0 
-      };
+      bucket.byProject[projKey] = emptyPhaseByProjectEntry(item.proj.name, item.proj.color);
     }
     bucket.byProject[projKey][type]++;
   }
@@ -3592,24 +3743,70 @@ function renderPhaseTimeline() {
   prodToDev.forEach(item => addEvent(item, 'prodDev'));
   devToQA.forEach(item => addEvent(item, 'devQA'));
   qaClosed.forEach(item => addEvent(item, 'qaClosed'));
+  ensurePhaseTimelinePeriods(periodMap, rangeStart, now, period);
+  applyPhaseSnapshots(periodMap, filteredIssues, period, now);
 
   const periods = Object.values(periodMap).sort((a, b) => a.date - b.date);
 
-  // Build summary rows + detail rows (one row per period, details contain all three flows)
+  function renderPhaseTransitionDetailTable(items, title, color, options = {}) {
+    if (!items.length) return '';
+    const statusCol = options.snapshot ? 'Status' : 'Target';
+    const dateCol = options.snapshot ? 'As of' : 'Date';
+    return `
+      <div style="margin-bottom:10px">
+        <div style="font-size:12px;font-weight:600;margin-bottom:4px;color:${color}">${title} (${items.length})</div>
+        <table class="issues" style="width:100%;font-size:11px">
+          <thead>
+            <tr>
+              <th style="width:110px">Key</th>
+              <th>Summary</th>
+              <th style="width:120px">Project</th>
+              <th style="width:120px">Developer</th>
+              <th style="width:110px">${statusCol}</th>
+              <th style="width:130px">${dateCol}</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${items.map(t => {
+              const link = S.creds.url ? S.creds.url + '/browse/' + t.key : '#';
+              return `<tr onclick="window.open('${link}','_blank');event.stopPropagation()" style="cursor:pointer">
+                <td><span class="key-link">${esc(t.key)}</span></td>
+                <td style="max-width:280px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(t.summary)}</td>
+                <td><span style="display:inline-flex;align-items:center;gap:5px"><span style="width:7px;height:7px;border-radius:50%;background:${t.proj.color}"></span>${esc(t.proj.name)}</span></td>
+                <td style="font-size:10px;color:var(--text2)">${esc(t.developer)}</td>
+                <td style="font-size:10px">${esc(t.targetStatus || t.currentStatus)}</td>
+                <td style="font-size:10px;color:var(--text3)">${formatDateTime(t.eventDate)}</td>
+              </tr>`;
+            }).join('')}
+          </tbody>
+        </table>
+      </div>`;
+  }
+
+  // Build summary rows + detail rows (one row per period)
   const rows = periods.map(p => {
     const dateLabel = formatPeriodLabel(p.key, period);
     const prodDevCnt = p.prodDev.length;
     const devQACnt = p.devQA.length;
     const qaClosedCnt = p.qaClosed.length;
+    const prodPendingCnt = p.prodPending.length;
+    const devPendingCnt = p.devPending.length;
+    const qaPendingCnt = p.qaPending.length;
+    const closedCnt = p.closed.length;
+    const onHoldCnt = p.onHold.length;
     const total = prodDevCnt + devQACnt + qaClosedCnt;
 
-    // Project breakdown shows all three numbers when present
     const projectBreakdown = Object.entries(p.byProject)
       .map(([k, data]) => {
         const parts = [];
         if (data.prodDev > 0) parts.push(`${data.prodDev} prod→dev`);
         if (data.devQA > 0) parts.push(`${data.devQA} dev→qa`);
         if (data.qaClosed > 0) parts.push(`${data.qaClosed} qa closed`);
+        if (data.prodPending > 0) parts.push(`${data.prodPending} prod pending`);
+        if (data.devPending > 0) parts.push(`${data.devPending} dev pending`);
+        if (data.qaPending > 0) parts.push(`${data.qaPending} qa pending`);
+        if (data.closed > 0) parts.push(`${data.closed} closed`);
+        if (data.onHold > 0) parts.push(`${data.onHold} on-hold`);
         const txt = parts.join(', ') || '0';
         return `<span style="display:inline-flex;align-items:center;gap:4px;margin-right:8px"><span style="width:8px;height:8px;border-radius:50%;background:${data.color}"></span><span style="font-size:11px">${esc(data.name)}: ${txt}</span></span>`;
       })
@@ -3620,6 +3817,11 @@ function renderPhaseTimeline() {
       <td style="text-align:center;font-size:15px;font-weight:700;color:#7C3AED">${prodDevCnt}</td>
       <td style="text-align:center;font-size:15px;font-weight:700;color:#059669">${devQACnt}</td>
       <td style="text-align:center;font-size:15px;font-weight:700;color:#2563EB">${qaClosedCnt}</td>
+      <td style="text-align:center;font-size:14px;font-weight:700;color:#533AB7">${prodPendingCnt}</td>
+      <td style="text-align:center;font-size:14px;font-weight:700;color:#854F0B">${devPendingCnt}</td>
+      <td style="text-align:center;font-size:14px;font-weight:700;color:#0F6E56">${qaPendingCnt}</td>
+      <td style="text-align:center;font-size:14px;font-weight:700;color:#555555">${closedCnt}</td>
+      <td style="text-align:center;font-size:14px;font-weight:700;color:#B45309">${onHoldCnt}</td>
       <td style="text-align:center;font-size:16px;font-weight:700;color:var(--blue)">${total}</td>
       <td style="font-size:12px">${projectBreakdown}</td>
       <td style="text-align:center">
@@ -3629,104 +3831,18 @@ function renderPhaseTimeline() {
       </td>
     </tr>`;
 
-    // Details: three separate mini lists/tables for clarity (still one expand row)
     let detailsContent = '';
-    if (p.prodDev.length > 0) {
-      detailsContent += `
-        <div style="margin-bottom:10px">
-          <div style="font-size:12px;font-weight:600;margin-bottom:4px;color:#7C3AED">Prod → Dev (${p.prodDev.length})</div>
-          <table class="issues" style="width:100%;font-size:11px">
-            <thead>
-              <tr>
-                <th style="width:110px">Key</th>
-                <th>Summary</th>
-                <th style="width:120px">Project</th>
-                <th style="width:120px">Developer</th>
-                <th style="width:110px">Target</th>
-                <th style="width:130px">Date</th>
-              </tr>
-            </thead>
-            <tbody>
-              ${p.prodDev.map(t => {
-                const link = S.creds.url ? S.creds.url + '/browse/' + t.key : '#';
-                return `<tr onclick="window.open('${link}','_blank');event.stopPropagation()" style="cursor:pointer">
-                  <td><span class="key-link">${esc(t.key)}</span></td>
-                  <td style="max-width:280px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(t.summary)}</td>
-                  <td><span style="display:inline-flex;align-items:center;gap:5px"><span style="width:7px;height:7px;border-radius:50%;background:${t.proj.color}"></span>${esc(t.proj.name)}</span></td>
-                  <td style="font-size:10px;color:var(--text2)">${esc(t.developer)}</td>
-                  <td style="font-size:10px">${esc(t.targetStatus || t.currentStatus)}</td>
-                  <td style="font-size:10px;color:var(--text3)">${formatDateTime(t.eventDate)}</td>
-                </tr>`;
-              }).join('')}
-            </tbody>
-          </table>
-        </div>`;
-    }
-    if (p.devQA.length > 0) {
-      detailsContent += `
-        <div style="margin-bottom:10px">
-          <div style="font-size:12px;font-weight:600;margin-bottom:4px;color:#059669">Dev → QA (${p.devQA.length})</div>
-          <table class="issues" style="width:100%;font-size:11px">
-            <thead>
-              <tr>
-                <th style="width:110px">Key</th>
-                <th>Summary</th>
-                <th style="width:120px">Project</th>
-                <th style="width:120px">Developer</th>
-                <th style="width:110px">Target</th>
-                <th style="width:130px">Date</th>
-              </tr>
-            </thead>
-            <tbody>
-              ${p.devQA.map(t => {
-                const link = S.creds.url ? S.creds.url + '/browse/' + t.key : '#';
-                return `<tr onclick="window.open('${link}','_blank');event.stopPropagation()" style="cursor:pointer">
-                  <td><span class="key-link">${esc(t.key)}</span></td>
-                  <td style="max-width:280px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(t.summary)}</td>
-                  <td><span style="display:inline-flex;align-items:center;gap:5px"><span style="width:7px;height:7px;border-radius:50%;background:${t.proj.color}"></span>${esc(t.proj.name)}</span></td>
-                  <td style="font-size:10px;color:var(--text2)">${esc(t.developer)}</td>
-                  <td style="font-size:10px">${esc(t.targetStatus || t.currentStatus)}</td>
-                  <td style="font-size:10px;color:var(--text3)">${formatDateTime(t.eventDate)}</td>
-                </tr>`;
-              }).join('')}
-            </tbody>
-          </table>
-        </div>`;
-    }
-    if (p.qaClosed.length > 0) {
-      detailsContent += `
-        <div>
-          <div style="font-size:12px;font-weight:600;margin-bottom:4px;color:#2563EB">QA Closed (${p.qaClosed.length})</div>
-          <table class="issues" style="width:100%;font-size:11px">
-            <thead>
-              <tr>
-                <th style="width:110px">Key</th>
-                <th>Summary</th>
-                <th style="width:120px">Project</th>
-                <th style="width:120px">Developer</th>
-                <th style="width:110px">Target</th>
-                <th style="width:130px">Date</th>
-              </tr>
-            </thead>
-            <tbody>
-              ${p.qaClosed.map(t => {
-                const link = S.creds.url ? S.creds.url + '/browse/' + t.key : '#';
-                return `<tr onclick="window.open('${link}','_blank');event.stopPropagation()" style="cursor:pointer">
-                  <td><span class="key-link">${esc(t.key)}</span></td>
-                  <td style="max-width:280px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(t.summary)}</td>
-                  <td><span style="display:inline-flex;align-items:center;gap:5px"><span style="width:7px;height:7px;border-radius:50%;background:${t.proj.color}"></span>${esc(t.proj.name)}</span></td>
-                  <td style="font-size:10px;color:var(--text2)">${esc(t.developer)}</td>
-                  <td style="font-size:10px">${esc(t.targetStatus || t.currentStatus)}</td>
-                  <td style="font-size:10px;color:var(--text3)">${formatDateTime(t.eventDate)}</td>
-                </tr>`;
-              }).join('')}
-            </tbody>
-          </table>
-        </div>`;
-    }
+    detailsContent += renderPhaseTransitionDetailTable(p.prodDev, 'Prod → Dev', '#7C3AED');
+    detailsContent += renderPhaseTransitionDetailTable(p.devQA, 'Dev → QA', '#059669');
+    detailsContent += renderPhaseTransitionDetailTable(p.qaClosed, 'QA → Closed', '#2563EB');
+    detailsContent += renderPhaseTransitionDetailTable(p.prodPending, 'Prod-Pending (all open)', '#533AB7', { snapshot: true });
+    detailsContent += renderPhaseTransitionDetailTable(p.devPending, 'Dev-Pending (all open)', '#854F0B', { snapshot: true });
+    detailsContent += renderPhaseTransitionDetailTable(p.qaPending, 'QA-Pending (all open)', '#0F6E56', { snapshot: true });
+    detailsContent += renderPhaseTransitionDetailTable(p.closed, 'Closed (all open)', '#555555', { snapshot: true });
+    detailsContent += renderPhaseTransitionDetailTable(p.onHold, 'On-Hold (all open)', '#B45309', { snapshot: true });
 
     const detailRow = `<tr class="period-details period-details-${esc(p.key)} hidden">
-      <td colspan="7" style="padding:0;background:var(--bg3)">
+      <td colspan="12" style="padding:0;background:var(--bg3)">
         <div style="padding:12px 16px">
           ${detailsContent || '<div style="font-size:12px;color:var(--text3)">No events</div>'}
         </div>
@@ -3741,12 +3857,17 @@ function renderPhaseTimeline() {
   const prodDevData = periods.map(p => p.prodDev.length);
   const devQAData = periods.map(p => p.devQA.length);
   const qaClosedData = periods.map(p => p.qaClosed.length);
+  const prodPendingData = periods.map(p => p.prodPending.length);
+  const devPendingData = periods.map(p => p.devPending.length);
+  const qaPendingData = periods.map(p => p.qaPending.length);
+  const closedData = periods.map(p => p.closed.length);
+  const onHoldData = periods.map(p => p.onHold.length);
   const periodKeys = periods.map(p => p.key);
 
   contentEl.innerHTML = `
     <div class="card" style="margin-bottom:20px">
       <h3 style="font-size:15px;font-weight:600;margin-bottom:4px">Completion Trend</h3>
-      <p style="font-size:12px;color:var(--text3);margin-bottom:14px">Prod → Dev, Dev → QA, QA → Closed (separate series on one chart). Click a point to expand that period's details below.</p>
+      <p style="font-size:12px;color:var(--text3);margin-bottom:14px">Dotted lines: transitions per period (Prod → Dev, Dev → QA, QA → Closed). Solid lines: cumulative count of all open issues at each period — Prod-Pending, Dev-Pending, QA-Pending (incl. Pending DEP), Closed, and On-Hold. Click a point to expand details below.</p>
       <div style="display:flex; gap:14px; align-items:center; margin-bottom:8px; font-size:12px; flex-wrap:wrap">
         <span style="color:var(--text3); margin-right:2px">Show:</span>
         <label style="display:inline-flex; align-items:center; gap:4px; cursor:pointer">
@@ -3761,6 +3882,27 @@ function renderPhaseTimeline() {
           <input type="checkbox" ${S.phaseTrendVisible.qaClosed ? 'checked' : ''} onchange="togglePhaseSeriesVisibility('qaClosed', this.checked)">
           <span style="color:#2563EB">QA → Closed</span>
         </label>
+        <span style="color:var(--text3);margin:0 2px">|</span>
+        <label style="display:inline-flex; align-items:center; gap:4px; cursor:pointer">
+          <input type="checkbox" ${S.phaseTrendVisible.prodPending ? 'checked' : ''} onchange="togglePhaseSeriesVisibility('prodPending', this.checked)">
+          <span style="color:#533AB7">Prod-Pending</span>
+        </label>
+        <label style="display:inline-flex; align-items:center; gap:4px; cursor:pointer">
+          <input type="checkbox" ${S.phaseTrendVisible.devPending ? 'checked' : ''} onchange="togglePhaseSeriesVisibility('devPending', this.checked)">
+          <span style="color:#854F0B">Dev-Pending</span>
+        </label>
+        <label style="display:inline-flex; align-items:center; gap:4px; cursor:pointer">
+          <input type="checkbox" ${S.phaseTrendVisible.qaPending ? 'checked' : ''} onchange="togglePhaseSeriesVisibility('qaPending', this.checked)">
+          <span style="color:#0F6E56">QA-Pending</span>
+        </label>
+        <label style="display:inline-flex; align-items:center; gap:4px; cursor:pointer">
+          <input type="checkbox" ${S.phaseTrendVisible.closed ? 'checked' : ''} onchange="togglePhaseSeriesVisibility('closed', this.checked)">
+          <span style="color:#555555">Closed</span>
+        </label>
+        <label style="display:inline-flex; align-items:center; gap:4px; cursor:pointer">
+          <input type="checkbox" ${S.phaseTrendVisible.onHold ? 'checked' : ''} onchange="togglePhaseSeriesVisibility('onHold', this.checked)">
+          <span style="color:#B45309">On-Hold</span>
+        </label>
       </div>
       <div style="position:relative;width:100%;height:280px">
         <canvas id="phase-timeline-chart"></canvas>
@@ -3768,7 +3910,7 @@ function renderPhaseTimeline() {
     </div>
     
     <div class="card">
-      <h3 style="font-size:15px;font-weight:600;margin-bottom:14px">Phase Transitions (${totalProdDev} Prod→Dev, ${totalDevQA} Dev→QA, ${totalQAClosed} QA Closed)</h3>
+      <h3 style="font-size:15px;font-weight:600;margin-bottom:14px">Phase Transitions (${totalProdDev} Prod→Dev, ${totalDevQA} Dev→QA, ${totalQAClosed} QA Closed) · Currently open: ${totalProdPending} Prod-Pend, ${totalDevPending} Dev-Pend, ${totalQAPending} QA-Pend, ${totalClosed} Closed, ${totalOnHold} On-Hold</h3>
       <table class="pipeline-table" style="margin-bottom:0">
         <thead>
           <tr>
@@ -3776,6 +3918,11 @@ function renderPhaseTimeline() {
             <th style="width:72px;text-align:center">Prod→Dev</th>
             <th style="width:72px;text-align:center">Dev→QA</th>
             <th style="width:80px;text-align:center">QA Closed</th>
+            <th style="width:72px;text-align:center" title="All open at period end (incl. Prod-Grooming, Prod-Groomed, Creating)">Prod-Pend</th>
+            <th style="width:72px;text-align:center" title="All open at period end (incl. Dev-Reopened, Dev-Developing, Dev-Designing, Dev-Grooming)">Dev-Pend</th>
+            <th style="width:72px;text-align:center" title="All open at period end (incl. Pending DEP)">QA-Pend</th>
+            <th style="width:72px;text-align:center" title="All closed at period end">Closed</th>
+            <th style="width:72px;text-align:center" title="All on-hold at period end">On-Hold</th>
             <th style="width:60px;text-align:center">Total</th>
             <th>By Project</th>
             <th style="width:50px"></th>
@@ -3786,7 +3933,7 @@ function renderPhaseTimeline() {
     </div>
   `;
 
-  // Render single combined line chart with three series
+  // Render combined line chart with transitions (dotted) and snapshots (solid) series
   const ctx = document.getElementById('phase-timeline-chart');
   if (ctx) {
     if (S.charts.phaseTimeline) S.charts.phaseTimeline.destroy();
@@ -3801,11 +3948,12 @@ function renderPhaseTimeline() {
             data: prodDevData,
             borderColor: '#7C3AED',
             backgroundColor: 'rgba(124, 58, 237, 0.1)',
-            borderWidth: 2.5,
+            borderWidth: 2,
+            borderDash: [6, 4],
             fill: false,
             tension: 0.3,
-            pointRadius: 5,
-            pointHoverRadius: 7,
+            pointRadius: 4,
+            pointHoverRadius: 6,
             pointBackgroundColor: '#7C3AED',
             pointBorderColor: '#fff',
             pointBorderWidth: 2,
@@ -3818,11 +3966,12 @@ function renderPhaseTimeline() {
             data: devQAData,
             borderColor: '#059669',
             backgroundColor: 'rgba(5, 150, 105, 0.1)',
-            borderWidth: 2.5,
+            borderWidth: 2,
+            borderDash: [6, 4],
             fill: false,
             tension: 0.3,
-            pointRadius: 5,
-            pointHoverRadius: 7,
+            pointRadius: 4,
+            pointHoverRadius: 6,
             pointBackgroundColor: '#059669',
             pointBorderColor: '#fff',
             pointBorderWidth: 2,
@@ -3835,15 +3984,101 @@ function renderPhaseTimeline() {
             data: qaClosedData,
             borderColor: '#2563EB',
             backgroundColor: 'rgba(37, 99, 235, 0.1)',
+            borderWidth: 2,
+            borderDash: [6, 4],
+            fill: false,
+            tension: 0.3,
+            pointRadius: 4,
+            pointHoverRadius: 6,
+            pointBackgroundColor: '#2563EB',
+            pointBorderColor: '#fff',
+            pointBorderWidth: 2,
+            pointHoverBackgroundColor: '#1D4ED8',
+            pointHoverBorderColor: '#fff'
+          },
+          {
+            label: 'Prod-Pending',
+            hidden: !S.phaseTrendVisible.prodPending,
+            data: prodPendingData,
+            borderColor: '#533AB7',
+            backgroundColor: 'rgba(83, 58, 183, 0.08)',
             borderWidth: 2.5,
             fill: false,
             tension: 0.3,
             pointRadius: 5,
             pointHoverRadius: 7,
-            pointBackgroundColor: '#2563EB',
+            pointBackgroundColor: '#533AB7',
             pointBorderColor: '#fff',
             pointBorderWidth: 2,
-            pointHoverBackgroundColor: '#1D4ED8',
+            pointHoverBackgroundColor: '#3F2A8F',
+            pointHoverBorderColor: '#fff'
+          },
+          {
+            label: 'Dev-Pending',
+            hidden: !S.phaseTrendVisible.devPending,
+            data: devPendingData,
+            borderColor: '#854F0B',
+            backgroundColor: 'rgba(133, 79, 11, 0.08)',
+            borderWidth: 2.5,
+            fill: false,
+            tension: 0.3,
+            pointRadius: 5,
+            pointHoverRadius: 7,
+            pointBackgroundColor: '#854F0B',
+            pointBorderColor: '#fff',
+            pointBorderWidth: 2,
+            pointHoverBackgroundColor: '#6B3F09',
+            pointHoverBorderColor: '#fff'
+          },
+          {
+            label: 'QA-Pending',
+            hidden: !S.phaseTrendVisible.qaPending,
+            data: qaPendingData,
+            borderColor: '#0F6E56',
+            backgroundColor: 'rgba(15, 110, 86, 0.08)',
+            borderWidth: 2.5,
+            fill: false,
+            tension: 0.3,
+            pointRadius: 5,
+            pointHoverRadius: 7,
+            pointBackgroundColor: '#0F6E56',
+            pointBorderColor: '#fff',
+            pointBorderWidth: 2,
+            pointHoverBackgroundColor: '#0B5744',
+            pointHoverBorderColor: '#fff'
+          },
+          {
+            label: 'Closed',
+            hidden: !S.phaseTrendVisible.closed,
+            data: closedData,
+            borderColor: '#555555',
+            backgroundColor: 'rgba(85, 85, 85, 0.08)',
+            borderWidth: 2.5,
+            fill: false,
+            tension: 0.3,
+            pointRadius: 5,
+            pointHoverRadius: 7,
+            pointBackgroundColor: '#555555',
+            pointBorderColor: '#fff',
+            pointBorderWidth: 2,
+            pointHoverBackgroundColor: '#3D3D3D',
+            pointHoverBorderColor: '#fff'
+          },
+          {
+            label: 'On-Hold',
+            hidden: !S.phaseTrendVisible.onHold,
+            data: onHoldData,
+            borderColor: '#B45309',
+            backgroundColor: 'rgba(180, 83, 9, 0.08)',
+            borderWidth: 2.5,
+            fill: false,
+            tension: 0.3,
+            pointRadius: 5,
+            pointHoverRadius: 7,
+            pointBackgroundColor: '#B45309',
+            pointBorderColor: '#fff',
+            pointBorderWidth: 2,
+            pointHoverBackgroundColor: '#92400E',
             pointHoverBorderColor: '#fff'
           }
         ]
