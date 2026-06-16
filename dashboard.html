@@ -844,7 +844,13 @@ code { font-family: monospace; font-size: 12px; background: var(--bg3); padding:
 
 <script>
 // ── Config ──────────────────────────────────────────────────────────────────
-const PROXY = 'http://localhost:3131/jira-api';
+const API_BASE = (window.location.protocol === 'http:' || window.location.protocol === 'https:')
+  ? window.location.origin
+  : 'http://localhost:3131';
+const PROXY = API_BASE + '/jira-api';
+
+// Stored in config/*.json on the server — never persisted to localStorage
+const SERVER_CONFIG_KEYS = ['releases', 'milestones', 'customProjects', 'projectSettings'];
 
 const PHASES = [
   { label: 'Product',           re: /^prod/i,                                                        color: '#533AB7' },
@@ -936,12 +942,40 @@ function getDefaultProjectPage() {
   return p ? p.id : 'setup';
 }
 
-function persist() { try { localStorage.setItem('jira_dash_v3', JSON.stringify({...S, charts:{}})); } catch(e){} }
-function hydrate()  {
+function persist() {
+  try {
+    const data = { ...S, charts: {} };
+    SERVER_CONFIG_KEYS.forEach(k => delete data[k]);
+    localStorage.setItem('jira_dash_v3', JSON.stringify(data));
+  } catch(e){}
+}
+function hydrate() {
   try {
     const r = localStorage.getItem('jira_dash_v3');
-    if (r) { const p = JSON.parse(r); Object.assign(S, p); S.charts = {}; }
+    if (r) {
+      const p = JSON.parse(r);
+      SERVER_CONFIG_KEYS.forEach(k => delete p[k]);
+      Object.assign(S, p);
+      S.charts = {};
+    }
   } catch(e){}
+}
+
+async function fetchConfigJson(path, retries = 3) {
+  let lastErr;
+  for (let attempt = 0; attempt < retries; attempt++) {
+    try {
+      const response = await fetch(API_BASE + path, { cache: 'no-store' });
+      if (response.ok) return await response.json();
+      lastErr = new Error('HTTP ' + response.status);
+    } catch (err) {
+      lastErr = err;
+    }
+    if (attempt < retries - 1) {
+      await new Promise(resolve => setTimeout(resolve, 250 * (attempt + 1)));
+    }
+  }
+  throw lastErr || new Error('Failed to fetch ' + path);
 }
 function jiraId(f) { return S.customIds[f.id] || f.jira; }
 
@@ -969,7 +1003,7 @@ async function checkProxy() {
   const text = document.getElementById('proxy-status-text');
   const ind  = document.getElementById('proxy-indicator');
   try {
-    const r = await fetch('http://localhost:3131/health', { 
+    const r = await fetch(API_BASE + '/health', {
       signal: AbortSignal.timeout(2000),
       method: 'GET'
     });
@@ -4512,40 +4546,37 @@ const PROJECT_COLORS = ['#185FA5','#3B6D11','#c47a0f','#533AB7','#993556','#0F6E
 // Load default projects from server and inject first release
 async function loadDefaultProjects() {
   try {
-    const response = await fetch('http://localhost:3131/config/projects/default');
-    if (response.ok) {
-      const data = await response.json();
-      const defaultProjects = data.defaultProjects || [];
-      
-      // Get the first release from releases.json
-      const firstRelease = (S.releases && S.releases.length > 0) ? S.releases[0].name : null;
-      
-      // Inject fixVersion into each project's JQL (except those excluded)
-      defaultProjects.forEach(proj => {
-        if (firstRelease && !proj.excludeRelease) {
-          // Check if fixVersion already exists in JQL
-          if (!proj.jql.toLowerCase().includes('fixversion')) {
-            // Find ORDER BY clause
-            const orderByMatch = proj.jql.match(/\s+ORDER\s+BY\s+/i);
-            if (orderByMatch) {
-              const insertPos = orderByMatch.index;
-              proj.jql = proj.jql.substring(0, insertPos) + ` AND fixVersion = ${firstRelease}` + proj.jql.substring(insertPos);
-            } else {
-              proj.jql = proj.jql + ` AND fixVersion = ${firstRelease}`;
-            }
+    const data = await fetchConfigJson('/config/projects/default');
+    const defaultProjects = data.defaultProjects || [];
+
+    // Get the first release from releases.json
+    const firstRelease = (S.releases && S.releases.length > 0) ? S.releases[0].name : null;
+
+    // Inject fixVersion into each project's JQL (except those excluded)
+    defaultProjects.forEach(proj => {
+      if (firstRelease && !proj.excludeRelease) {
+        // Check if fixVersion already exists in JQL
+        if (!proj.jql.toLowerCase().includes('fixversion')) {
+          // Find ORDER BY clause
+          const orderByMatch = proj.jql.match(/\s+ORDER\s+BY\s+/i);
+          if (orderByMatch) {
+            const insertPos = orderByMatch.index;
+            proj.jql = proj.jql.substring(0, insertPos) + ` AND fixVersion = ${firstRelease}` + proj.jql.substring(insertPos);
+          } else {
+            proj.jql = proj.jql + ` AND fixVersion = ${firstRelease}`;
           }
         }
-        // Add release property
-        if (firstRelease && !proj.excludeRelease) {
-          proj.release = firstRelease;
-        }
-      });
-      
-      // Populate PROJECTS array
-      PROJECTS.length = 0;
-      PROJECTS.push(...defaultProjects);
-      return true;
-    }
+      }
+      // Add release property
+      if (firstRelease && !proj.excludeRelease) {
+        proj.release = firstRelease;
+      }
+    });
+
+    // Populate PROJECTS array
+    PROJECTS.length = 0;
+    PROJECTS.push(...defaultProjects);
+    return true;
   } catch (err) {
     console.error('[loadDefaultProjects]', err.message);
   }
@@ -4555,13 +4586,10 @@ async function loadDefaultProjects() {
 // Load projects configuration from server
 async function loadProjectsConfig() {
   try {
-    const response = await fetch('http://localhost:3131/config/projects');
-    if (response.ok) {
-      const data = await response.json();
-      S.customProjects = data.customProjects || [];
-      S.projectSettings = data.projectSettings || {};
-      return true;
-    }
+    const data = await fetchConfigJson('/config/projects');
+    S.customProjects = data.customProjects || [];
+    S.projectSettings = data.projectSettings || {};
+    return true;
   } catch (err) {
     console.error('[loadProjectsConfig]', err.message);
   }
@@ -4578,7 +4606,7 @@ async function saveProjectsConfig() {
       customProjects: S.customProjects || [],
       projectSettings: S.projectSettings || {}
     };
-    const response = await fetch('http://localhost:3131/config/projects', {
+    const response = await fetch(API_BASE + '/config/projects', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(data)
@@ -4694,6 +4722,7 @@ function openProjectJqlModal(key) {
 async function renderProjectsConfig() {
   // Load configuration from server
   await loadProjectsConfig();
+  if (PROJECTS.length === 0) await loadDefaultProjects();
 
   // Built-in list
   const builtinEl = document.getElementById('pc-builtin');
@@ -4921,17 +4950,14 @@ const DEFAULT_MILESTONES = [
 // Load releases configuration from server
 async function loadReleasesConfig() {
   try {
-    const response = await fetch('http://localhost:3131/config/releases');
-    if (response.ok) {
-      const data = await response.json();
-      S.releases = data.releases || [];
-      if (data.milestones && data.milestones.length > 0) {
-        S.milestones = data.milestones;
-      } else {
-        S.milestones = JSON.parse(JSON.stringify(DEFAULT_MILESTONES));
-      }
-      return true;
+    const data = await fetchConfigJson('/config/releases');
+    S.releases = data.releases || [];
+    if (data.milestones && data.milestones.length > 0) {
+      S.milestones = data.milestones;
+    } else {
+      S.milestones = JSON.parse(JSON.stringify(DEFAULT_MILESTONES));
     }
+    return true;
   } catch (err) {
     console.error('[loadReleasesConfig]', err.message);
   }
@@ -4948,7 +4974,7 @@ async function saveReleasesConfig() {
       releases: S.releases || [],
       milestones: S.milestones || DEFAULT_MILESTONES
     };
-    const response = await fetch('http://localhost:3131/config/releases', {
+    const response = await fetch(API_BASE + '/config/releases', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(data)
@@ -5359,25 +5385,33 @@ async function resetMilestones() {
 }
 
 // ── Init ──────────────────────────────────────────────────────────────────────
-hydrate();
-if (!S.log) S.log = [];
-if (!S.customProjects) S.customProjects = [];
-if (!S._msState) S._msState = { project: new Set(), phase: new Set(), dev: new Set(), product: new Set(), assignee: new Set(), scope: new Set() };
-// Sets are not JSON-serialisable, so always re-create as empty on load
-S._msState = { project: new Set(), phase: new Set(), dev: new Set(), product: new Set(), assignee: new Set(), scope: new Set() };
+async function initApp() {
+  hydrate();
+  if (!S.log) S.log = [];
+  if (!S.customProjects) S.customProjects = [];
+  if (!S.projectSettings) S.projectSettings = {};
+  if (!S.releases) S.releases = [];
+  // Sets are not JSON-serialisable, so always re-create as empty on load
+  S._msState = { project: new Set(), phase: new Set(), dev: new Set(), product: new Set(), assignee: new Set(), scope: new Set() };
 
-// Load configurations from server on startup
-Promise.all([
-  loadReleasesConfig(),   // Load releases first
-  loadProjectsConfig()    // Load custom projects and settings
-]).then(() => {
-  return loadDefaultProjects();  // Then load default projects with first release
-}).then(() => {
+  // Load config files from server before building UI (releases must load before projects)
+  await loadReleasesConfig();
+  await loadProjectsConfig();
+  await loadDefaultProjects();
+
   applyTheme(S.theme || getPreferredTheme(), false);
   rebuildDynamicUI();
   renderFields();
   updateLogBadge();
   nav(S.creds.url ? getDefaultProjectPage() : 'setup');
+}
+
+initApp().catch(err => {
+  console.error('[initApp]', err);
+  applyTheme(S.theme || getPreferredTheme(), false);
+  renderFields();
+  nav('setup');
+  checkProxy();
 });
 </script>
 </body>
