@@ -175,6 +175,15 @@ app.all('/jira-api', async (req, res) => {
   }
 });
 
+// ── SPA fallback — deep-linked client routes serve dashboard.html ─────────────
+app.get('*', (req, res, next) => {
+  const p = req.path || '';
+  if (p.startsWith('/jira-api') || p.startsWith('/config') || p.startsWith('/api/') || p === '/health') {
+    return next();
+  }
+  res.sendFile(path.join(__dirname, 'dashboard.html'));
+});
+
 // ── Start ────────────────────────────────────────────────────────────────────
 const server = http.createServer(app);
 server.listen(PORT, '127.0.0.1', () => {

@@ -818,7 +818,7 @@ code { font-family: monospace; font-size: 12px; background: var(--bg3); padding:
                 <div class="ms-footer"><button onclick="selectAllMs('scope')">Select all</button><button onclick="clearMs('scope')">Clear</button></div>
               </div>
             </div>
-            <input id="team-search" class="team-search" type="text" placeholder="Search key or summary…" oninput="renderTeam()" />
+            <input id="team-search" class="team-search" type="text" placeholder="Search key or summary…" oninput="onTeamSearchInput()" />
           </div>
         </div>
         <div id="team-body"></div>
@@ -1315,8 +1315,299 @@ async function checkProxy() {
   }
 }
 
+// ── Deep linking (History API) ───────────────────────────────────────────────
+const STATIC_PAGES = new Set([
+  'setup', 'velocity', 'data-gaps', 'analytics', 'team', 'phase-timeline', 'log',
+  'projects-config', 'releases-config', 'fields'
+]);
+
+let _routeNavigating = false;
+let _pendingRouteParams = null;
+
+function isProjectPageId(id) {
+  if (!id || STATIC_PAGES.has(id)) return false;
+  return getAllProjects().some(p => p.id === id) || /^p\d+$|^cp_/.test(id);
+}
+
+function isValidPageId(id) {
+  if (!id) return false;
+  if (STATIC_PAGES.has(id)) return true;
+  return getAllProjects().some(p => p.id === id);
+}
+
+function parseRouteFromLocation() {
+  const raw = (location.pathname || '/').replace(/^\/+/, '');
+  const page = raw ? decodeURIComponent(raw.split('/')[0]) : '';
+  return { page, params: new URLSearchParams(location.search) };
+}
+
+function csvParam(values) {
+  const arr = values instanceof Set ? [...values] : (values || []);
+  return arr.length ? arr.join(',') : '';
+}
+
+function setCheckboxFilterFromCsv(optionsId, csv) {
+  if (!csv) return;
+  const values = new Set(csv.split(',').map(s => decodeURIComponent(s.trim())).filter(Boolean));
+  const el = document.getElementById(optionsId);
+  if (!el) return;
+  el.querySelectorAll('input[type="checkbox"]').forEach(cb => { cb.checked = values.has(cb.value); });
+}
+
+function consumePendingRouteParam(name) {
+  if (!_pendingRouteParams) return null;
+  const v = _pendingRouteParams.get(name);
+  if (v != null) _pendingRouteParams.delete(name);
+  return v;
+}
+
+function applyPendingRouteState(page) {
+  const params = _pendingRouteParams;
+  if (!params) return;
+
+  if (page === 'team') {
+    if (!S._msState) S._msState = { project: new Set(), phase: new Set(), dev: new Set(), product: new Set(), assignee: new Set(), scope: new Set() };
+    ['project', 'phase', 'dev', 'product', 'assignee', 'scope'].forEach(id => {
+      const raw = params.get(id);
+      if (raw) S._msState[id] = new Set(raw.split(',').map(s => decodeURIComponent(s.trim())).filter(Boolean));
+    });
+    const q = params.get('q');
+    if (q) { const el = document.getElementById('team-search'); if (el) el.value = q; }
+    const sort = params.get('sort');
+    const dir = params.get('dir');
+    if (sort) {
+      if (!S._teamSort) S._teamSort = { col: 'dev', dir: 1 };
+      S._teamSort.col = sort;
+      if (dir) S._teamSort.dir = dir === 'desc' ? -1 : 1;
+    }
+  }
+
+  if (page === 'velocity') {
+    const sort = params.get('sort');
+    const dir = params.get('dir');
+    if (sort) {
+      if (!S._velocitySort) S._velocitySort = { col: 'variance', dir: -1 };
+      S._velocitySort.col = sort;
+      if (dir) S._velocitySort.dir = dir === 'desc' ? -1 : 1;
+    }
+    const dev = params.get('dev');
+    if (dev) S._velocityDetail = { devId: dev, bucket: params.get('bucket') || 'all' };
+  }
+
+  if (page === 'data-gaps') {
+    const section = params.get('section');
+    if (section) S._dataGapsOpenSection = section;
+    if (!S._dataGapsSort) S._dataGapsSort = { missingEstimate: { col: 'key', dir: 1 }, devDoneMissingActual: { col: 'key', dir: 1 } };
+    ['missingEstimate', 'devDoneMissingActual'].forEach(sec => {
+      const sort = params.get('sort_' + sec);
+      const dir = params.get('dir_' + sec);
+      if (sort) {
+        S._dataGapsSort[sec].col = sort;
+        if (dir) S._dataGapsSort[sec].dir = dir === 'desc' ? -1 : 1;
+      }
+    });
+  }
+
+  if (page === 'analytics') {
+    ensureAnalyticsViews();
+    const phaseView = params.get('phaseView');
+    const devView = params.get('devView');
+    const priorityView = params.get('priorityView');
+    const typeView = params.get('typeView');
+    if (phaseView) S.analyticsViews.phase = phaseView;
+    if (devView) S.analyticsViews.dev = devView;
+    if (priorityView) S.analyticsViews.priority = priorityView;
+    if (typeView) S.analyticsViews.type = typeView;
+  }
+
+  if (page === 'phase-timeline') {
+    const period = params.get('period');
+    const range = params.get('range');
+    if (period) { const el = document.getElementById('phase-period'); if (el) el.value = period; }
+    if (range) { const el = document.getElementById('phase-range'); if (el) el.value = range; }
+    const expand = params.get('expand');
+    if (expand) S._expandedPeriods = new Set(expand.split(',').map(s => decodeURIComponent(s.trim())).filter(Boolean));
+    if (params.get('fullscreen') === '1') S.phaseChartFullscreen = true;
+    const hidden = params.get('hiddenSeries');
+    if (hidden) {
+      S.phaseTrendVisible = { ...PHASE_TREND_DEFAULT_VISIBLE };
+      hidden.split(',').forEach(k => { if (k in S.phaseTrendVisible) S.phaseTrendVisible[k] = false; });
+    }
+  }
+
+  if (page === 'log') {
+    const period = params.get('period');
+    const range = params.get('range');
+    if (period) { const el = document.getElementById('log-period'); if (el) el.value = period; }
+    if (range) { const el = document.getElementById('log-range'); if (el) el.value = range; }
+    const expand = params.get('expand');
+    if (expand) S._expandedPeriods = new Set(expand.split(',').map(s => decodeURIComponent(s.trim())).filter(Boolean));
+  }
+
+  if (isProjectPageId(page)) {
+    const filter = params.get('filter');
+    const proj = getAllProjects().find(p => p.id === page);
+    if (proj && filter) {
+      if (!S.activeFilter) S.activeFilter = {};
+      S.activeFilter[proj.key] = filter;
+    }
+  }
+
+  if (page === 'projects-config') {
+    const modal = params.get('modal');
+    if (modal === 'jql' && params.get('key')) {
+      S._routeModal = () => openProjectJqlModal(params.get('key'));
+    } else if (modal === 'project' && params.get('idx') != null) {
+      S._routeModal = () => openProjectModal(parseInt(params.get('idx'), 10));
+    }
+  }
+}
+
+function collectRouteParams() {
+  const params = new URLSearchParams();
+  const page = S.page || 'setup';
+
+  if (isProjectPageId(page)) {
+    const proj = getAllProjects().find(p => p.id === page);
+    const f = proj && S.activeFilter?.[proj.key];
+    if (f) params.set('filter', f);
+  } else if (page === 'velocity') {
+    const projects = csvParam(getSelectedVelocityProjects());
+    if (projects) params.set('projects', projects);
+    if (S._velocitySort) {
+      params.set('sort', S._velocitySort.col);
+      params.set('dir', S._velocitySort.dir < 0 ? 'desc' : 'asc');
+    }
+    if (S._velocityDetail?.devId) {
+      params.set('dev', S._velocityDetail.devId);
+      if (S._velocityDetail.bucket && S._velocityDetail.bucket !== 'all') params.set('bucket', S._velocityDetail.bucket);
+    }
+  } else if (page === 'data-gaps') {
+    const projects = csvParam(getSelectedDataGapsProjects());
+    if (projects) params.set('projects', projects);
+    if (S._dataGapsOpenSection) params.set('section', S._dataGapsOpenSection);
+    if (S._dataGapsSort) {
+      Object.entries(S._dataGapsSort).forEach(([sec, s]) => {
+        if (s.col !== 'key' || s.dir !== 1) {
+          params.set('sort_' + sec, s.col);
+          params.set('dir_' + sec, s.dir < 0 ? 'desc' : 'asc');
+        }
+      });
+    }
+  } else if (page === 'analytics') {
+    ensureAnalyticsViews();
+    if (S.analyticsViews.phase !== 'table') params.set('phaseView', S.analyticsViews.phase);
+    if (S.analyticsViews.dev !== 'table') params.set('devView', S.analyticsViews.dev);
+    if (S.analyticsViews.priority !== 'doughnut') params.set('priorityView', S.analyticsViews.priority);
+    if (S.analyticsViews.type !== 'doughnut') params.set('typeView', S.analyticsViews.type);
+  } else if (page === 'team') {
+    if (S._msState) {
+      ['project', 'phase', 'dev', 'product', 'assignee', 'scope'].forEach(id => {
+        const csv = csvParam(S._msState[id]);
+        if (csv) params.set(id, csv);
+      });
+    }
+    const q = document.getElementById('team-search')?.value?.trim();
+    if (q) params.set('q', q);
+    if (S._teamSort && (S._teamSort.col !== 'dev' || S._teamSort.dir !== 1)) {
+      params.set('sort', S._teamSort.col);
+      params.set('dir', S._teamSort.dir < 0 ? 'desc' : 'asc');
+    }
+  } else if (page === 'phase-timeline') {
+    const projects = csvParam(getSelectedPhaseProjects());
+    const developers = csvParam(getSelectedPhaseDevelopers());
+    if (projects) params.set('projects', projects);
+    if (developers) params.set('developers', developers);
+    const period = document.getElementById('phase-period')?.value;
+    const range = document.getElementById('phase-range')?.value;
+    if (period && period !== 'week') params.set('period', period);
+    if (range && range !== '60') params.set('range', range);
+    if (S._expandedPeriods?.size) params.set('expand', [...S._expandedPeriods].join(','));
+    if (S.phaseChartFullscreen) params.set('fullscreen', '1');
+    if (S.phaseTrendVisible) {
+      const hidden = Object.entries(S.phaseTrendVisible).filter(([, v]) => !v).map(([k]) => k);
+      if (hidden.length) params.set('hiddenSeries', hidden.join(','));
+    }
+  } else if (page === 'log') {
+    const projects = csvParam(getSelectedLogProjects());
+    const developers = csvParam(getSelectedLogDevelopers());
+    if (projects) params.set('projects', projects);
+    if (developers) params.set('developers', developers);
+    const period = document.getElementById('log-period')?.value;
+    const range = document.getElementById('log-range')?.value;
+    if (period && period !== 'week') params.set('period', period);
+    if (range && range !== '90') params.set('range', range);
+    if (S._expandedPeriods?.size) params.set('expand', [...S._expandedPeriods].join(','));
+  } else if (page === 'projects-config') {
+    if (S._routeModalOpen === 'jql' && S._routeModalKey) {
+      params.set('modal', 'jql');
+      params.set('key', S._routeModalKey);
+    } else if (S._routeModalOpen === 'project' && S._routeModalIdx != null && S._routeModalIdx >= 0) {
+      params.set('modal', 'project');
+      params.set('idx', String(S._routeModalIdx));
+    }
+  }
+
+  return params;
+}
+
+function syncRoute(replace = false) {
+  if (_routeNavigating) return;
+  const page = S.page || 'setup';
+  const path = '/' + encodeURIComponent(page);
+  const qs = collectRouteParams().toString();
+  const target = qs ? path + '?' + qs : path;
+  const current = location.pathname + location.search;
+  if (current === target) return;
+  const fn = replace ? history.replaceState : history.pushState;
+  fn.call(history, { page }, '', target);
+}
+
+function applyExpandedPeriodsFromRoute() {
+  if (!S._expandedPeriods?.size) return;
+  [...S._expandedPeriods].forEach(key => {
+    const rows = document.querySelectorAll(`.period-details-${key}`);
+    if (rows.length && rows[0].classList.contains('hidden')) togglePeriodDetails(key, true);
+  });
+}
+
+function navigateFromRoute(route, replaceHistory) {
+  _routeNavigating = true;
+  _pendingRouteParams = route.params ? new URLSearchParams(route.params) : null;
+
+  let page = route.page;
+  if (!page) page = S.creds.url ? getDefaultProjectPage() : 'setup';
+  else if (!isValidPageId(page)) page = S.creds.url ? getDefaultProjectPage() : 'setup';
+
+  applyPendingRouteState(page);
+  nav(page, { fromRoute: true });
+
+  requestAnimationFrame(() => {
+    if (isProjectPageId(page)) {
+      const proj = getAllProjects().find(p => p.id === page);
+      const filter = proj && S.activeFilter?.[proj.key];
+      if (proj && filter) filterByCard(proj.key, filter, null, { fromRoute: true });
+    }
+    applyExpandedPeriodsFromRoute();
+    if (S._routeModal) {
+      S._routeModal();
+      S._routeModal = null;
+    }
+    _pendingRouteParams = null;
+    _routeNavigating = false;
+    syncRoute(true);
+    if (!replaceHistory && !route.fromPopstate) { /* pushState handled by syncRoute when user navigates */ }
+  });
+}
+
+function initDeepLinking() {
+  window.addEventListener('popstate', () => {
+    navigateFromRoute({ ...parseRouteFromLocation(), fromPopstate: true }, true);
+  });
+}
+
 // ── Navigation ───────────────────────────────────────────────────────────────
-function nav(id) {
+function nav(id, opts = {}) {
   document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
   document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
   const page = document.getElementById('page-' + id);
@@ -1324,6 +1615,7 @@ function nav(id) {
   if (page) page.classList.add('active');
   if (navBtn) navBtn.classList.add('active');
   S.page = id;
+  if (!S._expandedPeriods || !opts.fromRoute) S._expandedPeriods = new Set();
 
   const proj = getAllProjects().find(p => p.id === id);
   if (proj) {
@@ -1363,6 +1655,8 @@ function nav(id) {
     document.getElementById('inp-token').value = S.creds.token;
     checkProxy();
   }
+
+  if (!opts.fromRoute && !_routeNavigating) syncRoute();
 }
 
 async function refreshAll() {
@@ -1879,7 +2173,7 @@ function toggleScopeDrilldown(projKey) {
   }
 }
 
-function filterByCard(projKey, label, scopeCommitment) {
+function filterByCard(projKey, label, scopeCommitment, opts = {}) {
   if (!S.activeFilter) S.activeFilter = {};
   const prev = S.activeFilter[projKey];
   // Toggle off if same card clicked again
@@ -1920,6 +2214,7 @@ function filterByCard(projKey, label, scopeCommitment) {
   }
   
   renderIssueTable({ key: projKey }, filtered, next);
+  if (!opts.fromRoute && !_routeNavigating) syncRoute();
 }
 
 async function loadAllIssues(projKey) {
@@ -2185,6 +2480,7 @@ function setAnalyticsView(section, value) {
   S.analyticsViews[section] = value;
   persist();
   renderAnalytics();
+  if (!_routeNavigating) syncRoute();
 }
 
 function toDayNumber(val) {
@@ -2841,6 +3137,7 @@ function updateVelocityProjectFilter() {
   }
 
   renderVelocity();
+  if (!_routeNavigating) syncRoute();
 }
 
 function clearVelocityProjectFilter() {
@@ -2862,6 +3159,7 @@ function velocitySort(col) {
   if (S._velocitySort.col === col) S._velocitySort.dir *= -1;
   else { S._velocitySort.col = col; S._velocitySort.dir = 1; }
   renderVelocity();
+  if (!_routeNavigating) syncRoute();
 }
 
 function renderVelocity() {
@@ -2874,6 +3172,8 @@ function renderVelocity() {
   }
 
   buildVelocityProjectFilterOptions(allLoaded);
+  const pendingProjects = consumePendingRouteParam('projects');
+  if (pendingProjects) setCheckboxFilterFromCsv('velocity-project-filter-options', pendingProjects);
   const selectedProjects = getSelectedVelocityProjects();
   const loaded = selectedProjects.size === 0
     ? allLoaded
@@ -3203,7 +3503,7 @@ function renderVelocity() {
     all: 'All tickets'
   };
 
-  window.showVelocityDetails = function(devId, filter) {
+  window.showVelocityDetails = function(devId, filter, fromRoute) {
     const row = document.getElementById('velocity-html-details-' + devId);
     if (!row) return;
     const activeFilter = filter || 'all';
@@ -3211,10 +3511,13 @@ function renderVelocity() {
     if (isOpen) {
       row.style.display = 'none';
       row.dataset.filter = '';
+      S._velocityDetail = null;
+      if (!fromRoute && !_routeNavigating) syncRoute();
       return;
     }
     row.style.display = 'table-row';
     row.dataset.filter = activeFilter;
+    S._velocityDetail = { devId, bucket: activeFilter };
     const labelEl = document.getElementById('velocity-filter-label-' + devId);
     const tickets = row.querySelectorAll('.velocity-ticket');
     let visible = 0;
@@ -3232,6 +3535,7 @@ function renderVelocity() {
         labelEl.textContent = `${VEL_BUCKET_LABELS[activeFilter] || activeFilter} (${visible})`;
       }
     }
+    if (!fromRoute && !_routeNavigating) syncRoute();
   };
 
   window.toggleVelocityDetailsHTML = function(devId) {
@@ -3239,6 +3543,10 @@ function renderVelocity() {
   };
   
   body.innerHTML = summaryCards + velocityTable;
+
+  if (S._velocityDetail) {
+    requestAnimationFrame(() => showVelocityDetails(S._velocityDetail.devId, S._velocityDetail.bucket, true));
+  }
 }
 
 // ── Data Gaps ─────────────────────────────────────────────────────────────────
@@ -3305,6 +3613,7 @@ function updateDataGapsProjectFilter() {
   }
 
   renderDataGaps();
+  if (!_routeNavigating) syncRoute();
 }
 
 function clearDataGapsProjectFilter() {
@@ -3364,6 +3673,7 @@ function dataGapsSort(section, col) {
   if (sortState.col === col) sortState.dir *= -1;
   else { sortState.col = col; sortState.dir = 1; }
   renderDataGaps();
+  if (!_routeNavigating) syncRoute();
 }
 
 function renderDataGapsTable(section, tickets) {
@@ -3439,6 +3749,7 @@ function renderDataGapsTable(section, tickets) {
 function toggleDataGapsSection(sectionId) {
   S._dataGapsOpenSection = S._dataGapsOpenSection === sectionId ? null : sectionId;
   renderDataGaps();
+  if (!_routeNavigating) syncRoute();
 }
 
 function renderDataGapsSection(id, title, description, count, extraHtml, tableHtml) {
@@ -3468,6 +3779,8 @@ function renderDataGaps() {
   }
 
   buildDataGapsProjectFilterOptions(allLoaded);
+  const pendingProjects = consumePendingRouteParam('projects');
+  if (pendingProjects) setCheckboxFilterFromCsv('data-gaps-project-filter-options', pendingProjects);
   const selectedProjects = getSelectedDataGapsProjects();
   const loaded = selectedProjects.size === 0
     ? allLoaded
@@ -3622,6 +3935,7 @@ function selectAllMs(id) {
   });
   updateMsBtn(id);
   renderTeam();
+  if (!_routeNavigating) syncRoute();
 }
 
 function clearMs(id) {
@@ -3631,6 +3945,7 @@ function clearMs(id) {
   S._msState[id].clear();
   updateMsBtn(id);
   renderTeam();
+  if (!_routeNavigating) syncRoute();
 }
 
 // Close dropdowns when clicking outside
@@ -3687,7 +4002,7 @@ function renderTeam() {
       const cb = document.createElement('input');
       cb.type = 'checkbox';
       cb.checked = S._msState[id].has(v);
-      cb.onchange = () => { if (cb.checked) S._msState[id].add(v); else S._msState[id].delete(v); updateMsBtn(id); renderTeam(); };
+      cb.onchange = () => { if (cb.checked) S._msState[id].add(v); else S._msState[id].delete(v); updateMsBtn(id); renderTeam(); if (!_routeNavigating) syncRoute(); };
       const span = document.createElement('span');
       span.className = 'ms-option-label';
       span.title = v;
@@ -3889,6 +4204,12 @@ function teamSort(col) {
   if (S._teamSort.col === col) S._teamSort.dir *= -1;
   else { S._teamSort.col = col; S._teamSort.dir = 1; }
   renderTeam();
+  if (!_routeNavigating) syncRoute();
+}
+
+function onTeamSearchInput() {
+  renderTeam();
+  if (!_routeNavigating) syncRoute();
 }
 
 function updateLogBadge() {
@@ -3921,6 +4242,7 @@ function togglePhaseSeriesVisibility(key, checked) {
   S.phaseTrendVisible = { ...PHASE_TREND_DEFAULT_VISIBLE, ...(S.phaseTrendVisible || {}) };
   S.phaseTrendVisible[key] = !!checked;
   renderPhaseTimeline();
+  if (!_routeNavigating) syncRoute();
 }
 
 function updatePhaseChartFsBtn(isFullscreen) {
@@ -3951,6 +4273,7 @@ function togglePhaseChartFullscreen(force) {
   document.body.classList.toggle('phase-chart-fs-active', next);
   updatePhaseChartFsBtn(next);
   resizePhaseTimelineChart();
+  if (!_routeNavigating) syncRoute();
 }
 
 if (!S._phaseChartFsBound) {
@@ -3985,6 +4308,8 @@ function renderPhaseTimeline() {
 
   // Build filter options if not already built
   buildPhaseProjectFilterOptions(loaded);
+  const pendingProjects = consumePendingRouteParam('projects');
+  if (pendingProjects) setCheckboxFilterFromCsv('phase-project-filter-options', pendingProjects);
 
   // Get selected projects for filtering
   const selectedProjects = getSelectedPhaseProjects();
@@ -4024,6 +4349,8 @@ function renderPhaseTimeline() {
 
   // Build developer filter options
   buildPhaseDeveloperFilterOptions(allDevelopers);
+  const pendingDevs = consumePendingRouteParam('developers');
+  if (pendingDevs) setCheckboxFilterFromCsv('phase-developer-filter-options', pendingDevs);
 
   // Apply developer filter
   const selectedDevelopers = getSelectedPhaseDevelopers();
@@ -4565,6 +4892,9 @@ function renderPhaseTimeline() {
       }
     }
   }
+
+  applyExpandedPeriodsFromRoute();
+  if (!_routeNavigating) syncRoute();
 }
 
 function buildPhaseProjectFilterOptions(projects) {
@@ -4635,6 +4965,7 @@ function updatePhaseProjectFilter() {
   }
   
   renderPhaseTimeline();
+  if (!_routeNavigating) syncRoute();
 }
 
 function clearPhaseProjectFilter() {
@@ -4659,7 +4990,7 @@ function selectAllPhaseProjects() {
   updatePhaseProjectFilter();
 }
 
-function togglePeriodDetails(periodKey) {
+function togglePeriodDetails(periodKey, fromRoute) {
   const rows = document.querySelectorAll(`.period-details-${periodKey}`);
   const icon = document.querySelector(`.period-expand-${periodKey}`);
   
@@ -4674,6 +5005,10 @@ function togglePeriodDetails(periodKey) {
     }
   });
 
+  if (!S._expandedPeriods) S._expandedPeriods = new Set();
+  if (isHidden) S._expandedPeriods.add(periodKey);
+  else S._expandedPeriods.delete(periodKey);
+
   if (icon) {
     if (isHidden) {
       icon.style.transform = 'rotate(90deg)';
@@ -4681,6 +5016,7 @@ function togglePeriodDetails(periodKey) {
       icon.style.transform = '';
     }
   }
+  if (!fromRoute && !_routeNavigating) syncRoute();
 }
 
 // ── Phase Developer Filter Functions ──────────────────────────────────────
@@ -4780,6 +5116,7 @@ function updatePhaseDeveloperFilter() {
   }
   
   renderPhaseTimeline();
+  if (!_routeNavigating) syncRoute();
 }
 
 function clearPhaseDeveloperFilter() {
@@ -4852,6 +5189,8 @@ function renderDailyProgress() {
 
   // Build filter options
   buildLogProjectFilterOptions(loaded);
+  const pendingProjects = consumePendingRouteParam('projects');
+  if (pendingProjects) setCheckboxFilterFromCsv('log-project-filter-options', pendingProjects);
 
   // Get selected projects for filtering
   const selectedProjects = getSelectedLogProjects();
@@ -4891,6 +5230,8 @@ function renderDailyProgress() {
 
   // Build developer filter options
   buildLogDeveloperFilterOptions(allDevelopers);
+  const pendingDevs = consumePendingRouteParam('developers');
+  if (pendingDevs) setCheckboxFilterFromCsv('log-developer-filter-options', pendingDevs);
 
   // Apply developer filter
   const selectedDevelopers = getSelectedLogDevelopers();
@@ -5169,6 +5510,9 @@ function renderDailyProgress() {
       }
     });
   }
+
+  applyExpandedPeriodsFromRoute();
+  if (!_routeNavigating) syncRoute();
 }
 
 function buildLogProjectFilterOptions(projects) {
@@ -5238,6 +5582,7 @@ function updateLogProjectFilter() {
   }
   
   renderDailyProgress();
+  if (!_routeNavigating) syncRoute();
 }
 
 function clearLogProjectFilter() {
@@ -5359,6 +5704,7 @@ function updateLogDeveloperFilter() {
   }
   
   renderDailyProgress();
+  if (!_routeNavigating) syncRoute();
 }
 
 function clearLogDeveloperFilter() {
@@ -5758,6 +6104,10 @@ function openProjectJqlModal(key) {
   document.getElementById('pmod-color').disabled = true;
   document.getElementById('pmod-category').disabled = true;
   document.getElementById('proj-modal-overlay').style.display = 'flex';
+  S._routeModalOpen = 'jql';
+  S._routeModalKey = key;
+  S._routeModalIdx = null;
+  if (S.page === 'projects-config' && !_routeNavigating) syncRoute();
 }
 
 async function renderProjectsConfig() {
@@ -5853,6 +6203,10 @@ function openProjectModal(editIdx) {
   document.getElementById('pmod-category').disabled = false;
   const overlay = document.getElementById('proj-modal-overlay');
   overlay.style.display = 'flex';
+  S._routeModalOpen = isEdit ? 'project' : 'add';
+  S._routeModalIdx = isEdit ? _editingProjIdx : null;
+  S._routeModalKey = null;
+  if (S.page === 'projects-config' && !_routeNavigating) syncRoute();
 }
 
 function closeProjectModal() {
@@ -5861,6 +6215,10 @@ function closeProjectModal() {
   _projectModalMode = 'full';
   closeProjectReleaseMs();
   document.getElementById('proj-modal-overlay').style.display = 'none';
+  S._routeModalOpen = null;
+  S._routeModalKey = null;
+  S._routeModalIdx = null;
+  if (S.page === 'projects-config' && !_routeNavigating) syncRoute();
 }
 
 async function saveProjectModal() {
@@ -6410,7 +6768,14 @@ async function initApp() {
   rebuildDynamicUI();
   renderFields();
   updateLogBadge();
-  nav(S.creds.url ? getDefaultProjectPage() : 'setup');
+  initDeepLinking();
+  const route = parseRouteFromLocation();
+  if (route.page || location.search) {
+    navigateFromRoute(route, true);
+  } else {
+    nav(S.creds.url ? getDefaultProjectPage() : 'setup', { fromRoute: true });
+    syncRoute(true);
+  }
 }
 
 initApp().catch(err => {
