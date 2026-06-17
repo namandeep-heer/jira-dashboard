@@ -16,8 +16,13 @@ const fs      = require('fs');
 const app  = express();
 const PORT = 3131;
 
+// When packaged with pkg, static files live next to the executable.
+const ROOT = typeof process.pkg !== 'undefined'
+  ? path.dirname(process.execPath)
+  : __dirname;
+
 // Config directory for storing JSON files
-const CONFIG_DIR = path.join(__dirname, 'config');
+const CONFIG_DIR = path.join(ROOT, 'config');
 const { analyzeCache } = require('./lib/data-gaps');
 if (!fs.existsSync(CONFIG_DIR)) {
   fs.mkdirSync(CONFIG_DIR, { recursive: true });
@@ -36,7 +41,7 @@ app.use((req, res, next) => {
 
 // ── Serve the dashboard HTML ─────────────────────────────────────────────────
 app.get('/', (req, res) => {
-  res.sendFile(path.join(__dirname, 'dashboard.html'));
+  res.sendFile(path.join(ROOT, 'dashboard.html'));
 });
 
 // ── Health check endpoint ─────────────────────────────────────────────────────
@@ -181,7 +186,7 @@ app.get('*', (req, res, next) => {
   if (p.startsWith('/jira-api') || p.startsWith('/config') || p.startsWith('/api/') || p === '/health') {
     return next();
   }
-  res.sendFile(path.join(__dirname, 'dashboard.html'));
+  res.sendFile(path.join(ROOT, 'dashboard.html'));
 });
 
 // ── Start ────────────────────────────────────────────────────────────────────

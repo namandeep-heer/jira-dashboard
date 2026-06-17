@@ -3,12 +3,26 @@
   "version": "1.0.0",
   "description": "Jira Dashboard with local CORS proxy",
   "main": "proxy.js",
+  "bin": "proxy.js",
   "scripts": {
-    "start": "node proxy.js"
+    "start": "node proxy.js",
+    "build": "node scripts/build-standalone.js",
+    "build:win": "node scripts/build-standalone.js win",
+    "build:mac": "node scripts/build-standalone.js mac",
+    "build:all": "node scripts/build-standalone.js all"
   },
   "dependencies": {
     "express": "^4.22.2",
     "node-fetch": "^2.7.0",
     "open": "^8.4.2"
+  },
+  "devDependencies": {
+    "pkg": "^5.8.1"
+  },
+  "pkg": {
+    "assets": [
+      "lib/**/*"
+    ],
+    "outputPath": "dist"
   }
 }

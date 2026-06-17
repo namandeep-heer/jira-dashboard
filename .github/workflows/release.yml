@@ -1,0 +1,66 @@
+name: Build standalone release
+
+on:
+  release:
+    types: [published]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build-windows:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 18
+
+      - run: npm ci
+
+      - run: npm run build:win
+
+      - name: Upload Windows zip to release
+        if: github.event_name == 'release'
+        uses: softprops/action-gh-release@v2
+        with:
+          files: dist/Jira-Dashboard-Windows.zip
+
+      - name: Upload Windows artifact (manual run)
+        if: github.event_name == 'workflow_dispatch'
+        uses: actions/upload-artifact@v4
+        with:
+          name: Jira-Dashboard-Windows
+          path: dist/Jira-Dashboard-Windows.zip
+
+  build-mac:
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 18
+
+      - run: npm ci
+
+      - run: npm run build:mac
+
+      - name: Upload macOS zips to release
+        if: github.event_name == 'release'
+        uses: softprops/action-gh-release@v2
+        with:
+          files: |
+            dist/Jira-Dashboard-macOS-Intel.zip
+            dist/Jira-Dashboard-macOS-Apple-Silicon.zip
+
+      - name: Upload macOS artifacts (manual run)
+        if: github.event_name == 'workflow_dispatch'
+        uses: actions/upload-artifact@v4
+        with:
+          name: Jira-Dashboard-macOS
+          path: |
+            dist/Jira-Dashboard-macOS-Intel.zip
+            dist/Jira-Dashboard-macOS-Apple-Silicon.zip
