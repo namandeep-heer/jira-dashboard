@@ -18,6 +18,7 @@ const PORT = 3131;
 
 // Config directory for storing JSON files
 const CONFIG_DIR = path.join(__dirname, 'config');
+const { analyzeCache } = require('./lib/data-gaps');
 if (!fs.existsSync(CONFIG_DIR)) {
   fs.mkdirSync(CONFIG_DIR, { recursive: true });
 }
@@ -114,6 +115,23 @@ app.get('/config/projects/default', (req, res) => {
   } catch (err) {
     console.error('[config read error]', err.message);
     res.status(500).json({ error: 'Failed to read config: ' + err.message });
+  }
+});
+
+// Analyze cached dashboard data (POST { cache: S.cache })
+app.post('/api/analyze-data-gaps', (req, res) => {
+  try {
+    const cache = req.body?.cache;
+    if (!cache || typeof cache !== 'object') {
+      res.status(400).json({ error: 'Missing cache object in request body' });
+      return;
+    }
+    const report = analyzeCache(cache, req.body?.fieldEst, req.body?.fieldAct);
+    console.log('[data-gaps]', JSON.stringify(report, null, 2));
+    res.json(report);
+  } catch (err) {
+    console.error('[analyze-data-gaps]', err.message);
+    res.status(500).json({ error: err.message });
   }
 });
 

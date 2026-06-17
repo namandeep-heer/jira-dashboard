@@ -271,6 +271,21 @@ table.issues tr:hover td { background: var(--bg2); }
 .velocity-warning-missing { margin-top: 6px; display: flex; gap: 6px; flex-wrap: wrap; }
 .velocity-missing-badge { font-size: 10px; font-weight: 600; background: var(--red-bg); color: var(--red); padding: 3px 8px; border-radius: 4px; }
 
+/* ── Data Gaps accordion ── */
+.data-gaps-section { background: var(--bg); border: 0.5px solid var(--border); border-radius: var(--radius-lg); margin-bottom: 12px; overflow: hidden; }
+.data-gaps-section-head { width: 100%; display: flex; align-items: center; gap: 10px; padding: 14px 16px; background: none; border: none; cursor: pointer; font-family: inherit; text-align: left; color: var(--text); }
+.data-gaps-section-head:hover { background: var(--bg2); }
+.data-gaps-section.open .data-gaps-section-head { background: var(--bg2); border-bottom: 0.5px solid var(--border); }
+.data-gaps-section-chevron { flex-shrink: 0; color: var(--text3); transition: transform .2s; }
+.data-gaps-section.open .data-gaps-section-chevron { transform: rotate(90deg); }
+.data-gaps-section-title { font-size: 14px; font-weight: 600; flex: 1; }
+.data-gaps-section-count { font-size: 12px; font-weight: 700; color: var(--text2); background: var(--bg3); padding: 2px 9px; border-radius: 999px; }
+.data-gaps-section-body { display: none; padding: 14px 16px 16px; }
+.data-gaps-section.open .data-gaps-section-body { display: block; }
+.data-gaps-section-desc { font-size: 13px; color: var(--text2); margin: 0 0 14px; line-height: 1.5; }
+.data-gaps-section .status-cell { max-width: none; overflow: visible; white-space: nowrap; }
+.data-gaps-section .table-wrap { max-height: calc(100vh - 360px); }
+
 /* ── Phase pipeline ── */
 .pipeline-table { width:100%; border-collapse:collapse; margin-bottom:28px; background:var(--bg); border:0.5px solid var(--border); border-radius:var(--radius-lg); overflow:hidden; }
 .pipeline-table th { font-size:11px; font-weight:600; color:var(--text3); text-transform:uppercase; letter-spacing:.06em; padding:10px 14px; border-bottom:0.5px solid var(--border); text-align:left; white-space:nowrap; }
@@ -429,6 +444,10 @@ code { font-family: monospace; font-size: 12px; background: var(--bg3); padding:
     <button class="nav-item" onclick="nav('velocity')" id="nav-velocity">
       <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z"/></svg>
       Developer Velocity
+    </button>
+    <button class="nav-item" onclick="nav('data-gaps')" id="nav-data-gaps">
+      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+      Data Gaps
     </button>
     <button class="nav-item" onclick="nav('analytics')" id="nav-analytics">
       <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>
@@ -689,6 +708,33 @@ code { font-family: monospace; font-size: 12px; background: var(--bg3); padding:
         <div id="velocity-body"></div>
       </div>
 
+      <!-- Data Gaps -->
+      <div class="page" id="page-data-gaps">
+        <div style="display:flex;align-items:flex-start;justify-content:space-between;margin-bottom:18px;gap:20px">
+          <div style="flex:1">
+            <h2 style="font-size:18px;font-weight:600;margin-bottom:3px">Data Gaps</h2>
+            <p style="font-size:13px;color:var(--text2)">Find tickets missing dev estimate days, and dev-done tickets missing actual days.</p>
+          </div>
+          <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;justify-content:flex-end">
+            <div class="ms-wrap">
+              <button class="ms-btn" id="data-gaps-project-filter-btn" onclick="toggleDataGapsProjectFilter()">
+                <span id="data-gaps-project-filter-label">All Projects</span>
+                <span class="ms-badge" id="data-gaps-project-filter-count" style="display:none">0</span>
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"/></svg>
+              </button>
+              <div class="ms-dropdown" id="data-gaps-project-filter-dropdown">
+                <div class="ms-options" id="data-gaps-project-filter-options"></div>
+                <div class="ms-footer">
+                  <button onclick="clearDataGapsProjectFilter()">Clear</button>
+                  <button onclick="selectAllDataGapsProjects()">Select All</button>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div id="data-gaps-body"></div>
+      </div>
+
       <!-- Analytics -->
       <div class="page" id="page-analytics">
         <div class="analytics-head">
@@ -920,6 +966,27 @@ const PHASES = [
 
 function getPhaseForStatus(statusName) {
   return PHASES.find(p => p.re.test((statusName||'').trim())) || null;
+}
+
+// Dev still in progress — actual days not required yet (pre-QA workflow).
+const DEV_ACTIVE_STATUS_RES = [
+  /^prod/i,
+  /^dev[\s-]*(pending|developing|designing|grooming|cr|merge|reopened)/i,
+  /^on[\s-]*hold/i,
+];
+
+const DATA_GAPS_SKIP_STATUS_RES = [/^creating$/i];
+
+function shouldSkipDataGapsTicket(statusName) {
+  const s = (statusName || '').trim();
+  if (!s) return true;
+  return DATA_GAPS_SKIP_STATUS_RES.some(re => re.test(s));
+}
+
+function isDevWorkComplete(statusName) {
+  const s = (statusName || '').trim();
+  if (!s) return false;
+  return !DEV_ACTIVE_STATUS_RES.some(re => re.test(s));
 }
 
 const PENDING_STATUS = {
@@ -1265,6 +1332,9 @@ function nav(id) {
   } else if (id === 'velocity') {
     document.getElementById('topbar-title').textContent = 'Developer Velocity';
     renderVelocity();
+  } else if (id === 'data-gaps') {
+    document.getElementById('topbar-title').textContent = 'Data Gaps';
+    renderDataGaps();
   } else if (id === 'analytics') {
     document.getElementById('topbar-title').textContent = 'Analytics';
     renderAnalytics();
@@ -1449,6 +1519,8 @@ async function refreshAll() {
   const proj = getAllProjects().find(p => p.id === S.page);
   if (proj) renderProject(proj);
   else if (S.page === 'analytics') renderAnalytics();
+  else if (S.page === 'velocity') renderVelocity();
+  else if (S.page === 'data-gaps') renderDataGaps();
   else if (S.page === 'log') renderDailyProgress();
 }
 
@@ -3169,6 +3241,294 @@ function renderVelocity() {
   body.innerHTML = summaryCards + velocityTable;
 }
 
+// ── Data Gaps ─────────────────────────────────────────────────────────────────
+function buildDataGapsProjectFilterOptions(projects) {
+  const optionsEl = document.getElementById('data-gaps-project-filter-options');
+  if (!optionsEl) return;
+  if (optionsEl.children.length > 0) return;
+
+  optionsEl.innerHTML = projects.map(proj => `
+    <label class="ms-option">
+      <input type="checkbox" value="${esc(proj.key)}" onchange="updateDataGapsProjectFilter()">
+      <span class="ms-option-label">
+        <span style="width:8px;height:8px;border-radius:50%;background:${proj.color};display:inline-block;margin-right:6px"></span>
+        ${esc(proj.name)}
+      </span>
+    </label>
+  `).join('');
+}
+
+function toggleDataGapsProjectFilter() {
+  const dropdown = document.getElementById('data-gaps-project-filter-dropdown');
+  dropdown.classList.toggle('open');
+  if (dropdown.classList.contains('open')) {
+    setTimeout(() => {
+      document.addEventListener('click', closeDataGapsProjectFilterOnOutside);
+    }, 0);
+  }
+}
+
+function closeDataGapsProjectFilterOnOutside(e) {
+  const dropdown = document.getElementById('data-gaps-project-filter-dropdown');
+  const btn = document.getElementById('data-gaps-project-filter-btn');
+  if (!dropdown.contains(e.target) && !btn.contains(e.target)) {
+    dropdown.classList.remove('open');
+    document.removeEventListener('click', closeDataGapsProjectFilterOnOutside);
+  }
+}
+
+function getSelectedDataGapsProjects() {
+  const optionsEl = document.getElementById('data-gaps-project-filter-options');
+  if (!optionsEl) return new Set();
+  const selected = new Set();
+  optionsEl.querySelectorAll('input[type="checkbox"]:checked').forEach(cb => {
+    selected.add(cb.value);
+  });
+  return selected;
+}
+
+function updateDataGapsProjectFilter() {
+  const selected = getSelectedDataGapsProjects();
+  const btn = document.getElementById('data-gaps-project-filter-btn');
+  const label = document.getElementById('data-gaps-project-filter-label');
+  const badge = document.getElementById('data-gaps-project-filter-count');
+
+  if (selected.size === 0) {
+    label.textContent = 'All Projects';
+    badge.style.display = 'none';
+    btn.classList.remove('has-selection');
+  } else {
+    label.textContent = 'Projects';
+    badge.textContent = selected.size;
+    badge.style.display = '';
+    btn.classList.add('has-selection');
+  }
+
+  renderDataGaps();
+}
+
+function clearDataGapsProjectFilter() {
+  const optionsEl = document.getElementById('data-gaps-project-filter-options');
+  if (!optionsEl) return;
+  optionsEl.querySelectorAll('input[type="checkbox"]').forEach(cb => { cb.checked = false; });
+  updateDataGapsProjectFilter();
+}
+
+function selectAllDataGapsProjects() {
+  const optionsEl = document.getElementById('data-gaps-project-filter-options');
+  if (!optionsEl) return;
+  optionsEl.querySelectorAll('input[type="checkbox"]').forEach(cb => { cb.checked = true; });
+  updateDataGapsProjectFilter();
+}
+
+function collectDataGapTickets(loaded) {
+  const missingEstimate = [];
+  const devDoneMissingActual = [];
+  const inDevMissingActual = [];
+
+  loaded.forEach(proj => {
+    (S.cache[proj.key].issues || []).forEach(issue => {
+      const status = getIssueStatusName(issue);
+      if (shouldSkipDataGapsTicket(status)) return;
+      const estimate = getIssueDays(issue, 'cf_devest', 'customfield_10204');
+      const actual = getIssueDays(issue, 'cf_devact', 'customfield_10203');
+      const fixVersions = issue.fields?.fixVersions || [];
+      const releases = fixVersions.map(fv => fv.name).filter(Boolean).join(', ');
+      const phase = getPhaseForStatus(status);
+      const devComplete = isDevWorkComplete(status);
+      const base = {
+        key: issue.key,
+        summary: issue.fields?.summary || '',
+        devName: getDev(issue),
+        project: proj.name,
+        projectColor: proj.color,
+        status,
+        phase: phase?.label || 'Other',
+        releases,
+        estimate,
+        actual,
+      };
+
+      if (estimate === 0) missingEstimate.push(base);
+      if (actual === 0 && devComplete) devDoneMissingActual.push(base);
+      else if (actual === 0 && !devComplete) inDevMissingActual.push(base);
+    });
+  });
+
+  return { missingEstimate, devDoneMissingActual, inDevMissingActual };
+}
+
+function dataGapsSort(section, col) {
+  if (!S._dataGapsSort) S._dataGapsSort = { missingEstimate: { col: 'key', dir: 1 }, devDoneMissingActual: { col: 'key', dir: 1 } };
+  const sortState = S._dataGapsSort[section];
+  if (sortState.col === col) sortState.dir *= -1;
+  else { sortState.col = col; sortState.dir = 1; }
+  renderDataGaps();
+}
+
+function renderDataGapsTable(section, tickets) {
+  if (!S._dataGapsSort) S._dataGapsSort = { missingEstimate: { col: 'key', dir: 1 }, devDoneMissingActual: { col: 'key', dir: 1 } };
+  const sortState = S._dataGapsSort[section];
+  const jiraUrl = S.creds?.url || 'https://jira.atlassian.com';
+
+  function sortVal(ticket) {
+    switch (sortState.col) {
+      case 'key': return (ticket.key || '').toLowerCase();
+      case 'summary': return (ticket.summary || '').toLowerCase();
+      case 'project': return (ticket.project || '').toLowerCase();
+      case 'dev': return (ticket.devName || '').toLowerCase();
+      case 'status': return (ticket.status || '').toLowerCase();
+      case 'phase': return (ticket.phase || '').toLowerCase();
+      case 'releases': return (ticket.releases || '').toLowerCase();
+      case 'estimate': return ticket.estimate;
+      case 'actual': return ticket.actual;
+      default: return '';
+    }
+  }
+
+  const sorted = [...tickets].sort((a, b) => {
+    const av = sortVal(a);
+    const bv = sortVal(b);
+    const r = av < bv ? -1 : av > bv ? 1 : 0;
+    return r * sortState.dir;
+  });
+
+  function thSort(col, label) {
+    const active = sortState.col === col;
+    const icon = active ? (sortState.dir === 1 ? '▲' : '▼') : '▲';
+    return `<th class="${active ? 'sorted' : ''}" onclick="dataGapsSort('${section}','${col}')">${label} <span class="sort-icon">${icon}</span></th>`;
+  }
+
+  if (!sorted.length) {
+    return '<div class="info-box" style="margin-bottom:0">No tickets found in this section.</div>';
+  }
+
+  const rows = sorted.map(ticket => `
+    <tr onclick="window.open('${jiraUrl}/browse/${esc(ticket.key)}','_blank')" style="cursor:pointer">
+      <td><a class="key-link" href="${jiraUrl}/browse/${esc(ticket.key)}" target="_blank" onclick="event.stopPropagation()">${esc(ticket.key)}</a></td>
+      <td title="${esc(ticket.summary)}">${esc(ticket.summary)}</td>
+      <td><span style="color:${ticket.projectColor}">${esc(ticket.project)}</span></td>
+      <td>${esc(ticket.devName)}</td>
+      <td class="status-cell">${renderStatusBadge(ticket.status)}</td>
+      <td>${esc(ticket.phase)}</td>
+      <td>${ticket.releases ? esc(ticket.releases) : '<span style="color:var(--text3)">—</span>'}</td>
+      <td>${ticket.estimate > 0 ? ticket.estimate.toFixed(1) + 'd' : '<span style="color:var(--red);font-weight:600">Missing</span>'}</td>
+      <td>${ticket.actual > 0 ? ticket.actual.toFixed(1) + 'd' : '<span style="color:var(--red);font-weight:600">Missing</span>'}</td>
+    </tr>
+  `).join('');
+
+  return `
+    <div class="table-wrap">
+      <table class="issues" aria-label="${esc(section)} tickets">
+        <thead><tr>
+          ${thSort('key', 'Key')}
+          ${thSort('summary', 'Summary')}
+          ${thSort('project', 'Project')}
+          ${thSort('dev', 'Developer')}
+          ${thSort('status', 'Status')}
+          ${thSort('phase', 'Phase')}
+          ${thSort('releases', 'Release(s)')}
+          ${thSort('estimate', 'Est Days')}
+          ${thSort('actual', 'Actual Days')}
+        </tr></thead>
+        <tbody>${rows}</tbody>
+      </table>
+    </div>`;
+}
+
+function toggleDataGapsSection(sectionId) {
+  S._dataGapsOpenSection = S._dataGapsOpenSection === sectionId ? null : sectionId;
+  renderDataGaps();
+}
+
+function renderDataGapsSection(id, title, description, count, extraHtml, tableHtml) {
+  const open = S._dataGapsOpenSection === id;
+  return `
+    <div class="data-gaps-section ${open ? 'open' : ''}">
+      <button type="button" class="data-gaps-section-head" onclick="toggleDataGapsSection('${id}')">
+        <svg class="data-gaps-section-chevron" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="9 18 15 12 9 6"/></svg>
+        <span class="data-gaps-section-title">${esc(title)}</span>
+        <span class="data-gaps-section-count">${count}</span>
+      </button>
+      <div class="data-gaps-section-body">
+        <p class="data-gaps-section-desc">${description}</p>
+        ${extraHtml || ''}
+        ${tableHtml}
+      </div>
+    </div>`;
+}
+
+function renderDataGaps() {
+  const body = document.getElementById('data-gaps-body');
+  const allLoaded = getAllProjects().filter(p => S.cache[p.key] && !S.cache[p.key].err);
+
+  if (!allLoaded.length) {
+    body.innerHTML = `<div class="info-box">No data loaded yet. Visit each project page and click <strong>Refresh</strong>, then come back here.</div>`;
+    return;
+  }
+
+  buildDataGapsProjectFilterOptions(allLoaded);
+  const selectedProjects = getSelectedDataGapsProjects();
+  const loaded = selectedProjects.size === 0
+    ? allLoaded
+    : allLoaded.filter(p => selectedProjects.has(p.key));
+
+  if (!loaded.length) {
+    body.innerHTML = `<div class="info-box">No projects match the current filter.</div>`;
+    return;
+  }
+
+  const { missingEstimate, devDoneMissingActual, inDevMissingActual } = collectDataGapTickets(loaded);
+
+  const inDevNote = (!devDoneMissingActual.length && inDevMissingActual.length)
+    ? `<div class="info-box">${inDevMissingActual.length} ticket(s) still in <strong>Product / Dev</strong> phases also lack actual days (e.g. Dev Merge, Dev CR) — not shown here because dev is not complete yet.</div>`
+    : '';
+
+  if (!S._dataGapsOpenSection) {
+    S._dataGapsOpenSection = missingEstimate.length ? 'missingEstimate' : 'devDoneMissingActual';
+  } else if (
+    S._dataGapsOpenSection === 'missingEstimate' && !missingEstimate.length && devDoneMissingActual.length
+  ) {
+    S._dataGapsOpenSection = 'devDoneMissingActual';
+  } else if (
+    S._dataGapsOpenSection === 'devDoneMissingActual' && !devDoneMissingActual.length && missingEstimate.length
+  ) {
+    S._dataGapsOpenSection = 'missingEstimate';
+  }
+
+  body.innerHTML = `
+    <div class="stat-strip" style="margin-bottom:24px">
+      <div class="stat-card" style="border-color:var(--amber);cursor:pointer" onclick="toggleDataGapsSection('missingEstimate')"><div class="sl">Missing Estimate</div><div class="sv" style="color:var(--amber)">${missingEstimate.length}</div></div>
+      <div class="stat-card" style="border-color:var(--red);cursor:pointer" onclick="toggleDataGapsSection('devDoneMissingActual')"><div class="sl">Post-Dev, Missing Actual</div><div class="sv" style="color:var(--red)">${devDoneMissingActual.length}</div></div>
+      <div class="stat-card"><div class="sl">In-Dev, Missing Actual</div><div class="sv" style="color:var(--text3)">${inDevMissingActual.length}</div></div>
+    </div>
+
+    ${renderDataGapsSection(
+      'missingEstimate',
+      'Missing Dev Estimate (Days)',
+      'Any ticket with no <strong>Dev Estimate (Days)</strong> value.',
+      missingEstimate.length,
+      '',
+      renderDataGapsTable('missingEstimate', missingEstimate)
+    )}
+
+    ${renderDataGapsSection(
+      'devDoneMissingActual',
+      'Post-Dev, Missing Actual (Days)',
+      'Ticket has left Product/Dev work (now in <strong>QA</strong>, <strong>Closed</strong>, or any non-dev status) but <strong>Dev Actual (Days)</strong> is empty.',
+      devDoneMissingActual.length,
+      inDevNote,
+      renderDataGapsTable('devDoneMissingActual', devDoneMissingActual)
+    )}
+  `;
+
+  fetch(API_BASE + '/api/analyze-data-gaps', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ cache: S.cache }),
+  }).catch(() => {});
+}
+
 // ── CSV export ────────────────────────────────────────────────────────────────
 function exportCSV() {
   const proj = getAllProjects().find(p=>p.id===S.page);
@@ -3189,6 +3549,24 @@ function exportCSV() {
 // ── Developer name helper ────────────────────────────────────────────────────
 // Reads strictly from "Assignee: Development" (cf_dev), respecting any
 // custom field ID override set in Field Configuration.
+function getIssueStatusName(issue) {
+  const st = issue.fields?.status;
+  if (!st) return '';
+  if (typeof st === 'string') return st;
+  return st.name || st.value || '';
+}
+
+function renderStatusBadge(statusName) {
+  const s = String(statusName || '').trim();
+  if (!s) return '<span style="color:var(--text3)">—</span>';
+  const sl = s.toLowerCase();
+  const cls = /progress|active|dev/i.test(sl) ? 'b-ip'
+    : /done|closed|resolved|complete/i.test(sl) ? 'b-done'
+    : /block/i.test(sl) ? 'b-blocked'
+    : /review|test/i.test(sl) ? 'b-review' : 'b-todo';
+  return `<span class="badge ${cls}">${esc(s)}</span>`;
+}
+
 function getDev(issue) {
   const fields = issue.fields || {};
   const cfDev = ALL_FIELDS.find(f => f.id === 'cf_dev');

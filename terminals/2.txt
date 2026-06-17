@@ -1,0 +1,7 @@
+---
+pid: 0
+cwd: "c:\work-area\personal\jira-dashboard"
+command: "node proxy.js"
+started_at: 2026-06-17T13:47:13.974Z
+running_for_ms: 0        
+---
