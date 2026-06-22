@@ -1118,6 +1118,27 @@ function ensurePhaseTimelinePeriods(periodMap, rangeStart, now, period) {
   }
 }
 
+function ensurePhaseTimelinePeriodsThrough(periodMap, endDate, period) {
+  const end = new Date(endDate);
+  end.setHours(23, 59, 59, 999);
+  const sorted = Object.values(periodMap).sort((a, b) => b.date - a.date);
+  let cursor = sorted.length ? new Date(sorted[0].date) : new Date(endDate);
+  cursor.setHours(0, 0, 0, 0);
+  if (period === 'day') cursor.setDate(cursor.getDate() + 1);
+  else if (period === 'week') cursor.setDate(cursor.getDate() + 7);
+  else cursor.setMonth(cursor.getMonth() + 1);
+
+  while (cursor <= end) {
+    const periodKey = getPhasePeriodKey(cursor, period);
+    if (!periodMap[periodKey]) {
+      periodMap[periodKey] = emptyPhasePeriodBucket(periodKey, new Date(cursor));
+    }
+    if (period === 'day') cursor.setDate(cursor.getDate() + 1);
+    else if (period === 'week') cursor.setDate(cursor.getDate() + 7);
+    else cursor.setMonth(cursor.getMonth() + 1);
+  }
+}
+
 function applyPhaseSnapshots(periodMap, filteredIssues, periodType, now) {
   Object.values(periodMap).forEach(p => {
     const endDate = getPhasePeriodEndDate(p.key, periodType);
@@ -1157,6 +1178,165 @@ function countSnapshotAtDate(filteredIssues, snapshotType, atDate) {
     return status && getPhaseSnapshotType(status) === snapshotType;
   }).length;
 }
+
+function parseReleaseMilestoneDate(release, milestoneId) {
+  const raw = release?.milestones?.[milestoneId];
+  if (!raw) return null;
+  const d = new Date(raw + 'T12:00:00');
+  return isNaN(d.getTime()) ? null : d;
+}
+
+function getPhaseChartRelease(filteredProjects) {
+  const counts = {};
+  filteredProjects.forEach(proj => {
+    getProjectReleases(proj.key, proj).forEach(name => {
+      counts[name] = (counts[name] || 0) + 1;
+    });
+  });
+  const names = Object.keys(counts).sort((a, b) => counts[b] - counts[a]);
+  if (!names.length || !S.releases?.length) return null;
+  return S.releases.find(r => r.name === names[0]) || null;
+}
+
+function countReleaseScopeRemaining(filteredIssues, atDate) {
+  return filteredIssues.filter(({ issue }) => {
+    const status = getIssueStatusAtDate(issue, atDate);
+    return status && !CLOSED_STATUS_RE.test(status);
+  }).length;
+}
+
+function daysBetweenDates(start, end) {
+  return Math.max(0, Math.round((end - start) / (24 * 60 * 60 * 1000)));
+}
+
+function findPeriodIndexForDate(periods, periodType, targetDate) {
+  for (let i = 0; i < periods.length; i++) {
+    if (getPhasePeriodEndDate(periods[i].key, periodType) >= targetDate) return i;
+  }
+  return periods.length - 1;
+}
+
+function buildReleaseBurndownLine(periods, periodType, release, filteredIssues) {
+  const scopeClose = parseReleaseMilestoneDate(release, 'SC');
+  const featureFreeze = parseReleaseMilestoneDate(release, 'FF');
+  if (!scopeClose || !featureFreeze || featureFreeze <= scopeClose) return null;
+
+  const scMilestone = getMilestones().find(m => m.id === 'SC');
+  const ffMilestone = getMilestones().find(m => m.id === 'FF');
+  const startCount = countReleaseScopeRemaining(filteredIssues, scopeClose);
+  const totalDays = daysBetweenDates(scopeClose, featureFreeze);
+  if (totalDays <= 0) return null;
+
+  const data = periods.map(p => {
+    const atDate = getPhasePeriodEndDate(p.key, periodType);
+    if (atDate < scopeClose) return null;
+    if (atDate >= featureFreeze) return 0;
+    const elapsed = daysBetweenDates(scopeClose, atDate);
+    return Math.max(0, Math.round(startCount * (1 - elapsed / totalDays)));
+  });
+
+  const scopeCloseIdx = findPeriodIndexForDate(periods, periodType, scopeClose);
+  const featureFreezeIdx = findPeriodIndexForDate(periods, periodType, featureFreeze);
+
+  const milestoneMeta = {
+    [scopeCloseIdx]: {
+      label: scMilestone?.label || 'Scope Close',
+      date: scopeClose,
+      color: scMilestone?.color || '#5b9fd6',
+      role: 'start',
+    },
+    [featureFreezeIdx]: {
+      label: ffMilestone?.label || 'Feature Freeze',
+      date: featureFreeze,
+      color: ffMilestone?.color || '#e0a040',
+      role: 'end',
+    },
+  };
+
+  const pointHitRadius = data.map((_, i) => (milestoneMeta[i] ? 14 : 0));
+
+  return {
+    data,
+    releaseName: release.name,
+    scopeClose,
+    featureFreeze,
+    startCount,
+    totalDays,
+    lineColor: ffMilestone?.color || '#e0a040',
+    scColor: scMilestone?.color || '#5b9fd6',
+    scLabel: scMilestone?.label || 'Scope Close',
+    ffLabel: ffMilestone?.label || 'Feature Freeze',
+    scopeCloseIdx,
+    featureFreezeIdx,
+    milestoneMeta,
+    pointHitRadius,
+  };
+}
+
+const phaseReleaseTimelinePlugin = {
+  id: 'phaseReleaseTimeline',
+  beforeDatasetsDraw(chart, _args, opts) {
+    if (opts?.scopeCloseIdx == null || opts?.featureFreezeIdx == null) return;
+    const { ctx, chartArea, scales } = chart;
+    const x = scales.x;
+    const left = x.getPixelForValue(opts.scopeCloseIdx);
+    const right = x.getPixelForValue(opts.featureFreezeIdx);
+    ctx.save();
+    ctx.fillStyle = opts.shadeColor || 'rgba(224, 160, 64, 0.08)';
+    ctx.fillRect(
+      Math.min(left, right),
+      chartArea.top,
+      Math.abs(right - left),
+      chartArea.bottom - chartArea.top
+    );
+    ctx.restore();
+  },
+  afterDatasetsDraw(chart, _args, opts) {
+    if (opts?.scopeCloseIdx == null || opts?.featureFreezeIdx == null) return;
+    const { ctx, chartArea, scales } = chart;
+    const x = scales.x;
+    const y = scales.y;
+    const releaseDataset = chart.data.datasets.find(d => d.milestoneMeta);
+    const markers = [
+      { idx: opts.scopeCloseIdx, color: opts.scColor },
+      { idx: opts.featureFreezeIdx, color: opts.lineColor },
+    ];
+    ctx.save();
+    markers.forEach(({ idx, color }) => {
+      const px = x.getPixelForValue(idx);
+      ctx.strokeStyle = color;
+      ctx.lineWidth = 1.5;
+      ctx.setLineDash([4, 3]);
+      ctx.beginPath();
+      ctx.moveTo(px, chartArea.top);
+      ctx.lineTo(px, chartArea.bottom);
+      ctx.stroke();
+      ctx.setLineDash([]);
+    });
+
+    if (releaseDataset?.milestoneMeta) {
+      const dotRadius = 8;
+      Object.entries(releaseDataset.milestoneMeta).forEach(([idxStr, milestone]) => {
+        const idx = parseInt(idxStr, 10);
+        const val = releaseDataset.data[idx];
+        if (val == null) return;
+        const px = x.getPixelForValue(idx);
+        let py = y.getPixelForValue(val);
+        if (milestone.role === 'end' && val === 0) {
+          py = Math.min(py, chartArea.bottom - dotRadius - 1);
+        }
+        ctx.beginPath();
+        ctx.arc(px, py, dotRadius, 0, Math.PI * 2);
+        ctx.fillStyle = milestone.color;
+        ctx.fill();
+        ctx.strokeStyle = '#fff';
+        ctx.lineWidth = 2.5;
+        ctx.stroke();
+      });
+    }
+    ctx.restore();
+  },
+};
 
 
 const PROJECTS = []; // Will be populated from projects.default.json
@@ -4236,6 +4416,7 @@ const PHASE_TREND_DEFAULT_VISIBLE = {
   prodDev: true, devQA: true, qaClosed: true,
   prodPending: true, devPending: true, qaPending: true,
   closed: true, onHold: true,
+  releaseBurndown: true,
 };
 
 function togglePhaseSeriesVisibility(key, checked) {
@@ -4505,6 +4686,17 @@ function renderPhaseTimeline() {
   devToQA.forEach(item => addEvent(item, 'devQA'));
   qaClosed.forEach(item => addEvent(item, 'qaClosed'));
   ensurePhaseTimelinePeriods(periodMap, rangeStart, now, period);
+  const phaseChartRelease = getPhaseChartRelease(filteredProjects);
+  if (phaseChartRelease) {
+    const scopeClose = parseReleaseMilestoneDate(phaseChartRelease, 'SC');
+    const featureFreeze = parseReleaseMilestoneDate(phaseChartRelease, 'FF');
+    if (scopeClose && scopeClose < rangeStart) {
+      ensurePhaseTimelinePeriods(periodMap, scopeClose, now, period);
+    }
+    if (featureFreeze && featureFreeze > now) {
+      ensurePhaseTimelinePeriodsThrough(periodMap, featureFreeze, period);
+    }
+  }
   applyPhaseSnapshots(periodMap, filteredIssues, period, now);
 
   const periods = Object.values(periodMap).sort((a, b) => a.date - b.date);
@@ -4624,6 +4816,12 @@ function renderPhaseTimeline() {
   const closedData = periods.map(p => p.closed.length);
   const onHoldData = periods.map(p => p.onHold.length);
   const periodKeys = periods.map(p => p.key);
+  const releaseBurndown = phaseChartRelease
+    ? buildReleaseBurndownLine(periods, period, phaseChartRelease, filteredIssues)
+    : null;
+  const releaseBurndownLabel = releaseBurndown
+    ? `Release Target (${releaseBurndown.scLabel} → ${releaseBurndown.ffLabel})`
+    : 'Release Target';
 
   contentEl.innerHTML = `
     <div class="card phase-chart-card" id="phase-chart-card" style="margin-bottom:20px">
@@ -4634,7 +4832,7 @@ function renderPhaseTimeline() {
           <span>Full screen</span>
         </button>
       </div>
-      <p style="font-size:12px;color:var(--text3);margin-bottom:14px">Dotted lines: transitions per period (Prod → Dev, Dev → QA, QA → Closed). Solid lines: cumulative count of all open issues at each period — Prod-Pending, Dev-Pending, QA-Pending (incl. Pending DEP), Closed, and On-Hold. Click a point to expand details below.</p>
+      <p style="font-size:12px;color:var(--text3);margin-bottom:14px">Dotted lines: transitions per period (Prod → Dev, Dev → QA, QA → Closed). Solid lines: cumulative count of all open issues at each period — Prod-Pending, Dev-Pending, QA-Pending (incl. Pending DEP), Closed, and On-Hold.${releaseBurndown ? ` Orange dashed line: ideal release burndown from ${esc(releaseBurndown.scLabel)} (${formatPeriodLabel(releaseBurndown.scopeClose.toISOString().split('T')[0], 'day')}) to ${esc(releaseBurndown.ffLabel)} (${formatPeriodLabel(releaseBurndown.featureFreeze.toISOString().split('T')[0], 'day')}) for ${esc(releaseBurndown.releaseName)} — ${releaseBurndown.startCount} issues at scope close, decreasing to 0 at feature freeze.` : ''} Click a point to expand details below.</p>
       <div style="display:flex; gap:14px; align-items:center; margin-bottom:8px; font-size:12px; flex-wrap:wrap">
         <span style="color:var(--text3); margin-right:2px">Show:</span>
         <label style="display:inline-flex; align-items:center; gap:4px; cursor:pointer">
@@ -4670,6 +4868,11 @@ function renderPhaseTimeline() {
           <input type="checkbox" ${S.phaseTrendVisible.onHold ? 'checked' : ''} onchange="togglePhaseSeriesVisibility('onHold', this.checked)">
           <span style="color:#B45309">On-Hold</span>
         </label>
+        ${releaseBurndown ? `<span style="color:var(--text3);margin:0 2px">|</span>
+        <label style="display:inline-flex; align-items:center; gap:4px; cursor:pointer">
+          <input type="checkbox" ${S.phaseTrendVisible.releaseBurndown ? 'checked' : ''} onchange="togglePhaseSeriesVisibility('releaseBurndown', this.checked)">
+          <span style="color:${releaseBurndown.lineColor}">Release Target</span>
+        </label>` : ''}
       </div>
       <div id="phase-chart-wrap" style="position:relative;width:100%;height:280px">
         <canvas id="phase-timeline-chart"></canvas>
@@ -4847,12 +5050,34 @@ function renderPhaseTimeline() {
             pointBorderWidth: 2,
             pointHoverBackgroundColor: '#92400E',
             pointHoverBorderColor: '#fff'
-          }
+          },
+          ...(releaseBurndown ? [{
+            label: releaseBurndownLabel,
+            hidden: !S.phaseTrendVisible.releaseBurndown,
+            data: releaseBurndown.data,
+            milestoneMeta: releaseBurndown.milestoneMeta,
+            borderColor: releaseBurndown.lineColor,
+            backgroundColor: 'rgba(224, 160, 64, 0.06)',
+            borderWidth: 2.5,
+            borderDash: [8, 5],
+            fill: false,
+            tension: 0,
+            spanGaps: false,
+            clip: false,
+            pointRadius: 0,
+            pointHoverRadius: 0,
+            pointHitRadius: releaseBurndown.pointHitRadius,
+            order: 0,
+          }] : [])
         ]
       },
+      plugins: releaseBurndown ? [phaseReleaseTimelinePlugin] : [],
       options: {
         responsive: true,
         maintainAspectRatio: false,
+        clip: false,
+        layout: releaseBurndown ? { padding: { top: 18, bottom: 14, right: 14 } } : undefined,
+        interaction: releaseBurndown ? { mode: 'point', intersect: true } : undefined,
         scales: {
           y: {
             beginAtZero: true,
@@ -4863,9 +5088,43 @@ function renderPhaseTimeline() {
           legend: { display: true, position: 'top' },
           tooltip: {
             callbacks: {
-              label: (context) => ` ${context.dataset.label}: ${context.parsed.y}`
+              title: (items) => {
+                const item = items[0];
+                const milestone = item.dataset.milestoneMeta?.[item.dataIndex];
+                if (milestone) return milestone.label;
+                return item.label;
+              },
+              label: (context) => {
+                const milestone = context.dataset.milestoneMeta?.[context.dataIndex];
+                if (milestone) {
+                  const dateStr = milestone.date.toLocaleDateString('en-US', {
+                    month: 'short', day: 'numeric', year: 'numeric',
+                  });
+                  const val = context.parsed.y;
+                  const target = val != null ? ` · ${val} issues remaining` : '';
+                  return ` ${dateStr}${target}`;
+                }
+                const val = context.parsed.y;
+                if (val == null) return ` ${context.dataset.label}: —`;
+                return ` ${context.dataset.label}: ${val}`;
+              },
+              filter: (item) => {
+                if (item.dataset.milestoneMeta?.[item.dataIndex]) return true;
+                return item.dataset.milestoneMeta == null;
+              },
+            },
+          },
+          ...(releaseBurndown ? {
+            phaseReleaseTimeline: {
+              scopeCloseIdx: releaseBurndown.scopeCloseIdx,
+              featureFreezeIdx: releaseBurndown.featureFreezeIdx,
+              scColor: releaseBurndown.scColor,
+              lineColor: releaseBurndown.lineColor,
+              scLabel: releaseBurndown.scLabel,
+              ffLabel: releaseBurndown.ffLabel,
+              shadeColor: 'rgba(224, 160, 64, 0.08)',
             }
-          }
+          } : {})
         },
         onClick: (event, elements) => {
           if (elements.length > 0) {
