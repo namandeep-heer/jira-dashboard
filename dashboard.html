@@ -878,6 +878,23 @@ code { font-family: monospace; font-size: 12px; background: var(--bg3); padding:
                   </div>
                 </div>
               </div>
+              <div class="ms-wrap">
+                <button class="ms-btn" id="phase-scope-filter-btn" onclick="togglePhaseScopeFilter()">
+                  <span id="phase-scope-filter-label">Scope Commitment</span>
+                  <span class="ms-badge" id="phase-scope-filter-count" style="display:none">0</span>
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"/></svg>
+                </button>
+                <div class="ms-dropdown" id="phase-scope-filter-dropdown">
+                  <div class="ms-dropdown-search">
+                    <input type="text" id="phase-scope-search" placeholder="Search scope…" oninput="filterPhaseScopeOptions()">
+                  </div>
+                  <div class="ms-options" id="phase-scope-filter-options"></div>
+                  <div class="ms-footer">
+                    <button onclick="clearPhaseScopeFilter()">Clear</button>
+                    <button onclick="selectAllPhaseScopes()">Select All</button>
+                  </div>
+                </div>
+              </div>
               <select id="phase-period" class="section-control" onchange="renderPhaseTimeline()">
                 <option value="day">By Day</option>
                 <option value="week" selected>By Week</option>
@@ -1711,8 +1728,10 @@ function collectRouteParams() {
   } else if (page === 'phase-timeline') {
     const projects = csvParam(getSelectedPhaseProjects());
     const developers = csvParam(getSelectedPhaseDevelopers());
+    const scopes = csvParam(getSelectedPhaseScopes());
     if (projects) params.set('projects', projects);
     if (developers) params.set('developers', developers);
+    if (scopes) params.set('scope', scopes);
     const period = document.getElementById('phase-period')?.value;
     const range = document.getElementById('phase-range')?.value;
     if (period && period !== 'week') params.set('period', period);
@@ -4123,6 +4142,13 @@ function getDev(issue) {
   return val.displayName || val.name || 'Unassigned';
 }
 
+function getScopeCommitment(issue) {
+  const scopeField = ALL_FIELDS.find(f => f.id === 'cf_scope');
+  if (!scopeField) return '';
+  const val = issue.fields?.[jiraId(scopeField)];
+  return val?.value || val || '';
+}
+
 // \u2500\u2500 Multi-select helpers \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500
 const MS_LABELS = { project: 'Projects', phase: 'Phases', dev: 'Developers', product: 'Product Assignees', assignee: 'Assignees', scope: 'Scope Commitment' };
 
@@ -4204,19 +4230,6 @@ function renderTeam() {
   // Helper to extract developer name
   // ── Multi-select state (keyed by filter id)
   if (!S._msState) S._msState = { project: new Set(), phase: new Set(), dev: new Set(), product: new Set(), assignee: new Set(), scope: new Set() };
-
-  // Helper to get Scope Commitment value
-  function getScopeCommitment(issue) {
-    const scopeField = ALL_FIELDS.find(f => f.id === 'cf_scope');
-    if (!scopeField) {
-      console.warn('[getScopeCommitment] cf_scope field not found in ALL_FIELDS');
-      return '';
-    }
-    const fieldId = jiraId(scopeField);
-    const val = issue.fields?.[fieldId];
-    const result = val?.value || val || '';
-    return result;
-  }
 
   // Populate multi-select dropdowns
   function populateMs(id, values) {
@@ -4514,6 +4527,8 @@ if (!S._phaseChartFsBound) {
 }
 
 // ── Project Phase Timeline ────────────────────────────────────────────────────
+const PHASE_SCOPE_DEFAULT_EXCLUDE = 'Opportunistic';
+
 function renderPhaseTimeline() {
   const contentEl = document.getElementById('phase-timeline-content');
   if (!contentEl) return;
@@ -4549,6 +4564,7 @@ function renderPhaseTimeline() {
 
   const allIssues = [];
   const allDevelopers = new Set();
+  const allScopes = new Set();
   filteredProjects.forEach(proj => {
     const issues = S.cache[proj.key].issues || [];
     issues.forEach(issue => {
@@ -4561,18 +4577,21 @@ function renderPhaseTimeline() {
       const productFieldId = productField ? jiraId(productField) : '';
       const productVal = issue.fields?.[productFieldId];
       const productAssignee = extractUserName(productVal) || 'Unassigned';
+      const scopeCommitment = getScopeCommitment(issue);
       
       // Add all developers to the set
       allDevelopers.add(devAssignee);
       allDevelopers.add(assignee);
       allDevelopers.add(productAssignee);
+      if (scopeCommitment) allScopes.add(scopeCommitment);
       
       allIssues.push({ 
         proj, 
         issue, 
         developer: devAssignee,
         assignee: assignee,
-        productAssignee: productAssignee
+        productAssignee: productAssignee,
+        scopeCommitment
       });
     });
   });
@@ -4582,15 +4601,26 @@ function renderPhaseTimeline() {
   const pendingDevs = consumePendingRouteParam('developers');
   if (pendingDevs) setCheckboxFilterFromCsv('phase-developer-filter-options', pendingDevs);
 
-  // Apply developer filter
+  // Build scope commitment filter options
+  buildPhaseScopeFilterOptions(allScopes);
+  const pendingScopes = consumePendingRouteParam('scope');
+  if (pendingScopes) setCheckboxFilterFromCsv('phase-scope-filter-options', pendingScopes);
+  updatePhaseScopeFilterLabel();
+
+  // Apply developer and scope filters
   const selectedDevelopers = getSelectedPhaseDevelopers();
-  const filteredIssues = selectedDevelopers.size > 0
-    ? allIssues.filter(item => 
-        selectedDevelopers.has(item.developer) || 
-        selectedDevelopers.has(item.assignee) ||
-        selectedDevelopers.has(item.productAssignee)
-      )
-    : allIssues;
+  const selectedScopes = getSelectedPhaseScopes();
+  let filteredIssues = allIssues;
+  if (selectedDevelopers.size > 0) {
+    filteredIssues = filteredIssues.filter(item =>
+      selectedDevelopers.has(item.developer) ||
+      selectedDevelopers.has(item.assignee) ||
+      selectedDevelopers.has(item.productAssignee)
+    );
+  }
+  if (selectedScopes.size > 0) {
+    filteredIssues = filteredIssues.filter(item => selectedScopes.has(item.scopeCommitment));
+  }
 
   // Get current date and range start date
   const now = new Date();
@@ -5451,6 +5481,132 @@ function selectAllPhaseDevelopers() {
   });
   
   updatePhaseDeveloperFilter();
+}
+
+// ── Phase Scope Commitment Filter Functions ───────────────────────────────
+
+function buildPhaseScopeFilterOptions(scopes) {
+  const optionsEl = document.getElementById('phase-scope-filter-options');
+  if (!optionsEl) return;
+
+  const currentSelection = getSelectedPhaseScopes();
+  const isFirstBuild = optionsEl.children.length === 0;
+  const scopeList = Array.from(scopes).sort();
+  optionsEl.dataset.allScopes = JSON.stringify(scopeList);
+
+  optionsEl.innerHTML = scopeList.map(scope => {
+    let isChecked;
+    if (isFirstBuild) {
+      isChecked = scope !== PHASE_SCOPE_DEFAULT_EXCLUDE;
+    } else if (currentSelection.size === 0) {
+      isChecked = false;
+    } else {
+      isChecked = currentSelection.has(scope);
+    }
+    return `
+    <label class="ms-option" data-scope="${esc(scope)}">
+      <input type="checkbox" value="${esc(scope)}" onchange="updatePhaseScopeFilter()" ${isChecked ? 'checked' : ''}>
+      <span class="ms-option-label">${esc(scope)}</span>
+    </label>
+  `;
+  }).join('');
+}
+
+function togglePhaseScopeFilter() {
+  const dropdown = document.getElementById('phase-scope-filter-dropdown');
+  dropdown.classList.toggle('open');
+
+  if (dropdown.classList.contains('open')) {
+    const searchInput = document.getElementById('phase-scope-search');
+    if (searchInput) searchInput.value = '';
+    filterPhaseScopeOptions();
+
+    setTimeout(() => {
+      document.addEventListener('click', closePhaseScopeFilterOnOutside);
+    }, 0);
+  }
+}
+
+function closePhaseScopeFilterOnOutside(e) {
+  const dropdown = document.getElementById('phase-scope-filter-dropdown');
+  const btn = document.getElementById('phase-scope-filter-btn');
+  if (!dropdown.contains(e.target) && !btn.contains(e.target)) {
+    dropdown.classList.remove('open');
+    document.removeEventListener('click', closePhaseScopeFilterOnOutside);
+  }
+}
+
+function filterPhaseScopeOptions() {
+  const searchInput = document.getElementById('phase-scope-search');
+  const optionsEl = document.getElementById('phase-scope-filter-options');
+  if (!searchInput || !optionsEl) return;
+
+  const searchTerm = searchInput.value.toLowerCase();
+  optionsEl.querySelectorAll('.ms-option').forEach(option => {
+    const scopeName = option.dataset.scope || '';
+    option.style.display = scopeName.toLowerCase().includes(searchTerm) ? '' : 'none';
+  });
+}
+
+function getSelectedPhaseScopes() {
+  const optionsEl = document.getElementById('phase-scope-filter-options');
+  if (!optionsEl) return new Set();
+
+  const selected = new Set();
+  optionsEl.querySelectorAll('input[type="checkbox"]:checked').forEach(cb => {
+    selected.add(cb.value);
+  });
+  return selected;
+}
+
+function updatePhaseScopeFilterLabel() {
+  const selected = getSelectedPhaseScopes();
+  const btn = document.getElementById('phase-scope-filter-btn');
+  const label = document.getElementById('phase-scope-filter-label');
+  const badge = document.getElementById('phase-scope-filter-count');
+  if (!btn || !label || !badge) return;
+
+  if (selected.size === 0) {
+    label.textContent = 'All Scope Commitments';
+    badge.style.display = 'none';
+    btn.classList.remove('has-selection');
+  } else {
+    label.textContent = 'Scope Commitment';
+    badge.textContent = selected.size;
+    badge.style.display = '';
+    btn.classList.add('has-selection');
+  }
+}
+
+function updatePhaseScopeFilter() {
+  updatePhaseScopeFilterLabel();
+  renderPhaseTimeline();
+  if (!_routeNavigating) syncRoute();
+}
+
+function clearPhaseScopeFilter() {
+  const optionsEl = document.getElementById('phase-scope-filter-options');
+  if (!optionsEl) return;
+
+  optionsEl.querySelectorAll('input[type="checkbox"]').forEach(cb => {
+    cb.checked = false;
+  });
+
+  updatePhaseScopeFilter();
+}
+
+function selectAllPhaseScopes() {
+  const optionsEl = document.getElementById('phase-scope-filter-options');
+  if (!optionsEl) return;
+
+  optionsEl.querySelectorAll('.ms-option').forEach(option => {
+    if (option.style.display !== 'none') {
+      const cb = option.querySelector('input[type="checkbox"]');
+      if (cb) cb.checked = true;
+    }
+  });
+
+  updatePhaseScopeFilter();
 }
 
 function formatPeriodLabel(key, period) {
