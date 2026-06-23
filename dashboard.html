@@ -345,6 +345,12 @@ body.phase-chart-fs-active { overflow: hidden; }
 .refresh-status.err      { color:var(--red); }
 .refresh-bar-wrap { height:4px; background:var(--bg3); border-radius:2px; margin:18px 0 6px; overflow:hidden; }
 .refresh-bar { height:100%; background:var(--blue); border-radius:2px; transition:width .3s; }
+#auto-sync-overlay { position:fixed; inset:0; z-index:998; background:rgba(0,0,0,.45); display:flex; align-items:center; justify-content:center; backdrop-filter:blur(3px); }
+#auto-sync-overlay.hidden { display:none; }
+.auto-sync-modal { background:var(--bg); border:0.5px solid var(--border2); border-radius:var(--radius-lg); padding:28px 32px; min-width:300px; max-width:380px; width:100%; box-shadow:0 12px 40px rgba(0,0,0,.35); text-align:center; }
+.auto-sync-modal h3 { font-size:15px; font-weight:600; margin-bottom:8px; }
+.auto-sync-modal p { font-size:13px; color:var(--text3); margin-bottom:18px; }
+.auto-sync-count { font-size:48px; font-weight:700; color:var(--blue); line-height:1; margin-bottom:20px; font-variant-numeric:tabular-nums; }
 /* ── Team view ── */
 .team-toolbar { display:flex; align-items:flex-start; gap:14px; margin-bottom:18px; flex-wrap:wrap; }
 .team-search { padding:6px 10px; border:0.5px solid var(--border2); border-radius:var(--radius); background:var(--bg); color:var(--text); font-size:13px; font-family:inherit; width:200px; }
@@ -513,6 +519,15 @@ code { font-family: monospace; font-size: 12px; background: var(--bg3); padding:
           <div style="font-size:12px;color:var(--text3);" id="refresh-summary">0 / …</div>
           <button class="btn btn-sm" id="refresh-cancel-btn" onclick="cancelRefresh()" style="display:none;">Cancel</button>
         </div>
+      </div>
+    </div>
+
+    <div id="auto-sync-overlay" class="hidden">
+      <div class="auto-sync-modal">
+        <h3>Syncing all projects</h3>
+        <p>Refreshing project data from Jira in…</p>
+        <div class="auto-sync-count" id="auto-sync-count">5</div>
+        <button class="btn btn-sm" id="auto-sync-cancel-btn" onclick="cancelAutoSyncCountdown()">Cancel</button>
       </div>
     </div>
 
@@ -1839,7 +1854,41 @@ function nav(id, opts = {}) {
   if (!opts.fromRoute && !_routeNavigating) syncRoute();
 }
 
+let _autoSyncCountdownTimer = null;
+
+function cancelAutoSyncCountdown() {
+  if (_autoSyncCountdownTimer) {
+    clearInterval(_autoSyncCountdownTimer);
+    _autoSyncCountdownTimer = null;
+  }
+  const overlay = document.getElementById('auto-sync-overlay');
+  if (overlay) overlay.classList.add('hidden');
+}
+
+function startAutoSyncCountdown(seconds = 5) {
+  if (!S.creds.url || !getAllProjects().length) return;
+  if (_autoSyncCountdownTimer) return;
+
+  const overlay = document.getElementById('auto-sync-overlay');
+  const countEl = document.getElementById('auto-sync-count');
+  if (!overlay || !countEl) return;
+
+  let remaining = seconds;
+  countEl.textContent = remaining;
+  overlay.classList.remove('hidden');
+
+  _autoSyncCountdownTimer = setInterval(() => {
+    remaining--;
+    countEl.textContent = Math.max(remaining, 0);
+    if (remaining <= 0) {
+      cancelAutoSyncCountdown();
+      refreshAll();
+    }
+  }, 1000);
+}
+
 async function refreshAll() {
+  cancelAutoSyncCountdown();
   if (!S.creds.url) { nav('setup'); return; }
 
   const overlay = document.getElementById('refresh-overlay');
@@ -7035,6 +7084,8 @@ async function initApp() {
     nav(S.creds.url ? getDefaultProjectPage() : 'setup', { fromRoute: true });
     syncRoute(true);
   }
+
+  startAutoSyncCountdown();
 }
 
 initApp().catch(err => {
