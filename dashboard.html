@@ -1645,6 +1645,15 @@ function applyPendingRouteState(page) {
       S.phaseTrendVisible = { ...PHASE_TREND_DEFAULT_VISIBLE };
       hidden.split(',').forEach(k => { if (k in S.phaseTrendVisible) S.phaseTrendVisible[k] = false; });
     }
+    if (params.get('drillByProject') === '1') S.phaseDrillByProject = true;
+    const hiddenProjects = params.get('hiddenProjects');
+    if (hiddenProjects) {
+      if (!S.phaseProjectVisible) S.phaseProjectVisible = {};
+      hiddenProjects.split(',').forEach(k => {
+        const key = decodeURIComponent(k.trim());
+        if (key) S.phaseProjectVisible[key] = false;
+      });
+    }
   }
 
   if (page === 'log') {
@@ -1741,6 +1750,13 @@ function collectRouteParams() {
     if (S.phaseTrendVisible) {
       const hidden = Object.entries(S.phaseTrendVisible).filter(([, v]) => !v).map(([k]) => k);
       if (hidden.length) params.set('hiddenSeries', hidden.join(','));
+    }
+    if (S.phaseDrillByProject) params.set('drillByProject', '1');
+    if (S.phaseDrillByProject && S.phaseProjectVisible) {
+      const hiddenProjects = Object.entries(S.phaseProjectVisible)
+        .filter(([, v]) => !v)
+        .map(([k]) => k);
+      if (hiddenProjects.length) params.set('hiddenProjects', hiddenProjects.join(','));
     }
   } else if (page === 'log') {
     const projects = csvParam(getSelectedLogProjects());
@@ -4481,11 +4497,116 @@ const PHASE_TREND_DEFAULT_VISIBLE = {
   releaseBurndown: true,
 };
 
-function togglePhaseSeriesVisibility(key, checked) {
+/** Chart series styles for aggregate and per-project drill-down lines. */
+const PHASE_SERIES_META = {
+  prodDev: {
+    label: 'Prod → Dev', color: '#7C3AED', bg: 'rgba(124, 58, 237, 0.1)',
+    borderWidth: 2, borderDash: [6, 4], pointRadius: 4, pointHoverRadius: 6,
+    hoverColor: '#5B21B6', isTransition: true,
+  },
+  devQA: {
+    label: 'Dev → QA', color: '#059669', bg: 'rgba(5, 150, 105, 0.1)',
+    borderWidth: 2, borderDash: [6, 4], pointRadius: 4, pointHoverRadius: 6,
+    hoverColor: '#047857', isTransition: true,
+  },
+  qaClosed: {
+    label: 'QA → Closed', color: '#2563EB', bg: 'rgba(37, 99, 235, 0.1)',
+    borderWidth: 2, borderDash: [6, 4], pointRadius: 4, pointHoverRadius: 6,
+    hoverColor: '#1D4ED8', isTransition: true,
+  },
+  prodPending: {
+    label: 'Prod-Pending', color: '#533AB7', bg: 'rgba(83, 58, 183, 0.08)',
+    borderWidth: 2.5, borderDash: [], pointRadius: 5, pointHoverRadius: 7,
+    hoverColor: '#3F2A8F', isTransition: false,
+  },
+  devPending: {
+    label: 'Dev-Pending', color: '#854F0B', bg: 'rgba(133, 79, 11, 0.08)',
+    borderWidth: 2.5, borderDash: [], pointRadius: 5, pointHoverRadius: 7,
+    hoverColor: '#6B3F09', isTransition: false,
+  },
+  qaPending: {
+    label: 'QA-Pending', color: '#0F6E56', bg: 'rgba(15, 110, 86, 0.08)',
+    borderWidth: 2.5, borderDash: [], pointRadius: 5, pointHoverRadius: 7,
+    hoverColor: '#0B5744', isTransition: false,
+  },
+  closed: {
+    label: 'Closed', color: '#555555', bg: 'rgba(85, 85, 85, 0.08)',
+    borderWidth: 2.5, borderDash: [], pointRadius: 5, pointHoverRadius: 7,
+    hoverColor: '#3D3D3D', isTransition: false,
+  },
+  onHold: {
+    label: 'On-Hold', color: '#B45309', bg: 'rgba(180, 83, 9, 0.08)',
+    borderWidth: 2.5, borderDash: [], pointRadius: 5, pointHoverRadius: 7,
+    hoverColor: '#92400E', isTransition: false,
+  },
+};
+
+const PHASE_SERIES_KEYS = Object.keys(PHASE_SERIES_META);
+
+function ensurePhaseTrendVisible() {
   S.phaseTrendVisible = { ...PHASE_TREND_DEFAULT_VISIBLE, ...(S.phaseTrendVisible || {}) };
+  return S.phaseTrendVisible;
+}
+
+function ensurePhaseProjectVisible(projects) {
+  if (!S.phaseProjectVisible) S.phaseProjectVisible = {};
+  (projects || []).forEach(p => {
+    if (S.phaseProjectVisible[p.key] === undefined) S.phaseProjectVisible[p.key] = true;
+  });
+  return S.phaseProjectVisible;
+}
+
+function togglePhaseSeriesVisibility(key, checked) {
+  ensurePhaseTrendVisible();
   S.phaseTrendVisible[key] = !!checked;
   renderPhaseTimeline();
   if (!_routeNavigating) syncRoute();
+}
+
+function togglePhaseDrillByProject(checked) {
+  S.phaseDrillByProject = !!checked;
+  renderPhaseTimeline();
+  if (!_routeNavigating) syncRoute();
+}
+
+function togglePhaseProjectLineVisibility(projKey, checked) {
+  if (!S.phaseProjectVisible) S.phaseProjectVisible = {};
+  S.phaseProjectVisible[projKey] = !!checked;
+  renderPhaseTimeline();
+  if (!_routeNavigating) syncRoute();
+}
+
+function setAllPhaseProjectLineVisibility(projects, visible) {
+  if (!S.phaseProjectVisible) S.phaseProjectVisible = {};
+  (projects || []).forEach(p => { S.phaseProjectVisible[p.key] = !!visible; });
+  renderPhaseTimeline();
+  if (!_routeNavigating) syncRoute();
+}
+
+function buildPhaseSeriesDataset(key, data, overrides = {}) {
+  const meta = PHASE_SERIES_META[key];
+  if (!meta) return null;
+  const color = overrides.borderColor || meta.color;
+  return {
+    label: overrides.label || meta.label,
+    hidden: overrides.hidden ?? false,
+    data,
+    borderColor: color,
+    backgroundColor: overrides.backgroundColor || meta.bg,
+    borderWidth: meta.borderWidth,
+    borderDash: meta.borderDash.length ? meta.borderDash : undefined,
+    fill: false,
+    tension: 0.3,
+    pointRadius: meta.pointRadius,
+    pointHoverRadius: meta.pointHoverRadius,
+    pointBackgroundColor: color,
+    pointBorderColor: '#fff',
+    pointBorderWidth: 2,
+    pointHoverBackgroundColor: overrides.hoverColor || meta.hoverColor,
+    pointHoverBorderColor: '#fff',
+    projectKey: overrides.projectKey,
+    seriesKey: key,
+  };
 }
 
 function updatePhaseChartFsBtn(isFullscreen) {
@@ -4541,8 +4662,9 @@ function renderPhaseTimeline() {
   const period = document.getElementById('phase-period').value;
   const range = parseInt(document.getElementById('phase-range').value);
 
-  S.phaseTrendVisible = { ...PHASE_TREND_DEFAULT_VISIBLE, ...(S.phaseTrendVisible || {}) };
-  
+  ensurePhaseTrendVisible();
+  if (S.phaseDrillByProject == null) S.phaseDrillByProject = false;
+
   // Gather all issues from all loaded projects
   const loaded = getAllProjects().filter(p => S.cache[p.key] && !S.cache[p.key].err);
   if (!loaded.length) {
@@ -4886,14 +5008,6 @@ function renderPhaseTimeline() {
 
   // Chart series data (aligned periods)
   const chartLabels = periods.map(p => formatPeriodLabel(p.key, period));
-  const prodDevData = periods.map(p => p.prodDev.length);
-  const devQAData = periods.map(p => p.devQA.length);
-  const qaClosedData = periods.map(p => p.qaClosed.length);
-  const prodPendingData = periods.map(p => p.prodPending.length);
-  const devPendingData = periods.map(p => p.devPending.length);
-  const qaPendingData = periods.map(p => p.qaPending.length);
-  const closedData = periods.map(p => p.closed.length);
-  const onHoldData = periods.map(p => p.onHold.length);
   const periodKeys = periods.map(p => p.key);
   const releaseBurndown = phaseChartRelease
     ? buildReleaseBurndownLine(periods, period, phaseChartRelease, filteredIssues)
@@ -4901,6 +5015,26 @@ function renderPhaseTimeline() {
   const releaseBurndownLabel = releaseBurndown
     ? `Release Target (${releaseBurndown.scLabel} → ${releaseBurndown.ffLabel})`
     : 'Release Target';
+
+  const drillByProject = !!S.phaseDrillByProject;
+  ensurePhaseProjectVisible(filteredProjects);
+  const projectLineTogglesHtml = drillByProject ? `
+      <div style="display:flex; gap:12px; align-items:center; margin-bottom:10px; font-size:12px; flex-wrap:wrap; padding:8px 10px; background:var(--bg3); border-radius:8px">
+        <span style="color:var(--text3); margin-right:2px; font-weight:600">Projects:</span>
+        ${filteredProjects.map(proj => {
+          const on = S.phaseProjectVisible[proj.key] !== false;
+          return `<label style="display:inline-flex; align-items:center; gap:4px; cursor:pointer">
+            <input type="checkbox" ${on ? 'checked' : ''} onchange="togglePhaseProjectLineVisibility('${esc(proj.key)}', this.checked)">
+            <span style="display:inline-flex;align-items:center;gap:4px">
+              <span style="width:8px;height:8px;border-radius:50%;background:${proj.color};display:inline-block"></span>
+              ${esc(proj.name)}
+            </span>
+          </label>`;
+        }).join('')}
+        <span style="color:var(--text3);margin:0 2px">|</span>
+        <button type="button" class="btn btn-sm" style="font-size:11px;padding:2px 8px" onclick="setAllPhaseProjectLineVisibility(getPhaseChartProjects(), true)">All</button>
+        <button type="button" class="btn btn-sm" style="font-size:11px;padding:2px 8px" onclick="setAllPhaseProjectLineVisibility(getPhaseChartProjects(), false)">None</button>
+      </div>` : '';
 
   contentEl.innerHTML = `
     <div class="card phase-chart-card" id="phase-chart-card" style="margin-bottom:20px">
@@ -4911,8 +5045,13 @@ function renderPhaseTimeline() {
           <span>Full screen</span>
         </button>
       </div>
-      <p style="font-size:12px;color:var(--text3);margin-bottom:14px">Dotted lines: transitions per period (Prod → Dev, Dev → QA, QA → Closed). Solid lines: cumulative count of all open issues at each period — Prod-Pending, Dev-Pending, QA-Pending (incl. Pending DEP), Closed, and On-Hold.${releaseBurndown ? ` Orange dashed line: ideal release burndown from ${esc(releaseBurndown.scLabel)} (${formatPeriodLabel(releaseBurndown.scopeClose.toISOString().split('T')[0], 'day')}) to ${esc(releaseBurndown.ffLabel)} (${formatPeriodLabel(releaseBurndown.featureFreeze.toISOString().split('T')[0], 'day')}) for ${esc(releaseBurndown.releaseName)} — ${releaseBurndown.startCount} issues at scope close, decreasing to 0 at feature freeze.` : ''} Click a point to expand details below.</p>
+      <p style="font-size:12px;color:var(--text3);margin-bottom:14px">Dotted lines: transitions per period (Prod → Dev, Dev → QA, QA → Closed). Solid lines: cumulative count of all open issues at each period — Prod-Pending, Dev-Pending, QA-Pending (incl. Pending DEP), Closed, and On-Hold.${drillByProject ? ' <strong>Drill-down:</strong> each enabled series is split into one line per project (project color); toggle projects below.' : ''}${releaseBurndown ? ` Orange dashed line: ideal release burndown from ${esc(releaseBurndown.scLabel)} (${formatPeriodLabel(releaseBurndown.scopeClose.toISOString().split('T')[0], 'day')}) to ${esc(releaseBurndown.ffLabel)} (${formatPeriodLabel(releaseBurndown.featureFreeze.toISOString().split('T')[0], 'day')}) for ${esc(releaseBurndown.releaseName)} — ${releaseBurndown.startCount} issues at scope close, decreasing to 0 at feature freeze.` : ''} Click a point to expand details below.</p>
       <div style="display:flex; gap:14px; align-items:center; margin-bottom:8px; font-size:12px; flex-wrap:wrap">
+        <label style="display:inline-flex; align-items:center; gap:5px; cursor:pointer; font-weight:600; padding:3px 8px; border-radius:6px; background:${drillByProject ? 'var(--bg3)' : 'transparent'}; border:1px solid ${drillByProject ? 'var(--border)' : 'transparent'}">
+          <input type="checkbox" ${drillByProject ? 'checked' : ''} onchange="togglePhaseDrillByProject(this.checked)">
+          <span>Drill down by project</span>
+        </label>
+        <span style="color:var(--text3);margin:0 2px">|</span>
         <span style="color:var(--text3); margin-right:2px">Show:</span>
         <label style="display:inline-flex; align-items:center; gap:4px; cursor:pointer">
           <input type="checkbox" ${S.phaseTrendVisible.prodDev ? 'checked' : ''} onchange="togglePhaseSeriesVisibility('prodDev', this.checked)">
@@ -4953,7 +5092,8 @@ function renderPhaseTimeline() {
           <span style="color:${releaseBurndown.lineColor}">Release Target</span>
         </label>` : ''}
       </div>
-      <div id="phase-chart-wrap" style="position:relative;width:100%;height:280px">
+      ${projectLineTogglesHtml}
+      <div id="phase-chart-wrap" style="position:relative;width:100%;height:${drillByProject ? '360' : '280'}px">
         <canvas id="phase-timeline-chart"></canvas>
       </div>
     </div>
@@ -4982,6 +5122,61 @@ function renderPhaseTimeline() {
     </div>
   `;
 
+  // Build chart datasets: aggregate series, or per-project lines when drill-down is on
+  S._phaseChartProjects = filteredProjects.slice();
+  const chartDatasets = [];
+  if (drillByProject) {
+    // One line per project × enabled series type (project color; series style for dash/width)
+    filteredProjects.forEach(proj => {
+      if (S.phaseProjectVisible[proj.key] === false) return;
+      PHASE_SERIES_KEYS.forEach(seriesKey => {
+        if (!S.phaseTrendVisible[seriesKey]) return;
+        const data = periods.map(p => (p.byProject[proj.key] && p.byProject[proj.key][seriesKey]) || 0);
+        const meta = PHASE_SERIES_META[seriesKey];
+        const ds = buildPhaseSeriesDataset(seriesKey, data, {
+          label: `${proj.name}: ${meta.label}`,
+          hidden: false,
+          borderColor: proj.color,
+          hoverColor: proj.color,
+          backgroundColor: 'transparent',
+          projectKey: proj.key,
+        });
+        if (ds) chartDatasets.push(ds);
+      });
+    });
+  } else {
+    PHASE_SERIES_KEYS.forEach(seriesKey => {
+      const data = periods.map(p => {
+        const v = p[seriesKey];
+        return Array.isArray(v) ? v.length : (v || 0);
+      });
+      const ds = buildPhaseSeriesDataset(seriesKey, data, {
+        hidden: !S.phaseTrendVisible[seriesKey],
+      });
+      if (ds) chartDatasets.push(ds);
+    });
+  }
+  if (releaseBurndown) {
+    chartDatasets.push({
+      label: releaseBurndownLabel,
+      hidden: !S.phaseTrendVisible.releaseBurndown,
+      data: releaseBurndown.data,
+      milestoneMeta: releaseBurndown.milestoneMeta,
+      borderColor: releaseBurndown.lineColor,
+      backgroundColor: 'rgba(224, 160, 64, 0.06)',
+      borderWidth: 2.5,
+      borderDash: [8, 5],
+      fill: false,
+      tension: 0,
+      spanGaps: false,
+      clip: false,
+      pointRadius: 0,
+      pointHoverRadius: 0,
+      pointHitRadius: releaseBurndown.pointHitRadius,
+      order: 0,
+    });
+  }
+
   // Render combined line chart with transitions (dotted) and snapshots (solid) series
   const ctx = document.getElementById('phase-timeline-chart');
   if (ctx) {
@@ -4990,165 +5185,7 @@ function renderPhaseTimeline() {
       type: 'line',
       data: {
         labels: chartLabels,
-        datasets: [
-          {
-            label: 'Prod → Dev',
-            hidden: !S.phaseTrendVisible.prodDev,
-            data: prodDevData,
-            borderColor: '#7C3AED',
-            backgroundColor: 'rgba(124, 58, 237, 0.1)',
-            borderWidth: 2,
-            borderDash: [6, 4],
-            fill: false,
-            tension: 0.3,
-            pointRadius: 4,
-            pointHoverRadius: 6,
-            pointBackgroundColor: '#7C3AED',
-            pointBorderColor: '#fff',
-            pointBorderWidth: 2,
-            pointHoverBackgroundColor: '#5B21B6',
-            pointHoverBorderColor: '#fff'
-          },
-          {
-            label: 'Dev → QA',
-            hidden: !S.phaseTrendVisible.devQA,
-            data: devQAData,
-            borderColor: '#059669',
-            backgroundColor: 'rgba(5, 150, 105, 0.1)',
-            borderWidth: 2,
-            borderDash: [6, 4],
-            fill: false,
-            tension: 0.3,
-            pointRadius: 4,
-            pointHoverRadius: 6,
-            pointBackgroundColor: '#059669',
-            pointBorderColor: '#fff',
-            pointBorderWidth: 2,
-            pointHoverBackgroundColor: '#047857',
-            pointHoverBorderColor: '#fff'
-          },
-          {
-            label: 'QA → Closed',
-            hidden: !S.phaseTrendVisible.qaClosed,
-            data: qaClosedData,
-            borderColor: '#2563EB',
-            backgroundColor: 'rgba(37, 99, 235, 0.1)',
-            borderWidth: 2,
-            borderDash: [6, 4],
-            fill: false,
-            tension: 0.3,
-            pointRadius: 4,
-            pointHoverRadius: 6,
-            pointBackgroundColor: '#2563EB',
-            pointBorderColor: '#fff',
-            pointBorderWidth: 2,
-            pointHoverBackgroundColor: '#1D4ED8',
-            pointHoverBorderColor: '#fff'
-          },
-          {
-            label: 'Prod-Pending',
-            hidden: !S.phaseTrendVisible.prodPending,
-            data: prodPendingData,
-            borderColor: '#533AB7',
-            backgroundColor: 'rgba(83, 58, 183, 0.08)',
-            borderWidth: 2.5,
-            fill: false,
-            tension: 0.3,
-            pointRadius: 5,
-            pointHoverRadius: 7,
-            pointBackgroundColor: '#533AB7',
-            pointBorderColor: '#fff',
-            pointBorderWidth: 2,
-            pointHoverBackgroundColor: '#3F2A8F',
-            pointHoverBorderColor: '#fff'
-          },
-          {
-            label: 'Dev-Pending',
-            hidden: !S.phaseTrendVisible.devPending,
-            data: devPendingData,
-            borderColor: '#854F0B',
-            backgroundColor: 'rgba(133, 79, 11, 0.08)',
-            borderWidth: 2.5,
-            fill: false,
-            tension: 0.3,
-            pointRadius: 5,
-            pointHoverRadius: 7,
-            pointBackgroundColor: '#854F0B',
-            pointBorderColor: '#fff',
-            pointBorderWidth: 2,
-            pointHoverBackgroundColor: '#6B3F09',
-            pointHoverBorderColor: '#fff'
-          },
-          {
-            label: 'QA-Pending',
-            hidden: !S.phaseTrendVisible.qaPending,
-            data: qaPendingData,
-            borderColor: '#0F6E56',
-            backgroundColor: 'rgba(15, 110, 86, 0.08)',
-            borderWidth: 2.5,
-            fill: false,
-            tension: 0.3,
-            pointRadius: 5,
-            pointHoverRadius: 7,
-            pointBackgroundColor: '#0F6E56',
-            pointBorderColor: '#fff',
-            pointBorderWidth: 2,
-            pointHoverBackgroundColor: '#0B5744',
-            pointHoverBorderColor: '#fff'
-          },
-          {
-            label: 'Closed',
-            hidden: !S.phaseTrendVisible.closed,
-            data: closedData,
-            borderColor: '#555555',
-            backgroundColor: 'rgba(85, 85, 85, 0.08)',
-            borderWidth: 2.5,
-            fill: false,
-            tension: 0.3,
-            pointRadius: 5,
-            pointHoverRadius: 7,
-            pointBackgroundColor: '#555555',
-            pointBorderColor: '#fff',
-            pointBorderWidth: 2,
-            pointHoverBackgroundColor: '#3D3D3D',
-            pointHoverBorderColor: '#fff'
-          },
-          {
-            label: 'On-Hold',
-            hidden: !S.phaseTrendVisible.onHold,
-            data: onHoldData,
-            borderColor: '#B45309',
-            backgroundColor: 'rgba(180, 83, 9, 0.08)',
-            borderWidth: 2.5,
-            fill: false,
-            tension: 0.3,
-            pointRadius: 5,
-            pointHoverRadius: 7,
-            pointBackgroundColor: '#B45309',
-            pointBorderColor: '#fff',
-            pointBorderWidth: 2,
-            pointHoverBackgroundColor: '#92400E',
-            pointHoverBorderColor: '#fff'
-          },
-          ...(releaseBurndown ? [{
-            label: releaseBurndownLabel,
-            hidden: !S.phaseTrendVisible.releaseBurndown,
-            data: releaseBurndown.data,
-            milestoneMeta: releaseBurndown.milestoneMeta,
-            borderColor: releaseBurndown.lineColor,
-            backgroundColor: 'rgba(224, 160, 64, 0.06)',
-            borderWidth: 2.5,
-            borderDash: [8, 5],
-            fill: false,
-            tension: 0,
-            spanGaps: false,
-            clip: false,
-            pointRadius: 0,
-            pointHoverRadius: 0,
-            pointHitRadius: releaseBurndown.pointHitRadius,
-            order: 0,
-          }] : [])
-        ]
+        datasets: chartDatasets,
       },
       plugins: releaseBurndown ? [phaseReleaseTimelinePlugin] : [],
       options: {
@@ -5156,7 +5193,9 @@ function renderPhaseTimeline() {
         maintainAspectRatio: false,
         clip: false,
         layout: releaseBurndown ? { padding: { top: 18, bottom: 14, right: 14 } } : undefined,
-        interaction: releaseBurndown ? { mode: 'point', intersect: true } : undefined,
+        interaction: releaseBurndown
+          ? { mode: 'point', intersect: true }
+          : (drillByProject ? { mode: 'nearest', intersect: false, axis: 'x' } : undefined),
         scales: {
           y: {
             beginAtZero: true,
@@ -5164,7 +5203,12 @@ function renderPhaseTimeline() {
           }
         },
         plugins: {
-          legend: { display: true, position: 'top' },
+          legend: {
+            // In drill-down mode, project on/off is controlled by the Projects checkboxes above
+            // (legend would list project × series and get too crowded).
+            display: !drillByProject,
+            position: 'top',
+          },
           tooltip: {
             callbacks: {
               title: (items) => {
@@ -5233,6 +5277,10 @@ function renderPhaseTimeline() {
 
   applyExpandedPeriodsFromRoute();
   if (!_routeNavigating) syncRoute();
+}
+
+function getPhaseChartProjects() {
+  return S._phaseChartProjects || [];
 }
 
 function buildPhaseProjectFilterOptions(projects) {
