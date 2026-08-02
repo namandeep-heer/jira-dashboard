@@ -1654,6 +1654,9 @@ function applyPendingRouteState(page) {
         if (key) S.phaseProjectVisible[key] = false;
       });
     }
+    // groupByProject defaults to true; only persist when turned off
+    if (params.get('groupByProject') === '0') S.phaseDetailsGroupByProject = false;
+    else if (params.get('groupByProject') === '1') S.phaseDetailsGroupByProject = true;
   }
 
   if (page === 'log') {
@@ -1758,6 +1761,8 @@ function collectRouteParams() {
         .map(([k]) => k);
       if (hiddenProjects.length) params.set('hiddenProjects', hiddenProjects.join(','));
     }
+    // Default is group-by-project on; only put in URL when off
+    if (S.phaseDetailsGroupByProject === false) params.set('groupByProject', '0');
   } else if (page === 'log') {
     const projects = csvParam(getSelectedLogProjects());
     const developers = csvParam(getSelectedLogDevelopers());
@@ -4569,6 +4574,12 @@ function togglePhaseDrillByProject(checked) {
   if (!_routeNavigating) syncRoute();
 }
 
+function togglePhaseDetailsGroupByProject(checked) {
+  S.phaseDetailsGroupByProject = !!checked;
+  renderPhaseTimeline();
+  if (!_routeNavigating) syncRoute();
+}
+
 function togglePhaseProjectLineVisibility(projKey, checked) {
   if (!S.phaseProjectVisible) S.phaseProjectVisible = {};
   S.phaseProjectVisible[projKey] = !!checked;
@@ -4902,38 +4913,94 @@ function renderPhaseTimeline() {
 
   const periods = Object.values(periodMap).sort((a, b) => a.date - b.date);
 
-  function renderPhaseTransitionDetailTable(items, title, color, options = {}) {
+  // Group expanded status tables by project within each category (default on)
+  if (S.phaseDetailsGroupByProject == null) S.phaseDetailsGroupByProject = true;
+  const groupDetailsByProject = S.phaseDetailsGroupByProject !== false;
+
+  function renderPhaseItemsTable(items, options = {}) {
     if (!items.length) return '';
     const statusCol = options.snapshot ? 'Status' : 'Target';
     const dateCol = options.snapshot ? 'As of' : 'Date';
+    const showProjectCol = options.showProjectCol !== false;
     return `
+      <table class="issues" style="width:100%;font-size:11px">
+        <thead>
+          <tr>
+            <th style="width:110px">Key</th>
+            <th>Summary</th>
+            ${showProjectCol ? '<th style="width:120px">Project</th>' : ''}
+            <th style="width:120px">Developer</th>
+            <th style="width:110px">${statusCol}</th>
+            <th style="width:130px">${dateCol}</th>
+          </tr>
+        </thead>
+        <tbody>
+          ${items.map(t => {
+            const link = S.creds.url ? S.creds.url + '/browse/' + t.key : '#';
+            return `<tr onclick="window.open('${link}','_blank');event.stopPropagation()" style="cursor:pointer">
+              <td><span class="key-link">${esc(t.key)}</span></td>
+              <td style="max-width:280px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(t.summary)}</td>
+              ${showProjectCol ? `<td><span style="display:inline-flex;align-items:center;gap:5px"><span style="width:7px;height:7px;border-radius:50%;background:${t.proj.color}"></span>${esc(t.proj.name)}</span></td>` : ''}
+              <td style="font-size:10px;color:var(--text2)">${esc(t.developer)}</td>
+              <td style="font-size:10px">${esc(t.targetStatus || t.currentStatus)}</td>
+              <td style="font-size:10px;color:var(--text3)">${formatDateTime(t.eventDate)}</td>
+            </tr>`;
+          }).join('')}
+        </tbody>
+      </table>`;
+  }
+
+  function groupPhaseItemsByProject(items) {
+    const map = {};
+    items.forEach(t => {
+      const key = t.proj?.key || '_unknown';
+      if (!map[key]) {
+        map[key] = {
+          key,
+          name: t.proj?.name || 'Unknown',
+          color: t.proj?.color || '#888780',
+          items: [],
+        };
+      }
+      map[key].items.push(t);
+    });
+    // Prefer filteredProjects order, then remaining alphabetically
+    const order = new Map(filteredProjects.map((p, i) => [p.key, i]));
+    return Object.values(map).sort((a, b) => {
+      const ai = order.has(a.key) ? order.get(a.key) : 999;
+      const bi = order.has(b.key) ? order.get(b.key) : 999;
+      if (ai !== bi) return ai - bi;
+      return a.name.localeCompare(b.name);
+    });
+  }
+
+  function renderPhaseTransitionDetailTable(items, title, color, options = {}) {
+    if (!items.length) return '';
+    const groupByProject = options.groupByProject !== false && groupDetailsByProject;
+
+    if (!groupByProject) {
+      return `
       <div style="margin-bottom:10px">
         <div style="font-size:12px;font-weight:600;margin-bottom:4px;color:${color}">${title} (${items.length})</div>
-        <table class="issues" style="width:100%;font-size:11px">
-          <thead>
-            <tr>
-              <th style="width:110px">Key</th>
-              <th>Summary</th>
-              <th style="width:120px">Project</th>
-              <th style="width:120px">Developer</th>
-              <th style="width:110px">${statusCol}</th>
-              <th style="width:130px">${dateCol}</th>
-            </tr>
-          </thead>
-          <tbody>
-            ${items.map(t => {
-              const link = S.creds.url ? S.creds.url + '/browse/' + t.key : '#';
-              return `<tr onclick="window.open('${link}','_blank');event.stopPropagation()" style="cursor:pointer">
-                <td><span class="key-link">${esc(t.key)}</span></td>
-                <td style="max-width:280px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(t.summary)}</td>
-                <td><span style="display:inline-flex;align-items:center;gap:5px"><span style="width:7px;height:7px;border-radius:50%;background:${t.proj.color}"></span>${esc(t.proj.name)}</span></td>
-                <td style="font-size:10px;color:var(--text2)">${esc(t.developer)}</td>
-                <td style="font-size:10px">${esc(t.targetStatus || t.currentStatus)}</td>
-                <td style="font-size:10px;color:var(--text3)">${formatDateTime(t.eventDate)}</td>
-              </tr>`;
-            }).join('')}
-          </tbody>
-        </table>
+        ${renderPhaseItemsTable(items, { ...options, showProjectCol: true })}
+      </div>`;
+    }
+
+    const groups = groupPhaseItemsByProject(items);
+    const projectBlocks = groups.map(g => `
+      <div style="margin:0 0 10px 0;padding:8px 10px;background:var(--bg);border:1px solid var(--border);border-radius:6px;border-left:3px solid ${g.color}">
+        <div style="font-size:11px;font-weight:600;margin-bottom:6px;display:inline-flex;align-items:center;gap:6px">
+          <span style="width:8px;height:8px;border-radius:50%;background:${g.color};display:inline-block"></span>
+          ${esc(g.name)}
+          <span style="color:var(--text3);font-weight:500">(${g.items.length})</span>
+        </div>
+        ${renderPhaseItemsTable(g.items, { ...options, showProjectCol: false })}
+      </div>`).join('');
+
+    return `
+      <div style="margin-bottom:14px">
+        <div style="font-size:12px;font-weight:600;margin-bottom:8px;color:${color}">${title} (${items.length})</div>
+        ${projectBlocks}
       </div>`;
   }
 
@@ -5099,7 +5166,14 @@ function renderPhaseTimeline() {
     </div>
     
     <div class="card">
-      <h3 style="font-size:15px;font-weight:600;margin-bottom:14px">Phase Transitions (${totalProdDev} Prod→Dev, ${totalDevQA} Dev→QA, ${totalQAClosed} QA Closed) · Currently open: ${totalProdPending} Prod-Pend, ${totalDevPending} Dev-Pend, ${totalQAPending} QA-Pend, ${totalClosed} Closed, ${totalOnHold} On-Hold</h3>
+      <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:12px;flex-wrap:wrap;margin-bottom:14px">
+        <h3 style="font-size:15px;font-weight:600;margin:0">Phase Transitions (${totalProdDev} Prod→Dev, ${totalDevQA} Dev→QA, ${totalQAClosed} QA Closed) · Currently open: ${totalProdPending} Prod-Pend, ${totalDevPending} Dev-Pend, ${totalQAPending} QA-Pend, ${totalClosed} Closed, ${totalOnHold} On-Hold</h3>
+        <label style="display:inline-flex;align-items:center;gap:6px;cursor:pointer;font-size:12px;font-weight:600;padding:4px 10px;border-radius:6px;background:${groupDetailsByProject ? 'var(--bg3)' : 'transparent'};border:1px solid var(--border);white-space:nowrap;flex-shrink:0" title="When a period is expanded (chart click or row), group tickets by project under each status category">
+          <input type="checkbox" ${groupDetailsByProject ? 'checked' : ''} onchange="togglePhaseDetailsGroupByProject(this.checked)">
+          <span>Group details by project</span>
+        </label>
+      </div>
+      <p style="font-size:12px;color:var(--text3);margin:-6px 0 12px">Click a chart point or period row to expand statuses.${groupDetailsByProject ? ' Tickets are grouped <strong>by project</strong> within each category (Prod→Dev, QA-Pending, …).' : ' Tickets are listed flat under each category.'}</p>
       <table class="pipeline-table" style="margin-bottom:0">
         <thead>
           <tr>
