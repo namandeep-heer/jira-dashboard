@@ -87,6 +87,54 @@ body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sa
 .page { display: none; }
 .page.active { display: block; }
 
+/* Project Phase: pin header + chart; only Phase Transitions table scrolls */
+#content:has(#page-phase-timeline.active) {
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  padding: 0;
+}
+#page-phase-timeline.page.active {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-height: 0;
+  height: 100%;
+  padding: 24px;
+  box-sizing: border-box;
+  overflow: hidden;
+}
+.phase-fixed-top {
+  flex-shrink: 0;
+  overflow: visible; /* keep filter dropdowns unclipped */
+  background: var(--bg3);
+  padding-bottom: 10px;
+  margin-bottom: 0;
+  border-bottom: 0.5px solid var(--border);
+  z-index: 30;
+}
+.phase-fixed-top .phase-chart-card {
+  margin-bottom: 0 !important;
+}
+/* Slightly shorter chart so title + filters + chart stay on-screen */
+.phase-fixed-top #phase-chart-wrap {
+  height: 240px !important;
+}
+.phase-scroll-body {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  padding-top: 14px;
+  padding-bottom: 8px;
+}
+.phase-scroll-body .pipeline-table thead th {
+  position: sticky;
+  top: 0;
+  background: var(--bg);
+  z-index: 2;
+  box-shadow: 0 1px 0 var(--border);
+}
+
 /* ── Setup ── */
 .setup-wrap { max-width: 560px; margin: 28px auto; display: flex; flex-direction: column; gap: 16px; }
 .card { background: var(--bg); border: 0.5px solid var(--border); border-radius: var(--radius-lg); padding: 28px 32px; }
@@ -857,7 +905,8 @@ code { font-family: monospace; font-size: 12px; background: var(--bg3); padding:
 
       <!-- Project Phase -->
       <div class="page" id="page-phase-timeline">
-        <div style="display:flex;align-items:flex-start;justify-content:space-between;margin-bottom:18px;gap:20px">
+        <div class="phase-fixed-top" id="phase-fixed-top">
+          <div style="display:flex;align-items:flex-start;justify-content:space-between;margin-bottom:14px;gap:20px">
             <div style="flex:1">
               <h2 style="font-size:18px;font-weight:600;margin-bottom:3px">Project Phase Timeline</h2>
               <p style="font-size:13px;color:var(--text2)">Track Prod→Dev, Dev→QA, and QA→Closed flows (dotted lines) plus cumulative Prod-Pending, Dev-Pending, QA-Pending, Closed, and On-Hold counts (solid lines) over time across all projects.</p>
@@ -925,7 +974,9 @@ code { font-family: monospace; font-size: 12px; background: var(--bg3); padding:
               </select>
             </div>
           </div>
-          <div id="phase-timeline-content"></div>
+          <div id="phase-chart-slot"></div>
+        </div>
+        <div class="phase-scroll-body" id="phase-timeline-content"></div>
       </div>
 
       <!-- Daily Progress -->
@@ -1670,7 +1721,7 @@ function applyPendingRouteState(page) {
         if (key) S.phaseProjectVisible[key] = false;
       });
     }
-    // Nested detail view: phase→project (default) or project→phase
+    // Nested detail view: project→phase (default) or phase→project
     const detailsView = params.get('detailsView');
     if (detailsView === 'project' || detailsView === 'phase') S.phaseDetailsView = detailsView;
     // Back-compat: old groupByProject=0 meant flat; treat as phase view still nested
@@ -1779,8 +1830,8 @@ function collectRouteParams() {
         .map(([k]) => k);
       if (hiddenProjects.length) params.set('hiddenProjects', hiddenProjects.join(','));
     }
-    // Default detail hierarchy is phase→project; persist alternate view only
-    if (S.phaseDetailsView === 'project') params.set('detailsView', 'project');
+    // Default detail hierarchy is project→phase; persist alternate view only
+    if (S.phaseDetailsView === 'phase') params.set('detailsView', 'phase');
   } else if (page === 'log') {
     const projects = csvParam(getSelectedLogProjects());
     const developers = csvParam(getSelectedLogDevelopers());
@@ -4695,6 +4746,7 @@ const PHASE_SCOPE_DEFAULT_EXCLUDE = 'Opportunistic';
 
 function renderPhaseTimeline() {
   const contentEl = document.getElementById('phase-timeline-content');
+  const chartSlot = document.getElementById('phase-chart-slot');
   if (!contentEl) return;
 
   // Clean previous trend chart(s)
@@ -4708,9 +4760,14 @@ function renderPhaseTimeline() {
   ensurePhaseTrendVisible();
   if (S.phaseDrillByProject == null) S.phaseDrillByProject = false;
 
+  function clearPhaseChartSlot() {
+    if (chartSlot) chartSlot.innerHTML = '';
+  }
+
   // Gather all issues from all loaded projects
   const loaded = getAllProjects().filter(p => S.cache[p.key] && !S.cache[p.key].err);
   if (!loaded.length) {
+    clearPhaseChartSlot();
     contentEl.innerHTML = '<div class="info-box">No project data loaded. Click "Refresh All" to load data.</div>';
     buildPhaseProjectFilterOptions(loaded);
     return;
@@ -4903,6 +4960,7 @@ function renderPhaseTimeline() {
   if (totalProdDev === 0 && totalDevQA === 0 && totalQAClosed === 0 &&
       totalProdPending === 0 && totalDevPending === 0 && totalQAPending === 0 &&
       totalClosed === 0 && totalOnHold === 0) {
+    clearPhaseChartSlot();
     contentEl.innerHTML = '<div class="info-box">No phase transitions or matching open issues found in the selected time range.</div>';
     return;
   }
@@ -4946,7 +5004,7 @@ function renderPhaseTimeline() {
   const periods = Object.values(periodMap).sort((a, b) => a.date - b.date);
 
   // Nested detail hierarchy inside each period: phase→project (default) or project→phase
-  if (S.phaseDetailsView !== 'phase' && S.phaseDetailsView !== 'project') S.phaseDetailsView = 'phase';
+  if (S.phaseDetailsView !== 'phase' && S.phaseDetailsView !== 'project') S.phaseDetailsView = 'project';
   const detailsView = S.phaseDetailsView;
 
   const PERIOD_DETAIL_CATEGORIES = [
@@ -5215,8 +5273,8 @@ function renderPhaseTimeline() {
         <button type="button" class="btn btn-sm" style="font-size:11px;padding:2px 8px" onclick="setAllPhaseProjectLineVisibility(getPhaseChartProjects(), false)">None</button>
       </div>` : '';
 
-  contentEl.innerHTML = `
-    <div class="card phase-chart-card" id="phase-chart-card" style="margin-bottom:20px">
+  const chartHtml = `
+    <div class="card phase-chart-card" id="phase-chart-card">
       <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:12px;margin-bottom:4px">
         <h3 style="font-size:15px;font-weight:600;margin:0">Completion Trend</h3>
         <button class="btn btn-sm" id="phase-chart-fs-btn" type="button" onclick="togglePhaseChartFullscreen()" title="Full screen" aria-label="Full screen">
@@ -5275,8 +5333,9 @@ function renderPhaseTimeline() {
       <div id="phase-chart-wrap" style="position:relative;width:100%;height:${drillByProject ? '360' : '280'}px">
         <canvas id="phase-timeline-chart"></canvas>
       </div>
-    </div>
-    
+    </div>`;
+
+  const tableHtml = `
     <div class="card">
       <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:12px;flex-wrap:wrap;margin-bottom:14px">
         <h3 style="font-size:15px;font-weight:600;margin:0">Phase Transitions (${totalProdDev} Prod→Dev, ${totalDevQA} Dev→QA, ${totalQAClosed} QA Closed) · Currently open: ${totalProdPending} Prod-Pend, ${totalDevPending} Dev-Pend, ${totalQAPending} QA-Pend, ${totalClosed} Closed, ${totalOnHold} On-Hold</h3>
@@ -5305,8 +5364,14 @@ function renderPhaseTimeline() {
         </thead>
         <tbody>${rows}</tbody>
       </table>
-    </div>
-  `;
+    </div>`;
+
+  if (chartSlot) {
+    chartSlot.innerHTML = chartHtml;
+    contentEl.innerHTML = tableHtml;
+  } else {
+    contentEl.innerHTML = chartHtml + tableHtml;
+  }
 
   // Build chart datasets: aggregate series, or per-project lines when drill-down is on
   S._phaseChartProjects = filteredProjects.slice();
