@@ -311,6 +311,22 @@ table.issues tr:hover td { background: var(--bg2); }
 .period-details { background:var(--bg3); }
 .period-details.hidden { display:none; }
 .period-summary-row:hover td { background:var(--bg2); }
+/* Nested collapsibles inside a period (phase / project) */
+.pd-block { margin:0 0 8px; border:0.5px solid var(--border); border-radius:6px; background:var(--bg); overflow:hidden; }
+.pd-block.pd-nested { margin:0 0 6px 4px; }
+.pd-block-head { display:flex; align-items:center; gap:8px; width:100%; padding:8px 10px; background:none; border:none; cursor:pointer; font-family:inherit; color:var(--text); text-align:left; font-size:12px; font-weight:600; }
+.pd-block-head:hover { background:var(--bg2); }
+.pd-block-chevron { width:12px; height:12px; flex-shrink:0; color:var(--text3); transition:transform .2s; }
+.pd-block.open > .pd-block-head .pd-block-chevron { transform:rotate(90deg); }
+.pd-block-count { color:var(--text3); font-weight:500; margin-left:2px; }
+.pd-block-dot { width:8px; height:8px; border-radius:50%; flex-shrink:0; display:inline-block; }
+.pd-block-body { display:none; padding:0 10px 10px 22px; }
+.pd-block.open > .pd-block-body { display:block; }
+.pd-block-title-color { font-weight:600; }
+.phase-details-view-toggle { display:inline-flex; align-items:center; gap:0; border:1px solid var(--border); border-radius:6px; overflow:hidden; flex-shrink:0; }
+.phase-details-view-toggle button { font-family:inherit; font-size:12px; font-weight:600; padding:5px 10px; border:none; background:transparent; color:var(--text2); cursor:pointer; }
+.phase-details-view-toggle button:hover { background:var(--bg2); color:var(--text); }
+.phase-details-view-toggle button.active { background:var(--bg3); color:var(--text); }
 .phase-chart-card.is-fullscreen {
   position: fixed;
   inset: 0;
@@ -1654,9 +1670,11 @@ function applyPendingRouteState(page) {
         if (key) S.phaseProjectVisible[key] = false;
       });
     }
-    // groupByProject defaults to true; only persist when turned off
-    if (params.get('groupByProject') === '0') S.phaseDetailsGroupByProject = false;
-    else if (params.get('groupByProject') === '1') S.phaseDetailsGroupByProject = true;
+    // Nested detail view: phase→project (default) or project→phase
+    const detailsView = params.get('detailsView');
+    if (detailsView === 'project' || detailsView === 'phase') S.phaseDetailsView = detailsView;
+    // Back-compat: old groupByProject=0 meant flat; treat as phase view still nested
+    if (!detailsView && params.get('groupByProject') === '0') S.phaseDetailsView = 'phase';
   }
 
   if (page === 'log') {
@@ -1761,8 +1779,8 @@ function collectRouteParams() {
         .map(([k]) => k);
       if (hiddenProjects.length) params.set('hiddenProjects', hiddenProjects.join(','));
     }
-    // Default is group-by-project on; only put in URL when off
-    if (S.phaseDetailsGroupByProject === false) params.set('groupByProject', '0');
+    // Default detail hierarchy is phase→project; persist alternate view only
+    if (S.phaseDetailsView === 'project') params.set('detailsView', 'project');
   } else if (page === 'log') {
     const projects = csvParam(getSelectedLogProjects());
     const developers = csvParam(getSelectedLogDevelopers());
@@ -4574,10 +4592,24 @@ function togglePhaseDrillByProject(checked) {
   if (!_routeNavigating) syncRoute();
 }
 
-function togglePhaseDetailsGroupByProject(checked) {
-  S.phaseDetailsGroupByProject = !!checked;
+/** Period detail hierarchy: 'phase' = Phase → Project, 'project' = Project → Phase */
+function setPhaseDetailsView(view) {
+  S.phaseDetailsView = view === 'project' ? 'project' : 'phase';
   renderPhaseTimeline();
   if (!_routeNavigating) syncRoute();
+}
+
+/** Toggle a nested phase/project block inside an expanded period (no re-render). */
+function togglePdBlock(blockId, event) {
+  if (event) event.stopPropagation();
+  const el = document.getElementById(blockId);
+  if (!el) return;
+  el.classList.toggle('open');
+  el.setAttribute('aria-expanded', el.classList.contains('open') ? 'true' : 'false');
+}
+
+function pdSafeId(...parts) {
+  return 'pd-' + parts.map(p => String(p).replace(/[^a-zA-Z0-9_-]/g, '_')).join('--');
 }
 
 function togglePhaseProjectLineVisibility(projKey, checked) {
@@ -4913,9 +4945,20 @@ function renderPhaseTimeline() {
 
   const periods = Object.values(periodMap).sort((a, b) => a.date - b.date);
 
-  // Group expanded status tables by project within each category (default on)
-  if (S.phaseDetailsGroupByProject == null) S.phaseDetailsGroupByProject = true;
-  const groupDetailsByProject = S.phaseDetailsGroupByProject !== false;
+  // Nested detail hierarchy inside each period: phase→project (default) or project→phase
+  if (S.phaseDetailsView !== 'phase' && S.phaseDetailsView !== 'project') S.phaseDetailsView = 'phase';
+  const detailsView = S.phaseDetailsView;
+
+  const PERIOD_DETAIL_CATEGORIES = [
+    { key: 'prodDev', title: 'Prod → Dev', color: '#7C3AED', snapshot: false },
+    { key: 'devQA', title: 'Dev → QA', color: '#059669', snapshot: false },
+    { key: 'qaClosed', title: 'QA → Closed', color: '#2563EB', snapshot: false },
+    { key: 'prodPending', title: 'Prod-Pending (all open)', color: '#533AB7', snapshot: true },
+    { key: 'devPending', title: 'Dev-Pending (all open)', color: '#854F0B', snapshot: true },
+    { key: 'qaPending', title: 'QA-Pending (all open)', color: '#0F6E56', snapshot: true },
+    { key: 'closed', title: 'Closed (all open)', color: '#555555', snapshot: true },
+    { key: 'onHold', title: 'On-Hold (all open)', color: '#B45309', snapshot: true },
+  ];
 
   function renderPhaseItemsTable(items, options = {}) {
     if (!items.length) return '';
@@ -4974,34 +5017,111 @@ function renderPhaseTimeline() {
     });
   }
 
-  function renderPhaseTransitionDetailTable(items, title, color, options = {}) {
-    if (!items.length) return '';
-    const groupByProject = options.groupByProject !== false && groupDetailsByProject;
-
-    if (!groupByProject) {
-      return `
-      <div style="margin-bottom:10px">
-        <div style="font-size:12px;font-weight:600;margin-bottom:4px;color:${color}">${title} (${items.length})</div>
-        ${renderPhaseItemsTable(items, { ...options, showProjectCol: true })}
-      </div>`;
-    }
-
-    const groups = groupPhaseItemsByProject(items);
-    const projectBlocks = groups.map(g => `
-      <div style="margin:0 0 10px 0;padding:8px 10px;background:var(--bg);border:1px solid var(--border);border-radius:6px;border-left:3px solid ${g.color}">
-        <div style="font-size:11px;font-weight:600;margin-bottom:6px;display:inline-flex;align-items:center;gap:6px">
-          <span style="width:8px;height:8px;border-radius:50%;background:${g.color};display:inline-block"></span>
-          ${esc(g.name)}
-          <span style="color:var(--text3);font-weight:500">(${g.items.length})</span>
-        </div>
-        ${renderPhaseItemsTable(g.items, { ...options, showProjectCol: false })}
-      </div>`).join('');
-
+  function renderPdBlock(blockId, titleHtml, count, bodyHtml, options = {}) {
+    const open = options.open !== false;
+    const nested = options.nested ? ' pd-nested' : '';
+    const borderLeft = options.borderColor
+      ? `border-left:3px solid ${options.borderColor};`
+      : '';
     return `
-      <div style="margin-bottom:14px">
-        <div style="font-size:12px;font-weight:600;margin-bottom:8px;color:${color}">${title} (${items.length})</div>
-        ${projectBlocks}
+      <div class="pd-block${nested}${open ? ' open' : ''}" id="${esc(blockId)}" aria-expanded="${open ? 'true' : 'false'}" style="${borderLeft}">
+        <button type="button" class="pd-block-head" onclick="togglePdBlock('${esc(blockId)}', event)">
+          <svg class="pd-block-chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="9 18 15 12 9 6"/></svg>
+          ${titleHtml}
+          <span class="pd-block-count">(${count})</span>
+        </button>
+        <div class="pd-block-body">${bodyHtml}</div>
       </div>`;
+  }
+
+  function renderPeriodDetailsPhaseFirst(period) {
+    const parts = [];
+    PERIOD_DETAIL_CATEGORIES.forEach(cat => {
+      const items = period[cat.key] || [];
+      if (!items.length) return;
+      const phaseId = pdSafeId(period.key, 'phase', cat.key);
+      const groups = groupPhaseItemsByProject(items);
+      const projectBlocks = groups.map(g => {
+        const projId = pdSafeId(period.key, 'phase', cat.key, 'proj', g.key);
+        return renderPdBlock(
+          projId,
+          `<span class="pd-block-dot" style="background:${g.color}"></span><span>${esc(g.name)}</span>`,
+          g.items.length,
+          renderPhaseItemsTable(g.items, { snapshot: cat.snapshot, showProjectCol: false }),
+          { open: true, nested: true, borderColor: g.color }
+        );
+      }).join('');
+      parts.push(renderPdBlock(
+        phaseId,
+        `<span class="pd-block-title-color" style="color:${cat.color}">${esc(cat.title)}</span>`,
+        items.length,
+        projectBlocks || renderPhaseItemsTable(items, { snapshot: cat.snapshot, showProjectCol: true }),
+        { open: true, borderColor: cat.color }
+      ));
+    });
+    return parts.join('') || '<div style="font-size:12px;color:var(--text3)">No events</div>';
+  }
+
+  function renderPeriodDetailsProjectFirst(period) {
+    // Collect items per project → category
+    const byProject = {};
+    PERIOD_DETAIL_CATEGORIES.forEach(cat => {
+      (period[cat.key] || []).forEach(t => {
+        const pk = t.proj?.key || '_unknown';
+        if (!byProject[pk]) {
+          byProject[pk] = {
+            key: pk,
+            name: t.proj?.name || 'Unknown',
+            color: t.proj?.color || '#888780',
+            categories: {},
+          };
+        }
+        if (!byProject[pk].categories[cat.key]) byProject[pk].categories[cat.key] = [];
+        byProject[pk].categories[cat.key].push(t);
+      });
+    });
+
+    const order = new Map(filteredProjects.map((p, i) => [p.key, i]));
+    const projects = Object.values(byProject).sort((a, b) => {
+      const ai = order.has(a.key) ? order.get(a.key) : 999;
+      const bi = order.has(b.key) ? order.get(b.key) : 999;
+      if (ai !== bi) return ai - bi;
+      return a.name.localeCompare(b.name);
+    });
+
+    if (!projects.length) return '<div style="font-size:12px;color:var(--text3)">No events</div>';
+
+    return projects.map(proj => {
+      let total = 0;
+      const phaseBlocks = PERIOD_DETAIL_CATEGORIES.map(cat => {
+        const items = proj.categories[cat.key] || [];
+        if (!items.length) return '';
+        total += items.length;
+        const phaseId = pdSafeId(period.key, 'proj', proj.key, 'phase', cat.key);
+        return renderPdBlock(
+          phaseId,
+          `<span class="pd-block-title-color" style="color:${cat.color}">${esc(cat.title)}</span>`,
+          items.length,
+          renderPhaseItemsTable(items, { snapshot: cat.snapshot, showProjectCol: false }),
+          { open: true, nested: true, borderColor: cat.color }
+        );
+      }).join('');
+
+      const projId = pdSafeId(period.key, 'proj', proj.key);
+      return renderPdBlock(
+        projId,
+        `<span class="pd-block-dot" style="background:${proj.color}"></span><span>${esc(proj.name)}</span>`,
+        total,
+        phaseBlocks,
+        { open: true, borderColor: proj.color }
+      );
+    }).join('');
+  }
+
+  function renderPeriodDetailsContent(period) {
+    return detailsView === 'project'
+      ? renderPeriodDetailsProjectFirst(period)
+      : renderPeriodDetailsPhaseFirst(period);
   }
 
   // Build summary rows + detail rows (one row per period)
@@ -5052,20 +5172,12 @@ function renderPhaseTimeline() {
       </td>
     </tr>`;
 
-    let detailsContent = '';
-    detailsContent += renderPhaseTransitionDetailTable(p.prodDev, 'Prod → Dev', '#7C3AED');
-    detailsContent += renderPhaseTransitionDetailTable(p.devQA, 'Dev → QA', '#059669');
-    detailsContent += renderPhaseTransitionDetailTable(p.qaClosed, 'QA → Closed', '#2563EB');
-    detailsContent += renderPhaseTransitionDetailTable(p.prodPending, 'Prod-Pending (all open)', '#533AB7', { snapshot: true });
-    detailsContent += renderPhaseTransitionDetailTable(p.devPending, 'Dev-Pending (all open)', '#854F0B', { snapshot: true });
-    detailsContent += renderPhaseTransitionDetailTable(p.qaPending, 'QA-Pending (all open)', '#0F6E56', { snapshot: true });
-    detailsContent += renderPhaseTransitionDetailTable(p.closed, 'Closed (all open)', '#555555', { snapshot: true });
-    detailsContent += renderPhaseTransitionDetailTable(p.onHold, 'On-Hold (all open)', '#B45309', { snapshot: true });
+    const detailsContent = renderPeriodDetailsContent(p);
 
     const detailRow = `<tr class="period-details period-details-${esc(p.key)} hidden">
       <td colspan="12" style="padding:0;background:var(--bg3)">
         <div style="padding:12px 16px">
-          ${detailsContent || '<div style="font-size:12px;color:var(--text3)">No events</div>'}
+          ${detailsContent}
         </div>
       </td>
     </tr>`;
@@ -5168,12 +5280,12 @@ function renderPhaseTimeline() {
     <div class="card">
       <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:12px;flex-wrap:wrap;margin-bottom:14px">
         <h3 style="font-size:15px;font-weight:600;margin:0">Phase Transitions (${totalProdDev} Prod→Dev, ${totalDevQA} Dev→QA, ${totalQAClosed} QA Closed) · Currently open: ${totalProdPending} Prod-Pend, ${totalDevPending} Dev-Pend, ${totalQAPending} QA-Pend, ${totalClosed} Closed, ${totalOnHold} On-Hold</h3>
-        <label style="display:inline-flex;align-items:center;gap:6px;cursor:pointer;font-size:12px;font-weight:600;padding:4px 10px;border-radius:6px;background:${groupDetailsByProject ? 'var(--bg3)' : 'transparent'};border:1px solid var(--border);white-space:nowrap;flex-shrink:0" title="When a period is expanded (chart click or row), group tickets by project under each status category">
-          <input type="checkbox" ${groupDetailsByProject ? 'checked' : ''} onchange="togglePhaseDetailsGroupByProject(this.checked)">
-          <span>Group details by project</span>
-        </label>
+        <div class="phase-details-view-toggle" title="How expanded week/period rows nest phases and projects">
+          <button type="button" class="${detailsView === 'phase' ? 'active' : ''}" onclick="setPhaseDetailsView('phase')">Phase → Project</button>
+          <button type="button" class="${detailsView === 'project' ? 'active' : ''}" onclick="setPhaseDetailsView('project')">Project → Phase</button>
+        </div>
       </div>
-      <p style="font-size:12px;color:var(--text3);margin:-6px 0 12px">Click a chart point or period row to expand statuses.${groupDetailsByProject ? ' Tickets are grouped <strong>by project</strong> within each category (Prod→Dev, QA-Pending, …).' : ' Tickets are listed flat under each category.'}</p>
+      <p style="font-size:12px;color:var(--text3);margin:-6px 0 12px">Click a chart point or period row to expand. Inside each period, phases and projects are collapsible.${detailsView === 'project' ? ' View: <strong>Project → Phase</strong> (projects first, phases nested under each).' : ' View: <strong>Phase → Project</strong> (phases first, projects nested under each).'}</p>
       <table class="pipeline-table" style="margin-bottom:0">
         <thead>
           <tr>
