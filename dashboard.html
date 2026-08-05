@@ -1735,6 +1735,8 @@ function applyPendingRouteState(page) {
     if (range) { const el = document.getElementById('log-range'); if (el) el.value = range; }
     const expand = params.get('expand');
     if (expand) S._expandedPeriods = new Set(expand.split(',').map(s => decodeURIComponent(s.trim())).filter(Boolean));
+    const detailsView = params.get('detailsView');
+    if (detailsView === 'project' || detailsView === 'direction') S.logDetailsView = detailsView;
   }
 
   if (isProjectPageId(page)) {
@@ -1842,6 +1844,8 @@ function collectRouteParams() {
     if (period && period !== 'week') params.set('period', period);
     if (range && range !== '90') params.set('range', range);
     if (S._expandedPeriods?.size) params.set('expand', [...S._expandedPeriods].join(','));
+    // Default detail hierarchy is direction→phase; persist alternate view only
+    if (S.logDetailsView === 'project') params.set('detailsView', 'project');
   } else if (page === 'projects-config') {
     if (S._routeModalOpen === 'jql' && S._routeModalKey) {
       params.set('modal', 'jql');
@@ -4663,6 +4667,24 @@ function pdSafeId(...parts) {
   return 'pd-' + parts.map(p => String(p).replace(/[^a-zA-Z0-9_-]/g, '_')).join('--');
 }
 
+/** Shared collapsible block used by Project Phase and Daily Progress period details. */
+function renderPdBlock(blockId, titleHtml, count, bodyHtml, options = {}) {
+  const open = options.open !== false;
+  const nested = options.nested ? ' pd-nested' : '';
+  const borderLeft = options.borderColor
+    ? `border-left:3px solid ${options.borderColor};`
+    : '';
+  return `
+    <div class="pd-block${nested}${open ? ' open' : ''}" id="${esc(blockId)}" aria-expanded="${open ? 'true' : 'false'}" style="${borderLeft}">
+      <button type="button" class="pd-block-head" onclick="togglePdBlock('${esc(blockId)}', event)">
+        <svg class="pd-block-chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="9 18 15 12 9 6"/></svg>
+        ${titleHtml}
+        <span class="pd-block-count">(${count})</span>
+      </button>
+      <div class="pd-block-body">${bodyHtml}</div>
+    </div>`;
+}
+
 function togglePhaseProjectLineVisibility(projKey, checked) {
   if (!S.phaseProjectVisible) S.phaseProjectVisible = {};
   S.phaseProjectVisible[projKey] = !!checked;
@@ -5073,23 +5095,6 @@ function renderPhaseTimeline() {
       if (ai !== bi) return ai - bi;
       return a.name.localeCompare(b.name);
     });
-  }
-
-  function renderPdBlock(blockId, titleHtml, count, bodyHtml, options = {}) {
-    const open = options.open !== false;
-    const nested = options.nested ? ' pd-nested' : '';
-    const borderLeft = options.borderColor
-      ? `border-left:3px solid ${options.borderColor};`
-      : '';
-    return `
-      <div class="pd-block${nested}${open ? ' open' : ''}" id="${esc(blockId)}" aria-expanded="${open ? 'true' : 'false'}" style="${borderLeft}">
-        <button type="button" class="pd-block-head" onclick="togglePdBlock('${esc(blockId)}', event)">
-          <svg class="pd-block-chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="9 18 15 12 9 6"/></svg>
-          ${titleHtml}
-          <span class="pd-block-count">(${count})</span>
-        </button>
-        <div class="pd-block-body">${bodyHtml}</div>
-      </div>`;
   }
 
   function renderPeriodDetailsPhaseFirst(period) {
@@ -5948,65 +5953,183 @@ function getLogMovementDirection(fromPhase, toPhase) {
   return 'lateral';
 }
 
-function renderLogMovementCategoryTable(items, title, color) {
-  if (!items.length) return '';
-  const sorted = items.slice().sort((a, b) => b.changeDate - a.changeDate);
-  return `
-    <div style="margin-bottom:14px">
-      <div style="font-size:12px;font-weight:600;margin-bottom:6px;color:${color};display:flex;align-items:center;gap:8px">
-        <span style="width:8px;height:8px;border-radius:50%;background:${color};display:inline-block"></span>
-        ${esc(title)} <span style="color:var(--text3);font-weight:500">(${sorted.length})</span>
-      </div>
-      <table class="issues" style="width:100%;font-size:12px">
-        <thead>
-          <tr>
-            <th style="width:120px">Key</th>
-            <th>Summary</th>
-            <th style="width:140px">Project</th>
-            <th style="width:200px">From → To</th>
-            <th style="width:120px">Direction</th>
-            <th style="width:140px">Developer</th>
-            <th style="width:140px">Changed</th>
-          </tr>
-        </thead>
-        <tbody>
-          ${sorted.map(m => {
-            const link = S.creds.url ? S.creds.url + '/browse/' + m.key : '#';
-            const dir = m.direction || getLogMovementDirection(m.fromPhase, m.toPhase);
-            const dirLabel = dir === 'forward' ? '↑ Forward'
-              : dir === 'backward' ? '↓ Backward'
-              : dir === 'lateral' ? '→ Lateral'
-              : '· Other';
-            const dirColor = dir === 'forward' ? '#2d6a10'
-              : dir === 'backward' ? '#A32D2D'
-              : 'var(--text3)';
-            return `<tr onclick="window.open('${link}','_blank');event.stopPropagation()" style="cursor:pointer">
-              <td><span class="key-link">${esc(m.key)}</span></td>
-              <td style="max-width:280px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(m.summary)}</td>
-              <td><span style="display:inline-flex;align-items:center;gap:6px"><span style="width:8px;height:8px;border-radius:50%;background:${m.proj.color}"></span>${esc(m.proj.name)}</span></td>
-              <td style="font-size:11px">
-                <span style="color:${m.fromColor}">${esc(m.from)}</span>
-                <span style="color:var(--text3)"> → </span>
-                <span style="color:${m.toColor}">${esc(m.to)}</span>
-              </td>
-              <td style="font-size:11px;color:${dirColor};font-weight:500">${dirLabel}</td>
-              <td style="font-size:11px;color:var(--text2)">${esc(m.developer)}</td>
-              <td style="font-size:11px;color:var(--text3)">${formatDateTime(m.changeDate)}</td>
-            </tr>`;
-          }).join('')}
-        </tbody>
-      </table>
-    </div>`;
+const LOG_DIRECTION_SECTIONS = [
+  { key: 'forward', title: 'Forward Progress', color: '#2d6a10' },
+  { key: 'backward', title: 'Backward Movement', color: '#A32D2D' },
+  { key: 'lateral', title: 'Lateral (same phase)', color: '#6B7280' },
+  { key: 'other', title: 'Other / Unclassified', color: '#888780' },
+];
+
+/** Period detail hierarchy for Daily Progress: 'direction' | 'project' */
+function setLogDetailsView(view) {
+  S.logDetailsView = view === 'project' ? 'project' : 'direction';
+  renderDailyProgress();
+  if (!_routeNavigating) syncRoute();
 }
 
-/** Expanded Daily Progress details: categorized by direction, then by target phase. */
+function renderLogMovementsTable(items, options = {}) {
+  if (!items.length) return '';
+  const showProjectCol = options.showProjectCol !== false;
+  const sorted = items.slice().sort((a, b) => b.changeDate - a.changeDate);
+  return `
+    <table class="issues" style="width:100%;font-size:12px">
+      <thead>
+        <tr>
+          <th style="width:120px">Key</th>
+          <th>Summary</th>
+          ${showProjectCol ? '<th style="width:140px">Project</th>' : ''}
+          <th style="width:200px">From → To</th>
+          <th style="width:120px">Direction</th>
+          <th style="width:140px">Developer</th>
+          <th style="width:140px">Changed</th>
+        </tr>
+      </thead>
+      <tbody>
+        ${sorted.map(m => {
+          const link = S.creds.url ? S.creds.url + '/browse/' + m.key : '#';
+          const dir = m.direction || getLogMovementDirection(m.fromPhase, m.toPhase);
+          const dirLabel = dir === 'forward' ? '↑ Forward'
+            : dir === 'backward' ? '↓ Backward'
+            : dir === 'lateral' ? '→ Lateral'
+            : '· Other';
+          const dirColor = dir === 'forward' ? '#2d6a10'
+            : dir === 'backward' ? '#A32D2D'
+            : 'var(--text3)';
+          return `<tr onclick="window.open('${link}','_blank');event.stopPropagation()" style="cursor:pointer">
+            <td><span class="key-link">${esc(m.key)}</span></td>
+            <td style="max-width:280px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(m.summary)}</td>
+            ${showProjectCol ? `<td><span style="display:inline-flex;align-items:center;gap:6px"><span style="width:8px;height:8px;border-radius:50%;background:${m.proj.color}"></span>${esc(m.proj.name)}</span></td>` : ''}
+            <td style="font-size:11px">
+              <span style="color:${m.fromColor}">${esc(m.from)}</span>
+              <span style="color:var(--text3)"> → </span>
+              <span style="color:${m.toColor}">${esc(m.to)}</span>
+            </td>
+            <td style="font-size:11px;color:${dirColor};font-weight:500">${dirLabel}</td>
+            <td style="font-size:11px;color:var(--text2)">${esc(m.developer)}</td>
+            <td style="font-size:11px;color:var(--text3)">${formatDateTime(m.changeDate)}</td>
+          </tr>`;
+        }).join('')}
+      </tbody>
+    </table>`;
+}
+
+function groupLogMovementsByToPhase(items) {
+  const map = {};
+  items.forEach(m => {
+    const label = m.toPhase || 'Other';
+    if (!map[label]) map[label] = { color: m.toColor || '#888780', items: [] };
+    map[label].items.push(m);
+  });
+  // Sort by pipeline order; "Other" last
+  return Object.entries(map).sort((a, b) => {
+    const ai = a[0] === 'Other' ? 999 : LOG_PHASE_ORDER.indexOf(a[0]);
+    const bi = b[0] === 'Other' ? 999 : LOG_PHASE_ORDER.indexOf(b[0]);
+    return (ai < 0 ? 998 : ai) - (bi < 0 ? 998 : bi);
+  });
+}
+
+function groupLogMovementsByProject(items) {
+  const map = {};
+  items.forEach(m => {
+    const pk = m.proj?.key || '_unknown';
+    if (!map[pk]) {
+      map[pk] = {
+        key: pk,
+        name: m.proj?.name || 'Unknown',
+        color: m.proj?.color || '#888780',
+        items: [],
+      };
+    }
+    map[pk].items.push(m);
+  });
+  return Object.values(map).sort((a, b) => a.name.localeCompare(b.name));
+}
+
+function groupLogMovementsByDirection(items) {
+  return LOG_DIRECTION_SECTIONS.map(section => ({
+    ...section,
+    items: items.filter(m => (m.direction || getLogMovementDirection(m.fromPhase, m.toPhase)) === section.key),
+  })).filter(s => s.items.length);
+}
+
+/** Direction → Phase: collapsible directions with nested target-phase blocks. */
+function renderLogPeriodDetailsDirectionFirst(periodBucket) {
+  const movements = periodBucket.movements || [];
+  const periodKey = periodBucket.key || 'period';
+  const sections = groupLogMovementsByDirection(movements);
+  if (!sections.length) return '<div style="font-size:12px;color:var(--text3)">No movements</div>';
+
+  return sections.map(section => {
+    const phaseBlocks = groupLogMovementsByToPhase(section.items).map(([phaseLabel, group]) => {
+      const phaseId = pdSafeId('log', periodKey, 'dir', section.key, 'phase', phaseLabel);
+      return renderPdBlock(
+        phaseId,
+        `<span class="pd-block-dot" style="background:${group.color}"></span><span>To ${esc(phaseLabel)}</span>`,
+        group.items.length,
+        renderLogMovementsTable(group.items, { showProjectCol: true }),
+        { open: true, nested: true, borderColor: group.color }
+      );
+    }).join('');
+
+    const dirId = pdSafeId('log', periodKey, 'dir', section.key);
+    return renderPdBlock(
+      dirId,
+      `<span class="pd-block-title-color" style="color:${section.color}">${esc(section.title)}</span>`,
+      section.items.length,
+      phaseBlocks,
+      { open: true, borderColor: section.color }
+    );
+  }).join('');
+}
+
+/** Project → Direction → Phase: collapsible projects with nested direction/phase blocks. */
+function renderLogPeriodDetailsProjectFirst(periodBucket) {
+  const movements = periodBucket.movements || [];
+  const periodKey = periodBucket.key || 'period';
+  const projects = groupLogMovementsByProject(movements);
+  if (!projects.length) return '<div style="font-size:12px;color:var(--text3)">No movements</div>';
+
+  return projects.map(proj => {
+    const directionBlocks = groupLogMovementsByDirection(proj.items).map(section => {
+      const phaseBlocks = groupLogMovementsByToPhase(section.items).map(([phaseLabel, group]) => {
+        const phaseId = pdSafeId('log', periodKey, 'proj', proj.key, 'dir', section.key, 'phase', phaseLabel);
+        return renderPdBlock(
+          phaseId,
+          `<span class="pd-block-dot" style="background:${group.color}"></span><span>To ${esc(phaseLabel)}</span>`,
+          group.items.length,
+          renderLogMovementsTable(group.items, { showProjectCol: false }),
+          { open: true, nested: true, borderColor: group.color }
+        );
+      }).join('');
+
+      const dirId = pdSafeId('log', periodKey, 'proj', proj.key, 'dir', section.key);
+      return renderPdBlock(
+        dirId,
+        `<span class="pd-block-title-color" style="color:${section.color}">${esc(section.title)}</span>`,
+        section.items.length,
+        phaseBlocks || renderLogMovementsTable(section.items, { showProjectCol: false }),
+        { open: true, nested: true, borderColor: section.color }
+      );
+    }).join('');
+
+    const projId = pdSafeId('log', periodKey, 'proj', proj.key);
+    return renderPdBlock(
+      projId,
+      `<span class="pd-block-dot" style="background:${proj.color}"></span><span>${esc(proj.name)}</span>`,
+      proj.items.length,
+      directionBlocks,
+      { open: true, borderColor: proj.color }
+    );
+  }).join('');
+}
+
+/** Expanded Daily Progress details: collapsible by direction or by project. */
 function renderLogPeriodDetails(periodBucket) {
   const movements = periodBucket.movements || [];
   if (!movements.length) {
     return '<div style="font-size:12px;color:var(--text3)">No movements</div>';
   }
 
-  // Annotate direction on each movement
   movements.forEach(m => {
     m.direction = getLogMovementDirection(m.fromPhase, m.toPhase);
   });
@@ -6025,53 +6148,18 @@ function renderLogPeriodDetails(periodBucket) {
     byDirection.other.length ? `<span style="color:var(--text3);font-weight:600">· Other ${byDirection.other.length}</span>` : '',
   ].filter(Boolean).join('<span style="color:var(--text3);margin:0 6px">·</span>');
 
-  function groupByToPhase(items) {
-    const map = {};
-    items.forEach(m => {
-      const label = m.toPhase || 'Other';
-      if (!map[label]) map[label] = { color: m.toColor || '#888780', items: [] };
-      map[label].items.push(m);
-    });
-    // Sort categories by pipeline order; "Other" last
-    return Object.entries(map).sort((a, b) => {
-      const ai = a[0] === 'Other' ? 999 : LOG_PHASE_ORDER.indexOf(a[0]);
-      const bi = b[0] === 'Other' ? 999 : LOG_PHASE_ORDER.indexOf(b[0]);
-      return (ai < 0 ? 998 : ai) - (bi < 0 ? 998 : bi);
-    });
-  }
+  if (S.logDetailsView !== 'direction' && S.logDetailsView !== 'project') S.logDetailsView = 'direction';
+  const detailsView = S.logDetailsView;
+  const body = detailsView === 'project'
+    ? renderLogPeriodDetailsProjectFirst(periodBucket)
+    : renderLogPeriodDetailsDirectionFirst(periodBucket);
 
-  const directionSections = [
-    { key: 'forward', title: 'Forward Progress', color: '#2d6a10', items: byDirection.forward },
-    { key: 'backward', title: 'Backward Movement', color: '#A32D2D', items: byDirection.backward },
-    { key: 'lateral', title: 'Lateral (same phase)', color: '#6B7280', items: byDirection.lateral },
-    { key: 'other', title: 'Other / Unclassified', color: '#888780', items: byDirection.other },
-  ];
-
-  let html = `
-    <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:14px;font-size:12px">
-      <span style="color:var(--text3);font-weight:600">Categories</span>
+  return `
+    <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:12px;font-size:12px">
+      <span style="color:var(--text3);font-weight:600">Summary</span>
       ${summaryChips}
-    </div>`;
-
-  directionSections.forEach(section => {
-    if (!section.items.length) return;
-    html += `
-      <div style="margin-bottom:18px;padding:12px 14px;background:var(--bg);border:1px solid var(--border);border-radius:8px;border-left:3px solid ${section.color}">
-        <div style="font-size:13px;font-weight:700;color:${section.color};margin-bottom:10px">
-          ${esc(section.title)}
-          <span style="font-weight:500;color:var(--text3);font-size:12px">(${section.items.length})</span>
-        </div>`;
-    groupByToPhase(section.items).forEach(([phaseLabel, group]) => {
-      html += renderLogMovementCategoryTable(
-        group.items,
-        `To ${phaseLabel}`,
-        group.color
-      );
-    });
-    html += '</div>';
-  });
-
-  return html;
+    </div>
+    ${body}`;
 }
 
 function renderDailyProgress() {
@@ -6293,17 +6381,27 @@ function renderDailyProgress() {
   const totalData = periods.map(p => p.movements.length);
   const periodKeys = periods.map(p => p.key);
 
+  if (S.logDetailsView !== 'direction' && S.logDetailsView !== 'project') S.logDetailsView = 'direction';
+  const detailsView = S.logDetailsView;
+
   contentEl.innerHTML = `
     <div class="card" style="margin-bottom:20px">
       <h3 style="font-size:15px;font-weight:600;margin-bottom:4px">Movement Trend</h3>
-      <p style="font-size:12px;color:var(--text3);margin-bottom:14px">Click a bar or period row to expand details categorized by direction (forward / backward / lateral) and target phase</p>
+      <p style="font-size:12px;color:var(--text3);margin-bottom:14px">Click a bar or period row to expand collapsible movement details. Switch between Direction → Phase and Project → Direction views below.</p>
       <div style="position:relative;width:100%;height:280px">
         <canvas id="log-chart"></canvas>
       </div>
     </div>
     
     <div class="card">
-      <h3 style="font-size:15px;font-weight:600;margin-bottom:14px">Ticket Movements (${movementData.length} total)</h3>
+      <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:12px;flex-wrap:wrap;margin-bottom:14px">
+        <h3 style="font-size:15px;font-weight:600;margin:0">Ticket Movements (${movementData.length} total)</h3>
+        <div class="phase-details-view-toggle" title="How expanded period rows nest directions and projects">
+          <button type="button" class="${detailsView === 'direction' ? 'active' : ''}" onclick="setLogDetailsView('direction')">Direction → Phase</button>
+          <button type="button" class="${detailsView === 'project' ? 'active' : ''}" onclick="setLogDetailsView('project')">Project → Direction</button>
+        </div>
+      </div>
+      <p style="font-size:12px;color:var(--text3);margin:-6px 0 12px">Click a chart bar or period row to expand. Inside each period, sections are collapsible.${detailsView === 'project' ? ' View: <strong>Project → Direction</strong> (projects first, directions and target phases nested under each).' : ' View: <strong>Direction → Phase</strong> (directions first, target phases nested under each).'}</p>
       <table class="pipeline-table" style="margin-bottom:0">
         <thead>
           <tr>
