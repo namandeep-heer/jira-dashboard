@@ -171,10 +171,27 @@ body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sa
 .stat-card .sl { font-size: 11px; color: var(--text3); margin-bottom: 3px; }
 .stat-card .sv { font-size: 22px; font-weight: 700; }
 
-.table-wrap { overflow: auto; max-height: calc(100vh - 240px); background: var(--bg); border: 0.5px solid var(--border); border-radius: var(--radius-lg); }
+.table-wrap { overflow: auto; max-height: calc(100vh - 280px); background: var(--bg); border: 0.5px solid var(--border); border-radius: var(--radius-lg); }
 table.issues { width: 100%; border-collapse: collapse; font-size: 12px; }
-table.issues th { text-align: left; padding: 8px 10px; font-size: 11px; font-weight: 600; color: var(--text3); border-bottom: 0.5px solid var(--border); white-space: nowrap; position: sticky; top: 0; background: var(--bg); z-index: 1; }
+table.issues th { text-align: left; padding: 8px 10px; font-size: 11px; font-weight: 600; color: var(--text3); border-bottom: 0.5px solid var(--border); white-space: nowrap; position: sticky; top: 0; background: var(--bg); z-index: 1; user-select: none; }
+table.issues th:hover { color: var(--text); }
+table.issues th .sort-icon { opacity: .4; margin-left: 3px; font-size: 10px; }
+table.issues th.sorted { color: var(--text); }
+table.issues th.sorted .sort-icon { opacity: 1; color: var(--blue); }
+table.issues th.filtered { color: var(--text); }
 table.issues td { padding: 7px 10px; border-bottom: 0.5px solid var(--border); vertical-align: middle; max-width: 200px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.th-inner { display: flex; align-items: center; gap: 4px; }
+.th-label { flex: 1; cursor: pointer; min-width: 0; }
+.th-filter { display: inline-flex; align-items: center; justify-content: center; width: 18px; height: 18px; padding: 0; border: none; border-radius: 4px; background: none; color: inherit; cursor: pointer; opacity: .35; flex-shrink: 0; }
+.th-filter:hover, .th-filter.active, .th-filter.has-filter { opacity: 1; color: var(--blue); background: var(--blue-bg); }
+.th-filter svg { width: 11px; height: 11px; }
+.proj-table-tools { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; margin-bottom: 10px; }
+.proj-search { padding: 6px 10px; border: 0.5px solid var(--border2); border-radius: var(--radius); background: var(--bg); color: var(--text); font-size: 13px; font-family: inherit; width: 240px; }
+.proj-search:focus { outline: 2px solid var(--blue); outline-offset: -1px; }
+.proj-count { font-size: 12px; color: var(--text3); }
+.issues-empty { text-align: center; color: var(--text3); padding: 28px 10px !important; max-width: none !important; white-space: normal !important; }
+.proj-col-filter-pop { position: fixed; z-index: 400; min-width: 220px; max-width: 300px; background: var(--bg); border: 0.5px solid var(--border2); border-radius: var(--radius-lg); box-shadow: 0 8px 24px rgba(0,0,0,.18); display: none; overflow: hidden; }
+.proj-col-filter-pop.open { display: block; }
 table.issues tr:last-child td { border-bottom: none; }
 table.issues tr:hover td { background: var(--bg2); }
 .key-link { color: var(--blue); font-family: monospace; font-size: 11px; font-weight: 600; text-decoration: none; }
@@ -592,6 +609,17 @@ code { font-family: monospace; font-size: 12px; background: var(--bg3); padding:
         <p>Refreshing project data from Jira in…</p>
         <div class="auto-sync-count" id="auto-sync-count">5</div>
         <button class="btn btn-sm" id="auto-sync-cancel-btn" onclick="cancelAutoSyncCountdown()">Cancel</button>
+      </div>
+    </div>
+
+    <div id="proj-col-filter-pop" class="proj-col-filter-pop" role="dialog" aria-label="Column filter">
+      <div class="ms-dropdown-search">
+        <input type="text" id="proj-col-filter-search" placeholder="Search values…" oninput="filterProjectColOptions(this.value)" />
+      </div>
+      <div class="ms-options" id="proj-col-filter-opts"></div>
+      <div class="ms-footer">
+        <button type="button" onclick="selectVisibleProjectColValues()">Select visible</button>
+        <button type="button" onclick="clearProjectColFilter()">Clear</button>
       </div>
     </div>
 
@@ -1133,14 +1161,28 @@ function emptyPhasePeriodBucket(key, date) {
   };
 }
 
+/** YYYY-MM-DD in the browser's local timezone (avoid UTC off-by-one from toISOString). */
+function toLocalDateKey(d) {
+  const x = d instanceof Date ? d : new Date(d);
+  if (Number.isNaN(x.getTime())) return '';
+  return `${x.getFullYear()}-${String(x.getMonth() + 1).padStart(2, '0')}-${String(x.getDate()).padStart(2, '0')}`;
+}
+
+/** Parse YYYY-MM-DD as local midnight (date-only ISO strings are UTC in JS Date). */
+function parseLocalDateKey(key) {
+  const m = String(key || '').match(/^(\d{4})-(\d{2})-(\d{2})/);
+  if (!m) return new Date(key);
+  return new Date(parseInt(m[1], 10), parseInt(m[2], 10) - 1, parseInt(m[3], 10));
+}
+
 function getPhasePeriodKey(d, period) {
   if (period === 'day') {
-    return d.toISOString().split('T')[0];
+    return toLocalDateKey(d);
   }
   if (period === 'week') {
-    const weekStart = new Date(d);
-    weekStart.setDate(d.getDate() - d.getDay());
-    return weekStart.toISOString().split('T')[0];
+    const weekStart = new Date(d.getFullYear(), d.getMonth(), d.getDate());
+    weekStart.setDate(weekStart.getDate() - weekStart.getDay());
+    return toLocalDateKey(weekStart);
   }
   if (period === 'month') {
     return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
@@ -1150,10 +1192,12 @@ function getPhasePeriodKey(d, period) {
 
 function getPhasePeriodEndDate(periodKey, period) {
   if (period === 'day') {
-    return new Date(periodKey + 'T23:59:59.999');
+    const end = parseLocalDateKey(periodKey);
+    end.setHours(23, 59, 59, 999);
+    return end;
   }
   if (period === 'week') {
-    const end = new Date(periodKey + 'T00:00:00');
+    const end = parseLocalDateKey(periodKey);
     end.setDate(end.getDate() + 6);
     end.setHours(23, 59, 59, 999);
     return end;
@@ -1172,9 +1216,9 @@ function getIssueStatusAtDate(issue, atDate) {
   const currentStatus = (issue.fields?.status?.name || '').trim();
   const changes = [];
   (issue.changelog?.histories || []).forEach(history => {
-    const d = new Date(history.created);
+    const d = parseJiraDate(history.created);
     (history.items || []).forEach(item => {
-      if (item.field === 'status' && item.toString) {
+      if ((item.field === 'status' || item.fieldId === 'status') && item.toString) {
         changes.push({
           date: d,
           to: (item.toString || '').trim(),
@@ -1741,10 +1785,28 @@ function applyPendingRouteState(page) {
 
   if (isProjectPageId(page)) {
     const filter = params.get('filter');
+    const sort = params.get('sort');
+    const dir = params.get('dir');
     const proj = getAllProjects().find(p => p.id === page);
     if (proj && filter) {
       if (!S.activeFilter) S.activeFilter = {};
       S.activeFilter[proj.key] = filter;
+    }
+    if (proj && sort) {
+      if (!S._projSort) S._projSort = {};
+      S._projSort[proj.key] = { col: sort, dir: dir === 'desc' ? -1 : 1 };
+    }
+    if (proj) {
+      if (!S._projColFilter) S._projColFilter = {};
+      const st = { q: params.get('q') || '', cols: {} };
+      ALL_FIELDS.forEach(f => {
+        const raw = params.get('col_' + f.id);
+        if (!raw) return;
+        st.cols[f.id] = new Set(raw.split(',').map(s => {
+          try { return decodeURIComponent(s.trim()); } catch (e) { return s.trim(); }
+        }).filter(v => v !== ''));
+      });
+      S._projColFilter[proj.key] = st;
     }
   }
 
@@ -1766,6 +1828,18 @@ function collectRouteParams() {
     const proj = getAllProjects().find(p => p.id === page);
     const f = proj && S.activeFilter?.[proj.key];
     if (f) params.set('filter', f);
+    const sort = proj && S._projSort?.[proj.key];
+    if (sort && sort.col) {
+      params.set('sort', sort.col);
+      params.set('dir', sort.dir < 0 ? 'desc' : 'asc');
+    }
+    const colSt = proj && S._projColFilter?.[proj.key];
+    if (colSt && colSt.q) params.set('q', colSt.q);
+    if (colSt && colSt.cols) {
+      Object.entries(colSt.cols).forEach(([id, set]) => {
+        if (set && set.size) params.set('col_' + id, [...set].map(encodeURIComponent).join(','));
+      });
+    }
   } else if (page === 'velocity') {
     const projects = csvParam(getSelectedVelocityProjects());
     if (projects) params.set('projects', projects);
@@ -2088,6 +2162,8 @@ async function refreshAll() {
     statusEl.textContent = 'Loading…';
 
     // Call fetchIssues without autoFetchAll - will prompt batch-by-batch
+    // (also bulk-fetches full status changelogs so Daily Progress has latest moves)
+    statusEl.textContent = 'Loading issues…';
     const data = await fetchIssues(proj, false);
 
     done++;
@@ -2099,9 +2175,10 @@ async function refreshAll() {
       statusEl.className = 'refresh-status ok';
       const issueCount = (data.issues||[]).length;
       const totalCount = data.total || issueCount;
+      const withCl = (data.issues || []).filter(i => (i.changelog?.histories || []).length > 0).length;
       const statusMsg = data.partial 
         ? `⚠ ${issueCount} of ${totalCount} issues (partial)`
-        : `✓ ${issueCount} issues`;
+        : `✓ ${issueCount} issues · ${withCl} with history`;
       statusEl.textContent = statusMsg;
 
       // Diff against old snapshot
@@ -2241,6 +2318,20 @@ async function fetchIssues(proj, autoFetchAll = false) {
 
   try {
     const auth = btoa(unescape(encodeURIComponent(email + ':' + token)));
+
+    async function finishFetch(extra = {}) {
+      console.log('[fetchIssues] Complete. Total issues:', allIssues.length);
+      // Search expand=changelog is capped; fill in full history when truncated so
+      // recent movements (e.g. "today") are not missing for busy tickets.
+      await hydrateTruncatedChangelogs(allIssues, url, auth);
+      return {
+        issues: allIssues,
+        total: allIssues.length,
+        maxResults: maxResults,
+        startAt: 0,
+        ...extra,
+      };
+    }
     
     // First fetch
     const firstResponse = await fetchJiraBatch(url, auth, jql, startAt, maxResults, nextPageToken);
@@ -2262,12 +2353,10 @@ async function fetchIssues(proj, autoFetchAll = false) {
       while (!isLast && nextPageToken) {
         const batchResponse = await fetchJiraBatch(url, auth, jql, 0, maxResults, nextPageToken);
         if (batchResponse.err) {
-          return {
-            issues: allIssues,
-            total: allIssues.length,
+          return finishFetch({
             partial: true,
-            err: `Fetched ${allIssues.length} issues. Error on batch: ${batchResponse.err}`
-          };
+            err: `Fetched ${allIssues.length} issues. Error on batch: ${batchResponse.err}`,
+          });
         }
         
         allIssues = allIssues.concat(batchResponse.issues || []);
@@ -2275,12 +2364,7 @@ async function fetchIssues(proj, autoFetchAll = false) {
         nextPageToken = batchResponse.nextPageToken;
       }
       
-      return {
-        issues: allIssues,
-        total: allIssues.length,
-        maxResults: maxResults,
-        startAt: 0
-      };
+      return finishFetch();
     }
     
     // Interactive mode: prompt for each batch
@@ -2302,23 +2386,19 @@ async function fetchIssues(proj, autoFetchAll = false) {
         
         if (!confirmed) {
           // User chose to stop, return what we have with partial flag
-          return {
-            issues: allIssues,
-            total: allIssues.length,
+          return finishFetch({
             partial: true,
-            message: `Showing ${allIssues.length} issues (user stopped)`
-          };
+            message: `Showing ${allIssues.length} issues (user stopped)`,
+          });
         }
         
         // Fetch next batch
         const batchResponse = await fetchJiraBatch(url, auth, jql, 0, maxResults, nextPageToken);
         if (batchResponse.err) {
-          return {
-            issues: allIssues,
-            total: allIssues.length,
+          return finishFetch({
             partial: true,
-            err: `Fetched ${allIssues.length} issues. Error on batch: ${batchResponse.err}`
-          };
+            err: `Fetched ${allIssues.length} issues. Error on batch: ${batchResponse.err}`,
+          });
         }
         
         allIssues = allIssues.concat(batchResponse.issues || []);
@@ -2329,14 +2409,7 @@ async function fetchIssues(proj, autoFetchAll = false) {
       }
     }
     
-    console.log('[fetchIssues] Complete. Total issues:', allIssues.length);
-    
-    return {
-      issues: allIssues,
-      total: allIssues.length,
-      maxResults: maxResults,
-      startAt: 0
-    };
+    return finishFetch();
     
   } catch(e) {
     return { err: e.message + ' — is the proxy running? (node proxy.js)' };
@@ -2391,6 +2464,285 @@ async function fetchJiraBatch(url, auth, jql, startAt, maxResults, nextPageToken
     console.error('[fetchJiraBatch] Exception:', e);
     return { err: e.message };
   }
+}
+
+/**
+ * Search expand=changelog is capped (often 20) and frequently returns incomplete
+ * history without a trustworthy total. Prefer bulk/full changelog endpoints.
+ */
+function isChangelogTruncated(issue) {
+  const cl = issue?.changelog;
+  if (!cl) return true;
+  const histories = cl.histories || [];
+  if (!histories.length) return true;
+  if (typeof cl.total === 'number' && cl.total > histories.length) return true;
+  // Common search/jql expand caps when total is missing or equals the page size
+  const cap = typeof cl.maxResults === 'number' ? cl.maxResults : 20;
+  if (histories.length >= cap) return true;
+  // If latest status transition doesn't match current status, history is incomplete
+  const current = (issue.fields?.status?.name || '').trim();
+  if (current) {
+    const latest = getLatestStatusFromChangelog(issue);
+    if (latest && latest !== current) return true;
+  }
+  return false;
+}
+
+function getLatestStatusFromChangelog(issue) {
+  let best = null;
+  let bestTs = -Infinity;
+  for (const h of issue.changelog?.histories || []) {
+    const ts = parseJiraDate(h.created).getTime();
+    if (Number.isNaN(ts)) continue;
+    for (const item of h.items || []) {
+      if ((item.field === 'status' || item.fieldId === 'status') && item.toString) {
+        if (ts >= bestTs) {
+          bestTs = ts;
+          best = String(item.toString).trim();
+        }
+      }
+    }
+  }
+  return best;
+}
+
+/** Jira may return ISO strings or unix seconds/ms for changelog created. */
+function parseJiraDate(value) {
+  if (value == null || value === '') return new Date(NaN);
+  if (value instanceof Date) return value;
+  if (typeof value === 'number') {
+    return new Date(value < 1e12 ? value * 1000 : value);
+  }
+  const s = String(value);
+  // Numeric string
+  if (/^\d+$/.test(s)) {
+    const n = Number(s);
+    return new Date(n < 1e12 ? n * 1000 : n);
+  }
+  return new Date(s);
+}
+
+function normalizeChangelogHistory(h) {
+  if (!h || typeof h !== 'object') return h;
+  const created = parseJiraDate(h.created);
+  return {
+    ...h,
+    created: Number.isNaN(created.getTime()) ? h.created : created.toISOString(),
+  };
+}
+
+/** Fetch full changelog for one issue (paginated). Returns histories array or null on failure. */
+async function fetchFullIssueChangelog(baseUrl, auth, issueKey) {
+  const pageSize = 100;
+  let startAt = 0;
+  let total = Infinity;
+  const histories = [];
+
+  while (startAt < total) {
+    const target = baseUrl.replace(/\/$/, '')
+      + '/rest/api/3/issue/' + encodeURIComponent(issueKey)
+      + '/changelog?startAt=' + startAt + '&maxResults=' + pageSize;
+    const proxyUrl = PROXY + '?target=' + encodeURIComponent(target);
+    const r = await fetch(proxyUrl, {
+      headers: { 'Authorization': 'Basic ' + auth, 'Accept': 'application/json' },
+    });
+    if (!r.ok) {
+      const t = await r.text().catch(() => '');
+      console.warn('[changelog]', issueKey, 'HTTP', r.status, t.slice(0, 200));
+      return null;
+    }
+    const json = await r.json();
+    const page = (json.values || []).map(normalizeChangelogHistory);
+    histories.push(...page);
+    total = typeof json.total === 'number' ? json.total : histories.length;
+    if (json.isLast === true || page.length === 0) break;
+    startAt += page.length;
+    if (page.length < pageSize) break;
+  }
+  return histories;
+}
+
+/**
+ * Bulk-fetch changelogs for many issues (POST /rest/api/3/changelog/bulkfetch).
+ * Returns Map<issueId string, histories[]>. Paginates via nextPageToken.
+ * @param {string[]|null} fieldIds  When set (e.g. ['status']), only those fields.
+ */
+async function fetchBulkChangelogs(baseUrl, auth, issueIdsOrKeys, fieldIds = ['status']) {
+  const byIssueId = new Map();
+  let nextPageToken = null;
+  let pageGuard = 0;
+
+  do {
+    const body = {
+      issueIdsOrKeys,
+      maxResults: 10000,
+    };
+    if (fieldIds && fieldIds.length) body.fieldIds = fieldIds;
+    if (nextPageToken) body.nextPageToken = nextPageToken;
+
+    const target = baseUrl.replace(/\/$/, '') + '/rest/api/3/changelog/bulkfetch';
+    const proxyUrl = PROXY + '?target=' + encodeURIComponent(target);
+    const r = await fetch(proxyUrl, {
+      method: 'POST',
+      headers: {
+        'Authorization': 'Basic ' + auth,
+        'Accept': 'application/json',
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(body),
+    });
+    if (!r.ok) {
+      const t = await r.text().catch(() => '');
+      throw new Error('bulkfetch HTTP ' + r.status + (t ? ': ' + t.slice(0, 300) : ''));
+    }
+    const json = await r.json();
+    (json.issueChangeLogs || []).forEach(block => {
+      const id = String(block.issueId);
+      if (!byIssueId.has(id)) byIssueId.set(id, []);
+      let histories = (block.changeHistories || []).map(normalizeChangelogHistory);
+      // If we requested all fields, keep only status items (plus empty-item-free histories)
+      if (!fieldIds || !fieldIds.length) {
+        histories = histories
+          .map(h => ({
+            ...h,
+            items: (h.items || []).filter(it => it.field === 'status' || it.fieldId === 'status'),
+          }))
+          .filter(h => h.items && h.items.length);
+      }
+      byIssueId.get(id).push(...histories);
+    });
+    nextPageToken = json.nextPageToken || null;
+    pageGuard++;
+  } while (nextPageToken && pageGuard < 500);
+
+  return byIssueId;
+}
+
+async function mapPool(items, concurrency, worker) {
+  const results = new Array(items.length);
+  let next = 0;
+  async function run() {
+    while (next < items.length) {
+      const i = next++;
+      results[i] = await worker(items[i], i);
+    }
+  }
+  const n = Math.min(concurrency, Math.max(items.length, 1));
+  await Promise.all(Array.from({ length: n }, () => run()));
+  return results;
+}
+
+/**
+ * Replace search-expanded (truncated) changelogs with full status history.
+ * Uses bulkfetch for speed; falls back to per-issue /changelog when needed.
+ */
+async function hydrateTruncatedChangelogs(issues, baseUrl, auth) {
+  if (!issues?.length) return { hydrated: 0, failed: 0 };
+
+  const byId = new Map();
+  const byKey = new Map();
+  issues.forEach(issue => {
+    if (issue.id != null) byId.set(String(issue.id), issue);
+    if (issue.key) byKey.set(issue.key, issue);
+  });
+
+  let hydrated = 0;
+  let failed = 0;
+  const stillNeed = [];
+
+  // Always bulk-fetch full status changelogs — expand=changelog is not trustworthy
+  const keys = issues.map(i => i.key).filter(Boolean);
+  const BATCH = 100;
+  console.log('[changelog] Bulk-fetching status history for', keys.length, 'issue(s)…');
+
+  try {
+    for (let i = 0; i < keys.length; i += BATCH) {
+      const batchKeys = keys.slice(i, i + BATCH);
+      let byIssueId = await fetchBulkChangelogs(baseUrl, auth, batchKeys, ['status']);
+      // Some sites reject/ignore fieldIds — retry without filter if empty
+      if (byIssueId.size === 0) {
+        console.warn('[changelog] bulkfetch status filter returned empty; retrying without fieldIds');
+        byIssueId = await fetchBulkChangelogs(baseUrl, auth, batchKeys, null);
+      }
+
+      batchKeys.forEach(key => {
+        const issue = byKey.get(key);
+        if (!issue) return;
+        const histories = byIssueId.get(String(issue.id));
+        if (histories && histories.length) {
+          // Sort oldest → newest for consistent consumers
+          histories.sort((a, b) => parseJiraDate(a.created) - parseJiraDate(b.created));
+          issue.changelog = {
+            startAt: 0,
+            maxResults: histories.length,
+            total: histories.length,
+            histories,
+            _source: 'bulkfetch',
+          };
+          hydrated++;
+        } else {
+          // No status history from bulk — still try per-issue if expand looks incomplete
+          stillNeed.push(issue);
+        }
+      });
+    }
+  } catch (e) {
+    console.warn('[changelog] bulkfetch failed, falling back to per-issue:', e.message);
+    issues.forEach(issue => stillNeed.push(issue));
+  }
+
+  // Also force re-fetch when history still does not end at current status
+  issues.forEach(issue => {
+    const current = (issue.fields?.status?.name || '').trim();
+    const latest = getLatestStatusFromChangelog(issue);
+    if (current && (!latest || latest !== current)) stillNeed.push(issue);
+  });
+
+  // Dedupe fallback list
+  const fallbackUnique = [...new Map(stillNeed.map(i => [i.key, i])).values()]
+    .filter(issue => issue.changelog?._source !== 'issue-changelog');
+
+  if (fallbackUnique.length) {
+    console.log('[changelog] Per-issue fallback for', fallbackUnique.length, 'issue(s)');
+    await mapPool(fallbackUnique, 4, async (issue) => {
+      try {
+        const histories = await fetchFullIssueChangelog(baseUrl, auth, issue.key);
+        if (!histories) { failed++; return; }
+        // Keep only status items for parity with bulk path
+        const statusHistories = histories
+          .map(h => ({
+            ...h,
+            items: (h.items || []).filter(it => it.field === 'status' || it.fieldId === 'status'),
+          }))
+          .filter(h => h.items.length);
+        issue.changelog = {
+          startAt: 0,
+          maxResults: statusHistories.length,
+          total: statusHistories.length,
+          histories: statusHistories,
+          _source: 'issue-changelog',
+        };
+        hydrated++;
+      } catch (err) {
+        console.warn('[changelog] Failed for', issue.key, err.message);
+        failed++;
+      }
+    });
+  }
+
+  // Final sanity: log how many still don't reach current status
+  let mismatch = 0;
+  issues.forEach(issue => {
+    const current = (issue.fields?.status?.name || '').trim();
+    const latest = getLatestStatusFromChangelog(issue);
+    if (current && latest && current !== latest) mismatch++;
+  });
+  if (mismatch) {
+    console.warn('[changelog]', mismatch, 'issue(s) still have history that does not end at current status');
+  }
+
+  console.log('[changelog] Done. hydrated:', hydrated, 'failed:', failed);
+  return { hydrated, failed };
 }
 
 // ── Project page ─────────────────────────────────────────────────────────────
@@ -2532,30 +2884,9 @@ function filterByCard(projKey, label, scopeCommitment, opts = {}) {
 
   const d = S._projData && S._projData[projKey];
   if (!d) return;
+  d.scopeCommitment = next ? (scopeCommitment || null) : null;
 
-  let filtered = d.issues;
-  if (next && next !== 'Total') {
-    const phaseDef = d.PHASES.find(p => p.label === next);
-    if (phaseDef) {
-      filtered = d.issues.filter(i => phaseDef.re.test((i.fields?.status?.name||'').trim()));
-    } else {
-      filtered = d.issues.filter(i => (i.fields?.status?.name||'') === next);
-    }
-  }
-  
-  // Apply scope commitment filter if provided
-  if (scopeCommitment) {
-    const scopeField = ALL_FIELDS.find(f => f.id === 'cf_scopesc');
-    if (scopeField) {
-      filtered = filtered.filter(i => {
-        const val = i.fields?.[jiraId(scopeField)];
-        const scopeVal = val?.value || val || '';
-        return scopeVal === scopeCommitment;
-      });
-    }
-  }
-  
-  renderIssueTable({ key: projKey }, filtered, next);
+  renderIssueTable({ key: projKey }, getFilteredProjectIssues(projKey), next);
   if (!opts.fromRoute && !_routeNavigating) syncRoute();
 }
 
@@ -2580,26 +2911,357 @@ async function loadAllIssues(projKey) {
   await renderProject(proj);
 }
 
+const PRIORITY_RANK = {
+  blocker: 0, highest: 1, critical: 2, high: 3, major: 4,
+  medium: 5, normal: 5, low: 6, minor: 7, lowest: 8, trivial: 9
+};
+
+const PROJ_BLANK = '__blank__';
+
+function getProjectColFilters(projKey) {
+  if (!S._projColFilter) S._projColFilter = {};
+  if (!S._projColFilter[projKey]) S._projColFilter[projKey] = { q: '', cols: {} };
+  return S._projColFilter[projKey];
+}
+
+function hasProjectColFilters(projKey) {
+  const st = S._projColFilter && S._projColFilter[projKey];
+  if (!st) return false;
+  if ((st.q || '').trim()) return true;
+  return Object.values(st.cols || {}).some(set => set && set.size);
+}
+
+function getPhaseFilteredProjectIssues(projKey) {
+  const d = S._projData && S._projData[projKey];
+  if (!d) return [];
+  const next = S.activeFilter && S.activeFilter[projKey];
+  let filtered = d.issues || [];
+  if (next && next !== 'Total') {
+    const phaseDef = d.PHASES.find(p => p.label === next);
+    if (phaseDef) {
+      filtered = filtered.filter(i => phaseDef.re.test((i.fields?.status?.name||'').trim()));
+    } else {
+      filtered = filtered.filter(i => (i.fields?.status?.name||'') === next);
+    }
+  }
+  if (d.scopeCommitment) {
+    const scopeField = ALL_FIELDS.find(f => f.id === 'cf_scopesc');
+    if (scopeField) {
+      filtered = filtered.filter(i => {
+        const val = i.fields?.[jiraId(scopeField)];
+        const scopeVal = val?.value || val || '';
+        return scopeVal === d.scopeCommitment;
+      });
+    }
+  }
+  return filtered;
+}
+
+function projectCellFilterKey(issue, field) {
+  const val = String(getCellValue(issue, field));
+  return val === '' ? PROJ_BLANK : val;
+}
+
+function getFilteredProjectIssues(projKey) {
+  const vf = S.enabled.map(id => ALL_FIELDS.find(f => f.id === id)).filter(Boolean);
+  const st = getProjectColFilters(projKey);
+  const q = (st.q || '').trim().toLowerCase();
+  return getPhaseFilteredProjectIssues(projKey).filter(issue => {
+    if (q) {
+      const hay = vf.map(f => String(getCellValue(issue, f))).join(' ').toLowerCase();
+      if (!hay.includes(q)) return false;
+    }
+    for (const [fieldId, selected] of Object.entries(st.cols || {})) {
+      if (!selected || !selected.size) continue;
+      const field = ALL_FIELDS.find(f => f.id === fieldId);
+      if (!field) continue;
+      if (!selected.has(projectCellFilterKey(issue, field))) return false;
+    }
+    return true;
+  });
+}
+
+function getProjectFieldValues(projKey, fieldId) {
+  const field = ALL_FIELDS.find(f => f.id === fieldId);
+  if (!field) return [];
+  const counts = new Map();
+  getPhaseFilteredProjectIssues(projKey).forEach(issue => {
+    const key = projectCellFilterKey(issue, field);
+    counts.set(key, (counts.get(key) || 0) + 1);
+  });
+  return [...counts.entries()].sort((a, b) => {
+    if (a[0] === PROJ_BLANK) return 1;
+    if (b[0] === PROJ_BLANK) return -1;
+    return a[0].localeCompare(b[0], undefined, { numeric: true, sensitivity: 'base' });
+  });
+}
+
+function projectSortValue(issue, field) {
+  const raw = getCellValue(issue, field);
+  if (raw === '' || raw == null) return null;
+  if (field.id === 'priority') {
+    const rank = PRIORITY_RANK[String(raw).toLowerCase()];
+    return rank != null ? rank : 50;
+  }
+  if (field.id === 'status') {
+    const name = String(raw).trim();
+    const idx = PHASES.findIndex(p => p.re.test(name));
+    return String(idx >= 0 ? idx : PHASES.length).padStart(2, '0') + ':' + name.toLowerCase();
+  }
+  if (typeof raw === 'number') return raw;
+  const n = Number(raw);
+  if (typeof raw === 'string' && raw.trim() !== '' && Number.isFinite(n)) return n;
+  return String(raw).toLowerCase();
+}
+
+function compareProjectSortValues(a, b, dir) {
+  const aEmpty = a === '' || a == null;
+  const bEmpty = b === '' || b == null;
+  if (aEmpty && bEmpty) return 0;
+  if (aEmpty) return 1;
+  if (bEmpty) return -1;
+  if (typeof a === 'number' && typeof b === 'number') return (a - b) * dir;
+  return String(a).localeCompare(String(b), undefined, { numeric: true, sensitivity: 'base' }) * dir;
+}
+
+function sortProjectIssues(projKey, issues, fields) {
+  const sort = S._projSort && S._projSort[projKey];
+  if (!sort || !sort.col) return issues;
+  const field = (fields || []).find(f => f.id === sort.col) || ALL_FIELDS.find(f => f.id === sort.col);
+  if (!field) return issues;
+  const dir = sort.dir || 1;
+  return issues.slice().sort((ia, ib) => {
+    const primary = compareProjectSortValues(projectSortValue(ia, field), projectSortValue(ib, field), dir);
+    if (primary !== 0) return primary;
+    return String(ia.key || '').localeCompare(String(ib.key || ''), undefined, { numeric: true });
+  });
+}
+
+function projectSort(projKey, fieldId) {
+  if (!S._projSort) S._projSort = {};
+  const cur = S._projSort[projKey] || { col: null, dir: 1 };
+  if (cur.col === fieldId) cur.dir *= -1;
+  else { cur.col = fieldId; cur.dir = 1; }
+  S._projSort[projKey] = cur;
+  const filter = S.activeFilter && S.activeFilter[projKey];
+  renderIssueTable({ key: projKey }, getFilteredProjectIssues(projKey), filter);
+  if (!_routeNavigating) syncRoute();
+}
+
+function onProjectSearchInput(projKey, value) {
+  getProjectColFilters(projKey).q = value;
+  renderIssueTable({ key: projKey });
+  if (!_routeNavigating) syncRoute();
+}
+
+function clearProjectFilters(projKey) {
+  S._projColFilter[projKey] = { q: '', cols: {} };
+  closeProjectColFilter();
+  renderIssueTable({ key: projKey });
+  if (!_routeNavigating) syncRoute();
+}
+
+function closeProjectColFilter() {
+  const pop = document.getElementById('proj-col-filter-pop');
+  if (pop) pop.classList.remove('open');
+  document.querySelectorAll('.th-filter.active').forEach(el => el.classList.remove('active'));
+  S._openColFilter = null;
+}
+
+function positionProjectColFilter(anchor) {
+  const pop = document.getElementById('proj-col-filter-pop');
+  if (!pop || !anchor) return;
+  const r = anchor.getBoundingClientRect();
+  pop.classList.add('open');
+  const pw = pop.offsetWidth;
+  const ph = pop.offsetHeight;
+  let left = r.left;
+  let top = r.bottom + 4;
+  if (left + pw > window.innerWidth - 8) left = Math.max(8, window.innerWidth - pw - 8);
+  if (top + ph > window.innerHeight - 8) top = Math.max(8, r.top - ph - 4);
+  pop.style.left = left + 'px';
+  pop.style.top = top + 'px';
+}
+
+function renderProjectColFilterOptions(projKey, fieldId, query) {
+  const opts = document.getElementById('proj-col-filter-opts');
+  if (!opts) return;
+  const selected = getProjectColFilters(projKey).cols[fieldId] || new Set();
+  const q = (query || '').toLowerCase();
+  const values = getProjectFieldValues(projKey, fieldId);
+  opts.innerHTML = values.map(([value, count]) => {
+    const label = value === PROJ_BLANK ? '(Blank)' : value;
+    const hide = q && !label.toLowerCase().includes(q);
+    return `<label class="ms-option" data-value="${esc(value)}"${hide ? ' style="display:none"' : ''}>
+      <input type="checkbox" ${selected.has(value) ? 'checked' : ''} onchange='toggleProjectColValue(${JSON.stringify(projKey)},${JSON.stringify(fieldId)},${JSON.stringify(value)},this.checked)' />
+      <span class="ms-option-label" title="${esc(label)}">${esc(label)}</span>
+      <span style="color:var(--text3);font-size:11px">${count}</span>
+    </label>`;
+  }).join('') || `<div style="padding:12px;font-size:12px;color:var(--text3)">No values</div>`;
+}
+
+function openProjectColFilter(projKey, fieldId, anchor) {
+  S._openColFilter = { projKey, fieldId };
+  const search = document.getElementById('proj-col-filter-search');
+  if (search) search.value = '';
+  renderProjectColFilterOptions(projKey, fieldId, '');
+  document.querySelectorAll('.th-filter.active').forEach(el => el.classList.remove('active'));
+  if (anchor) anchor.classList.add('active');
+  positionProjectColFilter(anchor);
+  if (search) search.focus();
+}
+
+function toggleProjectColFilter(ev, projKey, fieldId) {
+  if (ev) ev.stopPropagation();
+  const open = S._openColFilter;
+  if (open && open.projKey === projKey && open.fieldId === fieldId) {
+    closeProjectColFilter();
+    return;
+  }
+  openProjectColFilter(projKey, fieldId, ev && ev.currentTarget);
+}
+
+function filterProjectColOptions(query) {
+  const open = S._openColFilter;
+  if (!open) return;
+  const q = (query || '').toLowerCase();
+  const opts = document.getElementById('proj-col-filter-opts');
+  if (!opts) return;
+  opts.querySelectorAll('.ms-option').forEach(el => {
+    const label = (el.querySelector('.ms-option-label')?.textContent || '').toLowerCase();
+    el.style.display = !q || label.includes(q) ? '' : 'none';
+  });
+}
+
+function normalizeProjectColSelection(projKey, fieldId) {
+  const st = getProjectColFilters(projKey);
+  const selected = st.cols[fieldId];
+  if (!selected) return;
+  const all = getProjectFieldValues(projKey, fieldId).map(([v]) => v);
+  if (!selected.size || (all.length && selected.size === all.length && all.every(v => selected.has(v)))) {
+    delete st.cols[fieldId];
+  }
+}
+
+function toggleProjectColValue(projKey, fieldId, value, checked) {
+  const st = getProjectColFilters(projKey);
+  if (!st.cols[fieldId]) st.cols[fieldId] = new Set();
+  if (checked) st.cols[fieldId].add(value);
+  else st.cols[fieldId].delete(value);
+  normalizeProjectColSelection(projKey, fieldId);
+  renderIssueTable({ key: projKey });
+  if (!_routeNavigating) syncRoute();
+}
+
+function selectVisibleProjectColValues() {
+  const open = S._openColFilter;
+  if (!open) return;
+  const opts = document.getElementById('proj-col-filter-opts');
+  if (!opts) return;
+  const st = getProjectColFilters(open.projKey);
+  if (!st.cols[open.fieldId]) st.cols[open.fieldId] = new Set();
+  opts.querySelectorAll('.ms-option').forEach(el => {
+    if (el.style.display === 'none') return;
+    const cb = el.querySelector('input[type=checkbox]');
+    if (!cb) return;
+    cb.checked = true;
+    st.cols[open.fieldId].add(el.dataset.value);
+  });
+  normalizeProjectColSelection(open.projKey, open.fieldId);
+  renderIssueTable({ key: open.projKey });
+  if (!_routeNavigating) syncRoute();
+}
+
+function clearProjectColFilter() {
+  const open = S._openColFilter;
+  if (!open) return;
+  const st = getProjectColFilters(open.projKey);
+  delete st.cols[open.fieldId];
+  const opts = document.getElementById('proj-col-filter-opts');
+  if (opts) opts.querySelectorAll('input[type=checkbox]').forEach(cb => { cb.checked = false; });
+  renderIssueTable({ key: open.projKey });
+  if (!_routeNavigating) syncRoute();
+}
+
 function renderIssueTable(proj, issues, activeFilter) {
   const issuesEl = document.getElementById('issues-' + proj.key);
   if (!issuesEl) return;
 
-  if (!issues.length) { issuesEl.innerHTML=`<div class="state-box"><span>No issues found${activeFilter && activeFilter!=='Total' ? ' for "'+esc(activeFilter)+'"' : ''}.</span></div>`; return; }
+  const d = S._projData && S._projData[proj.key];
+  const source = d ? (d.issues || []) : (issues || []);
+  if (!source.length) {
+    issuesEl.innerHTML=`<div class="state-box"><span>No issues found${activeFilter && activeFilter!=='Total' ? ' for "'+esc(activeFilter)+'"' : ''}.</span></div>`;
+    return;
+  }
+
+  const existingSearch = document.getElementById('proj-search-' + proj.key);
+  const hadFocus = document.activeElement === existingSearch;
+  const caret = existingSearch ? existingSearch.selectionStart : null;
 
   const vf = S.enabled.map(id => ALL_FIELDS.find(f=>f.id===id)).filter(Boolean);
-  const rows = issues.map(issue => {
+  const filtered = d ? getFilteredProjectIssues(proj.key) : source;
+  const sorted = sortProjectIssues(proj.key, filtered, vf);
+  const sort = (S._projSort && S._projSort[proj.key]) || { col: null, dir: 1 };
+  const colSt = getProjectColFilters(proj.key);
+  const phaseLabel = (S.activeFilter && S.activeFilter[proj.key]) || activeFilter;
+  const rows = sorted.map(issue => {
     const cells = vf.map(f => `<td title="${esc(String(getCellValue(issue,f)))}">${renderCell(f,issue)}</td>`).join('');
     const link = S.creds.url ? S.creds.url + '/browse/' + (issue.key||'') : '#';
     return `<tr onclick="window.open('${link}','_blank')" style="cursor:pointer">${cells}</tr>`;
   }).join('');
 
+  const headers = vf.map(f => {
+    const active = sort.col === f.id;
+    const hasFilter = !!(colSt.cols[f.id] && colSt.cols[f.id].size);
+    const icon = active ? (sort.dir === 1 ? '▲' : '▼') : '▲';
+    const aria = active ? (sort.dir === 1 ? 'ascending' : 'descending') : 'none';
+    const open = S._openColFilter && S._openColFilter.projKey === proj.key && S._openColFilter.fieldId === f.id;
+    return `<th class="${active ? 'sorted' : ''} ${hasFilter ? 'filtered' : ''}">
+      <div class="th-inner">
+        <span class="th-label" onclick='projectSort(${JSON.stringify(proj.key)},${JSON.stringify(f.id)})' aria-sort="${aria}" title="Sort by ${esc(f.label)}">${esc(f.label)} <span class="sort-icon">${icon}</span></span>
+        <button type="button" class="th-filter ${hasFilter ? 'has-filter' : ''} ${open ? 'active' : ''}" data-field="${esc(f.id)}" title="Filter ${esc(f.label)}" aria-label="Filter ${esc(f.label)}" onclick='toggleProjectColFilter(event,${JSON.stringify(proj.key)},${JSON.stringify(f.id)})'>
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"><polygon points="4 5 20 5 14 13 14 19 10 21 10 13 4 5"/></svg>
+        </button>
+      </div>
+    </th>`;
+  }).join('');
+
+  const emptyRow = !sorted.length
+    ? `<tr><td class="issues-empty" colspan="${Math.max(vf.length, 1)}">No issues match the current filters${phaseLabel && phaseLabel !== 'Total' ? ' for "'+esc(phaseLabel)+'"' : ''}.</td></tr>`
+    : '';
+
+  const shown = sorted.length;
+  const total = source.length;
+  const countLabel = shown === total ? `${total} issue${total !== 1 ? 's' : ''}` : `${shown} of ${total} issues`;
+
   issuesEl.innerHTML = `
+    <div class="proj-table-tools">
+      <input id="proj-search-${proj.key}" class="proj-search" type="search" placeholder="Search issues…" value="${esc(colSt.q || '')}" oninput='onProjectSearchInput(${JSON.stringify(proj.key)},this.value)' />
+      ${hasProjectColFilters(proj.key) ? `<button class="btn btn-sm" onclick='clearProjectFilters(${JSON.stringify(proj.key)})'>Clear filters</button>` : ''}
+      <span class="proj-count">${countLabel}</span>
+    </div>
     <div class="table-wrap">
       <table class="issues" aria-label="${esc(proj.key)} issues">
-        <thead><tr>${vf.map(f=>`<th>${esc(f.label)}</th>`).join('')}</tr></thead>
-        <tbody>${rows}</tbody>
+        <thead><tr>${headers}</tr></thead>
+        <tbody>${rows}${emptyRow}</tbody>
       </table>
     </div>`;
+
+  const search = document.getElementById('proj-search-' + proj.key);
+  if (search && hadFocus) {
+    search.focus();
+    if (caret != null) {
+      try { search.setSelectionRange(caret, caret); } catch (e) {}
+    }
+  }
+
+  if (S._openColFilter && S._openColFilter.projKey === proj.key) {
+    const btn = issuesEl.querySelector(`.th-filter[data-field="${S._openColFilter.fieldId}"]`);
+    if (btn) {
+      btn.classList.add('active');
+      positionProjectColFilter(btn);
+    }
+  }
 }
 
 // Field IDs that are Jira user-picker type — always extract displayName
@@ -4302,7 +4964,16 @@ document.addEventListener('click', e => {
   if (!e.target.closest('.ms-wrap')) {
     document.querySelectorAll('.ms-dropdown.open').forEach(d => d.classList.remove('open'));
   }
+  if (!e.target.closest('#proj-col-filter-pop') && !e.target.closest('.th-filter')) {
+    closeProjectColFilter();
+  }
 });
+document.addEventListener('scroll', e => {
+  if (!S._openColFilter) return;
+  if (e.target && e.target.closest && e.target.closest('#proj-col-filter-pop')) return;
+  closeProjectColFilter();
+}, true);
+window.addEventListener('resize', () => { if (S._openColFilter) closeProjectColFilter(); });
 
 function renderTeam() {
   const body = document.getElementById('team-body');
@@ -4894,7 +5565,7 @@ function renderPhaseTimeline() {
     for (let i = changelog.length - 1; i >= 0; i--) {
       const history = changelog[i];
       const statusChanges = (history.items || []).filter(item => 
-        item.field === 'status' && item.toString
+        (item.field === 'status' || item.fieldId === 'status') && item.toString
       );
       
       for (const change of statusChanges) {
@@ -4902,7 +5573,7 @@ function renderPhaseTimeline() {
         const toStatus = change.toString;
         const fromPhase = getPhaseForStatus(fromStatus);
         const toPhase = getPhaseForStatus(toStatus);
-        const changeDate = new Date(history.created);
+        const changeDate = parseJiraDate(history.created);
         if (changeDate >= rangeStart && changeDate <= now) {
           // Prod → Dev
           if (fromPhase && fromPhase.label === 'Product' &&
@@ -5915,11 +6586,12 @@ function selectAllPhaseScopes() {
 
 function formatPeriodLabel(key, period) {
   if (period === 'day') {
-    const d = new Date(key);
+    const d = parseLocalDateKey(key);
     return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
   } else if (period === 'week') {
-    const d = new Date(key);
-    const endDate = new Date(d.getTime() + (6 * 24 * 60 * 60 * 1000));
+    const d = parseLocalDateKey(key);
+    const endDate = new Date(d);
+    endDate.setDate(d.getDate() + 6);
     return `Week of ${d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })} - ${endDate.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}`;
   } else if (period === 'month') {
     const [year, month] = key.split('-');
@@ -5943,7 +6615,53 @@ function formatDateTime(date) {
 /** Pipeline order for forward/backward classification (matches PHASES). */
 const LOG_PHASE_ORDER = PHASES.map(p => p.label);
 
-function getLogMovementDirection(fromPhase, toPhase) {
+/**
+ * Fine-grained status ranks along the delivery pipeline (higher = further along).
+ * Needed because several statuses share the same PHASES bucket (e.g. QA):
+ * EOA-Pending Deployment / Pending DEP → PQA-Pending is forward progress
+ * (deployment done, ready for Product QA to pick up).
+ * More specific patterns must come before broader ones.
+ */
+const STATUS_PIPELINE_STAGES = [
+  { re: /^creating$/i, rank: 5 },
+  { re: /^prod/i, rank: 10 },
+  // Dev prep / queue — Pending, Grooming, Designing are peers (not forward/back vs each other)
+  { re: /^dev[\s-]*(pending|grooming|designing)/i, rank: 25 },
+  // Active development
+  { re: /^dev[\s-]*(developing|cr|merge|reopened)/i, rank: 30 },
+  { re: /^on[\s-]*hold/i, rank: 35 },
+  // Deployment queue (still pre–Product QA)
+  { re: /^(eoa[\s-]*pending|pending[\s-]*dep)/i, rank: 40 },
+  // Product QA after deployment
+  { re: /^pqa/i, rank: 50 },
+  // Other / in-progress QA
+  { re: /^qa/i, rank: 55 },
+  { re: /^(closed|done|resolved|cancelled|won't\s*fix)/i, rank: 70 },
+];
+
+function getStatusPipelineRank(statusName) {
+  const s = (statusName || '').trim();
+  if (!s) return null;
+  for (const stage of STATUS_PIPELINE_STAGES) {
+    if (stage.re.test(s)) return stage.rank;
+  }
+  return null;
+}
+
+/**
+ * Classify movement direction. Prefers status-level pipeline ranks so
+ * same-phase transitions (EOA → PQA) are forward/backward correctly;
+ * falls back to PHASES order when a status is unmapped.
+ */
+function getLogMovementDirection(fromPhase, toPhase, fromStatus, toStatus) {
+  const fromRank = getStatusPipelineRank(fromStatus);
+  const toRank = getStatusPipelineRank(toStatus);
+  if (fromRank != null && toRank != null) {
+    if (toRank > fromRank) return 'forward';
+    if (toRank < fromRank) return 'backward';
+    return 'lateral';
+  }
+
   const fromIdx = LOG_PHASE_ORDER.indexOf(fromPhase);
   const toIdx = LOG_PHASE_ORDER.indexOf(toPhase);
   // Unknown / unmapped statuses are not treated as pipeline progress
@@ -5987,7 +6705,7 @@ function renderLogMovementsTable(items, options = {}) {
       <tbody>
         ${sorted.map(m => {
           const link = S.creds.url ? S.creds.url + '/browse/' + m.key : '#';
-          const dir = m.direction || getLogMovementDirection(m.fromPhase, m.toPhase);
+          const dir = m.direction || getLogMovementDirection(m.fromPhase, m.toPhase, m.from, m.to);
           const dirLabel = dir === 'forward' ? '↑ Forward'
             : dir === 'backward' ? '↓ Backward'
             : dir === 'lateral' ? '→ Lateral'
@@ -6048,7 +6766,7 @@ function groupLogMovementsByProject(items) {
 function groupLogMovementsByDirection(items) {
   return LOG_DIRECTION_SECTIONS.map(section => ({
     ...section,
-    items: items.filter(m => (m.direction || getLogMovementDirection(m.fromPhase, m.toPhase)) === section.key),
+    items: items.filter(m => (m.direction || getLogMovementDirection(m.fromPhase, m.toPhase, m.from, m.to)) === section.key),
   })).filter(s => s.items.length);
 }
 
@@ -6131,7 +6849,7 @@ function renderLogPeriodDetails(periodBucket) {
   }
 
   movements.forEach(m => {
-    m.direction = getLogMovementDirection(m.fromPhase, m.toPhase);
+    m.direction = getLogMovementDirection(m.fromPhase, m.toPhase, m.from, m.to);
   });
 
   const byDirection = {
@@ -6236,6 +6954,8 @@ function renderDailyProgress() {
   // Get current date and range start date
   const now = new Date();
   const rangeStart = new Date(now.getTime() - (range * 24 * 60 * 60 * 1000));
+  // Allow small clock skew between browser and Jira so very recent moves are not dropped
+  const rangeEnd = new Date(now.getTime() + 2 * 60 * 60 * 1000);
 
   // Parse changelog to find all status changes in range
   const movementData = [];
@@ -6243,10 +6963,11 @@ function renderDailyProgress() {
     const changelog = issue.changelog?.histories || [];
     
     changelog.forEach(history => {
-      const changeDate = new Date(history.created);
-      if (changeDate >= rangeStart && changeDate <= now) {
+      const changeDate = parseJiraDate(history.created);
+      if (Number.isNaN(changeDate.getTime())) return;
+      if (changeDate >= rangeStart && changeDate <= rangeEnd) {
         const statusChanges = (history.items || []).filter(item => 
-          item.field === 'status' && item.fromString && item.toString
+          (item.field === 'status' || item.fieldId === 'status') && item.fromString && item.toString
         );
         
         statusChanges.forEach(change => {
@@ -6279,19 +7000,11 @@ function renderDailyProgress() {
     return;
   }
 
-  // Group by time period
+  // Group by time period (local calendar day/week — not UTC)
   const periodMap = {};
   movementData.forEach(item => {
-    let periodKey;
     const d = item.changeDate;
-    
-    if (period === 'day') {
-      periodKey = d.toISOString().split('T')[0]; // YYYY-MM-DD
-    } else if (period === 'week') {
-      const weekStart = new Date(d);
-      weekStart.setDate(d.getDate() - d.getDay()); // Start of week (Sunday)
-      periodKey = weekStart.toISOString().split('T')[0];
-    }
+    const periodKey = getPhasePeriodKey(d, period);
     
     if (!periodMap[periodKey]) {
       periodMap[periodKey] = {
@@ -6320,8 +7033,8 @@ function renderDailyProgress() {
     }
     periodMap[periodKey].byPhase[phaseLabel].count++;
     
-    // Classify movement type (forward vs backward) using pipeline order
-    const dir = getLogMovementDirection(item.fromPhase, item.toPhase);
+    // Classify movement type (forward vs backward) using status/phase pipeline order
+    const dir = getLogMovementDirection(item.fromPhase, item.toPhase, item.from, item.to);
     item.direction = dir;
     if (dir === 'forward') periodMap[periodKey].byType.forward++;
     else if (dir === 'backward') periodMap[periodKey].byType.backward++;

@@ -37,7 +37,7 @@
       ]
     },
     "P2P": {
-      "jql": "project in (P2P) AND issuetype in (Enhancement) AND fixVersion = N2026.R2 ORDER BY \"Scope Commitment At SC\", status desc, Priority DESC",
+      "jql": "project in (P2P) AND issuetype in (Epic, Enhancement) AND fixVersion = N2026.R2 ORDER BY Issuetype desc, status asc, Priority DESC",
       "enabled": true,
       "releases": [
         "N2026.R2"
