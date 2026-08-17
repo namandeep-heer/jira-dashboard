@@ -2,6 +2,12 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8" />
+<script>
+try {
+  var _sb = JSON.parse(localStorage.getItem('jira_dash_v3') || '{}');
+  if (_sb.sidebarCollapsed) document.documentElement.classList.add('sidebar-collapsed');
+} catch (e) {}
+</script>
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
 <title>Jira Dashboard</title>
 <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'><rect x='3' y='3' width='7' height='7' rx='1.5' fill='%23185FA5'/><rect x='14' y='3' width='7' height='7' rx='1.5' fill='%23185FA5'/><rect x='3' y='14' width='7' height='7' rx='1.5' fill='%23185FA5'/><rect x='14' y='14' width='7' height='7' rx='1.5' fill='%23185FA5'/></svg>">
@@ -55,24 +61,38 @@ body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sa
 
 /* ── Layout ── */
 #app { display: flex; height: 100vh; }
-#sidebar { width: var(--sidebar-w); background: var(--bg2); border-right: 0.5px solid var(--border); display: flex; flex-direction: column; flex-shrink: 0; overflow-y: auto; }
+#sidebar { width: var(--sidebar-w); background: var(--bg2); border-right: 0.5px solid var(--border); display: flex; flex-direction: column; flex-shrink: 0; overflow-x: hidden; overflow-y: auto; transition: width .18s ease; }
 #main { flex: 1; display: flex; flex-direction: column; overflow: hidden; min-width: 0; }
 #topbar { height: var(--header-h); background: var(--bg); border-bottom: 0.5px solid var(--border); display: flex; align-items: center; padding: 0 20px; gap: 10px; flex-shrink: 0; }
 #topbar h1 { font-size: 15px; font-weight: 600; flex: 1; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 #content { flex: 1; overflow-y: auto; padding: 24px; background: var(--bg3); }
 
 /* ── Sidebar ── */
-.sidebar-brand { padding: 13px 16px; border-bottom: 0.5px solid var(--border); display: flex; align-items: center; gap: 10px; }
+.sidebar-brand { padding: 13px 12px 13px 16px; border-bottom: 0.5px solid var(--border); display: flex; align-items: center; gap: 10px; flex-shrink: 0; }
 .brand-icon { width: 30px; height: 30px; background: #185FA5; border-radius: 7px; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
 .brand-icon svg { width: 16px; height: 16px; stroke: #fff; fill: none; stroke-width: 2; }
+.brand-copy { min-width: 0; flex: 1; }
 .brand-text { font-size: 13px; font-weight: 600; }
 .brand-sub { font-size: 10px; color: var(--text3); margin-top: 1px; }
+.sidebar-toggle { display: inline-flex; align-items: center; justify-content: center; width: 26px; height: 26px; padding: 0; border: none; border-radius: 6px; background: none; color: var(--text3); cursor: pointer; flex-shrink: 0; }
+.sidebar-toggle:hover { background: var(--bg3); color: var(--text); }
+.sidebar-toggle svg { width: 15px; height: 15px; transition: transform .18s ease; }
+html.sidebar-collapsed .sidebar-toggle svg { transform: scaleX(-1); }
 .sec-label { padding: 14px 14px 4px; font-size: 10px; font-weight: 600; color: var(--text3); letter-spacing: 0.07em; text-transform: uppercase; }
 .category-label { padding: 10px 14px 4px; font-size: 9px; font-weight: 600; color: var(--text3); letter-spacing: 0.06em; text-transform: uppercase; opacity: 0.8; }
-.nav-item { display: flex; align-items: center; gap: 9px; padding: 7px 12px; margin: 1px 6px; border-radius: var(--radius); cursor: pointer; font-size: 13px; color: var(--text2); background: none; border: none; width: calc(100% - 12px); text-align: left; font-family: inherit; transition: background .12s, color .12s; }
+.nav-item { display: flex; align-items: center; gap: 9px; padding: 7px 12px; margin: 1px 6px; border-radius: var(--radius); cursor: pointer; font-size: 13px; color: var(--text2); background: none; border: none; width: calc(100% - 12px); text-align: left; font-family: inherit; transition: background .12s, color .12s; position: relative; }
 .nav-item:hover { background: var(--bg3); color: var(--text); }
 .nav-item.active { background: var(--bg); color: var(--text); font-weight: 600; box-shadow: 0 0 0 0.5px var(--border); }
+.nav-label { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .proj-dot { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
+html.sidebar-collapsed #sidebar { width: 56px; }
+html.sidebar-collapsed .brand-copy,
+html.sidebar-collapsed .sec-label,
+html.sidebar-collapsed .category-label,
+html.sidebar-collapsed .nav-label { display: none; }
+html.sidebar-collapsed .sidebar-brand { padding: 10px 6px; flex-direction: column; gap: 8px; }
+html.sidebar-collapsed .nav-item { width: calc(100% - 8px); margin: 1px 4px; padding: 8px 0; justify-content: center; gap: 0; }
+html.sidebar-collapsed #log-badge { position: absolute; top: 3px; right: 3px; margin-left: 0; min-width: 7px; width: 7px; height: 7px; padding: 0; font-size: 0; line-height: 0; overflow: hidden; }
 
 /* ── Buttons ── */
 .btn { display: inline-flex; align-items: center; gap: 6px; padding: 6px 13px; border-radius: var(--radius); border: 0.5px solid var(--border2); background: var(--bg); cursor: pointer; font-size: 13px; color: var(--text); font-family: inherit; transition: background .12s; white-space: nowrap; }
@@ -521,55 +541,58 @@ code { font-family: monospace; font-size: 12px; background: var(--bg3); padding:
       <div class="brand-icon">
         <svg viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="3" width="7" height="7" rx="1.5"/><rect x="3" y="14" width="7" height="7" rx="1.5"/><rect x="14" y="14" width="7" height="7" rx="1.5"/></svg>
       </div>
-      <div><div class="brand-text">Jira Dashboard</div></div>
+      <div class="brand-copy"><div class="brand-text">Jira Dashboard</div></div>
+      <button type="button" class="sidebar-toggle" id="sidebar-toggle" onclick="toggleSidebar()" title="Collapse menu" aria-label="Collapse menu" aria-expanded="true" aria-controls="sidebar">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="16" rx="2"/><path d="M9 4v16"/></svg>
+      </button>
     </div>
 
     <div class="sec-label" id="projects-section-label">Projects</div>
     <div id="projects-container"></div>
 
     <div class="sec-label">Insights</div>
-    <button class="nav-item" onclick="nav('velocity')" id="nav-velocity">
+    <button class="nav-item" onclick="nav('velocity')" id="nav-velocity" title="Developer Velocity">
       <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z"/></svg>
-      Developer Velocity
+      <span class="nav-label">Developer Velocity</span>
     </button>
-    <button class="nav-item" onclick="nav('data-gaps')" id="nav-data-gaps">
+    <button class="nav-item" onclick="nav('data-gaps')" id="nav-data-gaps" title="Data Gaps">
       <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
-      Data Gaps
+      <span class="nav-label">Data Gaps</span>
     </button>
-    <button class="nav-item" onclick="nav('analytics')" id="nav-analytics">
+    <button class="nav-item" onclick="nav('analytics')" id="nav-analytics" title="Analytics">
       <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>
-      Analytics
+      <span class="nav-label">Analytics</span>
     </button>
-    <button class="nav-item" onclick="nav('team')" id="nav-team">
+    <button class="nav-item" onclick="nav('team')" id="nav-team" title="Team View">
       <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
-      Team View
+      <span class="nav-label">Team View</span>
     </button>
-    <button class="nav-item" onclick="nav('phase-timeline')" id="nav-phase-timeline">
+    <button class="nav-item" onclick="nav('phase-timeline')" id="nav-phase-timeline" title="Project Phase">
       <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 3v18h18"/><path d="M18 17V9"/><path d="M13 17V5"/><path d="M8 17v-3"/></svg>
-      Project Phase
+      <span class="nav-label">Project Phase</span>
     </button>
-    <button class="nav-item" onclick="nav('log')" id="nav-log">
+    <button class="nav-item" onclick="nav('log')" id="nav-log" title="Daily Progress">
       <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><polyline points="10 9 9 9 8 9"/></svg>
-      Daily Progress
+      <span class="nav-label">Daily Progress</span>
       <span id="log-badge" style="display:none;margin-left:auto;background:var(--red);color:#fff;font-size:10px;font-weight:700;padding:1px 6px;border-radius:10px"></span>
     </button>
 
     <div class="sec-label">Config</div>
-    <button class="nav-item" onclick="nav('projects-config')" id="nav-projects-config">
+    <button class="nav-item" onclick="nav('projects-config')" id="nav-projects-config" title="Projects">
       <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="3" width="7" height="7" rx="1.5"/><rect x="3" y="14" width="7" height="7" rx="1.5"/><rect x="14" y="14" width="7" height="7" rx="1.5"/></svg>
-      Projects
+      <span class="nav-label">Projects</span>
     </button>
-    <button class="nav-item" onclick="nav('releases-config')" id="nav-releases-config">
+    <button class="nav-item" onclick="nav('releases-config')" id="nav-releases-config" title="Releases">
       <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"/><line x1="9" y1="3" x2="9" y2="21"/><line x1="15" y1="3" x2="15" y2="21"/><line x1="3" y1="9" x2="21" y2="9"/><line x1="3" y1="15" x2="21" y2="15"/></svg>
-      Releases
+      <span class="nav-label">Releases</span>
     </button>
-    <button class="nav-item" onclick="nav('fields')" id="nav-fields">
+    <button class="nav-item" onclick="nav('fields')" id="nav-fields" title="Field Configuration">
       <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="8" y1="6" x2="21" y2="6"/><line x1="8" y1="12" x2="21" y2="12"/><line x1="8" y1="18" x2="21" y2="18"/><line x1="3" y1="6" x2="3.01" y2="6"/><line x1="3" y1="12" x2="3.01" y2="12"/><line x1="3" y1="18" x2="3.01" y2="18"/></svg>
-      Field Configuration
+      <span class="nav-label">Field Configuration</span>
     </button>
-    <button class="nav-item" onclick="nav('setup')" id="nav-setup">
+    <button class="nav-item" onclick="nav('setup')" id="nav-setup" title="Jira Setup">
       <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M19.07 4.93a10 10 0 0 1 0 14.14M4.93 4.93a10 10 0 0 0 0 14.14"/></svg>
-      Jira Setup
+      <span class="nav-label">Jira Setup</span>
     </button>
   </nav>
 
@@ -1518,6 +1541,7 @@ let S = {
   customProjects:[],
   projectSettings:{},
   theme:'',
+  sidebarCollapsed:false,
   analyticsViews:{ phase:'table', dev:'table', priority:'doughnut', type:'doughnut' }
 };
 
@@ -1611,6 +1635,23 @@ function applyTheme(theme, shouldPersist = true) {
 
 function toggleTheme() {
   applyTheme(S.theme === 'dark' ? 'light' : 'dark');
+}
+
+function applySidebar(collapsed, shouldPersist = true) {
+  S.sidebarCollapsed = !!collapsed;
+  document.documentElement.classList.toggle('sidebar-collapsed', S.sidebarCollapsed);
+  const btn = document.getElementById('sidebar-toggle');
+  if (btn) {
+    const label = S.sidebarCollapsed ? 'Expand menu' : 'Collapse menu';
+    btn.title = label;
+    btn.setAttribute('aria-label', label);
+    btn.setAttribute('aria-expanded', S.sidebarCollapsed ? 'false' : 'true');
+  }
+  if (shouldPersist) persist();
+}
+
+function toggleSidebar() {
+  applySidebar(!S.sidebarCollapsed);
 }
 
 // ── Proxy health check ───────────────────────────────────────────────────────
@@ -7464,8 +7505,9 @@ function rebuildDynamicUI() {
       const btn = document.createElement('button');
       btn.className = 'nav-item';
       btn.id = 'nav-' + proj.id;
+      btn.title = proj.name;
       btn.onclick = () => nav(proj.id);
-      btn.innerHTML = `<span class="proj-dot" style="background:${esc(proj.color)}"></span>${esc(proj.name)}`;
+      btn.innerHTML = `<span class="proj-dot" style="background:${esc(proj.color)}"></span><span class="nav-label">${esc(proj.name)}</span>`;
       projectsContainer.appendChild(btn);
       
       // Create page div
@@ -8450,6 +8492,7 @@ async function initApp() {
   await loadDefaultProjects();
 
   applyTheme(S.theme || getPreferredTheme(), false);
+  applySidebar(!!S.sidebarCollapsed, false);
   rebuildDynamicUI();
   renderFields();
   updateLogBadge();
@@ -8468,6 +8511,7 @@ async function initApp() {
 initApp().catch(err => {
   console.error('[initApp]', err);
   applyTheme(S.theme || getPreferredTheme(), false);
+  applySidebar(!!S.sidebarCollapsed, false);
   renderFields();
   nav('setup');
   checkProxy();
