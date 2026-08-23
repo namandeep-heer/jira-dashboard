@@ -19,7 +19,7 @@ For people who do not use Node.js or the terminal:
     1. Download the zip for your chip (Intel or Apple Silicon)
     2. Unzip and double-click `Jira-Dashboard`
        (If blocked: right-click → Open → Open)
-    3. Follow steps 4–5 above
+    3. Follow the packaged setup steps in the `README.txt` included with the download.
 
   **Stop the app:** close the window that opened, or press Ctrl+C in it.
 
@@ -56,12 +56,64 @@ BUILD STANDALONE DOWNLOADS
 
 FIRST TIME USE
 --------------
-  1. Go to "Jira Setup" in the sidebar
-  2. Enter your Jira URL:  https://yourcompany.atlassian.net
-  3. Enter your email and API token
-     (Generate token at: https://id.atlassian.com/manage-profile/security/api-tokens)
-  4. Click "Test connection"
-  5. Navigate to any project in the sidebar
+  1. Set `JIRA_URL` and `JIRA_CREDENTIAL_ENCRYPTION_KEY` in `config/.env`.
+    Keep the encryption key private and do not commit `.env`.
+  2. Open the dashboard and choose "Create an account".
+  3. Enter your email, password, and Jira API token
+    (Generate token at: https://id.atlassian.com/manage-profile/security/api-tokens)
+  4. The dashboard verifies Jira access and encrypts the token before storing it.
+      5. The account whose email matches `SUPABASE_ADMIN_EMAIL` becomes the administrator
+        automatically. Other accounts are created as viewers.
+  6. Sign in again, open "Jira Setup", and click "Test connection".
+
+  Access roles
+  ------------
+  Users sign in with email and password through Supabase. During registration,
+  they verify their email and API token against the Jira URL in `config/.env`.
+  The account matching `SUPABASE_ADMIN_EMAIL` is an administrator; later accounts are viewers.
+  Administrators can
+  change configuration; viewers can read the shared dashboard but cannot change it.
+
+  Cloud persistence
+  -----------------
+  When Supabase is configured, the dashboard stores shared workspace settings,
+  Jira credentials, release and project configuration, synced Jira data, connector
+  schedules, and activity logs in the `shared_dashboard_state` table. The Supabase schema
+  is in `supabase/schema.sql`; run it in the Supabase SQL Editor before first use.
+  The connector scheduler runs while the dashboard tab is open.
+  Set `JIRA_URL` and `JIRA_CREDENTIAL_ENCRYPTION_KEY` in `config/.env`; the Jira base URL is managed by the proxy and API tokens are encrypted before storage.
+
+    Supabase preparation
+    --------------------
+    1. Create or open the Supabase project referenced by `SUPABASE_URL`.
+    2. In Supabase Authentication, enable Email provider and email/password sign-in.
+      Disable email confirmation for local setup, or require users to confirm before signing in.
+    3. Run all of `supabase/schema.sql` in the Supabase SQL Editor.
+    4. Configure `SUPABASE_URL`, `SUPABASE_ANON_KEY`, `SUPABASE_ADMIN_EMAIL`,
+      `SUPABASE_SERVICE_ROLE_KEY`, `JIRA_URL`, and a private random
+      `JIRA_CREDENTIAL_ENCRYPTION_KEY` in `config/.env`.
+    5. Get `SUPABASE_SERVICE_ROLE_KEY` from Supabase Project Settings → API.
+      It must remain server-only and must never be sent to the browser.
+    6. Never commit or share `config/.env`. The encryption key is required to decrypt
+      stored Jira tokens; losing it makes existing encrypted tokens unusable.
+
+    Account setup
+    ------------
+    1. Start the proxy and open the dashboard.
+    2. Choose "Create an account" and enter your email, password, and Jira API token.
+      The account email is used as the Jira email. Jira access is verified before registration.
+      3. If the account email matches `SUPABASE_ADMIN_EMAIL`, the proxy automatically creates
+        its `admin` membership using the server-only service-role key.
+        Other accounts are assigned `viewer`.
+      4. Sign out and sign in again. The header should show the assigned role.
+
+    Credential security
+    -------------------
+    Jira API tokens are encrypted with AES-256-GCM by the local proxy before being stored
+    in `user_jira_credentials.jira_token_ciphertext`. Jira URL and email are not secrets.
+    The encryption key stays in the proxy's `.env` and is never sent to Supabase.
+    Rotate the Jira token and encryption key if either is exposed, then save the new token
+    through the dashboard.
 
 CUSTOM FIELD IDs
 ----------------

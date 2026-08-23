@@ -40,22 +40,20 @@ function run(cmd) {
 }
 
 function copyPackageFiles(outDir) {
-  const configOut = path.join(outDir, 'config');
-  fs.mkdirSync(configOut, { recursive: true });
-
   fs.copyFileSync(
     path.join(ROOT, 'dashboard.html'),
     path.join(outDir, 'dashboard.html')
   );
 
   fs.copyFileSync(
-    path.join(ROOT, 'config', 'projects.default.json'),
-    path.join(configOut, 'projects.default.json')
+    path.join(ROOT, 'README.md'),
+    path.join(outDir, 'README.txt')
   );
 
+  fs.mkdirSync(path.join(outDir, 'config'), { recursive: true });
   fs.copyFileSync(
-    path.join(ROOT, 'docs', 'STANDALONE-README.txt'),
-    path.join(outDir, 'README.txt')
+    path.join(ROOT, 'config', '.env'),
+    path.join(outDir, 'config', '.env')
   );
 
   if (process.platform === 'win32') {

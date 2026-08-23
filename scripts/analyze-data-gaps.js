@@ -12,19 +12,20 @@
  */
 
 const fs = require('fs');
-const path = require('path');
 const fetch = require('node-fetch');
 const { analyzeCache, isDevWorkComplete } = require('../lib/data-gaps');
 
-const ROOT = path.join(__dirname, '..');
 const PROXY = 'http://127.0.0.1:3131/jira-api';
 
 function loadProjects() {
-  const defaults = JSON.parse(fs.readFileSync(path.join(ROOT, 'config', 'projects.default.json'), 'utf8')).defaultProjects;
-  const settings = JSON.parse(fs.readFileSync(path.join(ROOT, 'config', 'projects.json'), 'utf8')).projectSettings || {};
-  return defaults
-    .filter(p => settings[p.key]?.enabled !== false)
-    .map(p => ({ ...p, jql: settings[p.key]?.jql || p.jql }));
+  return [
+    { key:'NFS', jql:'project in (NFS) AND issuetype in (Enhancement, Epic)' },
+    { key:'FCO', jql:'project in (FCO) AND issuetype in (Enhancement, Epic)' },
+    { key:'INC', jql:'project in (INC) AND issuetype in (Enhancement, Epic)' },
+    { key:'GL', jql:'project in (GL) AND issuetype in (Enhancement, Epic)' },
+    { key:'FAA', jql:'project in (FAA) AND issuetype in (Enhancement, Epic)' },
+    { key:'P2P', jql:'project in (P2P) AND issuetype in (Enhancement)' }
+  ];
 }
 
 async function fetchAllIssues(url, auth, jql) {
