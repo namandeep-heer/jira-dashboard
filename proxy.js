@@ -25,6 +25,8 @@ const ROOT = typeof process.pkg !== 'undefined'
 // Config directory for storing JSON files
 const CONFIG_DIR = path.join(ROOT, 'config');
 const { analyzeCache } = require('./lib/data-gaps');
+const { analyzeRelease, mergeAiInsights, AI_RESPONSE_SCHEMA, adfToText } = require('./lib/release-report');
+const { buildReleaseReportPptx, sanitizeFilename } = require('./lib/release-report-pptx');
 if (!fs.existsSync(CONFIG_DIR)) {
   fs.mkdirSync(CONFIG_DIR, { recursive: true });
 }
@@ -41,6 +43,7 @@ function loadEnvFile(filePath) {
 const localEnv = loadEnvFile(path.join(CONFIG_DIR, '.env'));
 const supabaseServiceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY || localEnv.SUPABASE_SERVICE_ROLE_KEY || '';
 const credentialEncryptionKey = process.env.JIRA_CREDENTIAL_ENCRYPTION_KEY || localEnv.JIRA_CREDENTIAL_ENCRYPTION_KEY || '';
+const xaiApiKey = process.env.XAI_API_KEY || localEnv.XAI_API_KEY || '';
 
 function credentialCipherKey() {
   return crypto.createHash('sha256').update(credentialEncryptionKey).digest();
@@ -63,7 +66,7 @@ function decryptCredential(value) {
   return Buffer.concat([decipher.update(encrypted), decipher.final()]).toString('utf8');
 }
 
-app.use(express.json());
+app.use(express.json({ limit: '20mb' }));
 
 // ── CORS headers on every response ──────────────────────────────────────────
 app.use((req, res, next) => {
@@ -206,6 +209,148 @@ app.all('/supabase-api/*', async (req, res) => {
   } catch (err) {
     console.error('[supabase proxy error]', err.message);
     res.status(err.name === 'AbortError' ? 504 : 502).json({ error: 'Supabase proxy fetch failed: ' + err.message });
+  }
+});
+
+function issueDescriptionText(issue) {
+  const raw = issue?.fields?.description;
+  if (raw == null || raw === '') return '';
+  if (typeof raw === 'string') return raw;
+  return adfToText(raw);
+}
+
+function compactTicketsForAi(projects, max = 80) {
+  const rows = [];
+  (projects || []).forEach(p => {
+    (p.issues || []).forEach(issue => {
+      const f = issue.fields || {};
+      const desc = issueDescriptionText(issue).replace(/\s+/g, ' ').trim().slice(0, 700);
+      rows.push({
+        project: p.project?.key || p.project?.name || '',
+        key: issue.key,
+        summary: f.summary || '',
+        type: f.issuetype?.name || f.issuetype?.value || '',
+        priority: f.priority?.name || '',
+        status: f.status?.name || '',
+        description: desc,
+      });
+    });
+  });
+  rows.sort((a, b) => Number(!!b.description) - Number(!!a.description));
+  return rows.slice(0, max);
+}
+
+async function enrichReleaseReportWithAi(report, body) {
+  if (!xaiApiKey) {
+    return { report, ai: { used: false, reason: 'XAI_API_KEY is not configured on the proxy' } };
+  }
+  const tickets = compactTicketsForAi(body.projects);
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), 90000);
+  try {
+    const payload = {
+      model: 'grok-4.6',
+      messages: [
+        {
+          role: 'system',
+          content: 'You write internal company all-hands briefings for software releases. Be specific and factual. Use business language, not Jira jargon. Never invent tickets, dates, or metrics. High-value work is customer impact, contractual commitments, large capabilities, compliance/security, or work that unblocks other teams — not ticket volume. If a ticket description is thin, say so rather than guessing.',
+        },
+        {
+          role: 'user',
+          content: JSON.stringify({
+            releaseName: report.releaseName,
+            reportKind: report.reportKind,
+            portfolio: report.portfolio,
+            projectSummaries: (report.projects || []).map(p => ({
+              name: p.projectName,
+              progress: p.progress,
+              heuristicThemes: p.delivered?.themes,
+              heuristicHighValue: p.highValue,
+              heuristicRisks: p.risks,
+              narrative: p.narrative,
+            })),
+            tickets,
+          }),
+        },
+      ],
+      response_format: {
+        type: 'json_schema',
+        json_schema: {
+          name: 'release_report_insights',
+          schema: AI_RESPONSE_SCHEMA,
+          strict: true,
+        },
+      },
+    };
+    const upstream = await fetch('https://api.x.ai/v1/chat/completions', {
+      method: 'POST',
+      headers: {
+        Authorization: 'Bearer ' + xaiApiKey,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(payload),
+      signal: controller.signal,
+    });
+    const json = await upstream.json().catch(() => ({}));
+    if (!upstream.ok) {
+      const detail = json.error?.message || json.error || `HTTP ${upstream.status}`;
+      return { report, ai: { used: false, reason: 'SpaceXAI request failed: ' + String(detail).slice(0, 240) } };
+    }
+    const content = json.choices?.[0]?.message?.content;
+    if (!content) {
+      return { report, ai: { used: false, reason: 'SpaceXAI returned an empty response' } };
+    }
+    const insights = typeof content === 'string' ? JSON.parse(content) : content;
+    return { report: mergeAiInsights(report, insights), ai: { used: true } };
+  } catch (err) {
+    const reason = err.name === 'AbortError' ? 'SpaceXAI request timed out' : (err.message || 'SpaceXAI request failed');
+    return { report, ai: { used: false, reason } };
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
+app.get('/api/release-report/status', (req, res) => {
+  res.json({ aiAvailable: !!xaiApiKey });
+});
+
+app.post('/api/release-report', async (req, res) => {
+  try {
+    const body = req.body || {};
+    if (!Array.isArray(body.projects) || !body.projects.length) {
+      res.status(400).json({ error: 'Select at least one project with synced issues' });
+      return;
+    }
+    let report = analyzeRelease(body);
+    if (body.useAi) {
+      const enriched = await enrichReleaseReportWithAi(report, body);
+      report = enriched.report;
+      report.ai = enriched.ai;
+    } else {
+      report.ai = { used: false };
+    }
+    res.json(report);
+  } catch (err) {
+    console.error('[release-report]', err.message);
+    res.status(500).json({ error: err.message || 'Could not build release report' });
+  }
+});
+
+app.post('/api/release-report/pptx', async (req, res) => {
+  try {
+    const report = req.body?.report;
+    if (!report || !Array.isArray(report.projects) || !report.projects.length) {
+      res.status(400).json({ error: 'Missing generated report' });
+      return;
+    }
+    const buf = await buildReleaseReportPptx(report);
+    const name = sanitizeFilename(report.releaseName) + '-release-report.pptx';
+    res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.presentationml.presentation');
+    res.setHeader('Content-Disposition', `attachment; filename="${name}"`);
+    res.send(buf);
+  } catch (err) {
+    console.error('[release-report-pptx]', err.message);
+    res.status(500).json({ error: err.message || 'Could not build PowerPoint' });
   }
 });
 

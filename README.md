@@ -92,6 +92,7 @@ FIRST TIME USE
     4. Configure `SUPABASE_URL`, `SUPABASE_ANON_KEY`, `SUPABASE_ADMIN_EMAIL`,
       `SUPABASE_SERVICE_ROLE_KEY`, `JIRA_URL`, and a private random
       `JIRA_CREDENTIAL_ENCRYPTION_KEY` in `config/.env`.
+      Optional: set `XAI_API_KEY` so Release Report can read ticket descriptions with SpaceXAI.
     5. Get `SUPABASE_SERVICE_ROLE_KEY` from Supabase Project Settings → API.
       It must remain server-only and must never be sent to the browser.
     6. Never commit or share `config/.env`. The encryption key is required to decrypt
@@ -146,6 +147,13 @@ FEATURES
     * Visual indicators for behind schedule, on track, or has capacity
     * Drill down into individual ticket breakdowns
   - CSV export per project
+  - Release Report (selected release, accounting portfolio):
+    * Snapshot any time during the release, or an end-of-release briefing
+    * One progress slide per project (status mix vs milestone dates)
+    * Release-at-a-glance table across projects
+    * High-value deliverables from every project, then cumulative portfolio risks
+    * Download as PowerPoint for a company all-hands
+    * Optional SpaceXAI write-up of ticket descriptions when `XAI_API_KEY` is set in `config/.env`
   - Click any row to open the issue in Jira
   - Dark mode (follows system preference)
 
