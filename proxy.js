@@ -28,6 +28,7 @@ const { analyzeRelease, mergeAiInsights, AI_RESPONSE_SCHEMA, adfToText } = requi
 const { buildReleaseReportPptx, sanitizeFilename } = require('./lib/release-report-pptx');
 const { buildReleaseReportHtml, htmlFilename, normalizeTicketGroupBy } = require('./lib/release-report-html');
 const { createLocalStore } = require('./lib/local-store');
+const { slimDashboardState, dashboardStateForClient } = require('./lib/slim-cache');
 if (!fs.existsSync(CONFIG_DIR)) {
   fs.mkdirSync(CONFIG_DIR, { recursive: true });
 }
@@ -52,6 +53,29 @@ const store = createLocalStore({
   encryptionKey: credentialEncryptionKey,
   adminEmail,
 });
+
+function compactStoredDashboardState() {
+  const current = store.getSharedState();
+  if (!current || typeof current !== 'object') return;
+  const hasCache = current.cache && typeof current.cache === 'object' && Object.keys(current.cache).length;
+  const hasReleaseCache = current.releaseCache && typeof current.releaseCache === 'object'
+    && Object.keys(current.releaseCache).length;
+  if (!hasCache && !hasReleaseCache) return;
+  store.setSharedState(slimDashboardState(current));
+}
+
+try {
+  const before = fs.existsSync(store.filePath) ? fs.statSync(store.filePath).size : 0;
+  compactStoredDashboardState();
+  const after = fs.existsSync(store.filePath) ? fs.statSync(store.filePath).size : 0;
+  if (before && after && after < before) {
+    console.log('[store] Compacted cached Jira data: '
+      + Math.round(before / 1024 / 1024) + 'MB → '
+      + Math.round(after / 1024 / 1024) + 'MB');
+  }
+} catch (err) {
+  console.warn('[store] Could not compact cached Jira data:', err.message);
+}
 
 function accessTokenFrom(req) {
   return String(req.headers.authorization || '').replace(/^Bearer\s+/i, '');
@@ -94,7 +118,9 @@ async function verifyJiraAccess(url, email, token) {
   };
 }
 
-app.use(express.json({ limit: '20mb' }));
+const JSON_BODY_LIMIT = '100mb';
+app.use(express.json({ limit: JSON_BODY_LIMIT }));
+app.use(express.urlencoded({ extended: true, limit: JSON_BODY_LIMIT }));
 
 // ── CORS headers on every response ──────────────────────────────────────────
 app.use((req, res, next) => {
@@ -107,6 +133,7 @@ app.use((req, res, next) => {
 
 // ── Serve the dashboard HTML ─────────────────────────────────────────────────
 app.get('/', (req, res) => {
+  res.setHeader('Cache-Control', 'no-store');
   res.sendFile(path.join(ROOT, 'dashboard.html'));
 });
 
@@ -193,7 +220,7 @@ app.get('/api/dashboard', async (req, res) => {
         jiraEmail: credentials.jiraEmail,
         token: credentials.token,
       } : null,
-      state: store.getSharedState(),
+      state: dashboardStateForClient(store.getSharedState()),
     });
   } catch (err) {
     sendStoreError(res, err);
@@ -208,7 +235,7 @@ app.post('/api/dashboard/state', (req, res) => {
     return;
   }
   try {
-    store.setSharedState(req.body.state);
+    store.setSharedState(slimDashboardState(req.body.state));
     res.json({ ok: true });
   } catch (err) {
     sendStoreError(res, err);
@@ -374,7 +401,12 @@ app.post('/api/release-report/pptx', async (req, res) => {
     res.send(buf);
   } catch (err) {
     console.error('[release-report-pptx]', err.message);
-    res.status(500).json({ error: err.message || 'Could not build PowerPoint' });
+    const missing = /cannot find module ['"]pptxgenjs['"]/i.test(String(err.message || ''));
+    res.status(500).json({
+      error: missing
+        ? "Cannot find module 'pptxgenjs'. From the Jira Dashboard folder run `npm install`, then restart the app."
+        : (err.message || 'Could not build PowerPoint'),
+    });
   }
 });
 
@@ -465,7 +497,24 @@ app.get('*', (req, res, next) => {
   if (p.startsWith('/jira-api') || p.startsWith('/config') || p.startsWith('/api/') || p === '/health') {
     return next();
   }
+  res.setHeader('Cache-Control', 'no-store');
   res.sendFile(path.join(ROOT, 'dashboard.html'));
+});
+
+app.use((err, req, res, next) => {
+  if (!err) { next(); return; }
+  const tooLarge = err.type === 'entity.too.large' || err.status === 413 || err.statusCode === 413;
+  if (tooLarge) {
+    console.warn('[proxy] Request too large:', req.method, req.originalUrl || req.url);
+    if (!res.headersSent) {
+      res.status(413).json({ error: 'Request is too large. Refresh the dashboard and try again.' });
+    }
+    return;
+  }
+  console.error('[proxy]', err);
+  if (!res.headersSent) {
+    res.status(err.status || 500).json({ error: err.message || 'Request failed' });
+  }
 });
 
 // ── Start ────────────────────────────────────────────────────────────────────

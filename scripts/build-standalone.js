@@ -117,9 +117,18 @@ function resolveTargets(arg) {
   process.exit(1);
 }
 
+function assertPptxgenjsInstalled() {
+  const pptxCjs = path.join(ROOT, 'node_modules', 'pptxgenjs', 'dist', 'pptxgen.cjs.js');
+  if (!fs.existsSync(pptxCjs)) {
+    console.error('pptxgenjs is missing. Run npm install before building the standalone app.');
+    process.exit(1);
+  }
+}
+
 function main() {
   const arg = process.argv[2];
   const targets = resolveTargets(arg);
+  assertPptxgenjsInstalled();
 
   fs.rmSync(DIST, { recursive: true, force: true });
   fs.mkdirSync(DIST, { recursive: true });

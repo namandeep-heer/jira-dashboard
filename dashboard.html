@@ -2264,12 +2264,55 @@ function persist() {
   }
 }
 
+function slimIssueForCache(issue) {
+  if (!issue || typeof issue !== 'object') return issue;
+  const drop = {
+    description: 1, comment: 1, comments: 1, attachment: 1, worklog: 1,
+    environment: 1, thumbnail: 1, watches: 1, votes: 1,
+  };
+  const src = issue.fields || {};
+  const fields = {};
+  Object.keys(src).forEach(key => {
+    if (src[key] == null || drop[key]) return;
+    fields[key] = src[key];
+  });
+  const histories = (issue.changelog?.histories || []).map(history => {
+    const items = (history.items || [])
+      .filter(item => item && (item.field === 'status' || item.fieldId === 'status'))
+      .map(item => ({
+        field: item.field || 'status',
+        fieldId: item.fieldId || 'status',
+        fromString: item.fromString || '',
+        toString: item.toString || '',
+      }));
+    return items.length ? { created: history.created, items } : null;
+  }).filter(Boolean);
+  const out = { key: issue.key, fields };
+  if (issue.id != null) out.id = issue.id;
+  if (issue.changelog) {
+    out.changelog = {
+      startAt: 0,
+      maxResults: histories.length,
+      total: histories.length,
+      histories,
+    };
+    if (issue.changelog._source) out.changelog._source = issue.changelog._source;
+  }
+  return out;
+}
+
 function getStoredState() {
+  if (S.activeRelease) {
+    if (!S.releaseCache) S.releaseCache = {};
+    S.releaseCache[S.activeRelease] = S.cache;
+  }
   const state = { ...S, charts: {} };
+  delete state.cache;
+  Object.keys(state).forEach(key => {
+    if (key.charAt(0) === '_') delete state[key];
+  });
   state.creds = { ...(state.creds || {}) };
   delete state.creds.token;
-  delete state._msState;
-  delete state._rrSelectedProjects;
   return state;
 }
 
@@ -2312,7 +2355,7 @@ async function loadStoredState() {
     }
     const response = await Promise.race([
       authFetch('/api/dashboard'),
-      new Promise((_, reject) => setTimeout(() => reject(new Error('Dashboard load timed out')), 10000))
+      new Promise((_, reject) => setTimeout(() => reject(new Error('Dashboard load timed out')), 60000))
     ]);
     const data = await response.json().catch(() => ({}));
     if (response.status === 401) {
@@ -2337,6 +2380,15 @@ async function loadStoredState() {
     if (data.state && typeof data.state === 'object' && Object.keys(data.state).length) {
       _storeHydrating = true;
       Object.assign(S, data.state);
+      if (!S.releaseCache) S.releaseCache = {};
+      if (S.activeRelease && S.releaseCache[S.activeRelease]) {
+        S.cache = S.releaseCache[S.activeRelease];
+      } else if (!S.cache || typeof S.cache !== 'object') {
+        S.cache = {};
+      } else if (S.activeRelease) {
+        S.releaseCache[S.activeRelease] = S.cache;
+      }
+      S.charts = {};
       _storeHydrating = false;
     } else if (isAdmin()) {
       await saveStoredState();
@@ -3207,6 +3259,7 @@ async function fetchIssues(proj, autoFetchAll = false) {
       // Search expand=changelog is capped; fill in full history when truncated so
       // recent movements (e.g. "today") are not missing for busy tickets.
       await hydrateTruncatedChangelogs(allIssues, url, auth);
+      allIssues = allIssues.map(slimIssueForCache);
       return {
         issues: allIssues,
         total: allIssues.length,
@@ -5720,10 +5773,26 @@ function renderDataGaps() {
     )}
   `;
 
+  const fieldEst = jiraId(ALL_FIELDS.find(f => f.id === 'cf_devest') || { id: 'cf_devest', jira: 'customfield_10204' }) || 'customfield_10204';
+  const fieldAct = jiraId(ALL_FIELDS.find(f => f.id === 'cf_devact') || { id: 'cf_devact', jira: 'customfield_10203' }) || 'customfield_10203';
+  const slimCache = {};
+  Object.entries(S.cache || {}).forEach(([key, data]) => {
+    if (!data || data.err) { slimCache[key] = data; return; }
+    slimCache[key] = {
+      issues: (data.issues || []).map(issue => ({
+        key: issue.key,
+        fields: {
+          status: issue.fields?.status ? { name: issue.fields.status.name } : null,
+          [fieldEst]: issue.fields?.[fieldEst],
+          [fieldAct]: issue.fields?.[fieldAct],
+        },
+      })),
+    };
+  });
   fetch(API_BASE + '/api/analyze-data-gaps', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ cache: S.cache }),
+    body: JSON.stringify({ cache: slimCache, fieldEst, fieldAct }),
   }).catch(() => {});
 }
 

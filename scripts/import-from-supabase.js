@@ -104,7 +104,8 @@ function summarizeState(state) {
     encryptionKey,
     adminEmail,
   });
-  store.setSharedState(state);
+  const { slimDashboardState } = require('../lib/slim-cache');
+  store.setSharedState(slimDashboardState(state));
   (Array.isArray(credentialRows) ? credentialRows : []).forEach(row => {
     store.importEncryptedCredentials({
       jiraUrl: row.jira_url,

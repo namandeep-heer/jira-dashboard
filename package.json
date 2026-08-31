@@ -6,7 +6,7 @@
   "bin": "proxy.js",
   "scripts": {
     "start": "node proxy.js",
-    "test": "node scripts/test-release-report.js && node scripts/test-local-store.js",
+    "test": "node scripts/test-release-report.js && node scripts/test-local-store.js && node scripts/test-slim-cache.js",
     "build": "node scripts/build-standalone.js",
     "build:win": "node scripts/build-standalone.js win",
     "build:mac": "node scripts/build-standalone.js mac",
@@ -22,6 +22,10 @@
     "pkg": "^5.8.1"
   },
   "pkg": {
+    "scripts": [
+      "node_modules/pptxgenjs/dist/pptxgen.cjs.js",
+      "node_modules/jszip/lib/**/*.js"
+    ],
     "assets": [
       "lib/**/*"
     ],

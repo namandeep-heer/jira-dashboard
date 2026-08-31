@@ -1,5 +1,5 @@
 /**
- * Unit tests for release report analysis (and PPTX smoke if pptxgenjs is installed).
+ * Unit tests for release report analysis, HTML export, and PPTX smoke.
  * Run: node scripts/test-release-report.js
  */
 
@@ -327,13 +327,7 @@ console.log('release-report analysis: ok');
 console.log('release-report html: ok');
 
 async function testPptx() {
-  let buildReleaseReportPptx;
-  try {
-    ({ buildReleaseReportPptx } = require('../lib/release-report-pptx'));
-  } catch (err) {
-    console.log('pptx skipped (pptxgenjs not installed)');
-    return;
-  }
+  const { buildReleaseReportPptx } = require('../lib/release-report-pptx');
   const buf = await buildReleaseReportPptx(report);
   assert.ok(Buffer.isBuffer(buf));
   assert.ok(buf.length > 2000);
