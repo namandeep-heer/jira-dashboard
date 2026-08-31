@@ -12,7 +12,6 @@ const fetch   = require('node-fetch');
 const path    = require('path');
 const http    = require('http');
 const fs      = require('fs');
-const crypto  = require('crypto');
 
 const app  = express();
 const PORT = 3131;
@@ -27,6 +26,8 @@ const CONFIG_DIR = path.join(ROOT, 'config');
 const { analyzeCache } = require('./lib/data-gaps');
 const { analyzeRelease, mergeAiInsights, AI_RESPONSE_SCHEMA, adfToText } = require('./lib/release-report');
 const { buildReleaseReportPptx, sanitizeFilename } = require('./lib/release-report-pptx');
+const { buildReleaseReportHtml, htmlFilename, normalizeTicketGroupBy } = require('./lib/release-report-html');
+const { createLocalStore } = require('./lib/local-store');
 if (!fs.existsSync(CONFIG_DIR)) {
   fs.mkdirSync(CONFIG_DIR, { recursive: true });
 }
@@ -41,29 +42,56 @@ function loadEnvFile(filePath) {
 }
 
 const localEnv = loadEnvFile(path.join(CONFIG_DIR, '.env'));
-const supabaseServiceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY || localEnv.SUPABASE_SERVICE_ROLE_KEY || '';
 const credentialEncryptionKey = process.env.JIRA_CREDENTIAL_ENCRYPTION_KEY || localEnv.JIRA_CREDENTIAL_ENCRYPTION_KEY || '';
 const xaiApiKey = process.env.XAI_API_KEY || localEnv.XAI_API_KEY || '';
+const adminEmail = String(process.env.ADMIN_EMAIL || localEnv.ADMIN_EMAIL || '').trim().toLowerCase();
+const jiraBaseUrl = String(process.env.JIRA_URL || localEnv.JIRA_URL || '').replace(/\/+$/, '');
+const DATA_DIR = path.join(ROOT, 'data');
+const store = createLocalStore({
+  dataDir: DATA_DIR,
+  encryptionKey: credentialEncryptionKey,
+  adminEmail,
+});
 
-function credentialCipherKey() {
-  return crypto.createHash('sha256').update(credentialEncryptionKey).digest();
+function accessTokenFrom(req) {
+  return String(req.headers.authorization || '').replace(/^Bearer\s+/i, '');
 }
 
-function encryptCredential(value) {
-  if (!credentialEncryptionKey) throw new Error('JIRA_CREDENTIAL_ENCRYPTION_KEY is missing');
-  const iv = crypto.randomBytes(12);
-  const cipher = crypto.createCipheriv('aes-256-gcm', credentialCipherKey(), iv);
-  const encrypted = Buffer.concat([cipher.update(value, 'utf8'), cipher.final()]);
-  return [iv, cipher.getAuthTag(), encrypted].map(part => part.toString('base64url')).join('.');
+function requireUser(req, res) {
+  const session = store.getSession(accessTokenFrom(req));
+  if (!session) {
+    res.status(401).json({ error: 'Sign in again.' });
+    return null;
+  }
+  return session.user;
 }
 
-function decryptCredential(value) {
-  if (!credentialEncryptionKey) throw new Error('JIRA_CREDENTIAL_ENCRYPTION_KEY is missing');
-  const [iv, authTag, encrypted] = String(value || '').split('.').map(part => Buffer.from(part, 'base64url'));
-  if (!iv || !authTag || !encrypted) throw new Error('Invalid encrypted Jira credential');
-  const decipher = crypto.createDecipheriv('aes-256-gcm', credentialCipherKey(), iv);
-  decipher.setAuthTag(authTag);
-  return Buffer.concat([decipher.update(encrypted), decipher.final()]).toString('utf8');
+function requireAdmin(req, res) {
+  const user = requireUser(req, res);
+  if (!user) return null;
+  if (user.role !== 'admin') {
+    res.status(403).json({ error: 'Only dashboard admins can change configuration.' });
+    return null;
+  }
+  return user;
+}
+
+function sendStoreError(res, err) {
+  res.status(err.status || 500).json({ error: err.message || 'Request failed' });
+}
+
+async function verifyJiraAccess(url, email, token) {
+  const auth = Buffer.from(`${email}:${token}`).toString('base64');
+  const upstream = await fetch(String(url || '').replace(/\/+$/, '') + '/rest/api/3/myself', {
+    headers: { Accept: 'application/json', Authorization: 'Basic ' + auth },
+  });
+  const responseBody = await upstream.json().catch(() => ({}));
+  const detail = responseBody.errorMessages?.join(' ') || responseBody.message || '';
+  return {
+    ok: upstream.ok,
+    status: upstream.status,
+    error: detail || (upstream.ok ? undefined : 'Jira rejected the credential check'),
+  };
 }
 
 app.use(express.json({ limit: '20mb' }));
@@ -87,128 +115,124 @@ app.get('/health', (req, res) => {
   res.status(200).json({ status: 'ok', message: 'Proxy is running' });
 });
 
-app.get('/config/supabase', (req, res) => {
-  const url = process.env.SUPABASE_URL || localEnv.SUPABASE_URL;
-  const anonKey = process.env.SUPABASE_ANON_KEY || localEnv.SUPABASE_ANON_KEY;
-  const adminEmail = process.env.SUPABASE_ADMIN_EMAIL || localEnv.SUPABASE_ADMIN_EMAIL || '';
-  const jiraUrl = process.env.JIRA_URL || localEnv.JIRA_URL || '';
-  if (!url || !anonKey) {
-    res.status(503).json({ error: 'Supabase configuration is missing' });
+app.get('/config/app', (req, res) => {
+  if (!jiraBaseUrl) {
+    res.status(503).json({ error: 'JIRA_URL is not configured in config/.env' });
     return;
   }
-  res.json({ url, anonKey, adminEmail, jiraUrl: jiraUrl.replace(/\/+$/, '') });
+  res.json({ jiraUrl: jiraBaseUrl });
 });
 
-app.post('/api/bootstrap-admin', async (req, res) => {
-  const adminEmail = String(process.env.SUPABASE_ADMIN_EMAIL || localEnv.SUPABASE_ADMIN_EMAIL || '').trim().toLowerCase();
-  const supabaseUrl = process.env.SUPABASE_URL || localEnv.SUPABASE_URL;
-  const accessToken = String(req.headers.authorization || '').replace(/^Bearer\s+/i, '');
-  if (!supabaseServiceRoleKey || !supabaseUrl || !adminEmail) {
-    res.status(503).json({ error: 'Admin bootstrap is not configured' });
-    return;
-  }
-  if (!accessToken) { res.status(401).json({ error: 'Missing user session' }); return; }
+app.post('/api/auth/register', async (req, res) => {
   try {
-    const userResponse = await fetch(supabaseUrl.replace(/\/$/, '') + '/auth/v1/user', {
-      headers: { apikey: supabaseServiceRoleKey, Authorization: `Bearer ${accessToken}` },
-    });
-    const user = await userResponse.json();
-    if (!userResponse.ok || !user.id || String(user.email || '').trim().toLowerCase() !== adminEmail) {
-      res.status(403).json({ error: 'User is not the configured dashboard administrator' });
+    const email = String(req.body?.email || '').trim().toLowerCase();
+    const password = String(req.body?.password || '');
+    const jiraToken = String(req.body?.jiraToken || '').trim();
+    if (!jiraBaseUrl) { res.status(503).json({ error: 'JIRA_URL is not configured' }); return; }
+    if (!credentialEncryptionKey) { res.status(503).json({ error: 'JIRA_CREDENTIAL_ENCRYPTION_KEY is missing' }); return; }
+    if (!jiraToken) { res.status(400).json({ error: 'Jira API token is required' }); return; }
+    const check = await verifyJiraAccess(jiraBaseUrl, email, jiraToken);
+    if (!check.ok) {
+      res.status(400).json({ error: 'Jira access could not be verified. Check the URL, email, and API token.' });
       return;
     }
-    const memberResponse = await fetch(supabaseUrl.replace(/\/$/, '') + '/rest/v1/dashboard_members?on_conflict=user_id', {
-      method: 'POST',
-      headers: {
-        apikey: supabaseServiceRoleKey,
-        Authorization: `Bearer ${supabaseServiceRoleKey}`,
-        'Content-Type': 'application/json',
-        Prefer: 'resolution=merge-duplicates,return=minimal',
-      },
-      body: JSON.stringify({ user_id: user.id, email: user.email, role: 'admin' }),
+    const user = store.createUser({ email, password });
+    store.claimCredentialsForUser(user.id, email);
+    store.upsertCredentials(user.id, { jiraUrl: jiraBaseUrl, jiraEmail: email, token: jiraToken });
+    res.json(store.createSession(user));
+  } catch (err) {
+    sendStoreError(res, err);
+  }
+});
+
+app.post('/api/auth/login', (req, res) => {
+  try {
+    const email = String(req.body?.email || '').trim().toLowerCase();
+    const password = String(req.body?.password || '');
+    res.json(store.login({ email, password }));
+  } catch (err) {
+    sendStoreError(res, err);
+  }
+});
+
+app.post('/api/auth/logout', (req, res) => {
+  store.destroySession(accessTokenFrom(req));
+  res.json({ ok: true });
+});
+
+app.get('/api/auth/session', (req, res) => {
+  const user = requireUser(req, res);
+  if (!user) return;
+  res.json({ user });
+});
+
+app.get('/api/dashboard', async (req, res) => {
+  const user = requireUser(req, res);
+  if (!user) return;
+  try {
+    const credentials = store.getCredentials(user.id, { decrypt: true });
+    if (credentials) {
+      const check = await verifyJiraAccess(credentials.jiraUrl || jiraBaseUrl, credentials.jiraEmail, credentials.token);
+      if (!check.ok) {
+        store.destroySession(accessTokenFrom(req));
+        res.status(401).json({
+          error: check.error
+            ? `Jira rejected the saved credentials (${check.status}): ${check.error}`
+            : 'Your Jira access is no longer valid. Update your Jira credentials before signing in.',
+          status: check.status,
+          code: 'JIRA_CREDENTIALS_INVALID',
+        });
+        return;
+      }
+    }
+    res.json({
+      user,
+      jiraUrl: jiraBaseUrl,
+      credentials: credentials ? {
+        jiraUrl: credentials.jiraUrl || jiraBaseUrl,
+        jiraEmail: credentials.jiraEmail,
+        token: credentials.token,
+      } : null,
+      state: store.getSharedState(),
     });
-    if (!memberResponse.ok) throw new Error((await memberResponse.text()).slice(0, 300));
+  } catch (err) {
+    sendStoreError(res, err);
+  }
+});
+
+app.post('/api/dashboard/state', (req, res) => {
+  const user = requireAdmin(req, res);
+  if (!user) return;
+  if (!req.body?.state || typeof req.body.state !== 'object') {
+    res.status(400).json({ error: 'Missing state object' });
+    return;
+  }
+  try {
+    store.setSharedState(req.body.state);
     res.json({ ok: true });
   } catch (err) {
-    console.error('[admin bootstrap]', err.message);
-    res.status(502).json({ error: 'Admin bootstrap failed' });
+    sendStoreError(res, err);
   }
 });
 
-app.post('/api/shared-dashboard-state', async (req, res) => {
-  const supabaseUrl = process.env.SUPABASE_URL || localEnv.SUPABASE_URL;
-  const adminEmail = String(process.env.SUPABASE_ADMIN_EMAIL || localEnv.SUPABASE_ADMIN_EMAIL || '').trim().toLowerCase();
-  const accessToken = String(req.headers.authorization || '').replace(/^Bearer\s+/i, '');
-  if (!supabaseServiceRoleKey || !supabaseUrl || !adminEmail) {
-    res.status(503).json({ error: 'Shared state service is not configured' });
-    return;
-  }
-  if (!accessToken || !req.body?.state || typeof req.body.state !== 'object') {
-    res.status(400).json({ error: 'Missing admin session or state object' });
+app.put('/api/credentials', (req, res) => {
+  const user = requireUser(req, res);
+  if (!user) return;
+  const email = String(req.body?.email || '').trim();
+  const token = String(req.body?.token || '').trim();
+  if (!email || !token) {
+    res.status(400).json({ error: 'Jira email and API token are required' });
     return;
   }
   try {
-    const baseUrl = supabaseUrl.replace(/\/$/, '');
-    const userResponse = await fetch(baseUrl + '/auth/v1/user', {
-      headers: { apikey: supabaseServiceRoleKey, Authorization: `Bearer ${accessToken}` },
+    store.upsertCredentials(user.id, {
+      jiraUrl: jiraBaseUrl,
+      jiraEmail: email,
+      token,
     });
-    const user = await userResponse.json();
-    if (!userResponse.ok || String(user.email || '').trim().toLowerCase() !== adminEmail) {
-      res.status(403).json({ error: 'User is not the configured dashboard administrator' });
-      return;
-    }
-    const stateResponse = await fetch(baseUrl + '/rest/v1/shared_dashboard_state?on_conflict=id', {
-      method: 'POST',
-      headers: {
-        apikey: supabaseServiceRoleKey,
-        Authorization: `Bearer ${supabaseServiceRoleKey}`,
-        'Content-Type': 'application/json',
-        Prefer: 'resolution=merge-duplicates,return=minimal',
-      },
-      body: JSON.stringify({ id: 1, state: req.body.state, updated_at: new Date().toISOString() }),
-    });
-    if (!stateResponse.ok) {
-      const detail = (await stateResponse.text()).slice(0, 500);
-      res.status(stateResponse.status).json({ error: detail || 'Could not save shared dashboard state' });
-      return;
-    }
     res.json({ ok: true });
   } catch (err) {
-    console.error('[shared state save]', err.message);
-    res.status(502).json({ error: 'Shared state save failed: ' + err.message });
-  }
-});
-
-// Proxy Supabase Auth/REST traffic so the local dashboard is not blocked by CORS.
-app.all('/supabase-api/*', async (req, res) => {
-  const supabaseUrl = process.env.SUPABASE_URL || localEnv.SUPABASE_URL;
-  if (!supabaseUrl) { res.status(503).json({ error: 'Supabase configuration is missing' }); return; }
-  const suffix = req.originalUrl.replace(/^\/supabase-api/, '');
-  const target = supabaseUrl.replace(/\/$/, '') + suffix;
-  const headers = {
-    Accept: req.headers.accept || 'application/json',
-    'Content-Type': req.headers['content-type'] || 'application/json',
-  };
-  ['authorization', 'apikey', 'x-client-info'].forEach(name => {
-    if (req.headers[name]) headers[name] = req.headers[name];
-  });
-  try {
-    const controller = new AbortController();
-    const timeout = setTimeout(() => controller.abort(), 15000);
-    const upstream = await fetch(target, {
-      method: req.method,
-      headers,
-      body: ['POST', 'PUT', 'PATCH', 'DELETE'].includes(req.method) ? JSON.stringify(req.body || {}) : undefined,
-      signal: controller.signal,
-    });
-    clearTimeout(timeout);
-    const body = await upstream.text();
-    res.status(upstream.status)
-      .set('Content-Type', upstream.headers.get('content-type') || 'application/json')
-      .send(body);
-  } catch (err) {
-    console.error('[supabase proxy error]', err.message);
-    res.status(err.name === 'AbortError' ? 504 : 502).json({ error: 'Supabase proxy fetch failed: ' + err.message });
+    sendStoreError(res, err);
   }
 });
 
@@ -354,6 +378,28 @@ app.post('/api/release-report/pptx', async (req, res) => {
   }
 });
 
+app.post('/api/release-report/html', (req, res) => {
+  try {
+    const report = req.body?.report;
+    if (!report || !Array.isArray(report.projects) || !report.projects.length) {
+      res.status(400).json({ error: 'Missing generated report' });
+      return;
+    }
+    const groupBy = normalizeTicketGroupBy(req.body.groupBy || report.ticketGroupBy);
+    const html = buildReleaseReportHtml(report, {
+      groupBy,
+      jiraBaseUrl: String(req.body.jiraBaseUrl || '').replace(/\/+$/, ''),
+    });
+    const name = htmlFilename(report);
+    res.setHeader('Content-Type', 'text/html; charset=utf-8');
+    res.setHeader('Content-Disposition', `attachment; filename="${name}"`);
+    res.send(html);
+  } catch (err) {
+    console.error('[release-report-html]', err.message);
+    res.status(500).json({ error: err.message || 'Could not build ticket HTML' });
+  }
+});
+
 // Analyze cached dashboard data (POST { cache: S.cache })
 app.post('/api/analyze-data-gaps', (req, res) => {
   try {
@@ -371,44 +417,7 @@ app.post('/api/analyze-data-gaps', (req, res) => {
   }
 });
 
-app.post('/api/jira-credentials/encrypt', (req, res) => {
-  try {
-    if (!req.body?.token) { res.status(400).json({ error: 'Missing Jira API token' }); return; }
-    res.json({ tokenCiphertext: encryptCredential(req.body.token) });
-  } catch (err) {
-    res.status(503).json({ error: err.message });
-  }
-});
 
-app.post('/api/jira-credentials/decrypt', (req, res) => {
-  try {
-    if (!req.body?.tokenCiphertext) { res.status(400).json({ error: 'Missing encrypted Jira API token' }); return; }
-    res.json({ token: decryptCredential(req.body.tokenCiphertext) });
-  } catch (err) {
-    res.status(503).json({ error: err.message });
-  }
-});
-
-app.post('/api/jira-credentials/check', async (req, res) => {
-  try {
-    const { url, email, tokenCiphertext } = req.body || {};
-    if (!url || !email || !tokenCiphertext) { res.status(400).json({ error: 'Missing Jira credential data' }); return; }
-    const token = decryptCredential(tokenCiphertext);
-    const auth = Buffer.from(`${email}:${token}`).toString('base64');
-    const upstream = await fetch(url.replace(/\/+$/, '') + '/rest/api/3/myself', {
-      headers: { Accept: 'application/json', Authorization: `Basic ${auth}` },
-    });
-    const responseBody = await upstream.json().catch(() => ({}));
-    const detail = responseBody.errorMessages?.join(' ') || responseBody.message || '';
-    res.status(upstream.ok ? 200 : 401).json({
-      ok: upstream.ok,
-      status: upstream.status,
-      error: detail || (upstream.ok ? undefined : 'Jira rejected the credential check'),
-    });
-  } catch (err) {
-    res.status(503).json({ error: err.message });
-  }
-});
 
 // ── Proxy route: /jira-api/<encoded-jira-base-url>/<rest-of-path> ────────────
 //
@@ -453,7 +462,7 @@ app.all('/jira-api', async (req, res) => {
 // ── SPA fallback — deep-linked client routes serve dashboard.html ─────────────
 app.get('*', (req, res, next) => {
   const p = req.path || '';
-  if (p.startsWith('/jira-api') || p.startsWith('/supabase-api') || p.startsWith('/config') || p.startsWith('/api/') || p === '/health') {
+  if (p.startsWith('/jira-api') || p.startsWith('/config') || p.startsWith('/api/') || p === '/health') {
     return next();
   }
   res.sendFile(path.join(ROOT, 'dashboard.html'));
@@ -466,6 +475,7 @@ server.listen(PORT, () => {
   console.log('  ✓  Jira Dashboard proxy running');
   console.log('  →  Open http://localhost:' + PORT + ' in your browser');
   console.log('');
+  console.log('  Local data: ' + DATA_DIR);
   console.log('  Keep this terminal open while using the dashboard.');
   console.log('  Press Ctrl+C to stop.');
   console.log('');

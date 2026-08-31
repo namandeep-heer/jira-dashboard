@@ -8,7 +8,6 @@
 <title>Jira Dashboard</title>
 <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'><rect x='3' y='3' width='7' height='7' rx='1.5' fill='%23185FA5'/><rect x='14' y='3' width='7' height='7' rx='1.5' fill='%23185FA5'/><rect x='3' y='14' width='7' height='7' rx='1.5' fill='%23185FA5'/><rect x='14' y='14' width='7' height='7' rx='1.5' fill='%23185FA5'/></svg>">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <style>
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 :root {
@@ -825,7 +824,7 @@ code { font-family: monospace; font-size: 12px; background: var(--bg3); padding:
           <!-- Jira credentials -->
           <div class="card">
             <h2>Jira credentials</h2>
-            <p class="desc">Stored in your Supabase dashboard account. The proxy forwards requests to your Jira using Basic Auth.</p>
+            <p class="desc">Stored in the local dashboard account on this machine. The proxy forwards requests to your Jira using Basic Auth.</p>
             <p class="desc">Jira base URL is managed by the proxy configuration. Enter only the Jira email and API token here.</p>
             <div class="field-row">
               <label>Email</label>
@@ -886,7 +885,7 @@ code { font-family: monospace; font-size: 12px; background: var(--bg3); padding:
           <h2 style="font-size:18px;font-weight:600;margin-bottom:6px">Project Configuration</h2>
           <p style="font-size:13px;color:var(--text2);line-height:1.65;margin-bottom:16px">
             Enable/disable projects, remove/restore built-ins, and edit JQL per project. Custom projects can also be added, edited, and deleted.
-            <br><strong>Configuration is saved to Supabase</strong>
+            <br><strong>Configuration is saved locally on this machine</strong>
           </p>
           <div style="margin-bottom: 20px;">
             <span id="projects-save-msg" style="font-size: 12px; color: var(--text3);"></span>
@@ -1010,7 +1009,7 @@ code { font-family: monospace; font-size: 12px; background: var(--bg3); padding:
         <div class="rr-toolbar">
           <div style="flex:1;min-width:240px">
             <h2 style="font-size:18px;font-weight:600;margin-bottom:3px">Release Report</h2>
-            <p style="font-size:13px;color:var(--text2);line-height:1.55">Company-ready briefing for the selected release — per-project progress, then high-value deliverables and cumulative risks for the accounting portfolio. Use mid-release or at the end. Export as PowerPoint.</p>
+            <p style="font-size:13px;color:var(--text2);line-height:1.55">Company-ready briefing for the selected release — per-project progress, then high-value deliverables and cumulative risks for the accounting portfolio. Use mid-release or at the end. Export as PowerPoint plus an HTML list of every ticket, grouped by the option below.</p>
           </div>
           <div class="rr-controls">
             <div class="ms-wrap">
@@ -1032,12 +1031,17 @@ code { font-family: monospace; font-size: 12px; background: var(--bg3); padding:
               <option value="snapshot">Mid-release snapshot</option>
               <option value="end-of-release">End of release</option>
             </select>
+            <select class="rr-select" id="rr-ticket-group" onchange="syncRoute()" aria-label="Group tickets HTML by">
+              <option value="status">HTML: by status</option>
+              <option value="project">HTML: by project</option>
+              <option value="project-status" selected>HTML: by project, status</option>
+            </select>
             <label class="rr-ai" id="rr-ai-label" title="Uses SpaceXAI on the proxy to read ticket descriptions">
               <input type="checkbox" id="rr-use-ai" onchange="syncRoute()" />
               Analyze ticket details with AI
             </label>
             <button class="btn primary" type="button" id="rr-generate-btn" onclick="generateReleaseReport()">Generate report</button>
-            <button class="btn" type="button" id="rr-pptx-btn" onclick="downloadReleaseReportPptx()" disabled>Download PowerPoint</button>
+            <button class="btn" type="button" id="rr-pptx-btn" onclick="downloadReleaseReportPptx()" disabled>Download PowerPoint + HTML</button>
           </div>
         </div>
         <div id="release-report-body"></div>
@@ -1286,12 +1290,12 @@ const API_BASE = (window.location.protocol === 'http:' || window.location.protoc
   : 'http://localhost:3131';
 const PROXY = API_BASE + '/jira-api';
 
-let _supabase = null;
-let _supabaseUser = null;
+const SESSION_KEY = 'jiraDashboard.sessionToken';
+let _dashboardUser = null;
 let _jiraBaseUrl = '';
-let _cloudSaveTimer = null;
-let _cloudHydrating = false;
-let _cloudError = '';
+let _storeSaveTimer = null;
+let _storeHydrating = false;
+let _storeError = '';
 let _dashboardRole = 'viewer';
 let _authRegisterMode = false;
 
@@ -1852,14 +1856,38 @@ let S = {
 
 function isAdmin() { return _dashboardRole === 'admin'; }
 
+function getSessionToken() {
+  try { return localStorage.getItem(SESSION_KEY) || ''; } catch (err) { return ''; }
+}
+
+function setSessionToken(token) {
+  try {
+    if (token) localStorage.setItem(SESSION_KEY, token);
+    else localStorage.removeItem(SESSION_KEY);
+  } catch (err) { /* ignore quota / private mode */ }
+}
+
+function authHeaders(extra) {
+  const headers = Object.assign({ 'Content-Type': 'application/json' }, extra || {});
+  const token = getSessionToken();
+  if (token) headers.Authorization = 'Bearer ' + token;
+  return headers;
+}
+
+function authFetch(path, options) {
+  const opts = Object.assign({}, options || {});
+  opts.headers = authHeaders(opts.headers);
+  return fetch(API_BASE + path, opts);
+}
+
 function updateAuthIndicator() {
   const indicator = document.getElementById('auth-role-indicator');
   const button = document.getElementById('auth-btn');
-  if (indicator) indicator.textContent = _supabaseUser ? `Role: ${_dashboardRole}` : 'Not signed in';
-  if (button) button.textContent = _supabaseUser ? 'Sign out' : 'Sign in';
-  if (button) button.onclick = _supabaseUser ? signOutDashboard : submitDashboardAuth;
+  if (indicator) indicator.textContent = _dashboardUser ? `Role: ${_dashboardRole}` : 'Not signed in';
+  if (button) button.textContent = _dashboardUser ? 'Sign out' : 'Sign in';
+  if (button) button.onclick = _dashboardUser ? signOutDashboard : submitDashboardAuth;
   const gate = document.getElementById('auth-gate');
-  if (gate) gate.classList.toggle('hidden', !!_supabaseUser);
+  if (gate) gate.classList.toggle('hidden', !!_dashboardUser);
 }
 
 function showAuthError(message) {
@@ -1867,36 +1895,14 @@ function showAuthError(message) {
   if (error) { error.textContent = message; error.style.display = 'block'; }
 }
 
-async function encryptJiraToken(token) {
-  const response = await fetch(API_BASE + '/api/jira-credentials/encrypt', {
-    method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ token })
+async function saveUserCredentials(email, token) {
+  const response = await authFetch('/api/credentials', {
+    method: 'PUT',
+    body: JSON.stringify({ email, token })
   });
   const result = await response.json().catch(() => ({}));
-  if (!response.ok) throw new Error(result.error || 'Could not encrypt Jira API token');
-  return result.tokenCiphertext;
-}
-
-async function decryptJiraToken(tokenCiphertext) {
-  const response = await fetch(API_BASE + '/api/jira-credentials/decrypt', {
-    method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ tokenCiphertext })
-  });
-  const result = await response.json().catch(() => ({}));
-  if (!response.ok) throw new Error(result.error || 'Could not decrypt Jira API token');
-  return result.token;
-}
-
-async function bootstrapAdmin(session) {
-  if (!session?.access_token || !_supabaseUser?.email) return;
-  const config = await fetchConfigJson('/config/supabase', 1);
-  if (String(config.adminEmail || '').trim().toLowerCase() !== String(_supabaseUser.email).trim().toLowerCase()) return;
-  const response = await fetch(API_BASE + '/api/bootstrap-admin', {
-    method: 'POST',
-    headers: { Authorization: `Bearer ${session.access_token}` }
-  });
-  if (!response.ok) {
-    const result = await response.json().catch(() => ({}));
-    throw new Error(result.error || 'Could not create the configured administrator account');
-  }
+  if (!response.ok) throw new Error(result.error || 'Could not save Jira credentials');
+  return true;
 }
 
 function toggleAuthMode() {
@@ -1915,7 +1921,6 @@ function toggleAuthMode() {
 }
 
 async function submitDashboardAuth() {
-  if (!_supabase) { showAuthError(_cloudError || 'Supabase is not available.'); return; }
   const email = document.getElementById('auth-email')?.value.trim().toLowerCase();
   const password = document.getElementById('auth-password')?.value;
   if (!email || !password) { showAuthError('Enter your email and password.'); return; }
@@ -1927,24 +1932,23 @@ async function submitDashboardAuth() {
       if (!_jiraBaseUrl || !email || !jiraToken) { showAuthError('Jira URL is not configured, or the email and API token are missing.'); return; }
       const jiraResult = await jiraFetch(_jiraBaseUrl + '/rest/api/3/myself', email, jiraToken);
       if (!jiraResult.ok) { showAuthError('Jira access could not be verified. Check the URL, email, and API token.'); return; }
-      const tokenCiphertext = await encryptJiraToken(jiraToken);
-      const result = await _supabase.auth.signUp({ email, password });
-      if (result.error) { showAuthError(result.error.message); return; }
-      if (!result.data.session) { toggleAuthMode(); showAuthError('Account created. Confirm your email, then sign in.'); return; }
-      _supabaseUser = result.data.user;
-      await bootstrapAdmin(result.data.session);
-      const credentialResult = await _supabase.from('user_jira_credentials').upsert({
-        user_id: _supabaseUser.id,
-        jira_url: _jiraBaseUrl,
-        jira_email: email,
-        jira_token_ciphertext: tokenCiphertext,
-        updated_at: new Date().toISOString()
+      const response = await fetch(API_BASE + '/api/auth/register', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email, password, jiraToken })
       });
-      if (credentialResult.error) { await _supabase.auth.signOut(); showAuthError('Account created, but Jira access could not be saved: ' + credentialResult.error.message); return; }
+      const result = await response.json().catch(() => ({}));
+      if (!response.ok) { showAuthError(result.error || 'Could not create account.'); return; }
+      setSessionToken(result.token);
     } else {
-      const result = await _supabase.auth.signInWithPassword({ email, password });
-      if (result.error) { showAuthError(result.error.message); return; }
-      _supabaseUser = result.data.user;
+      const response = await fetch(API_BASE + '/api/auth/login', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email, password })
+      });
+      const result = await response.json().catch(() => ({}));
+      if (!response.ok) { showAuthError(result.error || 'Could not sign in.'); return; }
+      setSessionToken(result.token);
     }
     location.reload();
   } finally {
@@ -1953,7 +1957,8 @@ async function submitDashboardAuth() {
 }
 
 async function signOutDashboard() {
-  if (_supabase) await _supabase.auth.signOut();
+  try { await authFetch('/api/auth/logout', { method: 'POST' }); } catch (err) { /* ignore */ }
+  setSessionToken('');
   location.reload();
 }
 
@@ -2253,13 +2258,13 @@ function getDefaultProjectPage() {
 }
 
 function persist() {
-  if (_supabaseUser && !_cloudHydrating) {
-    clearTimeout(_cloudSaveTimer);
-    _cloudSaveTimer = setTimeout(saveCloudState, 400);
+  if (_dashboardUser && !_storeHydrating) {
+    clearTimeout(_storeSaveTimer);
+    _storeSaveTimer = setTimeout(saveStoredState, 400);
   }
 }
 
-function getCloudState() {
+function getStoredState() {
   const state = { ...S, charts: {} };
   state.creds = { ...(state.creds || {}) };
   delete state.creds.token;
@@ -2268,137 +2273,87 @@ function getCloudState() {
   return state;
 }
 
-async function saveCloudState() {
-  if (!_supabase || !_supabaseUser) {
-    _cloudError = _cloudError || 'Supabase session is not available. Reload after checking Supabase Authentication settings.';
+async function saveStoredState() {
+  if (!_dashboardUser || !getSessionToken()) {
+    _storeError = _storeError || 'Sign in again to save dashboard data.';
     return false;
   }
   if (!isAdmin()) {
-    _cloudError = 'Only dashboard admins can change configuration.';
-    console.warn('[supabase] Save failed:', _cloudError);
+    _storeError = 'Only dashboard admins can change configuration.';
+    console.warn('[store] Save failed:', _storeError);
     return false;
   }
-  const sessionResult = await _supabase.auth.getSession();
-  const accessToken = sessionResult.data.session?.access_token;
-  if (!accessToken) {
-    _cloudError = 'Supabase session is not available. Sign in again.';
-    console.warn('[supabase] Save failed:', _cloudError);
-    return false;
-  }
-  const response = await fetch(API_BASE + '/api/shared-dashboard-state', {
+  const response = await authFetch('/api/dashboard/state', {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${accessToken}` },
-    body: JSON.stringify({ state: getCloudState() })
+    body: JSON.stringify({ state: getStoredState() })
   });
   if (!response.ok) {
     const result = await response.json().catch(() => ({}));
-    _cloudError = result.error || `HTTP ${response.status}`;
-    console.warn('[supabase] Save failed:', _cloudError);
+    _storeError = result.error || `HTTP ${response.status}`;
+    console.warn('[store] Save failed:', _storeError);
     return false;
   }
   return true;
 }
 
 async function persistNow() {
-  clearTimeout(_cloudSaveTimer);
-  return saveCloudState();
+  clearTimeout(_storeSaveTimer);
+  return saveStoredState();
 }
 
-async function loadCloudState() {
+async function loadStoredState() {
   try {
-    const config = await fetchConfigJson('/config/supabase', 1);
+    const config = await fetchConfigJson('/config/app', 1);
     _jiraBaseUrl = String(config.jiraUrl || '').trim().replace(/\/+$/, '');
-    if (!window.supabase || !config.url || !config.anonKey) return false;
-    _supabase = window.supabase.createClient(API_BASE + '/supabase-api', config.anonKey);
-    const sessionResult = await Promise.race([
-      _supabase.auth.getSession(),
-      new Promise((_, reject) => setTimeout(() => reject(new Error('Supabase session check timed out')), 10000))
-    ]);
-    if (sessionResult.error) throw sessionResult.error;
-    _supabaseUser = sessionResult.data.session?.user || null;
-    if (_supabaseUser && (_supabaseUser.is_anonymous || _supabaseUser.app_metadata?.provider === 'anonymous')) {
-      await _supabase.auth.signOut();
-      _supabaseUser = null;
-    }
-    if (!_supabaseUser) {
-      _cloudError = 'Sign in to access the dashboard.';
+    if (!getSessionToken()) {
+      _storeError = 'Sign in to access the dashboard.';
       updateAuthIndicator();
       return false;
     }
-    await bootstrapAdmin(sessionResult.data.session);
-    const configuredAdminEmail = String(config.adminEmail || '').trim().toLowerCase();
-    const signedInEmail = String(_supabaseUser.email || _supabaseUser.user_metadata?.email || '').trim().toLowerCase();
-    if (configuredAdminEmail && signedInEmail === configuredAdminEmail) {
-      _dashboardRole = 'admin';
-    } else {
-      const member = await _supabase.from('dashboard_members').select('role').eq('user_id', _supabaseUser.id).maybeSingle();
-      if (member.error) throw member.error;
-      _dashboardRole = member.data?.role === 'admin' ? 'admin' : 'viewer';
+    const response = await Promise.race([
+      authFetch('/api/dashboard'),
+      new Promise((_, reject) => setTimeout(() => reject(new Error('Dashboard load timed out')), 10000))
+    ]);
+    const data = await response.json().catch(() => ({}));
+    if (response.status === 401) {
+      setSessionToken('');
+      _dashboardUser = null;
+      _dashboardRole = 'viewer';
+      _storeError = data.error && data.code === 'JIRA_CREDENTIALS_INVALID'
+        ? data.error
+        : (data.error || 'Sign in to access the dashboard.');
+      updateAuthIndicator();
+      return false;
     }
-    let credentials = await _supabase.from('user_jira_credentials')
-      .select('jira_url, jira_email, jira_token_ciphertext')
-      .eq('user_id', _supabaseUser.id)
-      .maybeSingle();
-    if (credentials.error) throw credentials.error;
-    if (!credentials.data && S.creds?.token) {
-      const tokenCiphertext = await encryptJiraToken(S.creds.token);
-      const migration = await _supabase.from('user_jira_credentials').upsert({
-        user_id: _supabaseUser.id,
-        jira_url: _jiraBaseUrl,
-        jira_email: S.creds.email,
-        jira_token_ciphertext: tokenCiphertext,
-        updated_at: new Date().toISOString()
-      });
-      if (migration.error) throw migration.error;
-      credentials = { data: { jira_url: _jiraBaseUrl, jira_email: S.creds.email, jira_token_ciphertext: tokenCiphertext } };
-    }
-    if (credentials.data) {
-      const jiraCheck = await fetch(API_BASE + '/api/jira-credentials/check', {
-        method: 'POST', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          url: credentials.data.jira_url,
-          email: credentials.data.jira_email,
-          tokenCiphertext: credentials.data.jira_token_ciphertext
-        })
-      });
-      if (!jiraCheck.ok) {
-        const jiraError = await jiraCheck.json().catch(() => ({}));
-        await _supabase.auth.signOut();
-        _supabaseUser = null;
-        _dashboardRole = 'viewer';
-        _cloudError = jiraError.error
-          ? `Jira rejected the saved credentials (${jiraError.status || jiraCheck.status}): ${jiraError.error}`
-          : 'Your Jira access is no longer valid. Update your Jira credentials before signing in.';
-        updateAuthIndicator();
-        return false;
-      }
+    if (!response.ok) throw new Error(data.error || 'HTTP ' + response.status);
+    _dashboardUser = data.user || null;
+    _dashboardRole = data.user?.role === 'admin' ? 'admin' : 'viewer';
+    if (!_dashboardUser) {
+      _storeError = 'Sign in to access the dashboard.';
+      updateAuthIndicator();
+      return false;
     }
     updateAuthIndicator();
-    const result = await Promise.race([
-      _supabase.from('shared_dashboard_state').select('state').eq('id', 1).maybeSingle(),
-      new Promise((_, reject) => setTimeout(() => reject(new Error('Supabase state load timed out')), 10000))
-    ]);
-    if (result.error) throw result.error;
-    if (result.data?.state) {
-      _cloudHydrating = true;
-      Object.assign(S, result.data.state);
-      _cloudHydrating = false;
-    } else {
-      await saveCloudState();
+    if (data.state && typeof data.state === 'object' && Object.keys(data.state).length) {
+      _storeHydrating = true;
+      Object.assign(S, data.state);
+      _storeHydrating = false;
+    } else if (isAdmin()) {
+      await saveStoredState();
     }
     S.creds.url = _jiraBaseUrl;
-    if (credentials.data) {
+    if (data.credentials) {
       S.creds = {
-        url: credentials.data.jira_url,
-        email: credentials.data.jira_email,
-        token: await decryptJiraToken(credentials.data.jira_token_ciphertext)
+        url: data.credentials.jiraUrl || _jiraBaseUrl,
+        email: data.credentials.jiraEmail,
+        token: data.credentials.token
       };
     }
     return true;
   } catch (err) {
-    _cloudError = err.message;
-    _cloudHydrating = false;
-    console.warn('[supabase] Cloud persistence unavailable:', err.message);
+    _storeError = err.message;
+    _storeHydrating = false;
+    console.warn('[store] Local persistence unavailable:', err.message);
     return false;
   }
 }
@@ -2621,6 +2576,9 @@ function applyPendingRouteState(page) {
     const ai = params.get('ai');
     const aiEl = document.getElementById('rr-use-ai');
     if (aiEl && (ai === '1' || ai === '0')) aiEl.checked = ai === '1';
+    const ticketGroup = params.get('ticketGroup');
+    const groupEl = document.getElementById('rr-ticket-group');
+    if (groupEl && ['status', 'project', 'project-status'].includes(ticketGroup)) groupEl.value = ticketGroup;
     const projects = params.get('projects');
     if (projects) {
       S._rrSelectedProjects = new Set(projects.split(',').map(s => {
@@ -2765,6 +2723,8 @@ function collectRouteParams() {
     if (projects) params.set('projects', projects);
     const mode = document.getElementById('rr-mode')?.value;
     if (mode && mode !== 'auto') params.set('mode', mode);
+    const ticketGroup = document.getElementById('rr-ticket-group')?.value;
+    if (ticketGroup && ticketGroup !== 'project-status') params.set('ticketGroup', ticketGroup);
     if (document.getElementById('rr-use-ai')?.checked) params.set('ai', '1');
   } else if (page === 'team') {
     if (S._msState) {
@@ -3165,15 +3125,13 @@ async function saveCredentials() {
   if (!url || !email || !token) { msg.className='msg err'; msg.textContent='Fill in all three fields.'; return; }
   S.creds = { url, email, token };
   const saved = await persistNow();
-  const credentialSaved = saved && _supabaseUser ? await _supabase.from('user_jira_credentials').upsert({
-    user_id: _supabaseUser.id,
-    jira_url: url,
-    jira_email: email,
-    jira_token_ciphertext: await encryptJiraToken(token),
-    updated_at: new Date().toISOString()
-  }).then(result => !result.error) : saved;
+  let credentialSaved = saved;
+  if (saved && _dashboardUser) {
+    try { await saveUserCredentials(email, token); }
+    catch (err) { credentialSaved = false; _storeError = err.message; }
+  }
   msg.className = credentialSaved ? 'msg ok' : 'msg err';
-  msg.textContent = credentialSaved ? '✓ Credentials saved to Supabase.' : '✗ Failed to save credentials to Supabase.';
+  msg.textContent = credentialSaved ? '✓ Credentials saved locally.' : '✗ Failed to save credentials locally.';
 }
 
 async function testConnection() {
@@ -3190,14 +3148,12 @@ async function testConnection() {
     msg.className='msg ok'; msg.textContent='✓ Connected as ' + (d.displayName || d.emailAddress || 'unknown user');
     S.creds = { url, email, token };
     const saved = await persistNow();
-    const credentialSaved = saved && _supabaseUser ? await _supabase.from('user_jira_credentials').upsert({
-      user_id: _supabaseUser.id,
-      jira_url: url,
-      jira_email: email,
-      jira_token_ciphertext: await encryptJiraToken(token),
-      updated_at: new Date().toISOString()
-    }).then(result => !result.error) : saved;
-    if (!credentialSaved) msg.textContent = '✗ Connected, but credentials could not be saved to Supabase.';
+    let credentialSaved = saved;
+    if (saved && _dashboardUser) {
+      try { await saveUserCredentials(email, token); }
+      catch (err) { credentialSaved = false; _storeError = err.message; }
+    }
+    if (!credentialSaved) msg.textContent = '✗ Connected, but credentials could not be saved locally.';
   } else {
     msg.className='msg err'; msg.textContent='✗ HTTP ' + result.status + ' — check credentials or proxy.';
   }
@@ -4276,8 +4232,8 @@ function toggleField(id) {
   const el = document.getElementById('fc-'+id);
   if (el) el.classList.toggle('on', S.enabled.includes(id));
 }
-async function saveFields()  { const saved = await persistNow(); const m=document.getElementById('fields-msg'); m.textContent = saved ? '✓ Saved to Supabase.' : '✗ Failed to save to Supabase.'; setTimeout(()=>m.textContent='',3000); }
-async function resetFields() { S.enabled=[...DEFAULT_ENABLED]; S.customIds={}; const saved = await persistNow(); renderFields(); const m=document.getElementById('fields-msg'); if (m) m.textContent = saved ? '✓ Saved to Supabase.' : '✗ Failed to save to Supabase.'; }
+async function saveFields()  { const saved = await persistNow(); const m=document.getElementById('fields-msg'); m.textContent = saved ? '✓ Saved locally.' : '✗ Failed to save locally.'; setTimeout(()=>m.textContent='',3000); }
+async function resetFields() { S.enabled=[...DEFAULT_ENABLED]; S.customIds={}; const saved = await persistNow(); renderFields(); const m=document.getElementById('fields-msg'); if (m) m.textContent = saved ? '✓ Saved locally.' : '✗ Failed to save locally.'; }
 
 async function discoverFields() {
   const msg = document.getElementById('discover-msg');
@@ -6041,6 +5997,7 @@ async function generateReleaseReport() {
       milestones: getMilestones(),
       fieldIds,
       reportMode: document.getElementById('rr-mode')?.value || 'auto',
+      ticketGroupBy: document.getElementById('rr-ticket-group')?.value || 'project-status',
       useAi,
       now: new Date().toISOString(),
       projects: payloadProjects,
@@ -6168,33 +6125,59 @@ function renderReleaseReportPreview(report) {
     </div>`;
 }
 
+function triggerFileDownload(blob, name) {
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = name;
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  setTimeout(() => URL.revokeObjectURL(a.href), 2000);
+}
+
+function releaseReportFileStem() {
+  return (S.activeRelease || _releaseReport?.releaseName || 'release').replace(/[^\w.-]+/g, '-') || 'release';
+}
+
 async function downloadReleaseReportPptx() {
   if (!_releaseReport) return;
   const btn = document.getElementById('rr-pptx-btn');
-  if (btn) { btn.disabled = true; btn.textContent = 'Building deck…'; }
+  if (btn) { btn.disabled = true; btn.textContent = 'Building files…'; }
+  const groupBy = document.getElementById('rr-ticket-group')?.value || _releaseReport.ticketGroupBy || 'project-status';
+  const jiraBaseUrl = String(S.creds?.url || '').replace(/\/+$/, '');
+  const stem = releaseReportFileStem();
   try {
-    const r = await fetch(API_BASE + '/api/release-report/pptx', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ report: _releaseReport }),
-    });
-    if (!r.ok) {
-      const json = await r.json().catch(() => ({}));
-      throw new Error(json.error || 'HTTP ' + r.status);
+    const [pptxRes, htmlRes] = await Promise.all([
+      fetch(API_BASE + '/api/release-report/pptx', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ report: _releaseReport }),
+      }),
+      fetch(API_BASE + '/api/release-report/html', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ report: _releaseReport, groupBy, jiraBaseUrl }),
+      }),
+    ]);
+    const errors = [];
+    if (htmlRes.ok) {
+      triggerFileDownload(await htmlRes.blob(), stem + '-tickets.html');
+    } else {
+      const json = await htmlRes.json().catch(() => ({}));
+      errors.push('HTML: ' + (json.error || 'HTTP ' + htmlRes.status));
     }
-    const blob = await r.blob();
-    const name = (S.activeRelease || 'release').replace(/[^\w.-]+/g, '-') + '-release-report.pptx';
-    const a = document.createElement('a');
-    a.href = URL.createObjectURL(blob);
-    a.download = name;
-    document.body.appendChild(a);
-    a.click();
-    a.remove();
-    setTimeout(() => URL.revokeObjectURL(a.href), 2000);
+    if (pptxRes.ok) {
+      if (htmlRes.ok) await new Promise(r => setTimeout(r, 200));
+      triggerFileDownload(await pptxRes.blob(), stem + '-release-report.pptx');
+    } else {
+      const json = await pptxRes.json().catch(() => ({}));
+      errors.push('PowerPoint: ' + (json.error || 'HTTP ' + pptxRes.status));
+    }
+    if (errors.length) throw new Error(errors.join(' · '));
   } catch (err) {
-    alert('Could not build PowerPoint: ' + err.message);
+    alert('Could not build export: ' + err.message);
   } finally {
-    if (btn) { btn.disabled = !_releaseReport; btn.textContent = 'Download PowerPoint'; }
+    if (btn) { btn.disabled = !_releaseReport; btn.textContent = 'Download PowerPoint + HTML'; }
   }
 }
 
@@ -9137,7 +9120,7 @@ async function loadDefaultProjects() {
   try {
     const defaultProjects = JSON.parse(JSON.stringify(DEFAULT_PROJECTS));
 
-    // Get all configured releases from cloud state
+    // Get all configured releases from local store state
     const configuredReleases = (S.releases || [])
       .map(release => release && release.name)
       .filter(Boolean);
@@ -9161,7 +9144,7 @@ async function loadDefaultProjects() {
   return false;
 }
 
-// Mutable project configuration is loaded with the Supabase state snapshot.
+// Mutable project configuration is loaded with the local state snapshot.
 async function loadProjectsConfig() {
   S.customProjects = S.customProjects || [];
   S.projectSettings = S.projectSettings || {};
@@ -9169,7 +9152,7 @@ async function loadProjectsConfig() {
   return false;
 }
 
-// Project configuration is persisted as part of the Supabase state snapshot.
+// Project configuration is persisted as part of the local state snapshot.
 async function saveProjectsConfig() {
   if (!isAdmin()) return false;
   normalizeAllProjectReleases();
@@ -9183,7 +9166,7 @@ function showProjectsSaveMessage(success) {
   
   if (success) {
     msgEl.style.color = 'var(--green)';
-    msgEl.textContent = '✓ Saved to Supabase';
+    msgEl.textContent = '✓ Saved locally';
   } else {
     msgEl.style.color = 'var(--red)';
     msgEl.textContent = '✗ Failed to save';
@@ -9457,14 +9440,14 @@ const DEFAULT_MILESTONES = [
   { id: 'EOS', label: 'End of Support', fullName: 'END OF SUPPORT', color: '#e07070' }
 ];
 
-// Release configuration is loaded with the Supabase state snapshot.
+// Release configuration is loaded with the local state snapshot.
 async function loadReleasesConfig() {
   S.releases = S.releases || [];
   S.milestones = S.milestones || JSON.parse(JSON.stringify(DEFAULT_MILESTONES));
   return true;
 }
 
-// Release configuration is persisted as part of the Supabase state snapshot.
+// Release configuration is persisted as part of the local state snapshot.
 async function saveReleasesConfig() {
   if (!isAdmin()) return false;
   return persistNow();
@@ -9494,7 +9477,7 @@ async function renderReleasesConfig() {
         <p class="desc">
           Configure releases and their milestone dates. Each release tracks key dates for 
           milestones like Discovery Alignment, Feature Freeze, General Availability, etc.
-          <br><strong>Configuration is saved to Supabase</strong>
+          <br><strong>Configuration is saved locally on this machine</strong>
         </p>
         
         <div style="margin-bottom: 20px; display: flex; gap: 10px; align-items: center;">
@@ -9739,10 +9722,10 @@ function showSaveMessage(success) {
   
   if (success) {
     msgEl.style.color = 'var(--green)';
-    msgEl.textContent = '✓ Saved to Supabase';
+    msgEl.textContent = '✓ Saved locally';
   } else {
     msgEl.style.color = 'var(--red)';
-    msgEl.textContent = '✗ ' + (_cloudError || 'Failed to save');
+    msgEl.textContent = '✗ ' + (_storeError || 'Failed to save');
   }
   
   setTimeout(() => {
@@ -9887,12 +9870,11 @@ async function initApp() {
   // Sets are not JSON-serialisable, so always re-create as empty on load
   S._msState = { project: new Set(), phase: new Set(), dev: new Set(), product: new Set(), assignee: new Set(), scope: new Set() };
 
-  // Supabase is the source of truth; local config files are used only for first-run fallback.
-  const cloudLoaded = await loadCloudState();
-  if (!cloudLoaded && !_supabaseUser) {
+  const storeLoaded = await loadStoredState();
+  if (!storeLoaded && !_dashboardUser) {
     const error = document.getElementById('auth-gate-error');
-    if (error && _cloudError && !_cloudError.includes('Sign in to access')) {
-      error.textContent = _cloudError;
+    if (error && _storeError && !_storeError.includes('Sign in to access')) {
+      error.textContent = _storeError;
       error.style.display = 'block';
     }
     updateAuthIndicator();

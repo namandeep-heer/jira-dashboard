@@ -133,10 +133,13 @@ const report = build([
 
 assert.strictEqual(report.releaseName, '2026.2');
 assert.strictEqual(report.reportKind, 'snapshot');
+assert.strictEqual(report.ticketGroupBy, 'project-status');
 assert.strictEqual(report.projects.length, 1);
 const p = report.projects[0];
 assert.strictEqual(p.progress.delivered, 2);
 assert.strictEqual(p.progress.dropped, 1);
+assert.strictEqual(p.tickets.length, 6);
+assert.ok(p.tickets.every(t => t.projectKey === 'NFS' && t.projectName === 'NFS Core'));
 assert.ok(p.progress.deliveredPct > 0 && p.progress.deliveredPct < 100);
 assert.ok(p.highValue[0].key === 'NFS-10', `top high-value should be NFS-10, got ${p.highValue[0].key}`);
 assert.ok(p.delivered.themes.some(t => /Identity/i.test(t.title)));
@@ -256,7 +259,72 @@ assert.ok(/across 2 projects/i.test(freezeRisks[0].title));
 const blocked = (portfolioReport.portfolio.risks || []).find(r => r.kind === 'blocked');
 assert.ok(blocked && blocked.count >= 2);
 
+const groupedStatus = analyzeRelease({
+  release, milestones, fieldIds, now, ticketGroupBy: 'status',
+  projects: [{ project: { key: 'NFS', name: 'NFS Core' }, issues: [
+    issue({ key: 'NFS-10', summary: 'A', status: 'Closed' }),
+    issue({ key: 'NFS-11', summary: 'B', status: 'Closed' }),
+    issue({ key: 'NFS-12', summary: 'C', status: 'Dev Developing' }),
+  ] }],
+});
+assert.strictEqual(groupedStatus.ticketGroupBy, 'status');
+
+const {
+  collectReleaseTickets,
+  groupReleaseTickets,
+  buildReleaseReportHtml,
+  htmlFilename,
+} = require('../lib/release-report-html');
+
+const allTickets = collectReleaseTickets(portfolioReport);
+assert.strictEqual(allTickets.length, 4);
+assert.ok(allTickets.some(t => t.key === 'NFS-10'));
+assert.ok(allTickets.some(t => t.key === 'P2P-9'));
+
+const byStatus = groupReleaseTickets(allTickets, 'status');
+assert.ok(byStatus.some(g => g.title === 'Closed' && g.count === 2));
+assert.ok(byStatus.some(g => g.title === 'Dev Developing' && g.count === 2));
+assert.ok(!byStatus.some(g => g.subgroups));
+
+const byProject = groupReleaseTickets(allTickets, 'project');
+assert.strictEqual(byProject.length, 2);
+assert.ok(byProject[0].title.includes('Lease') || byProject[0].title.includes('Procure'));
+assert.ok(byProject.every(g => g.tickets.length === 2));
+
+const byProjectStatus = groupReleaseTickets(allTickets, 'project-status');
+assert.strictEqual(byProjectStatus.length, 2);
+assert.ok(byProjectStatus.every(g => Array.isArray(g.subgroups) && g.subgroups.length >= 1));
+const nfsGroup = byProjectStatus.find(g => /Lease/i.test(g.title));
+assert.ok(nfsGroup.subgroups.some(s => s.title === 'Closed' && s.tickets.some(t => t.key === 'NFS-10')));
+
+const html = buildReleaseReportHtml(portfolioReport, {
+  groupBy: 'project-status',
+  jiraBaseUrl: 'https://jira.example.com/',
+});
+assert.ok(html.includes('<!DOCTYPE html>'));
+assert.ok(html.includes('2026.2'));
+assert.ok(html.includes('NFS-10'));
+assert.ok(html.includes('P2P-9'));
+assert.ok(html.includes('Lease Accounting 6.x'));
+assert.ok(html.includes('https://jira.example.com/browse/NFS-10'));
+assert.ok(html.includes('by project, then status'));
+assert.strictEqual(htmlFilename(portfolioReport), '2026.2-tickets.html');
+
+const xssReport = build([issue({
+  key: 'NFS-99',
+  summary: '<script>alert(1)</script>',
+  status: 'Closed',
+})]);
+const xssHtml = buildReleaseReportHtml(xssReport, { groupBy: 'status' });
+assert.ok(!xssHtml.includes('<script>alert(1)</script>'));
+assert.ok(xssHtml.includes('&lt;script&gt;alert(1)&lt;/script&gt;'));
+
+const statusHtml = buildReleaseReportHtml(portfolioReport, { groupBy: 'status' });
+assert.ok(statusHtml.includes('by status'));
+assert.ok(statusHtml.includes('<th>Project</th>'));
+
 console.log('release-report analysis: ok');
+console.log('release-report html: ok');
 
 async function testPptx() {
   let buildReleaseReportPptx;
