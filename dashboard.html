@@ -1985,10 +1985,87 @@ function getProjectJql(proj) {
   return override || proj.jql;
 }
 
-function getEffectiveProjectJql(proj) {
+function getEffectiveProjectJql(proj, releaseName) {
   const jql = getProjectJql(proj);
-  if (!S.activeRelease || proj.excludeRelease) return jql;
-  return injectFixVersionIntoJql(stripFixVersionFromJql(jql), [S.activeRelease]);
+  const release = releaseName !== undefined ? releaseName : S.activeRelease;
+  if (!release || proj.excludeRelease) return jql;
+  return injectFixVersionIntoJql(stripFixVersionFromJql(jql), [release]);
+}
+
+function ensureReleaseCacheBucket(releaseName) {
+  if (!S.releaseCache || typeof S.releaseCache !== 'object') S.releaseCache = {};
+  const key = releaseName || '';
+  if (!S.releaseCache[key] || typeof S.releaseCache[key] !== 'object') {
+    S.releaseCache[key] = {};
+  }
+  return S.releaseCache[key];
+}
+
+function releaseCacheOwnerOf(obj) {
+  if (!obj || !S.releaseCache) return '';
+  for (const name of Object.keys(S.releaseCache)) {
+    if (S.releaseCache[name] === obj) return name;
+  }
+  return '';
+}
+
+function bindCacheToActiveRelease() {
+  S.cache = ensureReleaseCacheBucket(S.activeRelease);
+}
+
+function adoptCacheAsActiveReleaseBucket() {
+  if (!S.releaseCache || typeof S.releaseCache !== 'object') S.releaseCache = {};
+  if (!S.cache || typeof S.cache !== 'object') S.cache = {};
+  const key = S.activeRelease || '';
+  const owner = releaseCacheOwnerOf(S.cache);
+  if (!owner) {
+    S.releaseCache[key] = S.cache;
+    return;
+  }
+  if (owner === key) return;
+  const bucket = ensureReleaseCacheBucket(key);
+  Object.keys(S.cache).forEach(projectKey => {
+    bucket[projectKey] = S.cache[projectKey];
+  });
+  S.cache = bucket;
+}
+
+function writeReleaseProjectCache(releaseName, projectKey, data) {
+  const bucket = ensureReleaseCacheBucket(releaseName);
+  bucket[projectKey] = data;
+  if ((releaseName || '') === (S.activeRelease || '') && S.cache !== bucket) {
+    if (!S.cache || typeof S.cache !== 'object') S.cache = {};
+    S.cache[projectKey] = data;
+  }
+}
+
+function isolateReleaseCacheBuckets() {
+  if (!S.releaseCache || typeof S.releaseCache !== 'object') S.releaseCache = {};
+  Object.keys(S.releaseCache).forEach(name => {
+    const bucket = S.releaseCache[name];
+    S.releaseCache[name] = bucket && typeof bucket === 'object' ? Object.assign({}, bucket) : {};
+  });
+  bindCacheToActiveRelease();
+}
+
+function getIssueFixVersionNames(issue) {
+  const versions = issue && issue.fields && issue.fields.fixVersions;
+  if (!Array.isArray(versions)) return [];
+  return versions.map(v => (typeof v === 'string' ? v : (v && v.name) || '')).filter(Boolean);
+}
+
+function filterIssuesToActiveRelease(issues, proj) {
+  if (!S.activeRelease || (proj && proj.excludeRelease)) {
+    return { issues: issues || [], mismatched: 0 };
+  }
+  const kept = [];
+  let mismatched = 0;
+  (issues || []).forEach(issue => {
+    const names = getIssueFixVersionNames(issue);
+    if (!names.length || names.includes(S.activeRelease)) kept.push(issue);
+    else mismatched++;
+  });
+  return { issues: kept, mismatched };
 }
 
 function updateGlobalReleaseSelector() {
@@ -2006,10 +2083,8 @@ function updateGlobalReleaseSelector() {
 
 async function changeGlobalRelease(releaseName) {
   if (releaseName === S.activeRelease) return;
-  if (!S.releaseCache) S.releaseCache = {};
-  if (S.activeRelease) S.releaseCache[S.activeRelease] = S.cache;
   S.activeRelease = releaseName;
-  S.cache = S.releaseCache[releaseName] || {};
+  bindCacheToActiveRelease();
   const currentProject = getAllProjects().find(project => project.id === S.page);
   S._skipNextProjectFetch = !!currentProject && !S.cache[currentProject.key];
   await persistNow();
@@ -2126,13 +2201,9 @@ async function runConnectorSyncBatch(releases, projectKeys, mode = 'manual') {
       const statusEl = document.getElementById('connector-status-' + index);
       statusEl.className = 'refresh-status loading';
       statusEl.textContent = 'Loading…';
-      S.activeRelease = job.release;
-      const data = await fetchIssues(job.project, true);
+      const data = await fetchIssues(job.project, true, job.release);
       if (data && !data.err) {
-        if (!S.releaseCache) S.releaseCache = {};
-        if (!S.releaseCache[job.release]) S.releaseCache[job.release] = {};
-        S.releaseCache[job.release][job.project.key] = data;
-        if (job.release === originalRelease) S.cache[job.project.key] = data;
+        writeReleaseProjectCache(job.release, job.project.key, data);
         if (!S.lastSyncAt) S.lastSyncAt = {};
         S.lastSyncAt[job.release] = Date.now();
         synced++;
@@ -2148,9 +2219,12 @@ async function runConnectorSyncBatch(releases, projectKeys, mode = 'manual') {
     }
   } finally {
     S.activeRelease = originalRelease;
+    bindCacheToActiveRelease();
     titleEl.textContent = window._refreshCancelled ? 'Connector sync cancelled' : 'Connector sync complete';
     persist();
     updateSyncStatus();
+    const current = getAllProjects().find(project => project.id === S.page);
+    if (current) renderProject(current);
     await new Promise(resolve => setTimeout(resolve, 500));
     overlay.classList.add('hidden');
     btn.disabled = false;
@@ -2302,10 +2376,7 @@ function slimIssueForCache(issue) {
 }
 
 function getStoredState() {
-  if (S.activeRelease) {
-    if (!S.releaseCache) S.releaseCache = {};
-    S.releaseCache[S.activeRelease] = S.cache;
-  }
+  adoptCacheAsActiveReleaseBucket();
   const state = { ...S, charts: {} };
   delete state.cache;
   Object.keys(state).forEach(key => {
@@ -2380,14 +2451,7 @@ async function loadStoredState() {
     if (data.state && typeof data.state === 'object' && Object.keys(data.state).length) {
       _storeHydrating = true;
       Object.assign(S, data.state);
-      if (!S.releaseCache) S.releaseCache = {};
-      if (S.activeRelease && S.releaseCache[S.activeRelease]) {
-        S.cache = S.releaseCache[S.activeRelease];
-      } else if (!S.cache || typeof S.cache !== 'object') {
-        S.cache = {};
-      } else if (S.activeRelease) {
-        S.releaseCache[S.activeRelease] = S.cache;
-      }
+      isolateReleaseCacheBuckets();
       S.charts = {};
       _storeHydrating = false;
     } else if (isAdmin()) {
@@ -3038,10 +3102,9 @@ async function refreshAll() {
     }
   });
 
-  // Clear cache
-  S.cache = {};
-  if (!S.releaseCache) S.releaseCache = {};
-  S.releaseCache[S.activeRelease || ''] = {};
+  const refreshBucket = ensureReleaseCacheBucket(S.activeRelease);
+  Object.keys(refreshBucket).forEach(key => { delete refreshBucket[key]; });
+  S.cache = refreshBucket;
 
   // Discover custom field IDs from Jira's /field endpoint before fetching
   try {
@@ -3083,10 +3146,7 @@ async function refreshAll() {
     summEl.textContent = `${done} / ${allProjects.length}`;
 
     if (data && !data.err) {
-      S.cache[proj.key] = data;
-      if (!S.releaseCache) S.releaseCache = {};
-      if (!S.releaseCache[S.activeRelease || '']) S.releaseCache[S.activeRelease || ''] = {};
-      S.releaseCache[S.activeRelease || ''][proj.key] = data;
+      writeReleaseProjectCache(S.activeRelease, proj.key, data);
       statusEl.className = 'refresh-status ok';
       const issueCount = (data.issues||[]).length;
       const totalCount = data.total || issueCount;
@@ -3240,11 +3300,11 @@ function autoMapFieldsFromNames(names) {
   if (changed) persist();
 }
 
-async function fetchIssues(proj, autoFetchAll = false) {
+async function fetchIssues(proj, autoFetchAll = false, releaseName) {
   const { url, email, token } = S.creds;
   if (!url) return { err: 'not_configured' };
 
-  const jql = getEffectiveProjectJql(proj);
+  const jql = getEffectiveProjectJql(proj, releaseName);
   let allIssues = [];
   let startAt = 0;
   const maxResults = 100;
@@ -3706,14 +3766,18 @@ function renderProject(proj) {
   if (data.err === 'not_configured') { issuesEl.innerHTML = `<div class="err-box">No synced data is available. Open <button class="btn btn-sm" onclick="nav('connector')">Jira Connector</button> to sync it.</div>`; return; }
   if (data.err) { issuesEl.innerHTML = `<div class="err-box">Error: ${esc(data.err)}</div>`; return; }
 
-  const issues = data.issues || [];
-  const total  = data.total ?? issues.length;
+  const filtered = filterIssuesToActiveRelease(data.issues || [], proj);
+  const issues = filtered.issues;
+  const total  = issues.length;
   
   // Show info box if partial results
   let partialWarning = '';
   if (data.partial) {
-    const remaining = total - issues.length;
-    partialWarning = `<div class="info-box">ℹ️ Showing ${issues.length} of ${total} issues (${remaining} more available). Open <button class="btn btn-sm" onclick="nav('connector')">Jira Connector</button> to sync again.</div>`;
+    const remaining = (data.total ?? (data.issues || []).length) - (data.issues || []).length;
+    partialWarning = `<div class="info-box">ℹ️ Showing ${(data.issues || []).length} of ${data.total ?? (data.issues || []).length} issues (${remaining} more available). Open <button class="btn btn-sm" onclick="nav('connector')">Jira Connector</button> to sync again.</div>`;
+  }
+  if (filtered.mismatched) {
+    partialWarning += `<div class="info-box">Hidden ${filtered.mismatched} cached issue${filtered.mismatched === 1 ? '' : 's'} whose Fix Version is not ${esc(S.activeRelease)}. Re-sync this release from <button class="btn btn-sm" onclick="nav('connector')">Jira Connector</button>.</div>`;
   }
   
   const sm = {}; issues.forEach(i => { const s = i.fields?.status?.name||'Unknown'; sm[s]=(sm[s]||0)+1; });
@@ -3831,9 +3895,9 @@ async function loadAllIssues(projKey) {
   delete S.cache[projKey];
   
   const data = await fetchIssues(proj, true);
-  if (data && !data.err) { 
-    S.cache[projKey] = data; 
-    persist(); 
+  if (data && !data.err) {
+    writeReleaseProjectCache(S.activeRelease, projKey, data);
+    persist();
   }
   
   // Re-render the project page
@@ -9069,6 +9133,8 @@ function stripFixVersionFromJql(jql) {
   return jql
     .replace(/\s+AND\s+fixVersion\s+in\s*\([^)]*\)/gi, '')
     .replace(/\s+AND\s+fixVersion\s*=\s*(?:"[^"]*"|[^\s]+)/gi, '')
+    .replace(/^\s*fixVersion\s+in\s*\([^)]*\)\s*(?:AND\s+)?/gi, '')
+    .replace(/^\s*fixVersion\s*=\s*(?:"[^"]*"|[^\s]+)\s*(?:AND\s+)?/gi, '')
     .trim();
 }
 
@@ -9835,11 +9901,9 @@ async function deleteRelease(index) {
   if (!confirm(`Delete ${releaseName}? This cannot be undone.`)) return;
   
   S.releases.splice(index, 1);
-  if (S.activeRelease === releaseName) {
-    S.activeRelease = '';
-    S.cache = {};
-  }
+  if (S.activeRelease === releaseName) S.activeRelease = '';
   delete S.releaseCache?.[releaseName];
+  bindCacheToActiveRelease();
   delete S.lastSyncAt?.[releaseName];
   if (S.connector) {
     S.connector.releases = (S.connector.releases || []).filter(name => name !== releaseName);
