@@ -158,6 +158,22 @@ html.sidebar-collapsed #log-badge { position: absolute; top: 3px; right: 3px; ma
   flex-direction: column;
   padding: 0;
 }
+#content:has(#page-quality-phase.active) {
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  padding: 0;
+}
+#page-quality-phase.page.active {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-height: 0;
+  height: 100%;
+  padding: 24px;
+  box-sizing: border-box;
+  overflow: hidden;
+}
 #page-phase-timeline.page.active {
   display: flex;
   flex-direction: column;
@@ -181,7 +197,8 @@ html.sidebar-collapsed #log-badge { position: absolute; top: 3px; right: 3px; ma
   margin-bottom: 0 !important;
 }
 /* Slightly shorter chart so title + filters + chart stay on-screen */
-.phase-fixed-top #phase-chart-wrap {
+.phase-fixed-top #phase-chart-wrap,
+.phase-fixed-top #qi-phase-chart-wrap {
   height: 240px !important;
 }
 .phase-scroll-body {
@@ -341,6 +358,9 @@ table.issues tr:hover td { background: var(--bg2); }
 .qi-table td { padding:7px 8px; border-bottom:0.5px solid var(--border); vertical-align:top; }
 .qi-table a { color:var(--blue); font-family:monospace; font-weight:600; text-decoration:none; }
 .qi-table a:hover { text-decoration:underline; }
+.qi-block { margin-bottom:28px; }
+.qi-block > h2 { font-size:16px; font-weight:700; margin-bottom:4px; }
+.qi-block > .sub { font-size:13px; color:var(--text2); margin-bottom:14px; line-height:1.5; }
 .rr-sev.medium { background:var(--amber-bg); color:var(--amber); }
 .rr-sev.low { background:var(--bg3); color:var(--text3); }
 .rr-ai-note { font-size:12px; color:var(--text3); }
@@ -705,6 +725,14 @@ code { font-family: monospace; font-size: 12px; background: var(--bg3); padding:
     <button class="nav-item" onclick="nav('quality-insights')" id="nav-quality-insights" title="Quality Insights">
       <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
       <span class="nav-label">Quality Insights</span>
+    </button>
+    <button class="nav-item" onclick="nav('quality-phase')" id="nav-quality-phase" title="Quality Phase">
+      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 3v18h18"/><path d="M18 17V9"/><path d="M13 17V5"/><path d="M8 17v-3"/></svg>
+      <span class="nav-label">Quality Phase</span>
+    </button>
+    <button class="nav-item" onclick="nav('quality-progress')" id="nav-quality-progress" title="Quality Progress">
+      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><polyline points="10 9 9 9 8 9"/></svg>
+      <span class="nav-label">Quality Progress</span>
     </button>
 
     <div class="sec-label">Config</div>
@@ -1125,7 +1153,7 @@ code { font-family: monospace; font-size: 12px; background: var(--bg3); padding:
         <div class="rr-toolbar">
           <div style="flex:1;min-width:240px">
             <h2 style="font-size:18px;font-weight:600;margin-bottom:3px">Quality Insights</h2>
-            <p style="font-size:13px;color:var(--text2);line-height:1.55">Track bugs and support tickets for the selected market release and its patches — severity, aging, ownership, and must-fix work. Market-release delivery stays under Insights.</p>
+            <p style="font-size:13px;color:var(--text2);line-height:1.55">Open defect and support risk for the selected market release and its patches — readiness, queue, and per-patch load. Feature delivery stays under Insights.</p>
           </div>
           <div class="rr-controls">
             <div class="ms-wrap">
@@ -1145,6 +1173,119 @@ code { font-family: monospace; font-size: 12px; background: var(--bg3); padding:
           </div>
         </div>
         <div id="quality-insights-body"></div>
+      </div>
+
+      <!-- Quality Phase -->
+      <div class="page" id="page-quality-phase">
+        <div class="phase-fixed-top" id="qi-phase-fixed-top">
+          <div style="display:flex;align-items:flex-start;justify-content:space-between;margin-bottom:14px;gap:20px">
+            <div style="flex:1">
+              <h2 style="font-size:18px;font-weight:600;margin-bottom:3px">Quality Phase</h2>
+              <p style="font-size:13px;color:var(--text2)">Open quality queue over time: Product → Dev, bounces to Rejected/Replied, and rework back to Dev. Snapshots are the current open cohort (Open Bugs does not include QA or closed tickets).</p>
+            </div>
+            <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;justify-content:flex-end">
+              <div class="ms-wrap">
+                <button class="ms-btn" id="qi-phase-project-filter-btn" onclick="togglePhaseProjectFilter()">
+                  <span id="qi-phase-project-filter-label">All Quality projects</span>
+                  <span class="ms-badge" id="qi-phase-project-filter-count" style="display:none">0</span>
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"/></svg>
+                </button>
+                <div class="ms-dropdown" id="qi-phase-project-filter-dropdown">
+                  <div class="ms-options" id="qi-phase-project-filter-options"></div>
+                  <div class="ms-footer">
+                    <button onclick="clearPhaseProjectFilter()">Clear</button>
+                    <button onclick="selectAllPhaseProjects()">Select All</button>
+                  </div>
+                </div>
+              </div>
+              <div class="ms-wrap">
+                <button class="ms-btn" id="qi-phase-developer-filter-btn" onclick="togglePhaseDeveloperFilter()">
+                  <span id="qi-phase-developer-filter-label">All Developers</span>
+                  <span class="ms-badge" id="qi-phase-developer-filter-count" style="display:none">0</span>
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"/></svg>
+                </button>
+                <div class="ms-dropdown" id="qi-phase-developer-filter-dropdown">
+                  <div class="ms-dropdown-search">
+                    <input type="text" id="qi-phase-developer-search" placeholder="Search developers..." oninput="filterPhaseDeveloperOptions()">
+                  </div>
+                  <div class="ms-options" id="qi-phase-developer-filter-options"></div>
+                  <div class="ms-footer">
+                    <button onclick="clearPhaseDeveloperFilter()">Clear</button>
+                    <button onclick="selectAllPhaseDevelopers()">Select All</button>
+                  </div>
+                </div>
+              </div>
+              <select id="qi-phase-period" class="section-control" onchange="renderPhaseTimeline()">
+                <option value="day">By Day</option>
+                <option value="week" selected>By Week</option>
+                <option value="month">By Month</option>
+              </select>
+              <select id="qi-phase-range" class="section-control" onchange="renderPhaseTimeline()">
+                <option value="milestones" selected>Release milestones</option>
+                <option value="30">Last 30 days</option>
+                <option value="60">Last 60 days</option>
+                <option value="90">Last 90 days</option>
+                <option value="180">Last 6 months</option>
+                <option value="365">Last year</option>
+              </select>
+            </div>
+          </div>
+          <div id="qi-phase-chart-slot"></div>
+        </div>
+        <div class="phase-scroll-body" id="qi-phase-timeline-content"></div>
+      </div>
+
+      <!-- Quality Progress -->
+      <div class="page" id="page-quality-progress">
+        <div style="display:flex;align-items:flex-start;justify-content:space-between;margin-bottom:18px;gap:20px">
+          <div style="flex:1">
+            <h2 style="font-size:18px;font-weight:600;margin-bottom:3px">Quality Progress</h2>
+            <p style="font-size:13px;color:var(--text2)">Status movements in the open quality queue (bugs/support still not in QA or closed). Forward, bounce, and rework over time.</p>
+          </div>
+          <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;justify-content:flex-end">
+            <div class="ms-wrap">
+              <button class="ms-btn" id="qi-log-project-filter-btn" onclick="toggleLogProjectFilter()">
+                <span id="qi-log-project-filter-label">All Quality projects</span>
+                <span class="ms-badge" id="qi-log-project-filter-count" style="display:none">0</span>
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"/></svg>
+              </button>
+              <div class="ms-dropdown" id="qi-log-project-filter-dropdown">
+                <div class="ms-options" id="qi-log-project-filter-options"></div>
+                <div class="ms-footer">
+                  <button onclick="clearLogProjectFilter()">Clear</button>
+                  <button onclick="selectAllLogProjects()">Select All</button>
+                </div>
+              </div>
+            </div>
+            <div class="ms-wrap">
+              <button class="ms-btn" id="qi-log-developer-filter-btn" onclick="toggleLogDeveloperFilter()">
+                <span id="qi-log-developer-filter-label">All Developers</span>
+                <span class="ms-badge" id="qi-log-developer-filter-count" style="display:none">0</span>
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"/></svg>
+              </button>
+              <div class="ms-dropdown" id="qi-log-developer-filter-dropdown">
+                <div class="ms-dropdown-search">
+                  <input type="text" id="qi-log-developer-search" placeholder="Search developers..." oninput="filterLogDeveloperOptions()">
+                </div>
+                <div class="ms-options" id="qi-log-developer-filter-options"></div>
+                <div class="ms-footer">
+                  <button onclick="clearLogDeveloperFilter()">Clear</button>
+                  <button onclick="selectAllLogDevelopers()">Select All</button>
+                </div>
+              </div>
+            </div>
+            <select id="qi-log-period" class="section-control" onchange="renderDailyProgress()">
+              <option value="day">By Day</option>
+              <option value="week" selected>By Week</option>
+            </select>
+            <select id="qi-log-range" class="section-control" onchange="renderDailyProgress()">
+              <option value="30">Last 30 days</option>
+              <option value="60">Last 60 days</option>
+              <option value="90" selected>Last 90 days</option>
+            </select>
+          </div>
+        </div>
+        <div id="qi-log-content"></div>
       </div>
 
       <!-- Team View -->
@@ -1442,14 +1583,16 @@ const PENDING_STATUS = {
 };
 
 const PHASE_SNAPSHOT_KEYS = ['prodPending', 'devPending', 'qaPending', 'closed', 'onHold'];
+const QUALITY_PHASE_SNAPSHOT_KEYS = ['prodPending', 'devPending', 'rejected', 'onHold'];
 const CLOSED_STATUS_RE = PHASES.find(p => p.label === 'Closed').re;
 
 function getPhaseSnapshotType(statusName) {
   const s = (statusName || '').trim();
+  if (PENDING_STATUS.onHold.test(s)) return 'onHold';
+  if (/^(rejected|replied)/i.test(s)) return 'rejected';
   if (PENDING_STATUS.prod.test(s)) return 'prodPending';
   if (PENDING_STATUS.dev.test(s)) return 'devPending';
   if (PENDING_STATUS.qa.test(s)) return 'qaPending';
-  if (PENDING_STATUS.onHold.test(s)) return 'onHold';
   if (CLOSED_STATUS_RE.test(s)) return 'closed';
   return null;
 }
@@ -1458,8 +1601,8 @@ function emptyPhaseByProjectEntry(name, color) {
   return {
     name,
     color,
-    prodDev: 0, devQA: 0, qaClosed: 0,
-    prodPending: 0, devPending: 0, qaPending: 0, closed: 0, onHold: 0,
+    prodDev: 0, devQA: 0, qaClosed: 0, bounce: 0, rework: 0,
+    prodPending: 0, devPending: 0, qaPending: 0, closed: 0, onHold: 0, rejected: 0,
   };
 }
 
@@ -1470,11 +1613,14 @@ function emptyPhasePeriodBucket(key, date) {
     prodDev: [],
     devQA: [],
     qaClosed: [],
+    bounce: [],
+    rework: [],
     prodPending: [],
     devPending: [],
     qaPending: [],
     closed: [],
     onHold: [],
+    rejected: [],
     byProject: {},
   };
 }
@@ -1609,7 +1755,7 @@ function applyPhaseSnapshots(periodMap, filteredIssues, periodType, now) {
     const endDate = getPhasePeriodEndDate(p.key, periodType);
     const atDate = endDate > now ? now : endDate;
 
-    PHASE_SNAPSHOT_KEYS.forEach(k => { p[k] = []; });
+    phaseSnapshotKeys().forEach(k => { p[k] = []; });
 
     filteredIssues.forEach(({ proj, issue, developer, assignee }) => {
       const status = getIssueStatusAtDate(issue, atDate);
@@ -1751,7 +1897,7 @@ function getPhaseChartWindow(rangeVal, selectedMilestones, now) {
 }
 
 function phasePeriodChartValue(periodBucket, seriesKey, now) {
-  const isSnapshot = PHASE_SNAPSHOT_KEYS.includes(seriesKey);
+  const isSnapshot = phaseSnapshotKeys().includes(seriesKey);
   if (isSnapshot && periodBucket.date > now) return null;
   const v = periodBucket[seriesKey];
   return Array.isArray(v) ? v.length : (v || 0);
@@ -2370,6 +2516,24 @@ function getQualityProjects() {
   return getAllProjects().filter(isQualityDashboardProject);
 }
 
+function isQualityInsightPage() {
+  return S.page === 'quality-phase' || S.page === 'quality-progress';
+}
+
+function insightId(id) {
+  if (!id || id === 'log-badge') return id;
+  if (isQualityInsightPage() && (id.startsWith('phase-') || id.startsWith('log-'))) return 'qi-' + id;
+  return id;
+}
+
+function insightEl(id) {
+  return document.getElementById(insightId(id));
+}
+
+function getInsightScopeProjects() {
+  return isQualityInsightPage() ? getQualityProjects() : getDeliveryProjects();
+}
+
 function qualityInsightRedirectBox(kind) {
   const hasQualityData = getQualityProjects().some(p => S.cache[p.key] && !S.cache[p.key].err);
   if (hasQualityData) {
@@ -2927,7 +3091,7 @@ async function checkProxy() {
 
 // ── Deep linking (History API) ───────────────────────────────────────────────
 const STATIC_PAGES = new Set([
-  'setup', 'velocity', 'data-gaps', 'analytics', 'release-report', 'quality-insights', 'team', 'phase-timeline', 'log',
+  'setup', 'velocity', 'data-gaps', 'analytics', 'release-report', 'quality-insights', 'quality-phase', 'quality-progress', 'team', 'phase-timeline', 'log',
   'connector', 'projects-config', 'releases-config', 'fields'
 ]);
 
@@ -2972,6 +3136,7 @@ function consumePendingRouteParam(name) {
 }
 
 function applyPendingRouteState(page) {
+  if (page) S.page = page;
   const params = _pendingRouteParams;
   if (!params) return;
 
@@ -3050,11 +3215,11 @@ function applyPendingRouteState(page) {
     }
   }
 
-  if (page === 'phase-timeline') {
+  if (page === 'phase-timeline' || page === 'quality-phase') {
     const period = params.get('period');
     const range = params.get('range');
-    if (period) { const el = document.getElementById('phase-period'); if (el) el.value = period; }
-    if (range) { const el = document.getElementById('phase-range'); if (el) el.value = range; }
+    if (period) { const el = insightEl('phase-period'); if (el) el.value = period; }
+    if (range) { const el = insightEl('phase-range'); if (el) el.value = range; }
     const milestones = params.get('milestones');
     if (milestones) {
       const ids = milestones.split(',').map(s => decodeURIComponent(s.trim())).filter(Boolean);
@@ -3065,8 +3230,13 @@ function applyPendingRouteState(page) {
     if (params.get('fullscreen') === '1') S.phaseChartFullscreen = true;
     const hidden = params.get('hiddenSeries');
     if (hidden) {
-      S.phaseTrendVisible = { ...PHASE_TREND_DEFAULT_VISIBLE };
-      hidden.split(',').forEach(k => { if (k in S.phaseTrendVisible) S.phaseTrendVisible[k] = false; });
+      if (page === 'quality-phase') {
+        S.qiPhaseTrendVisible = { ...QUALITY_PHASE_TREND_DEFAULT_VISIBLE };
+        hidden.split(',').forEach(k => { if (k in S.qiPhaseTrendVisible) S.qiPhaseTrendVisible[k] = false; });
+      } else {
+        S.phaseTrendVisible = { ...PHASE_TREND_DEFAULT_VISIBLE };
+        hidden.split(',').forEach(k => { if (k in S.phaseTrendVisible) S.phaseTrendVisible[k] = false; });
+      }
     }
     if (params.get('drillByProject') === '1') S.phaseDrillByProject = true;
     const hiddenProjects = params.get('hiddenProjects');
@@ -3084,11 +3254,11 @@ function applyPendingRouteState(page) {
     if (!detailsView && params.get('groupByProject') === '0') S.phaseDetailsView = 'phase';
   }
 
-  if (page === 'log') {
+  if (page === 'log' || page === 'quality-progress') {
     const period = params.get('period');
     const range = params.get('range');
-    if (period) { const el = document.getElementById('log-period'); if (el) el.value = period; }
-    if (range) { const el = document.getElementById('log-range'); if (el) el.value = range; }
+    if (period) { const el = insightEl('log-period'); if (el) el.value = period; }
+    if (range) { const el = insightEl('log-range'); if (el) el.value = range; }
     const expand = params.get('expand');
     if (expand) S._expandedPeriods = new Set(expand.split(',').map(s => decodeURIComponent(s.trim())).filter(Boolean));
     const detailsView = params.get('detailsView');
@@ -3202,23 +3372,24 @@ function collectRouteParams() {
       params.set('sort', S._teamSort.col);
       params.set('dir', S._teamSort.dir < 0 ? 'desc' : 'asc');
     }
-  } else if (page === 'phase-timeline') {
+  } else if (page === 'phase-timeline' || page === 'quality-phase') {
     const projects = csvParam(getSelectedPhaseProjects());
     const developers = csvParam(getSelectedPhaseDevelopers());
     const scopes = csvParam(getSelectedPhaseScopes());
     if (projects) params.set('projects', projects);
     if (developers) params.set('developers', developers);
     if (scopes) params.set('scope', scopes);
-    const period = document.getElementById('phase-period')?.value;
-    const range = document.getElementById('phase-range')?.value;
+    const period = insightEl('phase-period')?.value;
+    const range = insightEl('phase-range')?.value;
     if (period && period !== 'week') params.set('period', period);
     if (range && range !== 'milestones') params.set('range', range);
     const milestoneCsv = csvParam(S.phaseSelectedMilestones);
     if (milestoneCsv) params.set('milestones', milestoneCsv);
     if (S._expandedPeriods?.size) params.set('expand', [...S._expandedPeriods].join(','));
     if (S.phaseChartFullscreen) params.set('fullscreen', '1');
-    if (S.phaseTrendVisible) {
-      const hidden = Object.entries(S.phaseTrendVisible).filter(([, v]) => !v).map(([k]) => k);
+    const trendVis = page === 'quality-phase' ? S.qiPhaseTrendVisible : S.phaseTrendVisible;
+    if (trendVis) {
+      const hidden = Object.entries(trendVis).filter(([, v]) => !v).map(([k]) => k);
       if (hidden.length) params.set('hiddenSeries', hidden.join(','));
     }
     if (S.phaseDrillByProject) params.set('drillByProject', '1');
@@ -3230,13 +3401,13 @@ function collectRouteParams() {
     }
     // Default detail hierarchy is project→phase; persist alternate view only
     if (S.phaseDetailsView === 'phase') params.set('detailsView', 'phase');
-  } else if (page === 'log') {
+  } else if (page === 'log' || page === 'quality-progress') {
     const projects = csvParam(getSelectedLogProjects());
     const developers = csvParam(getSelectedLogDevelopers());
     if (projects) params.set('projects', projects);
     if (developers) params.set('developers', developers);
-    const period = document.getElementById('log-period')?.value;
-    const range = document.getElementById('log-range')?.value;
+    const period = insightEl('log-period')?.value;
+    const range = insightEl('log-range')?.value;
     if (period && period !== 'week') params.set('period', period);
     if (range && range !== '90') params.set('range', range);
     if (S._expandedPeriods?.size) params.set('expand', [...S._expandedPeriods].join(','));
@@ -3340,6 +3511,12 @@ function nav(id, opts = {}) {
   } else if (id === 'quality-insights') {
     document.getElementById('topbar-title').textContent = 'Quality Insights';
     renderQualityInsights();
+  } else if (id === 'quality-phase') {
+    document.getElementById('topbar-title').textContent = 'Quality Phase';
+    renderPhaseTimeline();
+  } else if (id === 'quality-progress') {
+    document.getElementById('topbar-title').textContent = 'Quality Progress';
+    renderDailyProgress();
   } else if (id === 'team') {
     document.getElementById('topbar-title').textContent = 'Team View';
     renderTeam();
@@ -3575,6 +3752,8 @@ async function refreshAll() {
   else if (S.page === 'velocity') renderVelocity();
   else if (S.page === 'data-gaps') renderDataGaps();
   else if (S.page === 'quality-insights') renderQualityInsights();
+  else if (S.page === 'quality-phase') renderPhaseTimeline();
+  else if (S.page === 'quality-progress') renderDailyProgress();
   else if (S.page === 'log') renderDailyProgress();
 }
 
@@ -6739,6 +6918,7 @@ async function downloadReleaseReportPptx() {
 }
 
 const QUALITY_STALE_DAYS = 14;
+const QUALITY_AGE_BANDS = ['0–7 days', '8–14 days', '15–30 days', '31–60 days', '60+ days'];
 
 function isSevereQualityPriority(priority) {
   return /blocker|critical|highest/i.test(priority || '');
@@ -6748,23 +6928,108 @@ function isHighQualityPriority(priority) {
   return isSevereQualityPriority(priority) || /\bhigh\b/i.test(priority || '');
 }
 
-function qualityIssueAgeDays(issue) {
+function qualityAgeBand(days) {
+  const n = Number(days) || 0;
+  if (n <= 7) return '0–7 days';
+  if (n <= 14) return '8–14 days';
+  if (n <= 30) return '15–30 days';
+  if (n <= 60) return '31–60 days';
+  return '60+ days';
+}
+
+function qualityModuleFromKey(key) {
+  const m = String(key || '').match(/^([A-Z][A-Z0-9]+)-\d+/i);
+  return m ? m[1].toUpperCase() : 'Other';
+}
+
+function qualityPersonName(val) {
+  if (val == null || val === '') return '';
+  if (Array.isArray(val)) {
+    return val.map(v => v && (v.displayName || v.name || String(v))).filter(Boolean).join(', ');
+  }
+  if (typeof val === 'string') return val.trim();
+  return String(val.displayName || val.name || '').trim();
+}
+
+function qualityFieldPerson(issue, fieldAlias, fallbackId) {
+  const cf = ALL_FIELDS.find(f => f.id === fieldAlias);
+  const fieldId = (cf ? jiraId(cf) : null) || fallbackId;
+  return qualityPersonName(issue && issue.fields && issue.fields[fieldId]);
+}
+
+function countQualityBounces(issue) {
+  let n = 0;
+  ((issue && issue.changelog && issue.changelog.histories) || []).forEach(history => {
+    (history.items || []).forEach(item => {
+      if (/^(rejected|replied)/i.test(item.toString || '')) n += 1;
+    });
+  });
+  return n;
+}
+
+function lastQualityStatusChangeMs(issue) {
+  let best = 0;
+  ((issue && issue.changelog && issue.changelog.histories) || []).forEach(history => {
+    const t = Date.parse(history.created);
+    if (!Number.isNaN(t) && t > best) best = t;
+  });
+  if (best) return best;
   const iso = lastActivityIso(issue);
-  if (!iso) return 0;
-  const then = new Date(iso);
-  if (Number.isNaN(then.getTime())) return 0;
-  return Math.round((Date.now() - then.getTime()) / 86400000);
+  const fallback = iso ? Date.parse(iso) : 0;
+  return Number.isNaN(fallback) ? 0 : fallback;
+}
+
+function qualityIssueAgeDays(issue) {
+  const ms = lastQualityStatusChangeMs(issue);
+  if (!ms) return 0;
+  return Math.max(0, Math.round((Date.now() - ms) / 86400000));
 }
 
 function classifyQualityFixVersion(names, marketName, patches) {
   const patchSet = new Set(patches || []);
-  const hasMarket = names.includes(marketName);
+  const hasMarket = !!(marketName && names.includes(marketName));
   const hasPatch = names.some(n => patchSet.has(n));
   if (hasMarket && hasPatch) return 'Market + patch';
   if (hasPatch) return 'Patch only';
   if (hasMarket) return 'Market only';
-  if (names.length) return names[0];
+  if (names.length) return 'Other fixVersion';
   return 'No fixVersion';
+}
+
+function qualityJqlHidesLifecycle(projects) {
+  return (projects || []).length > 0 && (projects || []).every(proj => {
+    const jql = String(getProjectJql(proj) || '').toLowerCase();
+    return /status\s+not\s+in/.test(jql) && /\bqa\b/.test(jql);
+  });
+}
+
+function buildQualityPatchBreakdown(rows, marketName, patches) {
+  const buckets = [];
+  if (marketName) buckets.push({ label: marketName, kind: 'market', match: name => name === marketName });
+  (patches || []).forEach(patch => {
+    buckets.push({ label: patch, kind: 'patch', match: name => name === patch });
+  });
+  const known = new Set([marketName, ...(patches || [])].filter(Boolean));
+  buckets.push({
+    label: 'No / other fixVersion',
+    kind: 'other',
+    match: names => !names.length || names.every(n => !known.has(n)),
+  });
+  return buckets.map(bucket => {
+    const subset = rows.filter(row => {
+      if (bucket.kind === 'other') return bucket.match(row.fixVersions);
+      return (row.fixVersions || []).some(bucket.match);
+    });
+    return {
+      label: bucket.label,
+      kind: bucket.kind,
+      open: subset.length,
+      blockers: subset.filter(r => r.severe).length,
+      high: subset.filter(r => r.high).length,
+      stale: subset.filter(r => r.stale).length,
+      unowned: subset.filter(r => r.unowned).length,
+    };
+  });
 }
 
 function qualityJiraLink(key) {
@@ -6776,6 +7041,8 @@ function qualityJiraLink(key) {
 function collectQualityInsightRows(projects) {
   const market = S.activeRelease || '';
   const patches = getReleasePatchNames(findReleaseByName(market));
+  const custField = ALL_FIELDS.find(f => f.id === 'cf_custcom');
+  const custId = (custField ? jiraId(custField) : null) || 'customfield_10208';
   const rows = [];
   projects.forEach(proj => {
     const filtered = filterIssuesToActiveRelease((S.cache[proj.key] && S.cache[proj.key].issues) || [], proj);
@@ -6785,25 +7052,34 @@ function collectQualityInsightRows(projects) {
       const phase = getPhaseForStatus(status);
       const priority = f.priority?.name || 'None';
       const type = f.issuetype?.name || 'Unknown';
-      const assignee = f.assignee?.displayName || getDev(issue) || 'Unassigned';
+      const jiraAssignee = qualityPersonName(f.assignee);
+      const dev = qualityFieldPerson(issue, 'cf_dev', 'customfield_10206');
+      const product = qualityFieldPerson(issue, 'cf_product', 'customfield_10207');
       const names = getIssueFixVersionNames(issue);
-      const cust = f.customfield_10208;
+      const cust = f[custId];
       const customerCommitment = typeof cust === 'string' ? cust : (cust?.value || '');
       const ageDays = qualityIssueAgeDays(issue);
+      const bounces = countQualityBounces(issue);
       rows.push({
         key: issue.key,
         summary: f.summary || '',
         status,
-        phase: phase?.label || 'Other',
+        phase: /^on[\s-]*hold/i.test(status) ? 'On Hold' : (phase?.label || 'Other'),
         priority,
         type,
-        assignee: assignee === 'Unassigned' ? '' : assignee,
-        unassigned: !assignee || assignee === 'Unassigned',
+        module: qualityModuleFromKey(issue.key),
+        assignee: jiraAssignee,
+        dev,
+        product,
+        owner: dev || jiraAssignee || product,
+        unowned: !jiraAssignee && !dev,
         ageDays,
+        ageBand: qualityAgeBand(ageDays),
         stale: ageDays >= QUALITY_STALE_DAYS,
         severe: isSevereQualityPriority(priority),
         high: isHighQualityPriority(priority),
-        bounced: /reject|replied/i.test(status),
+        bounces,
+        bounced: bounces > 0 || /reject|replied/i.test(status),
         customer: !!(customerCommitment && !/^(no|n\/a|na|none|false|-)$/i.test(customerCommitment)),
         customerCommitment,
         fixVersions: names,
@@ -6840,16 +7116,18 @@ function renderQualityBarList(items, color) {
 function renderQualityTicketTable(rows, emptyText) {
   if (!rows.length) return `<p style="font-size:13px;color:var(--text3)">${esc(emptyText)}</p>`;
   return `<table class="qi-table">
-    <thead><tr><th>Key</th><th>Summary</th><th>Priority</th><th>Status</th><th>Assignee</th><th>Age</th><th>Fix Version</th></tr></thead>
+    <thead><tr><th>Key</th><th>Summary</th><th>Module</th><th>Priority</th><th>Status</th><th>Owner</th><th>Age</th><th>Bounces</th><th>Fix Version</th></tr></thead>
     <tbody>${rows.map(r => `
       <tr>
         <td>${qualityJiraLink(r.key)}</td>
         <td>${esc(r.summary)}</td>
+        <td>${esc(r.module)}</td>
         <td>${esc(r.priority)}</td>
         <td>${esc(r.status)}</td>
-        <td>${esc(r.assignee || 'Unassigned')}</td>
+        <td>${esc(r.owner || 'Unowned')}</td>
         <td>${r.ageDays ? r.ageDays + 'd' : '—'}</td>
-        <td>${esc(r.fixVersions.join(', ') || r.fixBucket)}</td>
+        <td>${r.bounces || 0}</td>
+        <td>${esc((r.fixVersions || []).join(', ') || r.fixBucket)}</td>
       </tr>`).join('')}</tbody>
   </table>`;
 }
@@ -6947,101 +7225,164 @@ function renderQualityInsights() {
   }
 
   const rows = collectQualityInsightRows(projects);
+  const market = S.activeRelease;
+  const patches = getReleasePatchNames(findReleaseByName(market));
+  const hideLifecycle = qualityJqlHidesLifecycle(projects);
+  const blockers = rows.filter(r => r.severe);
   const high = rows.filter(r => r.high);
   const stale = rows.filter(r => r.stale);
-  const unassigned = rows.filter(r => r.unassigned);
+  const unowned = rows.filter(r => r.unowned);
   const bounced = rows.filter(r => r.bounced);
   const customer = rows.filter(r => r.customer);
-  const inQa = rows.filter(r => r.phase === 'QA');
+  const onHold = rows.filter(r => r.phase === 'On Hold');
+  const untriagedBlockers = blockers.filter(r => r.phase === 'Product');
   const mustFix = [...rows].sort((a, b) => {
-    const rank = t => (t.severe ? 3 : t.high ? 2 : t.customer ? 1 : 0) * 1000 + t.ageDays;
+    const rank = t => (t.severe ? 4 : t.high ? 3 : t.customer ? 2 : 0) * 10000 + t.bounces * 100 + t.ageDays;
     return rank(b) - rank(a);
   }).slice(0, 20);
+  const patchRows = buildQualityPatchBreakdown(rows, market, patches);
+  const ageBandCounts = QUALITY_AGE_BANDS.map(label => ({
+    label,
+    count: rows.filter(r => r.ageBand === label).length,
+  })).filter(item => item.count);
+  const typeCounts = countQualityBuckets(rows, r => r.type);
+  const showType = typeCounts.length > 1;
 
   const risks = [];
-  const blockers = rows.filter(r => r.severe);
   if (blockers.length) risks.push({ sev: 'high', title: `${blockers.length} blocker/critical defect${blockers.length === 1 ? '' : 's'} still open`, detail: 'These can stop a patch from shipping or leave customers broken on this market release.' });
-  if (high.length && high.length !== blockers.length) risks.push({ sev: 'high', title: `${high.length} high-priority quality ticket${high.length === 1 ? '' : 's'} open`, detail: 'High-severity bugs and support tickets should be owned and dated for this patch.' });
+  if (untriagedBlockers.length) risks.push({ sev: 'high', title: `${untriagedBlockers.length} blocker/critical still with product`, detail: 'Ship-stoppers that are not yet accepted into a patch plan.' });
+  if (high.length && high.length !== blockers.length) risks.push({ sev: 'high', title: `${high.length} high-priority quality ticket${high.length === 1 ? '' : 's'} open`, detail: 'High-severity bugs should be owned and dated for this patch.' });
   if (customer.length) risks.push({ sev: 'high', title: `${customer.length} customer-impacting ticket${customer.length === 1 ? '' : 's'} not resolved`, detail: 'Customer-facing defects that miss the patch window create support load and trust risk.' });
-  if (unassigned.length >= 3) risks.push({ sev: 'medium', title: `${unassigned.length} open ticket${unassigned.length === 1 ? '' : 's'} unassigned`, detail: 'Unowned bugs and support tickets stall until someone picks them up.' });
-  if (stale.length) risks.push({ sev: 'medium', title: `${stale.length} ticket${stale.length === 1 ? '' : 's'} with no movement in ${QUALITY_STALE_DAYS}+ days`, detail: 'Aging defects often hide missing owners or work that will not make this patch.' });
-  if (bounced.length) risks.push({ sev: 'medium', title: `${bounced.length} ticket${bounced.length === 1 ? '' : 's'} bounced from QA`, detail: 'Rejected or replied defects need another development pass.' });
+  if (unowned.length >= 3) risks.push({ sev: 'medium', title: `${unowned.length} open ticket${unowned.length === 1 ? '' : 's'} unowned`, detail: 'No Jira assignee and no development assignee — they will not move until someone picks them up.' });
+  if (stale.length) risks.push({ sev: 'medium', title: `${stale.length} ticket${stale.length === 1 ? '' : 's'} with no status change in ${QUALITY_STALE_DAYS}+ days`, detail: 'Aging defects often hide missing owners or work that will not make this patch.' });
+  if (bounced.length) risks.push({ sev: 'medium', title: `${bounced.length} ticket${bounced.length === 1 ? '' : 's'} bounced from QA`, detail: 'Rejected or replied at least once — the fix did not stick.' });
+  if (onHold.length) risks.push({ sev: 'medium', title: `${onHold.length} ticket${onHold.length === 1 ? '' : 's'} on hold`, detail: 'Parked quality work. Confirm whether it belongs in this patch.' });
+  const noisyPatch = [...patchRows].filter(p => p.kind === 'patch').sort((a, b) => b.blockers - a.blockers || b.open - a.open)[0];
+  if (noisyPatch && (noisyPatch.blockers || noisyPatch.open >= 5)) {
+    risks.push({ sev: 'medium', title: `${noisyPatch.label} holds ${noisyPatch.open} open ticket${noisyPatch.open === 1 ? '' : 's'}${noisyPatch.blockers ? ` (${noisyPatch.blockers} blocker/critical)` : ''}`, detail: 'Patch concentration — decide whether this cut can ship or needs another patch.' });
+  }
+  const noisyModule = countQualityBuckets(blockers.length ? blockers : rows, r => r.module)[0];
+  if (noisyModule && noisyModule.count >= 3) {
+    risks.push({ sev: 'low', title: `${noisyModule.label} accounts for ${noisyModule.count} of the ${blockers.length ? 'blocker/critical' : 'open'} tickets`, detail: 'Module concentration — the noisy product area for this market/patch.' });
+  }
+
+  const kpiHtml = [
+    `<div class="rr-kpi"><div class="v">${rows.length}</div><div class="l">Open tickets</div></div>`,
+    `<div class="rr-kpi"><div class="v" style="color:var(--red)">${blockers.length}</div><div class="l">Blocker / critical</div></div>`,
+    `<div class="rr-kpi"><div class="v">${high.length}</div><div class="l">High or above</div></div>`,
+    `<div class="rr-kpi"><div class="v">${customer.length}</div><div class="l">Customer-impacting</div></div>`,
+    `<div class="rr-kpi"><div class="v">${unowned.length}</div><div class="l">Unowned</div></div>`,
+    `<div class="rr-kpi"><div class="v">${stale.length}</div><div class="l">Stale ${QUALITY_STALE_DAYS}+ days</div></div>`,
+  ].join('');
 
   body.innerHTML = `
-    <div class="rr-hero">
-      <div class="rr-hero-k">${esc(S.activeRelease)} · Quality</div>
-      <h3>Bugs and support tickets</h3>
-      <p>${rows.length} open quality ticket${rows.length === 1 ? '' : 's'} across ${projects.length} Quality project${projects.length === 1 ? '' : 's'}. This package tracks severity, aging, and ownership — not feature delivery.</p>
-    </div>
-    <div class="rr-kpi-grid" style="margin:16px 0">
-      <div class="rr-kpi"><div class="v">${rows.length}</div><div class="l">Open tickets</div></div>
-      <div class="rr-kpi"><div class="v" style="color:var(--red)">${high.length}</div><div class="l">High / critical</div></div>
-      <div class="rr-kpi"><div class="v">${stale.length}</div><div class="l">Stale ${QUALITY_STALE_DAYS}+ days</div></div>
-      <div class="rr-kpi"><div class="v">${unassigned.length}</div><div class="l">Unassigned</div></div>
-      <div class="rr-kpi"><div class="v">${inQa.length}</div><div class="l">In QA</div></div>
-      <div class="rr-kpi"><div class="v">${customer.length}</div><div class="l">Customer-impacting</div></div>
-    </div>
-    <div class="qi-grid">
-      <div class="rr-section">
-        <h3>By priority</h3>
-        <p class="sub">Severity mix for this market release and its patches</p>
-        ${renderQualityBarList(countQualityBuckets(rows, r => r.priority), 'var(--red)')}
+    <div class="qi-block">
+      <h2>Snapshot</h2>
+      <p class="sub">Can this market release / patch be briefed as safe? Open-queue risk only${hideLifecycle ? ' — this Quality project excludes QA and closed tickets, so there is no “in QA” or closure rate here.' : '.'}</p>
+      <div class="rr-hero">
+        <div class="rr-hero-k">${esc(market)} · Quality</div>
+        <h3>Open defect risk</h3>
+        <p>${rows.length} open quality ticket${rows.length === 1 ? '' : 's'} across ${projects.length} Quality project${projects.length === 1 ? '' : 's'}${patches.length ? ` · ${patches.length} named patch${patches.length === 1 ? '' : 'es'}` : ''}.</p>
+      </div>
+      <div class="rr-kpi-grid" style="margin:16px 0">${kpiHtml}</div>
+      <div class="rr-section" style="margin-bottom:16px">
+        <h3>Readiness risks</h3>
+        <p class="sub">Ship-stoppers, customer impact, aging, and ownership — not feature freeze or remaining estimate</p>
+        ${risks.map(r => `
+          <div class="rr-risk">
+            ${rrSev(r.sev)}
+            <div>
+              <div style="font-weight:600;font-size:13px">${esc(r.title)}</div>
+              <div style="font-size:12px;color:var(--text2);margin-top:3px">${esc(r.detail)}</div>
+            </div>
+          </div>`).join('') || '<p style="font-size:13px;color:var(--green)">No material quality risks from current ticket data.</p>'}
       </div>
       <div class="rr-section">
-        <h3>By status</h3>
-        <p class="sub">Where quality work sits in the queue</p>
-        ${renderQualityBarList(countQualityBuckets(rows, r => r.phase), 'var(--blue)')}
-      </div>
-      <div class="rr-section">
-        <h3>Market vs patch</h3>
-        <p class="sub">Which fixVersion bucket the tickets are on</p>
-        ${renderQualityBarList(countQualityBuckets(rows, r => r.fixBucket), '#533AB7')}
-      </div>
-      <div class="rr-section">
-        <h3>By type</h3>
-        <p class="sub">Bugs vs support vs other quality tickets</p>
-        ${renderQualityBarList(countQualityBuckets(rows, r => r.type), 'var(--amber)')}
+        <h3>Must-fix</h3>
+        <p class="sub">Blockers first, then high + customer-impacting, then oldest</p>
+        ${renderQualityTicketTable(mustFix, 'No must-fix tickets.')}
       </div>
     </div>
-    <div class="rr-section" style="margin-bottom:16px">
-      <h3>Quality risks</h3>
-      <p class="sub">What to brief for this patch — not feature freeze or remaining estimate</p>
-      ${risks.map(r => `
-        <div class="rr-risk">
-          ${rrSev(r.sev)}
-          <div>
-            <div style="font-weight:600;font-size:13px">${esc(r.title)}</div>
-            <div style="font-size:12px;color:var(--text2);margin-top:3px">${esc(r.detail)}</div>
-          </div>
-        </div>`).join('') || '<p style="font-size:13px;color:var(--green)">No material quality risks from current ticket data.</p>'}
-    </div>
-    <div class="rr-section" style="margin-bottom:16px">
-      <h3>Must-fix</h3>
-      <p class="sub">Highest-severity open bugs and support tickets</p>
-      ${renderQualityTicketTable(mustFix, 'No must-fix tickets.')}
-    </div>
-    <div class="qi-grid">
-      <div class="rr-section">
-        <h3>Stale</h3>
-        <p class="sub">No movement in ${QUALITY_STALE_DAYS}+ days</p>
-        ${renderQualityTicketTable(stale.slice(0, 15), 'No stale quality tickets.')}
+
+    <div class="qi-block">
+      <h2>Queue</h2>
+      <p class="sub">Where open bugs sit, who owns them, and how long they have been stuck.</p>
+      <div class="qi-grid">
+        <div class="rr-section">
+          <h3>By phase</h3>
+          <p class="sub">Product = untriaged. Rejected/Replied = bounced from QA.</p>
+          ${renderQualityBarList(countQualityBuckets(rows, r => r.phase), 'var(--blue)')}
+        </div>
+        <div class="rr-section">
+          <h3>By age since last status change</h3>
+          <p class="sub">Changelog dwell, not last comment</p>
+          ${renderQualityBarList(ageBandCounts, 'var(--amber)')}
+        </div>
+        <div class="rr-section">
+          <h3>By module</h3>
+          <p class="sub">Jira project key inside the Quality query (NFS, GL, …)</p>
+          ${renderQualityBarList(countQualityBuckets(rows, r => r.module), '#533AB7')}
+        </div>
+        <div class="rr-section">
+          <h3>By development owner</h3>
+          <p class="sub">Assignee: Development, then Jira assignee</p>
+          ${renderQualityBarList(countQualityBuckets(rows, r => r.dev || r.assignee || 'Unowned'), 'var(--red)')}
+        </div>
+        ${showType ? `<div class="rr-section">
+          <h3>By type</h3>
+          <p class="sub">Only shown when the Quality query has more than one issue type</p>
+          ${renderQualityBarList(typeCounts, 'var(--amber)')}
+        </div>` : ''}
       </div>
-      <div class="rr-section">
-        <h3>Unassigned</h3>
-        <p class="sub">No owner on the ticket</p>
-        ${renderQualityTicketTable(unassigned.slice(0, 15), 'No unassigned quality tickets.')}
+      <div class="qi-grid">
+        <div class="rr-section">
+          <h3>Stale</h3>
+          <p class="sub">No status change in ${QUALITY_STALE_DAYS}+ days</p>
+          ${renderQualityTicketTable(stale.slice(0, 15), 'No stale quality tickets.')}
+        </div>
+        <div class="rr-section">
+          <h3>Unowned</h3>
+          <p class="sub">No Jira assignee and no development assignee</p>
+          ${renderQualityTicketTable(unowned.slice(0, 15), 'No unowned quality tickets.')}
+        </div>
+        <div class="rr-section">
+          <h3>Bounced from QA</h3>
+          <p class="sub">Currently Rejected/Replied, or changelog shows a bounce</p>
+          ${renderQualityTicketTable(bounced.slice(0, 15), 'No bounced tickets.')}
+        </div>
+        <div class="rr-section">
+          <h3>Customer-impacting</h3>
+          <p class="sub">Customer Commitment is set</p>
+          ${renderQualityTicketTable(customer.slice(0, 15), 'No customer-impacting quality tickets.')}
+        </div>
       </div>
     </div>
-    <div class="qi-grid">
-      <div class="rr-section">
-        <h3>Bounced from QA</h3>
-        <p class="sub">Rejected or replied — needs another pass</p>
-        ${renderQualityTicketTable(bounced.slice(0, 15), 'No bounced tickets.')}
-      </div>
-      <div class="rr-section">
-        <h3>Customer-impacting</h3>
-        <p class="sub">Customer commitment or impact on the ticket</p>
-        ${renderQualityTicketTable(customer.slice(0, 15), 'No customer-impacting quality tickets.')}
+
+    <div class="qi-block">
+      <h2>Patches</h2>
+      <p class="sub">Load on the market release name and each named patch. A ticket can count on more than one row if it has multiple fixVersions.</p>
+      <div class="qi-grid">
+        <div class="rr-section">
+          <h3>Market vs patch</h3>
+          <p class="sub">Exclusive bucket per ticket</p>
+          ${renderQualityBarList(countQualityBuckets(rows, r => r.fixBucket), '#533AB7')}
+        </div>
+        <div class="rr-section">
+          <h3>Named patch load</h3>
+          <p class="sub">${patches.length ? 'Open / blockers / stale on each patch name' : 'No patch names on this market release yet — add them in Releases.'}</p>
+          ${patchRows.length ? `<table class="qi-table">
+            <thead><tr><th>Fix version</th><th>Open</th><th>Blocker / critical</th><th>High+</th><th>Stale</th><th>Unowned</th></tr></thead>
+            <tbody>${patchRows.map(p => `
+              <tr>
+                <td>${esc(p.label)}</td>
+                <td>${p.open}</td>
+                <td>${p.blockers}</td>
+                <td>${p.high}</td>
+                <td>${p.stale}</td>
+                <td>${p.unowned}</td>
+              </tr>`).join('')}</tbody>
+          </table>` : '<p style="font-size:13px;color:var(--text3)">No fixVersion data.</p>'}
+        </div>
       </div>
     </div>`;
 }
@@ -7426,7 +7767,7 @@ function updateLogBadge() {
     if (day !== today) return a;
     return a + Object.values(e.projects).reduce((b, p) => b + p.changes.length, 0);
   }, 0);
-  const badge = document.getElementById('log-badge');
+  const badge = insightEl('log-badge');
   if (!badge) return;
   if (total > 0) { badge.textContent = total; badge.style.display = ''; }
   else { badge.style.display = 'none'; }
@@ -7492,7 +7833,54 @@ const PHASE_SERIES_META = {
 
 const PHASE_SERIES_KEYS = Object.keys(PHASE_SERIES_META);
 
+const QUALITY_PHASE_TREND_DEFAULT_VISIBLE = {
+  prodDev: true, bounce: true, rework: true,
+  prodPending: true, devPending: true, rejected: true, onHold: true,
+};
+
+const QUALITY_PHASE_SERIES_META = {
+  prodDev: {
+    label: 'Product → Dev', color: '#7C3AED', bg: 'rgba(124, 58, 237, 0.1)',
+    borderWidth: 2, borderDash: [6, 4], pointRadius: 4, pointHoverRadius: 6,
+    hoverColor: '#5B21B6', isTransition: true,
+  },
+  bounce: {
+    label: 'Dev → Rejected', color: '#C47A0F', bg: 'rgba(196, 122, 15, 0.1)',
+    borderWidth: 2, borderDash: [6, 4], pointRadius: 4, pointHoverRadius: 6,
+    hoverColor: '#92400E', isTransition: true,
+  },
+  rework: {
+    label: 'Rejected → Dev', color: '#185FA5', bg: 'rgba(24, 95, 165, 0.1)',
+    borderWidth: 2, borderDash: [6, 4], pointRadius: 4, pointHoverRadius: 6,
+    hoverColor: '#0F4A82', isTransition: true,
+  },
+  prodPending: PHASE_SERIES_META.prodPending,
+  devPending: PHASE_SERIES_META.devPending,
+  rejected: {
+    label: 'Rejected / Replied', color: '#C47A0F', bg: 'rgba(196, 122, 15, 0.08)',
+    borderWidth: 2.5, borderDash: [], pointRadius: 5, pointHoverRadius: 7,
+    hoverColor: '#92400E', isTransition: false,
+  },
+  onHold: PHASE_SERIES_META.onHold,
+};
+
+function phaseSeriesMeta() {
+  return isQualityInsightPage() ? QUALITY_PHASE_SERIES_META : PHASE_SERIES_META;
+}
+
+function phaseSeriesKeys() {
+  return Object.keys(phaseSeriesMeta());
+}
+
+function phaseSnapshotKeys() {
+  return isQualityInsightPage() ? QUALITY_PHASE_SNAPSHOT_KEYS : PHASE_SNAPSHOT_KEYS;
+}
+
 function ensurePhaseTrendVisible() {
+  if (isQualityInsightPage()) {
+    S.qiPhaseTrendVisible = { ...QUALITY_PHASE_TREND_DEFAULT_VISIBLE, ...(S.qiPhaseTrendVisible || {}) };
+    return S.qiPhaseTrendVisible;
+  }
   S.phaseTrendVisible = { ...PHASE_TREND_DEFAULT_VISIBLE, ...(S.phaseTrendVisible || {}) };
   return S.phaseTrendVisible;
 }
@@ -7506,8 +7894,8 @@ function ensurePhaseProjectVisible(projects) {
 }
 
 function togglePhaseSeriesVisibility(key, checked) {
-  ensurePhaseTrendVisible();
-  S.phaseTrendVisible[key] = !!checked;
+  const vis = ensurePhaseTrendVisible();
+  vis[key] = !!checked;
   renderPhaseTimeline();
   if (!_routeNavigating) syncRoute();
 }
@@ -7571,7 +7959,7 @@ function setAllPhaseProjectLineVisibility(projects, visible) {
 }
 
 function buildPhaseSeriesDataset(key, data, overrides = {}) {
-  const meta = PHASE_SERIES_META[key];
+  const meta = phaseSeriesMeta()[key];
   if (!meta) return null;
   const color = overrides.borderColor || meta.color;
   return {
@@ -7598,7 +7986,7 @@ function buildPhaseSeriesDataset(key, data, overrides = {}) {
 }
 
 function updatePhaseChartFsBtn(isFullscreen) {
-  const btn = document.getElementById('phase-chart-fs-btn');
+  const btn = insightEl('phase-chart-fs-btn');
   if (!btn) return;
   btn.title = isFullscreen ? 'Exit full screen' : 'Full screen';
   btn.setAttribute('aria-label', btn.title);
@@ -7616,7 +8004,7 @@ function resizePhaseTimelineChart() {
 }
 
 function togglePhaseChartFullscreen(force) {
-  const card = document.getElementById('phase-chart-card');
+  const card = insightEl('phase-chart-card');
   if (!card) return;
 
   const next = typeof force === 'boolean' ? force : !card.classList.contains('is-fullscreen');
@@ -7639,8 +8027,8 @@ if (!S._phaseChartFsBound) {
 const PHASE_SCOPE_DEFAULT_EXCLUDE = 'Opportunistic';
 
 function renderPhaseTimeline() {
-  const contentEl = document.getElementById('phase-timeline-content');
-  const chartSlot = document.getElementById('phase-chart-slot');
+  const contentEl = insightEl('phase-timeline-content');
+  const chartSlot = insightEl('phase-chart-slot');
   if (!contentEl) return;
 
   // Clean previous trend chart(s)
@@ -7648,10 +8036,10 @@ function renderPhaseTimeline() {
     if (S.charts[k]) { try { S.charts[k].destroy(); } catch(e){} delete S.charts[k]; }
   });
 
-  const period = document.getElementById('phase-period').value;
-  const rangeVal = document.getElementById('phase-range')?.value || 'milestones';
+  const period = insightEl('phase-period')?.value || 'week';
+  const rangeVal = insightEl('phase-range')?.value || 'milestones';
 
-  ensurePhaseTrendVisible();
+  const trendVisible = ensurePhaseTrendVisible();
   if (S.phaseDrillByProject == null) S.phaseDrillByProject = false;
 
   function clearPhaseChartSlot() {
@@ -7659,10 +8047,10 @@ function renderPhaseTimeline() {
   }
 
   // Gather all issues from all loaded projects
-  const loaded = getDeliveryProjects().filter(p => S.cache[p.key] && !S.cache[p.key].err);
+  const loaded = getInsightScopeProjects().filter(p => S.cache[p.key] && !S.cache[p.key].err);
   if (!loaded.length) {
     clearPhaseChartSlot();
-    contentEl.innerHTML = qualityInsightRedirectBox('phase');
+    contentEl.innerHTML = qualityInsightRedirectBox(isQualityInsightPage() ? 'quality' : 'phase');
     buildPhaseProjectFilterOptions(loaded);
     buildPhaseMilestoneFilterOptions(getDatedReleaseMilestones(getPhaseChartRelease([])));
     return;
@@ -7683,7 +8071,9 @@ function renderPhaseTimeline() {
   const allDevelopers = new Set();
   const allScopes = new Set();
   filteredProjects.forEach(proj => {
-    const issues = S.cache[proj.key].issues || [];
+    const issues = isQualityInsightPage()
+      ? filterIssuesToActiveRelease(S.cache[proj.key].issues || [], proj).issues
+      : (S.cache[proj.key].issues || []);
     issues.forEach(issue => {
       // Get all relevant developer fields
       const devAssignee = getDev(issue); // Development assignee
@@ -7762,14 +8152,15 @@ function renderPhaseTimeline() {
   const chartEnd = chartWindow.end;
   const eventEnd = chartEnd < now ? chartEnd : now;
 
-  // Parse changelog for completion flows (dotted lines):
-  // 1. Prod → Dev (from Product phase into Developing / Developer Pending)
-  // 2. Dev → QA (transitions into QA phase)
-  // 3. QA → Closed (transitions into Closed phase)
-  // Snapshot solid lines are cumulative open-issue counts per period.
+  // Parse changelog for completion flows (dotted lines).
+  // Delivery: Prod → Dev, Dev → QA, QA → Closed.
+  // Quality: Product → Dev, Dev → Rejected (bounce), Rejected → Dev (rework).
   const prodToDev = [];
   const devToQA = [];
   const qaClosed = [];
+  const bounceEvents = [];
+  const reworkEvents = [];
+  const qualityMode = isQualityInsightPage();
   filteredIssues.forEach(({ proj, issue, developer, assignee, productAssignee }) => {
     const changelog = issue.changelog?.histories || [];
     const currentStatus = issue.fields?.status?.name || '';
@@ -7781,6 +8172,10 @@ function renderPhaseTimeline() {
     let qaTargetStatus = '';
     let closedDate = null;
     let closedTargetStatus = '';
+    let bounceDate = null;
+    let bounceTargetStatus = '';
+    let reworkDate = null;
+    let reworkTargetStatus = '';
 
     // Scan from most recent backwards to get the latest transition of each type within range
     for (let i = changelog.length - 1; i >= 0; i--) {
@@ -7813,9 +8208,23 @@ function renderPhaseTimeline() {
             closedDate = changeDate;
             closedTargetStatus = toStatus;
           }
+          if (qualityMode) {
+            const fromDev = fromPhase && (fromPhase.label === 'Developing' || fromPhase.label === 'Developer Pending' || fromPhase.label === 'Product');
+            const toRejected = toPhase && toPhase.label === 'Rejected / Replied';
+            const fromRejected = fromPhase && fromPhase.label === 'Rejected / Replied';
+            const toDev = toPhase && (toPhase.label === 'Developing' || toPhase.label === 'Developer Pending');
+            if (fromDev && toRejected && !bounceDate) {
+              bounceDate = changeDate;
+              bounceTargetStatus = toStatus;
+            }
+            if (fromRejected && toDev && !reworkDate) {
+              reworkDate = changeDate;
+              reworkTargetStatus = toStatus;
+            }
+          }
         }
       }
-      if (prodDevDate && qaDate && closedDate) break;
+      if (qualityMode ? (prodDevDate && bounceDate && reworkDate) : (prodDevDate && qaDate && closedDate)) break;
     }
     
     if (prodDevDate) {
@@ -7860,15 +8269,29 @@ function renderPhaseTimeline() {
         assignee: assignee
       });
     }
+    if (bounceDate) {
+      bounceEvents.push({
+        proj, issue, eventDate: bounceDate, key: issue.key,
+        summary: issue.fields?.summary || '', targetStatus: bounceTargetStatus,
+        currentStatus, currentPhase, developer, assignee
+      });
+    }
+    if (reworkDate) {
+      reworkEvents.push({
+        proj, issue, eventDate: reworkDate, key: issue.key,
+        summary: issue.fields?.summary || '', targetStatus: reworkTargetStatus,
+        currentStatus, currentPhase, developer, assignee
+      });
+    }
   });
 
   const totalProdDev = prodToDev.length;
-  const totalDevQA = devToQA.length;
-  const totalQAClosed = qaClosed.length;
+  const totalDevQA = qualityMode ? bounceEvents.length : devToQA.length;
+  const totalQAClosed = qualityMode ? reworkEvents.length : qaClosed.length;
   const totalProdPending = countSnapshotAtDate(filteredIssues, 'prodPending', now);
   const totalDevPending = countSnapshotAtDate(filteredIssues, 'devPending', now);
-  const totalQAPending = countSnapshotAtDate(filteredIssues, 'qaPending', now);
-  const totalClosed = countSnapshotAtDate(filteredIssues, 'closed', now);
+  const totalQAPending = qualityMode ? countSnapshotAtDate(filteredIssues, 'rejected', now) : countSnapshotAtDate(filteredIssues, 'qaPending', now);
+  const totalClosed = qualityMode ? 0 : countSnapshotAtDate(filteredIssues, 'closed', now);
   const totalOnHold = countSnapshotAtDate(filteredIssues, 'onHold', now);
 
   if (totalProdDev === 0 && totalDevQA === 0 && totalQAClosed === 0 &&
@@ -7899,8 +8322,13 @@ function renderPhaseTimeline() {
   }
 
   prodToDev.forEach(item => addEvent(item, 'prodDev'));
-  devToQA.forEach(item => addEvent(item, 'devQA'));
-  qaClosed.forEach(item => addEvent(item, 'qaClosed'));
+  if (qualityMode) {
+    bounceEvents.forEach(item => addEvent(item, 'bounce'));
+    reworkEvents.forEach(item => addEvent(item, 'rework'));
+  } else {
+    devToQA.forEach(item => addEvent(item, 'devQA'));
+    qaClosed.forEach(item => addEvent(item, 'qaClosed'));
+  }
   ensurePhaseTimelinePeriods(periodMap, rangeStart, chartEnd, period);
   applyPhaseSnapshots(periodMap, filteredIssues, period, now);
 
@@ -7910,7 +8338,15 @@ function renderPhaseTimeline() {
   if (S.phaseDetailsView !== 'phase' && S.phaseDetailsView !== 'project') S.phaseDetailsView = 'project';
   const detailsView = S.phaseDetailsView;
 
-  const PERIOD_DETAIL_CATEGORIES = [
+  const PERIOD_DETAIL_CATEGORIES = qualityMode ? [
+    { key: 'prodDev', title: 'Product → Dev', color: '#7C3AED', snapshot: false },
+    { key: 'bounce', title: 'Dev → Rejected', color: '#C47A0F', snapshot: false },
+    { key: 'rework', title: 'Rejected → Dev', color: '#185FA5', snapshot: false },
+    { key: 'prodPending', title: 'Product (open)', color: '#533AB7', snapshot: true },
+    { key: 'devPending', title: 'In development (open)', color: '#854F0B', snapshot: true },
+    { key: 'rejected', title: 'Rejected / Replied (open)', color: '#C47A0F', snapshot: true },
+    { key: 'onHold', title: 'On-Hold (open)', color: '#B45309', snapshot: true },
+  ] : [
     { key: 'prodDev', title: 'Prod → Dev', color: '#7C3AED', snapshot: false },
     { key: 'devQA', title: 'Dev → QA', color: '#059669', snapshot: false },
     { key: 'qaClosed', title: 'QA → Closed', color: '#2563EB', snapshot: false },
@@ -8072,12 +8508,12 @@ function renderPhaseTimeline() {
   const rows = periods.map(p => {
     const dateLabel = formatPeriodLabel(p.key, period);
     const prodDevCnt = p.prodDev.length;
-    const devQACnt = p.devQA.length;
-    const qaClosedCnt = p.qaClosed.length;
+    const devQACnt = qualityMode ? p.bounce.length : p.devQA.length;
+    const qaClosedCnt = qualityMode ? p.rework.length : p.qaClosed.length;
     const prodPendingCnt = p.prodPending.length;
     const devPendingCnt = p.devPending.length;
-    const qaPendingCnt = p.qaPending.length;
-    const closedCnt = p.closed.length;
+    const qaPendingCnt = qualityMode ? p.rejected.length : p.qaPending.length;
+    const closedCnt = qualityMode ? 0 : p.closed.length;
     const onHoldCnt = p.onHold.length;
     const total = prodDevCnt + devQACnt + qaClosedCnt;
 
@@ -8085,12 +8521,18 @@ function renderPhaseTimeline() {
       .map(([k, data]) => {
         const parts = [];
         if (data.prodDev > 0) parts.push(`${data.prodDev} prod→dev`);
-        if (data.devQA > 0) parts.push(`${data.devQA} dev→qa`);
-        if (data.qaClosed > 0) parts.push(`${data.qaClosed} qa closed`);
+        if (qualityMode) {
+          if (data.bounce > 0) parts.push(`${data.bounce} bounce`);
+          if (data.rework > 0) parts.push(`${data.rework} rework`);
+          if (data.rejected > 0) parts.push(`${data.rejected} rejected`);
+        } else {
+          if (data.devQA > 0) parts.push(`${data.devQA} dev→qa`);
+          if (data.qaClosed > 0) parts.push(`${data.qaClosed} qa closed`);
+          if (data.qaPending > 0) parts.push(`${data.qaPending} qa pending`);
+          if (data.closed > 0) parts.push(`${data.closed} closed`);
+        }
         if (data.prodPending > 0) parts.push(`${data.prodPending} prod pending`);
         if (data.devPending > 0) parts.push(`${data.devPending} dev pending`);
-        if (data.qaPending > 0) parts.push(`${data.qaPending} qa pending`);
-        if (data.closed > 0) parts.push(`${data.closed} closed`);
         if (data.onHold > 0) parts.push(`${data.onHold} on-hold`);
         const txt = parts.join(', ') || '0';
         return `<span style="display:inline-flex;align-items:center;gap:4px;margin-right:8px"><span style="width:8px;height:8px;border-radius:50%;background:${data.color}"></span><span style="font-size:11px">${esc(data.name)}: ${txt}</span></span>`;
@@ -8104,8 +8546,8 @@ function renderPhaseTimeline() {
       <td style="text-align:center;font-size:15px;font-weight:700;color:#2563EB">${qaClosedCnt}</td>
       <td style="text-align:center;font-size:14px;font-weight:700;color:#533AB7">${prodPendingCnt}</td>
       <td style="text-align:center;font-size:14px;font-weight:700;color:#854F0B">${devPendingCnt}</td>
-      <td style="text-align:center;font-size:14px;font-weight:700;color:#0F6E56">${qaPendingCnt}</td>
-      <td style="text-align:center;font-size:14px;font-weight:700;color:#555555">${closedCnt}</td>
+      <td style="text-align:center;font-size:14px;font-weight:700;color:${qualityMode ? '#C47A0F' : '#0F6E56'}">${qaPendingCnt}</td>
+      ${qualityMode ? '' : `<td style="text-align:center;font-size:14px;font-weight:700;color:#555555">${closedCnt}</td>`}
       <td style="text-align:center;font-size:14px;font-weight:700;color:#B45309">${onHoldCnt}</td>
       <td style="text-align:center;font-size:16px;font-weight:700;color:var(--blue)">${total}</td>
       <td style="font-size:12px">${projectBreakdown}</td>
@@ -8135,7 +8577,7 @@ function renderPhaseTimeline() {
   const overlayMilestones = chartWindow.fromMilestones
     ? resolvedMilestones
     : resolvedMilestones.filter(m => m.date >= rangeStart && m.date <= chartEnd);
-  const releaseBurndown = phaseChartRelease
+  const releaseBurndown = (!qualityMode && phaseChartRelease)
     ? buildReleaseBurndownLine(periods, period, phaseChartRelease, filteredIssues, overlayMilestones)
     : null;
   const releaseBurndownLabel = releaseBurndown
@@ -8166,15 +8608,17 @@ function renderPhaseTimeline() {
       </div>` : '';
 
   const chartHtml = `
-    <div class="card phase-chart-card" id="phase-chart-card">
+    <div class="card phase-chart-card" id="${insightId('phase-chart-card')}">
       <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:12px;margin-bottom:4px">
-        <h3 style="font-size:15px;font-weight:600;margin:0">Completion Trend</h3>
-        <button class="btn btn-sm" id="phase-chart-fs-btn" type="button" onclick="togglePhaseChartFullscreen()" title="Full screen" aria-label="Full screen">
+        <h3 style="font-size:15px;font-weight:600;margin:0">${isQualityInsightPage() ? 'Quality queue trend' : 'Completion Trend'}</h3>
+        <button class="btn btn-sm" id="${insightId('phase-chart-fs-btn')}" type="button" onclick="togglePhaseChartFullscreen()" title="Full screen" aria-label="Full screen">
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M8 3H5a2 2 0 0 0-2 2v3m18 0V5a2 2 0 0 0-2-2h-3m0 18h3a2 2 0 0 0 2-2v-3M3 16v3a2 2 0 0 0 2 2h3"/></svg>
           <span>Full screen</span>
         </button>
       </div>
-      <p style="font-size:12px;color:var(--text3);margin-bottom:14px">Dotted lines: transitions per period (Prod → Dev, Dev → QA, QA → Closed). Solid lines: cumulative count of all open issues at each period — Prod-Pending, Dev-Pending, QA-Pending (incl. Pending DEP), Closed, and On-Hold.${drillByProject ? ' <strong>Drill-down:</strong> each enabled series is split into one line per project (project color); toggle projects below.' : ''}${windowCaption}${releaseBurndown?.canBurndown ? ` Dashed line: ideal remaining-issue burndown from ${esc(releaseBurndown.scLabel)} to ${esc(releaseBurndown.ffLabel)} — ${releaseBurndown.startCount} issues at start, decreasing to 0 at the last selected milestone. Colored vertical lines mark selected release milestones.` : (resolvedMilestones.length ? ' Colored vertical lines mark selected release milestones.' : '')} Click a point to expand details below.</p>
+      <p style="font-size:12px;color:var(--text3);margin-bottom:14px">${qualityMode
+        ? 'Dotted lines: Product → Dev, bounce to Rejected/Replied, and rework back to Dev. Solid lines: open quality tickets still in this query (Product, In development, Rejected, On-Hold). QA and closed are not in the Open Bugs set.'
+        : 'Dotted lines: transitions per period (Prod → Dev, Dev → QA, QA → Closed). Solid lines: cumulative count of all open issues at each period — Prod-Pending, Dev-Pending, QA-Pending (incl. Pending DEP), Closed, and On-Hold.'}${drillByProject ? ' <strong>Drill-down:</strong> each enabled series is split into one line per project (project color); toggle projects below.' : ''}${windowCaption}${releaseBurndown?.canBurndown ? ` Dashed line: ideal remaining-issue burndown from ${esc(releaseBurndown.scLabel)} to ${esc(releaseBurndown.ffLabel)} — ${releaseBurndown.startCount} issues at start, decreasing to 0 at the last selected milestone. Colored vertical lines mark selected release milestones.` : (resolvedMilestones.length ? ' Colored vertical lines mark selected release milestones.' : '')} Click a point to expand details below.</p>
       <div style="display:flex; gap:14px; align-items:center; margin-bottom:8px; font-size:12px; flex-wrap:wrap">
         <label style="display:inline-flex; align-items:center; gap:5px; cursor:pointer; font-weight:600; padding:3px 8px; border-radius:6px; background:${drillByProject ? 'var(--bg3)' : 'transparent'}; border:1px solid ${drillByProject ? 'var(--border)' : 'transparent'}">
           <input type="checkbox" ${drillByProject ? 'checked' : ''} onchange="togglePhaseDrillByProject(this.checked)">
@@ -8182,55 +8626,35 @@ function renderPhaseTimeline() {
         </label>
         <span style="color:var(--text3);margin:0 2px">|</span>
         <span style="color:var(--text3); margin-right:2px">Show:</span>
-        <label style="display:inline-flex; align-items:center; gap:4px; cursor:pointer">
-          <input type="checkbox" ${S.phaseTrendVisible.prodDev ? 'checked' : ''} onchange="togglePhaseSeriesVisibility('prodDev', this.checked)">
-          <span style="color:#7C3AED">Prod → Dev</span>
-        </label>
-        <label style="display:inline-flex; align-items:center; gap:4px; cursor:pointer">
-          <input type="checkbox" ${S.phaseTrendVisible.devQA ? 'checked' : ''} onchange="togglePhaseSeriesVisibility('devQA', this.checked)">
-          <span style="color:#059669">Dev → QA</span>
-        </label>
-        <label style="display:inline-flex; align-items:center; gap:4px; cursor:pointer">
-          <input type="checkbox" ${S.phaseTrendVisible.qaClosed ? 'checked' : ''} onchange="togglePhaseSeriesVisibility('qaClosed', this.checked)">
-          <span style="color:#2563EB">QA → Closed</span>
-        </label>
-        <span style="color:var(--text3);margin:0 2px">|</span>
-        <label style="display:inline-flex; align-items:center; gap:4px; cursor:pointer">
-          <input type="checkbox" ${S.phaseTrendVisible.prodPending ? 'checked' : ''} onchange="togglePhaseSeriesVisibility('prodPending', this.checked)">
-          <span style="color:#533AB7">Prod-Pending</span>
-        </label>
-        <label style="display:inline-flex; align-items:center; gap:4px; cursor:pointer">
-          <input type="checkbox" ${S.phaseTrendVisible.devPending ? 'checked' : ''} onchange="togglePhaseSeriesVisibility('devPending', this.checked)">
-          <span style="color:#854F0B">Dev-Pending</span>
-        </label>
-        <label style="display:inline-flex; align-items:center; gap:4px; cursor:pointer">
-          <input type="checkbox" ${S.phaseTrendVisible.qaPending ? 'checked' : ''} onchange="togglePhaseSeriesVisibility('qaPending', this.checked)">
-          <span style="color:#0F6E56">QA-Pending</span>
-        </label>
-        <label style="display:inline-flex; align-items:center; gap:4px; cursor:pointer">
-          <input type="checkbox" ${S.phaseTrendVisible.closed ? 'checked' : ''} onchange="togglePhaseSeriesVisibility('closed', this.checked)">
-          <span style="color:#555555">Closed</span>
-        </label>
-        <label style="display:inline-flex; align-items:center; gap:4px; cursor:pointer">
-          <input type="checkbox" ${S.phaseTrendVisible.onHold ? 'checked' : ''} onchange="togglePhaseSeriesVisibility('onHold', this.checked)">
-          <span style="color:#B45309">On-Hold</span>
-        </label>
+        ${phaseSeriesKeys().map((seriesKey, idx, arr) => {
+          const meta = phaseSeriesMeta()[seriesKey];
+          const prev = arr[idx - 1] && phaseSeriesMeta()[arr[idx - 1]];
+          const split = idx > 0 && prev && prev.isTransition && !meta.isTransition
+            ? '<span style="color:var(--text3);margin:0 2px">|</span>'
+            : '';
+          return `${split}<label style="display:inline-flex; align-items:center; gap:4px; cursor:pointer">
+          <input type="checkbox" ${trendVisible[seriesKey] ? 'checked' : ''} onchange="togglePhaseSeriesVisibility('${seriesKey}', this.checked)">
+          <span style="color:${meta.color}">${esc(meta.label)}</span>
+        </label>`;
+        }).join('')}
         ${releaseBurndown?.canBurndown ? `<span style="color:var(--text3);margin:0 2px">|</span>
         <label style="display:inline-flex; align-items:center; gap:4px; cursor:pointer">
-          <input type="checkbox" ${S.phaseTrendVisible.releaseBurndown ? 'checked' : ''} onchange="togglePhaseSeriesVisibility('releaseBurndown', this.checked)">
+          <input type="checkbox" ${trendVisible.releaseBurndown ? 'checked' : ''} onchange="togglePhaseSeriesVisibility('releaseBurndown', this.checked)">
           <span style="color:${releaseBurndown.lineColor}">Release Target</span>
         </label>` : ''}
       </div>
       ${projectLineTogglesHtml}
-      <div id="phase-chart-wrap" style="position:relative;width:100%;height:${drillByProject ? '360' : '280'}px">
-        <canvas id="phase-timeline-chart"></canvas>
+      <div id="${insightId('phase-chart-wrap')}" style="position:relative;width:100%;height:${drillByProject ? '360' : '280'}px">
+        <canvas id="${insightId('phase-timeline-chart')}"></canvas>
       </div>
     </div>`;
 
   const tableHtml = `
     <div class="card">
       <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:12px;flex-wrap:wrap;margin-bottom:14px">
-        <h3 style="font-size:15px;font-weight:600;margin:0">Phase Transitions (${totalProdDev} Prod→Dev, ${totalDevQA} Dev→QA, ${totalQAClosed} QA Closed) · Currently open: ${totalProdPending} Prod-Pend, ${totalDevPending} Dev-Pend, ${totalQAPending} QA-Pend, ${totalClosed} Closed, ${totalOnHold} On-Hold</h3>
+        <h3 style="font-size:15px;font-weight:600;margin:0">${qualityMode
+          ? `Quality movements (${totalProdDev} Product→Dev, ${totalDevQA} bounce, ${totalQAClosed} rework) · Open: ${totalProdPending} Product, ${totalDevPending} Dev, ${totalQAPending} Rejected, ${totalOnHold} On-Hold`
+          : `Phase Transitions (${totalProdDev} Prod→Dev, ${totalDevQA} Dev→QA, ${totalQAClosed} QA Closed) · Currently open: ${totalProdPending} Prod-Pend, ${totalDevPending} Dev-Pend, ${totalQAPending} QA-Pend, ${totalClosed} Closed, ${totalOnHold} On-Hold`}</h3>
         <div class="phase-details-view-toggle" title="How expanded week/period rows nest phases and projects">
           <button type="button" class="${detailsView === 'phase' ? 'active' : ''}" onclick="setPhaseDetailsView('phase')">Phase → Project</button>
           <button type="button" class="${detailsView === 'project' ? 'active' : ''}" onclick="setPhaseDetailsView('project')">Project → Phase</button>
@@ -8241,14 +8665,14 @@ function renderPhaseTimeline() {
         <thead>
           <tr>
             <th style="width:160px">Period</th>
-            <th style="width:72px;text-align:center">Prod→Dev</th>
-            <th style="width:72px;text-align:center">Dev→QA</th>
-            <th style="width:80px;text-align:center">QA Closed</th>
-            <th style="width:72px;text-align:center" title="All open at period end (incl. Prod-Grooming, Prod-Groomed, Creating)">Prod-Pend</th>
-            <th style="width:72px;text-align:center" title="All open at period end (incl. Dev-Reopened, Dev-Developing, Dev-Designing, Dev-Grooming)">Dev-Pend</th>
-            <th style="width:72px;text-align:center" title="All open at period end (incl. Pending DEP)">QA-Pend</th>
-            <th style="width:72px;text-align:center" title="All closed at period end">Closed</th>
-            <th style="width:72px;text-align:center" title="All on-hold at period end">On-Hold</th>
+            <th style="width:72px;text-align:center">${qualityMode ? 'Prod→Dev' : 'Prod→Dev'}</th>
+            <th style="width:72px;text-align:center">${qualityMode ? 'Bounce' : 'Dev→QA'}</th>
+            <th style="width:80px;text-align:center">${qualityMode ? 'Rework' : 'QA Closed'}</th>
+            <th style="width:72px;text-align:center">${qualityMode ? 'Product' : 'Prod-Pend'}</th>
+            <th style="width:72px;text-align:center">${qualityMode ? 'In Dev' : 'Dev-Pend'}</th>
+            <th style="width:72px;text-align:center">${qualityMode ? 'Rejected' : 'QA-Pend'}</th>
+            ${qualityMode ? '' : '<th style="width:72px;text-align:center">Closed</th>'}
+            <th style="width:72px;text-align:center">On-Hold</th>
             <th style="width:60px;text-align:center">Total</th>
             <th>By Project</th>
             <th style="width:50px"></th>
@@ -8272,10 +8696,10 @@ function renderPhaseTimeline() {
     // One line per project × enabled series type (project color; series style for dash/width)
     filteredProjects.forEach(proj => {
       if (S.phaseProjectVisible[proj.key] === false) return;
-      PHASE_SERIES_KEYS.forEach(seriesKey => {
-        if (!S.phaseTrendVisible[seriesKey]) return;
+      phaseSeriesKeys().forEach(seriesKey => {
+        if (!trendVisible[seriesKey]) return;
         const data = periods.map(p => {
-          if (PHASE_SNAPSHOT_KEYS.includes(seriesKey) && p.date > now) return null;
+          if (phaseSnapshotKeys().includes(seriesKey) && p.date > now) return null;
           return (p.byProject[proj.key] && p.byProject[proj.key][seriesKey]) || 0;
         });
         const meta = PHASE_SERIES_META[seriesKey];
@@ -8291,10 +8715,10 @@ function renderPhaseTimeline() {
       });
     });
   } else {
-    PHASE_SERIES_KEYS.forEach(seriesKey => {
+    phaseSeriesKeys().forEach(seriesKey => {
       const data = periods.map(p => phasePeriodChartValue(p, seriesKey, now));
       const ds = buildPhaseSeriesDataset(seriesKey, data, {
-        hidden: !S.phaseTrendVisible[seriesKey],
+        hidden: !trendVisible[seriesKey],
       });
       if (ds) chartDatasets.push(ds);
     });
@@ -8302,7 +8726,7 @@ function renderPhaseTimeline() {
   if (releaseBurndown?.canBurndown) {
     chartDatasets.push({
       label: releaseBurndownLabel,
-      hidden: !S.phaseTrendVisible.releaseBurndown,
+      hidden: !trendVisible.releaseBurndown,
       data: releaseBurndown.data,
       milestoneMeta: releaseBurndown.milestoneMeta,
       borderColor: releaseBurndown.lineColor,
@@ -8321,7 +8745,7 @@ function renderPhaseTimeline() {
   }
 
   // Render combined line chart with transitions (dotted) and snapshots (solid) series
-  const ctx = document.getElementById('phase-timeline-chart');
+  const ctx = insightEl('phase-timeline-chart');
   if (ctx) {
     if (S.charts.phaseTimeline) S.charts.phaseTimeline.destroy();
     S.charts.phaseTimeline = new Chart(ctx, {
@@ -8402,7 +8826,7 @@ function renderPhaseTimeline() {
       }
     });
     if (S.phaseChartFullscreen) {
-      const card = document.getElementById('phase-chart-card');
+      const card = insightEl('phase-chart-card');
       if (card) {
         card.classList.add('is-fullscreen');
         document.body.classList.add('phase-chart-fs-active');
@@ -8421,7 +8845,7 @@ function getPhaseChartProjects() {
 }
 
 function buildPhaseProjectFilterOptions(projects) {
-  const optionsEl = document.getElementById('phase-project-filter-options');
+  const optionsEl = insightEl('phase-project-filter-options');
   if (!optionsEl) return;
   
   // Only rebuild if needed
@@ -8439,7 +8863,7 @@ function buildPhaseProjectFilterOptions(projects) {
 }
 
 function togglePhaseProjectFilter() {
-  const dropdown = document.getElementById('phase-project-filter-dropdown');
+  const dropdown = insightEl('phase-project-filter-dropdown');
   dropdown.classList.toggle('open');
   
   // Close on outside click
@@ -8451,8 +8875,8 @@ function togglePhaseProjectFilter() {
 }
 
 function closePhaseProjectFilterOnOutside(e) {
-  const dropdown = document.getElementById('phase-project-filter-dropdown');
-  const btn = document.getElementById('phase-project-filter-btn');
+  const dropdown = insightEl('phase-project-filter-dropdown');
+  const btn = insightEl('phase-project-filter-btn');
   if (!dropdown.contains(e.target) && !btn.contains(e.target)) {
     dropdown.classList.remove('open');
     document.removeEventListener('click', closePhaseProjectFilterOnOutside);
@@ -8460,7 +8884,7 @@ function closePhaseProjectFilterOnOutside(e) {
 }
 
 function getSelectedPhaseProjects() {
-  const optionsEl = document.getElementById('phase-project-filter-options');
+  const optionsEl = insightEl('phase-project-filter-options');
   if (!optionsEl) return new Set();
   
   const selected = new Set();
@@ -8472,9 +8896,9 @@ function getSelectedPhaseProjects() {
 
 function updatePhaseProjectFilter() {
   const selected = getSelectedPhaseProjects();
-  const btn = document.getElementById('phase-project-filter-btn');
-  const label = document.getElementById('phase-project-filter-label');
-  const badge = document.getElementById('phase-project-filter-count');
+  const btn = insightEl('phase-project-filter-btn');
+  const label = insightEl('phase-project-filter-label');
+  const badge = insightEl('phase-project-filter-count');
   
   if (selected.size === 0) {
     label.textContent = 'All Projects';
@@ -8492,7 +8916,7 @@ function updatePhaseProjectFilter() {
 }
 
 function clearPhaseProjectFilter() {
-  const optionsEl = document.getElementById('phase-project-filter-options');
+  const optionsEl = insightEl('phase-project-filter-options');
   if (!optionsEl) return;
   
   optionsEl.querySelectorAll('input[type="checkbox"]').forEach(cb => {
@@ -8503,7 +8927,7 @@ function clearPhaseProjectFilter() {
 }
 
 function selectAllPhaseProjects() {
-  const optionsEl = document.getElementById('phase-project-filter-options');
+  const optionsEl = insightEl('phase-project-filter-options');
   if (!optionsEl) return;
   
   optionsEl.querySelectorAll('input[type="checkbox"]').forEach(cb => {
@@ -8545,7 +8969,7 @@ function togglePeriodDetails(periodKey, fromRoute) {
 // ── Phase Developer Filter Functions ──────────────────────────────────────
 
 function buildPhaseDeveloperFilterOptions(developers) {
-  const optionsEl = document.getElementById('phase-developer-filter-options');
+  const optionsEl = insightEl('phase-developer-filter-options');
   if (!optionsEl) return;
   
   // Store currently selected developers
@@ -8568,12 +8992,12 @@ function buildPhaseDeveloperFilterOptions(developers) {
 }
 
 function togglePhaseDeveloperFilter() {
-  const dropdown = document.getElementById('phase-developer-filter-dropdown');
+  const dropdown = insightEl('phase-developer-filter-dropdown');
   dropdown.classList.toggle('open');
   
   // Clear search when opening
   if (dropdown.classList.contains('open')) {
-    const searchInput = document.getElementById('phase-developer-search');
+    const searchInput = insightEl('phase-developer-search');
     if (searchInput) searchInput.value = '';
     filterPhaseDeveloperOptions();
     
@@ -8584,8 +9008,8 @@ function togglePhaseDeveloperFilter() {
 }
 
 function closePhaseDeveloperFilterOnOutside(e) {
-  const dropdown = document.getElementById('phase-developer-filter-dropdown');
-  const btn = document.getElementById('phase-developer-filter-btn');
+  const dropdown = insightEl('phase-developer-filter-dropdown');
+  const btn = insightEl('phase-developer-filter-btn');
   if (!dropdown.contains(e.target) && !btn.contains(e.target)) {
     dropdown.classList.remove('open');
     document.removeEventListener('click', closePhaseDeveloperFilterOnOutside);
@@ -8593,8 +9017,8 @@ function closePhaseDeveloperFilterOnOutside(e) {
 }
 
 function filterPhaseDeveloperOptions() {
-  const searchInput = document.getElementById('phase-developer-search');
-  const optionsEl = document.getElementById('phase-developer-filter-options');
+  const searchInput = insightEl('phase-developer-search');
+  const optionsEl = insightEl('phase-developer-filter-options');
   if (!searchInput || !optionsEl) return;
   
   const searchTerm = searchInput.value.toLowerCase();
@@ -8611,7 +9035,7 @@ function filterPhaseDeveloperOptions() {
 }
 
 function getSelectedPhaseDevelopers() {
-  const optionsEl = document.getElementById('phase-developer-filter-options');
+  const optionsEl = insightEl('phase-developer-filter-options');
   if (!optionsEl) return new Set();
   
   const selected = new Set();
@@ -8623,9 +9047,9 @@ function getSelectedPhaseDevelopers() {
 
 function updatePhaseDeveloperFilter() {
   const selected = getSelectedPhaseDevelopers();
-  const btn = document.getElementById('phase-developer-filter-btn');
-  const label = document.getElementById('phase-developer-filter-label');
-  const badge = document.getElementById('phase-developer-filter-count');
+  const btn = insightEl('phase-developer-filter-btn');
+  const label = insightEl('phase-developer-filter-label');
+  const badge = insightEl('phase-developer-filter-count');
   
   if (selected.size === 0) {
     label.textContent = 'All Developers';
@@ -8643,7 +9067,7 @@ function updatePhaseDeveloperFilter() {
 }
 
 function clearPhaseDeveloperFilter() {
-  const optionsEl = document.getElementById('phase-developer-filter-options');
+  const optionsEl = insightEl('phase-developer-filter-options');
   if (!optionsEl) return;
   
   optionsEl.querySelectorAll('input[type="checkbox"]').forEach(cb => {
@@ -8654,7 +9078,7 @@ function clearPhaseDeveloperFilter() {
 }
 
 function selectAllPhaseDevelopers() {
-  const optionsEl = document.getElementById('phase-developer-filter-options');
+  const optionsEl = insightEl('phase-developer-filter-options');
   if (!optionsEl) return;
   
   // Only select visible options (respecting search filter)
@@ -8671,7 +9095,7 @@ function selectAllPhaseDevelopers() {
 // ── Phase Scope Commitment Filter Functions ───────────────────────────────
 
 function buildPhaseScopeFilterOptions(scopes) {
-  const optionsEl = document.getElementById('phase-scope-filter-options');
+  const optionsEl = insightEl('phase-scope-filter-options');
   if (!optionsEl) return;
 
   const currentSelection = getSelectedPhaseScopes();
@@ -8698,11 +9122,11 @@ function buildPhaseScopeFilterOptions(scopes) {
 }
 
 function togglePhaseScopeFilter() {
-  const dropdown = document.getElementById('phase-scope-filter-dropdown');
+  const dropdown = insightEl('phase-scope-filter-dropdown');
   dropdown.classList.toggle('open');
 
   if (dropdown.classList.contains('open')) {
-    const searchInput = document.getElementById('phase-scope-search');
+    const searchInput = insightEl('phase-scope-search');
     if (searchInput) searchInput.value = '';
     filterPhaseScopeOptions();
 
@@ -8713,8 +9137,8 @@ function togglePhaseScopeFilter() {
 }
 
 function closePhaseScopeFilterOnOutside(e) {
-  const dropdown = document.getElementById('phase-scope-filter-dropdown');
-  const btn = document.getElementById('phase-scope-filter-btn');
+  const dropdown = insightEl('phase-scope-filter-dropdown');
+  const btn = insightEl('phase-scope-filter-btn');
   if (!dropdown.contains(e.target) && !btn.contains(e.target)) {
     dropdown.classList.remove('open');
     document.removeEventListener('click', closePhaseScopeFilterOnOutside);
@@ -8722,8 +9146,8 @@ function closePhaseScopeFilterOnOutside(e) {
 }
 
 function filterPhaseScopeOptions() {
-  const searchInput = document.getElementById('phase-scope-search');
-  const optionsEl = document.getElementById('phase-scope-filter-options');
+  const searchInput = insightEl('phase-scope-search');
+  const optionsEl = insightEl('phase-scope-filter-options');
   if (!searchInput || !optionsEl) return;
 
   const searchTerm = searchInput.value.toLowerCase();
@@ -8734,7 +9158,7 @@ function filterPhaseScopeOptions() {
 }
 
 function getSelectedPhaseScopes() {
-  const optionsEl = document.getElementById('phase-scope-filter-options');
+  const optionsEl = insightEl('phase-scope-filter-options');
   if (!optionsEl) return new Set();
 
   const selected = new Set();
@@ -8746,9 +9170,9 @@ function getSelectedPhaseScopes() {
 
 function updatePhaseScopeFilterLabel() {
   const selected = getSelectedPhaseScopes();
-  const btn = document.getElementById('phase-scope-filter-btn');
-  const label = document.getElementById('phase-scope-filter-label');
-  const badge = document.getElementById('phase-scope-filter-count');
+  const btn = insightEl('phase-scope-filter-btn');
+  const label = insightEl('phase-scope-filter-label');
+  const badge = insightEl('phase-scope-filter-count');
   if (!btn || !label || !badge) return;
 
   if (selected.size === 0) {
@@ -8770,7 +9194,7 @@ function updatePhaseScopeFilter() {
 }
 
 function clearPhaseScopeFilter() {
-  const optionsEl = document.getElementById('phase-scope-filter-options');
+  const optionsEl = insightEl('phase-scope-filter-options');
   if (!optionsEl) return;
 
   optionsEl.querySelectorAll('input[type="checkbox"]').forEach(cb => {
@@ -8781,7 +9205,7 @@ function clearPhaseScopeFilter() {
 }
 
 function selectAllPhaseScopes() {
-  const optionsEl = document.getElementById('phase-scope-filter-options');
+  const optionsEl = insightEl('phase-scope-filter-options');
   if (!optionsEl) return;
 
   optionsEl.querySelectorAll('.ms-option').forEach(option => {
@@ -8795,7 +9219,7 @@ function selectAllPhaseScopes() {
 }
 
 function buildPhaseMilestoneFilterOptions(datedMilestones) {
-  const optionsEl = document.getElementById('phase-milestone-filter-options');
+  const optionsEl = insightEl('phase-milestone-filter-options');
   if (!optionsEl) return;
 
   const list = datedMilestones || [];
@@ -8828,7 +9252,7 @@ function buildPhaseMilestoneFilterOptions(datedMilestones) {
 }
 
 function togglePhaseMilestoneFilter() {
-  const dropdown = document.getElementById('phase-milestone-filter-dropdown');
+  const dropdown = insightEl('phase-milestone-filter-dropdown');
   if (!dropdown) return;
   dropdown.classList.toggle('open');
   if (dropdown.classList.contains('open')) {
@@ -8839,8 +9263,8 @@ function togglePhaseMilestoneFilter() {
 }
 
 function closePhaseMilestoneFilterOnOutside(e) {
-  const dropdown = document.getElementById('phase-milestone-filter-dropdown');
-  const btn = document.getElementById('phase-milestone-filter-btn');
+  const dropdown = insightEl('phase-milestone-filter-dropdown');
+  const btn = insightEl('phase-milestone-filter-btn');
   if (!dropdown || !btn) return;
   if (!dropdown.contains(e.target) && !btn.contains(e.target)) {
     dropdown.classList.remove('open');
@@ -8849,7 +9273,7 @@ function closePhaseMilestoneFilterOnOutside(e) {
 }
 
 function getSelectedPhaseMilestones() {
-  const optionsEl = document.getElementById('phase-milestone-filter-options');
+  const optionsEl = insightEl('phase-milestone-filter-options');
   const selected = new Set();
   if (!optionsEl) return selected;
   optionsEl.querySelectorAll('input[type="checkbox"]:checked').forEach(cb => {
@@ -8859,10 +9283,10 @@ function getSelectedPhaseMilestones() {
 }
 
 function updatePhaseMilestoneFilterLabel() {
-  const btn = document.getElementById('phase-milestone-filter-btn');
-  const label = document.getElementById('phase-milestone-filter-label');
-  const badge = document.getElementById('phase-milestone-filter-count');
-  const optionsEl = document.getElementById('phase-milestone-filter-options');
+  const btn = insightEl('phase-milestone-filter-btn');
+  const label = insightEl('phase-milestone-filter-label');
+  const badge = insightEl('phase-milestone-filter-count');
+  const optionsEl = insightEl('phase-milestone-filter-options');
   if (!btn || !label || !badge) return;
 
   const boxes = optionsEl ? optionsEl.querySelectorAll('input[type="checkbox"]') : [];
@@ -8899,14 +9323,14 @@ function updatePhaseMilestoneFilter() {
 
 function clearPhaseMilestoneFilter() {
   S.phaseSelectedMilestones = null;
-  const optionsEl = document.getElementById('phase-milestone-filter-options');
+  const optionsEl = insightEl('phase-milestone-filter-options');
   if (optionsEl) delete optionsEl.dataset.signature;
   renderPhaseTimeline();
   if (!_routeNavigating) syncRoute();
 }
 
 function selectAllPhaseMilestones() {
-  const optionsEl = document.getElementById('phase-milestone-filter-options');
+  const optionsEl = insightEl('phase-milestone-filter-options');
   if (!optionsEl) return;
   optionsEl.querySelectorAll('input[type="checkbox"]').forEach(cb => { cb.checked = true; });
   updatePhaseMilestoneFilter();
@@ -9211,16 +9635,16 @@ function renderLogPeriodDetails(periodBucket) {
 }
 
 function renderDailyProgress() {
-  const contentEl = document.getElementById('log-content');
+  const contentEl = insightEl('log-content');
   if (!contentEl) return;
 
-  const period = document.getElementById('log-period').value;
-  const range = parseInt(document.getElementById('log-range').value);
+  const period = insightEl('log-period')?.value || 'week';
+  const range = parseInt(insightEl('log-range')?.value || '90', 10);
   
   // Gather all issues from all loaded projects
-  const loaded = getDeliveryProjects().filter(p => S.cache[p.key] && !S.cache[p.key].err);
+  const loaded = getInsightScopeProjects().filter(p => S.cache[p.key] && !S.cache[p.key].err);
   if (!loaded.length) {
-    contentEl.innerHTML = qualityInsightRedirectBox('log');
+    contentEl.innerHTML = qualityInsightRedirectBox(isQualityInsightPage() ? 'quality' : 'log');
     buildLogProjectFilterOptions(loaded);
     return;
   }
@@ -9239,7 +9663,9 @@ function renderDailyProgress() {
   const allIssues = [];
   const allDevelopers = new Set();
   filteredProjects.forEach(proj => {
-    const issues = S.cache[proj.key].issues || [];
+    const issues = isQualityInsightPage()
+      ? filterIssuesToActiveRelease(S.cache[proj.key].issues || [], proj).issues
+      : (S.cache[proj.key].issues || []);
     issues.forEach(issue => {
       // Get all relevant developer fields
       const devAssignee = getDev(issue); // Development assignee
@@ -9429,16 +9855,16 @@ function renderDailyProgress() {
 
   contentEl.innerHTML = `
     <div class="card" style="margin-bottom:20px">
-      <h3 style="font-size:15px;font-weight:600;margin-bottom:4px">Movement Trend</h3>
-      <p style="font-size:12px;color:var(--text3);margin-bottom:14px">Click a bar or period row to expand collapsible movement details. Switch between Direction → Phase and Project → Direction views below.</p>
+      <h3 style="font-size:15px;font-weight:600;margin-bottom:4px">${isQualityInsightPage() ? 'Quality movement trend' : 'Movement Trend'}</h3>
+      <p style="font-size:12px;color:var(--text3);margin-bottom:14px">${isQualityInsightPage() ? 'Status changes in the open quality queue. Tickets that already moved to QA or Closed are not in this dataset.' : 'Click a bar or period row to expand collapsible movement details. Switch between Direction → Phase and Project → Direction views below.'}</p>
       <div style="position:relative;width:100%;height:280px">
-        <canvas id="log-chart"></canvas>
+        <canvas id="${insightId('log-chart')}"></canvas>
       </div>
     </div>
     
     <div class="card">
       <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:12px;flex-wrap:wrap;margin-bottom:14px">
-        <h3 style="font-size:15px;font-weight:600;margin:0">Ticket Movements (${movementData.length} total)</h3>
+        <h3 style="font-size:15px;font-weight:600;margin:0">${isQualityInsightPage() ? 'Quality movements' : 'Ticket Movements'} (${movementData.length} total)</h3>
         <div class="phase-details-view-toggle" title="How expanded period rows nest directions and projects">
           <button type="button" class="${detailsView === 'direction' ? 'active' : ''}" onclick="setLogDetailsView('direction')">Direction → Phase</button>
           <button type="button" class="${detailsView === 'project' ? 'active' : ''}" onclick="setLogDetailsView('project')">Project → Direction</button>
@@ -9461,7 +9887,7 @@ function renderDailyProgress() {
   `;
 
   // Render chart with click handler
-  const ctx = document.getElementById('log-chart');
+  const ctx = insightEl('log-chart');
   if (ctx) {
     if (S.charts.logChart) S.charts.logChart.destroy();
     S.charts.logChart = new Chart(ctx, {
@@ -9531,7 +9957,7 @@ function renderDailyProgress() {
 }
 
 function buildLogProjectFilterOptions(projects) {
-  const optionsEl = document.getElementById('log-project-filter-options');
+  const optionsEl = insightEl('log-project-filter-options');
   if (!optionsEl) return;
   
   // Only rebuild if needed
@@ -9549,7 +9975,7 @@ function buildLogProjectFilterOptions(projects) {
 }
 
 function toggleLogProjectFilter() {
-  const dropdown = document.getElementById('log-project-filter-dropdown');
+  const dropdown = insightEl('log-project-filter-dropdown');
   dropdown.classList.toggle('open');
   
   if (dropdown.classList.contains('open')) {
@@ -9560,8 +9986,8 @@ function toggleLogProjectFilter() {
 }
 
 function closeLogProjectFilterOnOutside(e) {
-  const dropdown = document.getElementById('log-project-filter-dropdown');
-  const btn = document.getElementById('log-project-filter-btn');
+  const dropdown = insightEl('log-project-filter-dropdown');
+  const btn = insightEl('log-project-filter-btn');
   if (!dropdown.contains(e.target) && !btn.contains(e.target)) {
     dropdown.classList.remove('open');
     document.removeEventListener('click', closeLogProjectFilterOnOutside);
@@ -9569,7 +9995,7 @@ function closeLogProjectFilterOnOutside(e) {
 }
 
 function getSelectedLogProjects() {
-  const optionsEl = document.getElementById('log-project-filter-options');
+  const optionsEl = insightEl('log-project-filter-options');
   if (!optionsEl) return new Set();
   
   const selected = new Set();
@@ -9581,9 +10007,9 @@ function getSelectedLogProjects() {
 
 function updateLogProjectFilter() {
   const selected = getSelectedLogProjects();
-  const btn = document.getElementById('log-project-filter-btn');
-  const label = document.getElementById('log-project-filter-label');
-  const badge = document.getElementById('log-project-filter-count');
+  const btn = insightEl('log-project-filter-btn');
+  const label = insightEl('log-project-filter-label');
+  const badge = insightEl('log-project-filter-count');
   
   if (selected.size === 0) {
     label.textContent = 'All Projects';
@@ -9601,7 +10027,7 @@ function updateLogProjectFilter() {
 }
 
 function clearLogProjectFilter() {
-  const optionsEl = document.getElementById('log-project-filter-options');
+  const optionsEl = insightEl('log-project-filter-options');
   if (!optionsEl) return;
   
   optionsEl.querySelectorAll('input[type="checkbox"]').forEach(cb => {
@@ -9612,7 +10038,7 @@ function clearLogProjectFilter() {
 }
 
 function selectAllLogProjects() {
-  const optionsEl = document.getElementById('log-project-filter-options');
+  const optionsEl = insightEl('log-project-filter-options');
   if (!optionsEl) return;
   
   optionsEl.querySelectorAll('input[type="checkbox"]').forEach(cb => {
@@ -9625,7 +10051,7 @@ function selectAllLogProjects() {
 // ── Log Developer Filter Functions ──────────────────────────────────────
 
 function buildLogDeveloperFilterOptions(developers) {
-  const optionsEl = document.getElementById('log-developer-filter-options');
+  const optionsEl = insightEl('log-developer-filter-options');
   if (!optionsEl) return;
   
   // Store currently selected developers
@@ -9648,12 +10074,12 @@ function buildLogDeveloperFilterOptions(developers) {
 }
 
 function toggleLogDeveloperFilter() {
-  const dropdown = document.getElementById('log-developer-filter-dropdown');
+  const dropdown = insightEl('log-developer-filter-dropdown');
   dropdown.classList.toggle('open');
   
   // Clear search when opening
   if (dropdown.classList.contains('open')) {
-    const searchInput = document.getElementById('log-developer-search');
+    const searchInput = insightEl('log-developer-search');
     if (searchInput) searchInput.value = '';
     filterLogDeveloperOptions();
     
@@ -9664,8 +10090,8 @@ function toggleLogDeveloperFilter() {
 }
 
 function closeLogDeveloperFilterOnOutside(e) {
-  const dropdown = document.getElementById('log-developer-filter-dropdown');
-  const btn = document.getElementById('log-developer-filter-btn');
+  const dropdown = insightEl('log-developer-filter-dropdown');
+  const btn = insightEl('log-developer-filter-btn');
   if (!dropdown.contains(e.target) && !btn.contains(e.target)) {
     dropdown.classList.remove('open');
     document.removeEventListener('click', closeLogDeveloperFilterOnOutside);
@@ -9673,8 +10099,8 @@ function closeLogDeveloperFilterOnOutside(e) {
 }
 
 function filterLogDeveloperOptions() {
-  const searchInput = document.getElementById('log-developer-search');
-  const optionsEl = document.getElementById('log-developer-filter-options');
+  const searchInput = insightEl('log-developer-search');
+  const optionsEl = insightEl('log-developer-filter-options');
   if (!searchInput || !optionsEl) return;
   
   const searchTerm = searchInput.value.toLowerCase();
@@ -9691,7 +10117,7 @@ function filterLogDeveloperOptions() {
 }
 
 function getSelectedLogDevelopers() {
-  const optionsEl = document.getElementById('log-developer-filter-options');
+  const optionsEl = insightEl('log-developer-filter-options');
   if (!optionsEl) return new Set();
   
   const selected = new Set();
@@ -9703,9 +10129,9 @@ function getSelectedLogDevelopers() {
 
 function updateLogDeveloperFilter() {
   const selected = getSelectedLogDevelopers();
-  const btn = document.getElementById('log-developer-filter-btn');
-  const label = document.getElementById('log-developer-filter-label');
-  const badge = document.getElementById('log-developer-filter-count');
+  const btn = insightEl('log-developer-filter-btn');
+  const label = insightEl('log-developer-filter-label');
+  const badge = insightEl('log-developer-filter-count');
   
   if (selected.size === 0) {
     label.textContent = 'All Developers';
@@ -9723,7 +10149,7 @@ function updateLogDeveloperFilter() {
 }
 
 function clearLogDeveloperFilter() {
-  const optionsEl = document.getElementById('log-developer-filter-options');
+  const optionsEl = insightEl('log-developer-filter-options');
   if (!optionsEl) return;
   
   optionsEl.querySelectorAll('input[type="checkbox"]').forEach(cb => {
@@ -9734,7 +10160,7 @@ function clearLogDeveloperFilter() {
 }
 
 function selectAllLogDevelopers() {
-  const optionsEl = document.getElementById('log-developer-filter-options');
+  const optionsEl = insightEl('log-developer-filter-options');
   if (!optionsEl) return;
   
   // Only select visible options (respecting search filter)
