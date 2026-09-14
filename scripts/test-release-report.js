@@ -28,6 +28,7 @@ function issue(opts = {}) {
       customfield_10200: opts.scope ? { value: opts.scope } : undefined,
       customfield_10208: opts.custcom,
       updated: opts.updated,
+      fixVersions: (opts.fixVersions || []).map(name => ({ name })),
     },
     lastActivity: opts.lastActivity,
   };
@@ -136,6 +137,7 @@ assert.strictEqual(report.reportKind, 'snapshot');
 assert.strictEqual(report.ticketGroupBy, 'project-status');
 assert.strictEqual(report.projects.length, 1);
 const p = report.projects[0];
+assert.strictEqual(p.insightKind, 'delivery');
 assert.strictEqual(p.progress.delivered, 2);
 assert.strictEqual(p.progress.dropped, 1);
 assert.strictEqual(p.tickets.length, 6);
@@ -259,6 +261,113 @@ assert.ok(/across 2 projects/i.test(freezeRisks[0].title));
 const blocked = (portfolioReport.portfolio.risks || []).find(r => r.kind === 'blocked');
 assert.ok(blocked && blocked.count >= 2);
 
+const qualityReport = analyzeRelease({
+  release, milestones, fieldIds, now,
+  projects: [{
+    project: { key: 'BUGS', name: 'Open Bugs (All Projects)', color: '#D32F2F', category: 'Quality' },
+    issues: [
+      issue({
+        key: 'NFS-200',
+        summary: 'Lease posting fails for customer Acme',
+        status: 'Dev Developing',
+        type: 'Bug',
+        priority: 'Blocker',
+        custcom: 'Acme',
+        lastActivity: '2026-07-01T00:00:00.000Z',
+        fixVersions: ['N2026.R2.P1'],
+      }),
+      issue({
+        key: 'NFS-201',
+        summary: 'Support: cannot export report',
+        status: 'Prod Pending',
+        type: 'Support',
+        priority: 'High',
+        lastActivity: '2026-08-18T00:00:00.000Z',
+        fixVersions: ['N2026.R2'],
+      }),
+      issue({
+        key: 'NFS-202',
+        summary: 'Typo on label',
+        status: 'QA',
+        type: 'Bug',
+        priority: 'Low',
+      }),
+      issue({
+        key: 'NFS-203',
+        summary: 'Unowned patch regression',
+        status: 'Dev Pending',
+        type: 'Bug',
+        priority: 'Medium',
+        lastActivity: '2026-06-01T00:00:00.000Z',
+      }),
+      issue({
+        key: 'NFS-204',
+        summary: 'Another unowned bug',
+        status: 'Prod Pending',
+        type: 'Bug',
+        priority: 'Medium',
+      }),
+      issue({
+        key: 'NFS-205',
+        summary: 'Third unowned bug',
+        status: 'Prod Pending',
+        type: 'Bug',
+        priority: 'Medium',
+      }),
+    ],
+  }],
+});
+const q = qualityReport.projects[0];
+assert.strictEqual(q.insightKind, 'quality');
+assert.ok(q.quality);
+assert.strictEqual(q.progress.open, 6);
+assert.ok(q.quality.highPriority >= 2);
+assert.ok(q.quality.unassigned >= 2);
+assert.ok(q.mustFix.length);
+assert.ok(q.mustFix.some(t => t.key === 'NFS-200'));
+assert.strictEqual(q.highValue.length, 0);
+assert.ok(q.risks.some(r => r.kind === 'quality-blockers'));
+assert.ok(q.risks.some(r => r.kind === 'quality-unassigned'));
+assert.ok(q.risks.some(r => r.kind === 'quality-stale'));
+assert.ok(!q.risks.some(r => r.kind === 'feature-freeze'), 'quality insights must not use feature-freeze language');
+assert.ok(/open quality ticket/i.test(q.narrative.headline));
+assert.ok(qualityReport.portfolio.qualityProjectCount === 1);
+assert.ok(qualityReport.portfolio.deliveryProjectCount === 0);
+assert.ok((qualityReport.portfolio.mustFix || []).some(t => t.key === 'NFS-200'));
+assert.strictEqual((qualityReport.portfolio.highValue || []).length, 0);
+
+const mixedReport = analyzeRelease({
+  release, milestones, fieldIds, now,
+  projects: [
+    {
+      project: { key: 'NFS', name: 'Lease Accounting 6.x', color: '#185FA5', category: 'Core Modules' },
+      issues: [
+        issue({
+          key: 'NFS-10',
+          summary: 'Customer SSO go-live for Acme',
+          status: 'Closed',
+          type: 'Epic',
+          priority: 'Highest',
+          estimate: 12,
+          custcom: 'Acme Q3',
+          description: 'Contractual customer commitment for SSO integration.',
+        }),
+      ],
+    },
+    {
+      project: { key: 'BUGS', name: 'Open Bugs (All Projects)', color: '#D32F2F', category: 'Quality' },
+      issues: [
+        issue({ key: 'BUG-1', summary: 'Crash on save', status: 'Dev Developing', type: 'Bug', priority: 'Blocker' }),
+      ],
+    },
+  ],
+});
+assert.strictEqual(mixedReport.portfolio.deliveryProjectCount, 1);
+assert.strictEqual(mixedReport.portfolio.qualityProjectCount, 1);
+assert.ok(mixedReport.portfolio.highValue.some(t => t.key === 'NFS-10'));
+assert.ok(mixedReport.portfolio.mustFix.some(t => t.key === 'BUG-1'));
+assert.ok(!mixedReport.portfolio.highValue.some(t => t.key === 'BUG-1'));
+
 const groupedStatus = analyzeRelease({
   release, milestones, fieldIds, now, ticketGroupBy: 'status',
   projects: [{ project: { key: 'NFS', name: 'NFS Core' }, issues: [
@@ -332,6 +441,10 @@ async function testPptx() {
   assert.ok(Buffer.isBuffer(buf));
   assert.ok(buf.length > 2000);
   assert.strictEqual(buf.slice(0, 2).toString(), 'PK');
+  const qualityBuf = await buildReleaseReportPptx(qualityReport);
+  assert.ok(Buffer.isBuffer(qualityBuf) && qualityBuf.length > 2000);
+  const mixedBuf = await buildReleaseReportPptx(mixedReport);
+  assert.ok(Buffer.isBuffer(mixedBuf) && mixedBuf.length > 2000);
   console.log('release-report pptx: ok (' + buf.length + ' bytes)');
 }
 

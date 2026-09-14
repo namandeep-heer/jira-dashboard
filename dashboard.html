@@ -86,14 +86,28 @@ body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sa
 .connector-card { background:var(--bg2); border:0.5px solid var(--border); border-radius:var(--radius-lg); padding:18px; }
 .connector-card h3 { font-size:14px; font-weight:600; margin-bottom:5px; }
 .connector-card .desc { font-size:12px; color:var(--text2); line-height:1.5; margin-bottom:14px; }
-.connector-options { display:flex; flex-direction:column; gap:7px; max-height:260px; overflow-y:auto; }
-.connector-option { display:flex; align-items:center; gap:8px; min-height:28px; font-size:13px; }
-.connector-option input { accent-color:var(--blue); }
-.connector-project-key { color:var(--text3); font-size:11px; margin-left:auto; }
+.connector-options { display:flex; flex-direction:column; gap:7px; max-height:320px; overflow-y:auto; }
+.connector-option { display:flex; align-items:flex-start; gap:8px; min-height:28px; font-size:13px; }
+.connector-option input { accent-color:var(--blue); margin-top:4px; flex-shrink:0; }
+.connector-option-copy { display:flex; flex-direction:column; gap:1px; min-width:0; flex:1; }
+.connector-option-meta { font-size:11px; color:var(--text3); line-height:1.35; }
+.connector-project-key { color:var(--text3); font-size:11px; margin-left:auto; flex-shrink:0; padding-top:3px; }
 .connector-schedule-row { display:grid; grid-template-columns:minmax(0,1fr) 150px; align-items:center; gap:12px; padding:9px 0; border-top:0.5px solid var(--border); }
 .connector-schedule-row:first-child { border-top:0; }
 .connector-schedule-row select { width:100%; padding:6px 8px; border:0.5px solid var(--border2); border-radius:var(--radius); background:var(--bg); color:var(--text); font:inherit; }
 .connector-status { min-height:18px; margin-top:12px; font-size:12px; color:var(--text2); }
+.connector-preview { margin-top:16px; }
+.connector-preview-head { display:flex; align-items:baseline; justify-content:space-between; gap:12px; margin-bottom:10px; flex-wrap:wrap; }
+.connector-preview-count { font-size:12px; color:var(--text2); }
+.connector-preview-list { display:flex; flex-direction:column; gap:8px; max-height:380px; overflow-y:auto; }
+.connector-job { padding:10px 12px; border:0.5px solid var(--border); border-radius:var(--radius); background:var(--bg); }
+.connector-job.fetch { border-color:rgba(124,184,66,.4); }
+.connector-job.skip { background:var(--bg2); }
+.connector-job-title { font-size:13px; font-weight:600; }
+.connector-job-status { font-size:12px; margin-top:3px; }
+.connector-job.fetch .connector-job-status { color:var(--green); }
+.connector-job.skip .connector-job-status { color:var(--text3); }
+.connector-job-versions { font-size:11px; color:var(--text2); margin-top:4px; line-height:1.45; font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace; }
 @media (max-width:700px) { .connector-grid { grid-template-columns:1fr; } #global-release-wrap span { display:none; } #global-release-select { min-width:120px; max-width:150px; } }
 #content { flex: 1; overflow-y: auto; padding: 24px; background: var(--bg3); }
 
@@ -320,6 +334,13 @@ table.issues tr:hover td { background: var(--bg2); }
 .rr-risk:last-child { border-bottom:none; }
 .rr-sev { font-size:10px; font-weight:700; letter-spacing:.04em; text-transform:uppercase; padding:2px 7px; border-radius:4px; height:fit-content; }
 .rr-sev.high { background:var(--red-bg); color:var(--red); }
+.qi-grid { display:grid; grid-template-columns:1fr 1fr; gap:16px; margin-bottom:16px; }
+@media (max-width:900px) { .qi-grid { grid-template-columns:1fr; } }
+.qi-table { width:100%; border-collapse:collapse; font-size:12px; }
+.qi-table th { text-align:left; font-size:11px; color:var(--text3); font-weight:600; padding:6px 8px; border-bottom:0.5px solid var(--border); }
+.qi-table td { padding:7px 8px; border-bottom:0.5px solid var(--border); vertical-align:top; }
+.qi-table a { color:var(--blue); font-family:monospace; font-weight:600; text-decoration:none; }
+.qi-table a:hover { text-decoration:underline; }
 .rr-sev.medium { background:var(--amber-bg); color:var(--amber); }
 .rr-sev.low { background:var(--bg3); color:var(--text3); }
 .rr-ai-note { font-size:12px; color:var(--text3); }
@@ -518,6 +539,7 @@ body.phase-chart-fs-active { overflow: hidden; }
 .refresh-status.loading  { color:var(--blue); }
 .refresh-status.ok       { color:var(--green); }
 .refresh-status.err      { color:var(--red); }
+.refresh-status.skip     { color:var(--text3); }
 .refresh-bar-wrap { height:4px; background:var(--bg3); border-radius:2px; margin:18px 0 6px; overflow:hidden; }
 .refresh-bar { height:100%; background:var(--blue); border-radius:2px; transition:width .3s; }
 #auto-sync-overlay { position:fixed; inset:0; z-index:998; background:rgba(0,0,0,.45); display:flex; align-items:center; justify-content:center; backdrop-filter:blur(3px); }
@@ -550,6 +572,16 @@ body.phase-chart-fs-active { overflow: hidden; }
 .ms-footer { display:flex; justify-content:space-between; padding:6px 10px; border-top:0.5px solid var(--border); }
 .ms-footer button { font-size:11px; color:var(--blue); background:none; border:none; cursor:pointer; font-family:inherit; padding:2px 4px; }
 .ms-footer button:hover { text-decoration:underline; }
+.release-mode-options { display:flex; flex-direction:column; gap:8px; }
+.release-mode-option { display:flex; align-items:flex-start; gap:8px; padding:8px 10px; border:0.5px solid var(--border); border-radius:var(--radius); background:var(--bg); cursor:pointer; }
+.release-mode-option:hover { border-color:var(--border2); }
+.release-mode-option:has(input:checked) { border-color:var(--blue); background:var(--blue-bg); }
+.field-row .release-mode-option input { width:auto; height:auto; margin-top:3px; padding:0; border:none; background:transparent; flex-shrink:0; accent-color:var(--blue); }
+.release-mode-option .mode-label { display:block; font-size:13px; font-weight:500; color:var(--text); }
+.release-mode-option .mode-hint { display:block; font-size:11px; color:var(--text2); line-height:1.4; margin-top:2px; }
+.patch-list { display:flex; flex-direction:column; gap:8px; }
+.patch-row { display:flex; align-items:center; gap:8px; }
+.patch-row input { flex:1; padding:6px 8px; border:0.5px solid var(--border2); border-radius:var(--radius); background:var(--bg); color:var(--text); font-size:12px; font-family:inherit; }
 .team-dev-block { margin-bottom:24px; }
 .team-dev-header { display:flex; align-items:center; gap:10px; padding:10px 0 8px; border-bottom:2px solid var(--border2); margin-bottom:0; font-size:14px; font-weight:600; }
 .team-dev-count { font-size:11px; font-weight:400; color:var(--text3); margin-left:4px; }
@@ -669,6 +701,12 @@ code { font-family: monospace; font-size: 12px; background: var(--bg3); padding:
       <span id="log-badge" style="display:none;margin-left:auto;background:var(--red);color:#fff;font-size:10px;font-weight:700;padding:1px 6px;border-radius:10px"></span>
     </button>
 
+    <div class="sec-label">Quality Insights</div>
+    <button class="nav-item" onclick="nav('quality-insights')" id="nav-quality-insights" title="Quality Insights">
+      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
+      <span class="nav-label">Quality Insights</span>
+    </button>
+
     <div class="sec-label">Config</div>
     <button class="nav-item" onclick="nav('connector')" id="nav-connector" title="Jira Connector">
       <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M8 12h8M12 8v8"/><circle cx="12" cy="12" r="9"/><path d="M7 3l-4 4M17 3l4 4M7 21l-4-4M17 21l4-4"/></svg>
@@ -700,8 +738,8 @@ code { font-family: monospace; font-size: 12px; background: var(--bg3); padding:
       <span id="auth-role-indicator" style="font-size:12px;color:var(--text2)"></span>
       <button class="btn btn-sm" id="auth-btn" onclick="submitDashboardAuth()">Sign in</button>
       <label id="global-release-wrap" for="global-release-select">
-        <span>Release</span>
-        <select id="global-release-select" onchange="changeGlobalRelease(this.value)" aria-label="Global release filter">
+        <span>Market release</span>
+        <select id="global-release-select" onchange="changeGlobalRelease(this.value)" aria-label="Market release filter">
           <option value="">Loading…</option>
         </select>
       </label>
@@ -752,7 +790,7 @@ code { font-family: monospace; font-size: 12px; background: var(--bg3); padding:
 
     <!-- Project add/edit modal -->
     <div id="proj-modal-overlay" style="display:none;position:fixed;inset:0;z-index:1000;background:rgba(0,0,0,.5);display:none;align-items:center;justify-content:center;backdrop-filter:blur(3px)">
-      <div style="background:var(--bg2);border:0.5px solid var(--border2);border-radius:var(--radius-lg);padding:28px 32px;width:560px;max-width:95vw">
+      <div style="background:var(--bg2);border:0.5px solid var(--border2);border-radius:var(--radius-lg);padding:28px 32px;width:600px;max-width:95vw;max-height:90vh;overflow-y:auto">
         <h3 id="proj-modal-title" style="font-size:16px;font-weight:600;margin-bottom:18px">Add project</h3>
         <div class="field-row" style="margin-bottom:12px">
           <label>Project name</label>
@@ -773,10 +811,10 @@ code { font-family: monospace; font-size: 12px; background: var(--bg3); padding:
           </div>
         </div>
         <div class="field-row" style="margin-bottom:12px">
-          <label>Releases (fixVersion) <span style="color:var(--red);">*</span> <span style="color:var(--text3);font-weight:400">— at least one required, used in JQL</span></label>
+          <label>Market releases (fixVersion) <span style="color:var(--red);">*</span> <span style="color:var(--text3);font-weight:400">— at least one required</span></label>
           <div class="ms-wrap" style="width:100%;display:block">
             <button type="button" class="ms-btn" id="pmod-release-btn" onclick="toggleProjectReleaseMs()" style="width:100%">
-              <span id="pmod-release-label">Select releases...</span>
+              <span id="pmod-release-label">Select market releases...</span>
               <span class="ms-badge" id="pmod-release-count" style="display:none">0</span>
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"/></svg>
             </button>
@@ -789,8 +827,35 @@ code { font-family: monospace; font-size: 12px; background: var(--bg3); padding:
             </div>
           </div>
         </div>
+        <div class="field-row" style="margin-bottom:12px">
+          <label>Include in Jira queries</label>
+          <div class="release-mode-options" id="pmod-release-mode">
+            <label class="release-mode-option">
+              <input type="radio" name="pmod-release-mode" value="market+patch" onchange="updateProjectReleasePreview()">
+              <span>
+                <span class="mode-label">Market releases and their patch releases</span>
+                <span class="mode-hint">Query the selected market release plus every patch name defined on it.</span>
+              </span>
+            </label>
+            <label class="release-mode-option">
+              <input type="radio" name="pmod-release-mode" value="market" checked onchange="updateProjectReleasePreview()">
+              <span>
+                <span class="mode-label">Market releases only</span>
+                <span class="mode-hint">Query only the selected market release name. Patch fixVersions are ignored.</span>
+              </span>
+            </label>
+            <label class="release-mode-option">
+              <input type="radio" name="pmod-release-mode" value="patch" onchange="updateProjectReleasePreview()">
+              <span>
+                <span class="mode-label">Patch releases only</span>
+                <span class="mode-hint">Query only the patch names defined on the selected market release.</span>
+              </span>
+            </label>
+          </div>
+          <div id="pmod-release-preview" style="margin-top:8px;padding:8px 10px;border:0.5px solid var(--border);border-radius:var(--radius);background:var(--bg);font-size:11px;color:var(--text2);line-height:1.5"></div>
+        </div>
         <div class="field-row" style="margin-bottom:18px">
-          <label>JQL query <span style="color:var(--text3);font-weight:400">— fixVersion clause auto-injected based on selected releases</span></label>
+          <label>JQL query <span style="color:var(--text3);font-weight:400">— fixVersion is injected from the selected market release and this include mode</span></label>
           <textarea id="pmod-jql" rows="4" placeholder='project in (ABC) AND issuetype in (Enhancement, Epic) ORDER BY status DESC' style="padding:7px 10px;border:0.5px solid var(--border2);border-radius:var(--radius);background:var(--bg);color:var(--text);font-size:12px;font-family:monospace;width:100%;box-sizing:border-box;resize:vertical"></textarea>
         </div>
         <div id="pmod-msg" style="font-size:12px;color:var(--red);margin-bottom:10px;min-height:16px"></div>
@@ -854,12 +919,12 @@ code { font-family: monospace; font-size: 12px; background: var(--bg3); padding:
       <div class="page" id="page-connector">
         <div id="connector-page">
           <h2 style="font-size:18px;font-weight:600;margin-bottom:6px">Jira Connector</h2>
-          <p style="font-size:13px;color:var(--text2);line-height:1.65;margin-bottom:18px">Sync selected releases and projects from Jira. Scheduled sync runs while this dashboard is open.</p>
+          <p style="font-size:13px;color:var(--text2);line-height:1.65;margin-bottom:18px">Sync selected market releases and projects from Jira. A project is queried only when that market release is enabled on it, using its include mode (market, patches, or both). Scheduled sync runs while this dashboard is open.</p>
           <div class="connector-grid">
             <div class="connector-card">
               <h3>Manual sync</h3>
-              <p class="desc">Choose one or more releases and projects, then sync them immediately.</p>
-              <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px"><strong style="font-size:12px">Releases</strong><button class="btn btn-sm" type="button" onclick="toggleConnectorGroup('release')">Select all</button></div>
+              <p class="desc">Choose market releases and projects. Combinations that are not enabled on the project are skipped.</p>
+              <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px"><strong style="font-size:12px">Market releases</strong><button class="btn btn-sm" type="button" onclick="toggleConnectorGroup('release')">Select all</button></div>
               <div class="connector-options" id="connector-manual-releases"></div>
               <div style="display:flex;align-items:center;justify-content:space-between;margin:16px 0 8px"><strong style="font-size:12px">Projects</strong><button class="btn btn-sm" type="button" onclick="toggleConnectorGroup('project')">Select all enabled</button></div>
               <div class="connector-options" id="connector-manual-projects"></div>
@@ -870,11 +935,19 @@ code { font-family: monospace; font-size: 12px; background: var(--bg3); padding:
             </div>
             <div class="connector-card">
               <h3>Scheduled sync</h3>
-              <p class="desc">Enable a schedule per release. Each run uses the selected projects above.</p>
+              <p class="desc">Enable a schedule per market release. Each run uses the selected projects that have that market release enabled, with that project’s include mode.</p>
               <label class="connector-option" style="margin-bottom:12px"><input type="checkbox" id="connector-schedule-enabled" onchange="updateConnectorScheduleEnabled(this.checked)"> Enable scheduled sync</label>
               <div id="connector-schedule-rows"></div>
               <div class="connector-status" id="connector-schedule-status"></div>
             </div>
+          </div>
+          <div class="connector-card connector-preview">
+            <div class="connector-preview-head">
+              <h3 style="margin:0">What this sync will query</h3>
+              <span class="connector-preview-count" id="connector-preview-count"></span>
+            </div>
+            <p class="desc">Uses the market releases and projects checked on the left, plus each project’s enabled market releases and include mode. Scheduled sync uses the same project list.</p>
+            <div class="connector-preview-list" id="connector-sync-preview"></div>
           </div>
         </div>
       </div>
@@ -884,7 +957,7 @@ code { font-family: monospace; font-size: 12px; background: var(--bg3); padding:
         <div style="max-width:860px">
           <h2 style="font-size:18px;font-weight:600;margin-bottom:6px">Project Configuration</h2>
           <p style="font-size:13px;color:var(--text2);line-height:1.65;margin-bottom:16px">
-            Enable/disable projects, remove/restore built-ins, and edit JQL per project. Custom projects can also be added, edited, and deleted.
+            Enable/disable projects, remove/restore built-ins, and edit JQL per project. Each project can include market releases with their patches, market releases only, or patch releases only. Custom projects can also be added, edited, and deleted.
             <br><strong>Configuration is saved locally on this machine</strong>
           </p>
           <div style="margin-bottom: 20px;">
@@ -946,7 +1019,7 @@ code { font-family: monospace; font-size: 12px; background: var(--bg3); padding:
         <div style="display:flex;align-items:flex-start;justify-content:space-between;margin-bottom:18px;gap:20px">
           <div style="flex:1">
             <h2 style="font-size:18px;font-weight:600;margin-bottom:3px">Developer Velocity</h2>
-            <p style="font-size:13px;color:var(--text2)">Track whether developers are behind schedule, on track, or have capacity for more work based on estimated vs actual time.</p>
+            <p style="font-size:13px;color:var(--text2)">Track whether developers are behind schedule, on track, or have capacity for more work based on estimated vs actual time. Market-release projects only — Quality is under Quality Insights.</p>
           </div>
           <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;justify-content:flex-end">
             <div class="ms-wrap">
@@ -973,7 +1046,7 @@ code { font-family: monospace; font-size: 12px; background: var(--bg3); padding:
         <div style="display:flex;align-items:flex-start;justify-content:space-between;margin-bottom:18px;gap:20px">
           <div style="flex:1">
             <h2 style="font-size:18px;font-weight:600;margin-bottom:3px">Data Gaps</h2>
-            <p style="font-size:13px;color:var(--text2)">Find tickets missing dev estimate days, and dev-done tickets missing actual days.</p>
+            <p style="font-size:13px;color:var(--text2)">Find tickets missing dev estimate days, and dev-done tickets missing actual days. Market-release projects only — Quality is under Quality Insights.</p>
           </div>
           <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;justify-content:flex-end">
             <div class="ms-wrap">
@@ -999,7 +1072,7 @@ code { font-family: monospace; font-size: 12px; background: var(--bg3); padding:
       <div class="page" id="page-analytics">
         <div class="analytics-head">
           <h2>Analytics</h2>
-          <p class="sub">Status, priority, and issue-type breakdowns per project. Load each project first to populate.</p>
+          <p class="sub">Status, priority, and issue-type breakdowns for market-release projects. Quality (bugs/support) is under Quality Insights.</p>
         </div>
         <div id="analytics-body"></div>
       </div>
@@ -1009,7 +1082,7 @@ code { font-family: monospace; font-size: 12px; background: var(--bg3); padding:
         <div class="rr-toolbar">
           <div style="flex:1;min-width:240px">
             <h2 style="font-size:18px;font-weight:600;margin-bottom:3px">Release Report</h2>
-            <p style="font-size:13px;color:var(--text2);line-height:1.55">Company-ready briefing for the selected release — per-project progress, then high-value deliverables and cumulative risks for the accounting portfolio. Use mid-release or at the end. Export as PowerPoint plus an HTML list of every ticket, grouped by the option below.</p>
+            <p style="font-size:13px;color:var(--text2);line-height:1.55">Company-ready briefing for market-release delivery — progress, high-value features, and freeze/GA risks. Quality (bugs and support) has its own package under Quality Insights. Export as PowerPoint plus an HTML list of every ticket.</p>
           </div>
           <div class="rr-controls">
             <div class="ms-wrap">
@@ -1047,12 +1120,39 @@ code { font-family: monospace; font-size: 12px; background: var(--bg3); padding:
         <div id="release-report-body"></div>
       </div>
 
+      <!-- Quality Insights -->
+      <div class="page" id="page-quality-insights">
+        <div class="rr-toolbar">
+          <div style="flex:1;min-width:240px">
+            <h2 style="font-size:18px;font-weight:600;margin-bottom:3px">Quality Insights</h2>
+            <p style="font-size:13px;color:var(--text2);line-height:1.55">Track bugs and support tickets for the selected market release and its patches — severity, aging, ownership, and must-fix work. Market-release delivery stays under Insights.</p>
+          </div>
+          <div class="rr-controls">
+            <div class="ms-wrap">
+              <button class="ms-btn" id="qi-project-filter-btn" type="button" onclick="toggleQualityInsightProjectFilter()">
+                <span id="qi-project-filter-label">All Quality projects</span>
+                <span class="ms-badge" id="qi-project-filter-count" style="display:none">0</span>
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"/></svg>
+              </button>
+              <div class="ms-dropdown" id="qi-project-filter-dropdown">
+                <div class="ms-options" id="qi-project-filter-options"></div>
+                <div class="ms-footer">
+                  <button type="button" onclick="clearQualityInsightProjectFilter()">Clear</button>
+                  <button type="button" onclick="selectAllQualityInsightProjects()">Select All</button>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div id="quality-insights-body"></div>
+      </div>
+
       <!-- Team View -->
       <div class="page" id="page-team">
         <div class="team-toolbar">
           <div style="flex:1">
             <h2 style="font-size:18px;font-weight:600;margin-bottom:2px">Team View</h2>
-            <p style="font-size:13px;color:var(--text2)">Tickets grouped by developer across all projects.</p>
+            <p style="font-size:13px;color:var(--text2)">Tickets grouped by developer across market-release projects. Quality is under Quality Insights.</p>
           </div>
           <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
             <div class="ms-wrap" id="ms-wrap-project">
@@ -1133,7 +1233,7 @@ code { font-family: monospace; font-size: 12px; background: var(--bg3); padding:
           <div style="display:flex;align-items:flex-start;justify-content:space-between;margin-bottom:14px;gap:20px">
             <div style="flex:1">
               <h2 style="font-size:18px;font-weight:600;margin-bottom:3px">Project Phase Timeline</h2>
-              <p style="font-size:13px;color:var(--text2)">Track Prod→Dev, Dev→QA, and QA→Closed flows (dotted lines) plus cumulative Prod-Pending, Dev-Pending, QA-Pending, Closed, and On-Hold counts (solid lines). The Completion Trend chart uses the selected release’s milestone dates as the time window — pick which milestones to include, or switch to last N days.</p>
+              <p style="font-size:13px;color:var(--text2)">Track Prod→Dev, Dev→QA, and QA→Closed flows for market-release projects. Quality (bugs/support) is under Quality Insights. The Completion Trend chart uses the selected release’s milestone dates.</p>
             </div>
             <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;justify-content:flex-end">
               <div class="ms-wrap">
@@ -1985,11 +2085,159 @@ function getProjectJql(proj) {
   return override || proj.jql;
 }
 
+const RELEASE_MODES = [
+  { id: 'market+patch', label: 'Market + patches', fullLabel: 'Market releases and their patch releases' },
+  { id: 'market', label: 'Market only', fullLabel: 'Market releases only' },
+  { id: 'patch', label: 'Patches only', fullLabel: 'Patch releases only' },
+];
+const DEFAULT_RELEASE_MODE = 'market';
+
+function uniqueReleaseNames(names) {
+  const seen = new Set();
+  const out = [];
+  (names || []).forEach(name => {
+    const value = String(name || '').trim();
+    if (!value || seen.has(value)) return;
+    seen.add(value);
+    out.push(value);
+  });
+  return out;
+}
+
+function normalizeReleaseMode(mode) {
+  if (mode === 'patch' || mode === 'market+patch' || mode === 'market') return mode;
+  return DEFAULT_RELEASE_MODE;
+}
+
+function getProjectReleaseMode(key, proj) {
+  const custom = (S.customProjects || []).find(p => p.key === key);
+  if (custom && custom.releaseMode) return normalizeReleaseMode(custom.releaseMode);
+  const st = key ? getProjectSettings(key) : null;
+  if (st && st.releaseMode) return normalizeReleaseMode(st.releaseMode);
+  if (proj && proj.releaseMode) return normalizeReleaseMode(proj.releaseMode);
+  return DEFAULT_RELEASE_MODE;
+}
+
+function getReleasePatchNames(release) {
+  if (!release) return [];
+  const patches = Array.isArray(release.patches) ? release.patches : [];
+  return uniqueReleaseNames(patches.map(p => typeof p === 'string' ? p : (p && p.name) || ''));
+}
+
+function findReleaseByName(name) {
+  return (S.releases || []).find(r => r && r.name === name) || null;
+}
+
+function expandFixVersionsForMode(marketReleaseName, mode, patches) {
+  const name = String(marketReleaseName || '').trim();
+  if (!name) return [];
+  const patchNames = uniqueReleaseNames(patches);
+  const resolved = normalizeReleaseMode(mode);
+  if (resolved === 'patch') return patchNames;
+  if (resolved === 'market+patch') return uniqueReleaseNames([name, ...patchNames]);
+  return [name];
+}
+
+function getFixVersionsForRelease(marketReleaseName, projectKey, proj) {
+  const release = findReleaseByName(marketReleaseName);
+  return expandFixVersionsForMode(
+    marketReleaseName,
+    getProjectReleaseMode(projectKey, proj),
+    getReleasePatchNames(release)
+  );
+}
+
+function formatReleaseModeLabel(mode) {
+  const id = normalizeReleaseMode(mode);
+  return (RELEASE_MODES.find(m => m.id === id) || RELEASE_MODES[1]).label;
+}
+
+function projectIgnoresReleaseFilter(proj) {
+  if (!proj || !proj.excludeRelease) return false;
+  return getProjectReleases(proj.key, proj).length === 0;
+}
+
 function getEffectiveProjectJql(proj, releaseName) {
   const jql = getProjectJql(proj);
   const release = releaseName !== undefined ? releaseName : S.activeRelease;
-  if (!release || proj.excludeRelease) return jql;
-  return injectFixVersionIntoJql(stripFixVersionFromJql(jql), [release]);
+  if (!release || projectIgnoresReleaseFilter(proj)) return stripFixVersionFromJql(jql);
+  const stripped = stripFixVersionFromJql(jql);
+  if (!isProjectEnabledForRelease(proj, release)) return injectJqlClause(stripped, 'key is EMPTY');
+  const versions = getFixVersionsForRelease(release, proj.key, proj);
+  if (!versions.length) return injectJqlClause(stripped, 'key is EMPTY');
+  return injectFixVersionIntoJql(stripped, versions);
+}
+
+function isProjectEnabledForRelease(proj, releaseName) {
+  if (!proj) return false;
+  if (projectIgnoresReleaseFilter(proj)) return true;
+  const release = releaseName !== undefined ? releaseName : S.activeRelease;
+  if (!release) return false;
+  return getProjectReleases(proj.key, proj).includes(release);
+}
+
+function getProjectSyncSkipReason(proj, releaseName) {
+  if (!proj) return 'unknown-project';
+  if (projectIgnoresReleaseFilter(proj)) return '';
+  const release = releaseName !== undefined ? releaseName : S.activeRelease;
+  if (!release) return 'not-enabled';
+  if (!isProjectEnabledForRelease(proj, release)) return 'not-enabled';
+  if (!getFixVersionsForRelease(release, proj.key, proj).length) return 'no-versions';
+  return '';
+}
+
+function formatProjectSyncSkipReason(reason) {
+  if (reason === 'not-enabled') return 'Skipped — market release not enabled on this project';
+  if (reason === 'no-versions') return 'Skipped — no patch names on this market release';
+  if (reason === 'unknown-project') return 'Skipped — unknown project';
+  return 'Skipped';
+}
+
+function formatReleasePatchSummary(release) {
+  const patches = getReleasePatchNames(release);
+  if (!patches.length) return 'No patches';
+  return (patches.length === 1 ? 'Patch: ' : 'Patches: ') + patches.join(', ');
+}
+
+function formatProjectReleaseSummary(project) {
+  if (projectIgnoresReleaseFilter(project)) return 'Does not filter by release';
+  const assigned = getProjectReleases(project.key, project);
+  if (!assigned.length) return 'No market releases enabled — sync will skip';
+  return `${assigned.join(', ')} · ${formatReleaseModeLabel(getProjectReleaseMode(project.key, project))}`;
+}
+
+function getConnectorJobVersionNames(project, releaseName) {
+  if (!project || projectIgnoresReleaseFilter(project)) return [];
+  return getFixVersionsForRelease(releaseName, project.key, project);
+}
+
+function formatConnectorFixVersionClause(versions) {
+  if (!versions || !versions.length) return '';
+  if (versions.length === 1) return `fixVersion = ${versions[0]}`;
+  return `fixVersion in (${versions.join(', ')})`;
+}
+
+function buildConnectorSyncJobs(releases, projects) {
+  const jobs = [];
+  (releases || []).forEach(release => {
+    (projects || []).forEach(project => {
+      jobs.push({
+        release,
+        project,
+        skipReason: getProjectSyncSkipReason(project, release) || '',
+      });
+    });
+  });
+  return jobs;
+}
+
+function clearReleaseProjectCache(releaseName, projectKey) {
+  if (!projectKey) return;
+  const bucket = ensureReleaseCacheBucket(releaseName);
+  delete bucket[projectKey];
+  if ((releaseName || '') === (S.activeRelease || '') && S.cache && S.cache !== bucket) {
+    delete S.cache[projectKey];
+  }
 }
 
 function ensureReleaseCacheBucket(releaseName) {
@@ -2055,17 +2303,26 @@ function getIssueFixVersionNames(issue) {
 }
 
 function filterIssuesToActiveRelease(issues, proj) {
-  if (!S.activeRelease || (proj && proj.excludeRelease)) {
+  if (!S.activeRelease || projectIgnoresReleaseFilter(proj)) {
     return { issues: issues || [], mismatched: 0 };
   }
+  const allowed = new Set(getFixVersionsForRelease(S.activeRelease, proj && proj.key, proj));
   const kept = [];
   let mismatched = 0;
   (issues || []).forEach(issue => {
     const names = getIssueFixVersionNames(issue);
-    if (!names.length || names.includes(S.activeRelease)) kept.push(issue);
+    if (!names.length || names.some(name => allowed.has(name))) kept.push(issue);
     else mismatched++;
   });
   return { issues: kept, mismatched };
+}
+
+function formatAllowedFixVersionsLabel(proj) {
+  const versions = getFixVersionsForRelease(S.activeRelease, proj && proj.key, proj);
+  if (!versions.length) return S.activeRelease || 'this release';
+  if (versions.length === 1) return versions[0];
+  if (versions.length === 2) return versions.join(' or ');
+  return versions.slice(0, -1).join(', ') + ', or ' + versions[versions.length - 1];
 }
 
 function updateGlobalReleaseSelector() {
@@ -2075,8 +2332,8 @@ function updateGlobalReleaseSelector() {
   const names = releases.map(release => release.name);
   if (!names.includes(S.activeRelease)) S.activeRelease = '';
   select.innerHTML = names.length
-    ? `<option value="">Select a release</option>${names.map(name => `<option value="${esc(name)}">${esc(name)}</option>`).join('')}`
-    : '<option value="">No releases configured</option>';
+    ? `<option value="">Select a market release</option>${names.map(name => `<option value="${esc(name)}">${esc(name)}</option>`).join('')}`
+    : '<option value="">No market releases configured</option>';
   select.value = S.activeRelease;
   select.disabled = names.length === 0;
 }
@@ -2099,6 +2356,29 @@ function isProjectVisible(proj) {
 
 function getAllProjects() {
   return [...PROJECTS, ...(S.customProjects || [])].filter(isProjectVisible);
+}
+
+function isQualityDashboardProject(proj) {
+  return String(proj && proj.category || '').trim().toLowerCase() === 'quality';
+}
+
+function getDeliveryProjects() {
+  return getAllProjects().filter(p => !isQualityDashboardProject(p));
+}
+
+function getQualityProjects() {
+  return getAllProjects().filter(isQualityDashboardProject);
+}
+
+function qualityInsightRedirectBox(kind) {
+  const hasQualityData = getQualityProjects().some(p => S.cache[p.key] && !S.cache[p.key].err);
+  if (hasQualityData) {
+    return `<div class="info-box">These insights track market-release delivery. Quality (bugs and support) is on <button class="btn btn-sm" onclick="nav('quality-insights')">Quality Insights</button>.</div>`;
+  }
+  const label = kind === 'quality'
+    ? 'No Quality-category projects with synced data. Set a project category to Quality in Projects, then sync it from Jira Connector.'
+    : 'No data loaded yet. Sync market-release projects from Jira Connector.';
+  return `<div class="info-box">${label}</div>`;
 }
 
 let _connectorScheduleTimer = null;
@@ -2128,18 +2408,65 @@ function renderConnectorPage() {
 
   const releaseHtml = (id, selected) => releases.map(release => {
     const name = release.name;
-    return `<label class="connector-option"><input type="checkbox" data-release="${esc(name)}"${selected.includes(name) ? ' checked' : ''} onchange="updateConnectorSelections()"><span>${esc(name)}</span></label>`;
-  }).join('') || '<span style="font-size:12px;color:var(--text3)">No releases configured.</span>';
-  const projectHtml = projects.map(project => `<label class="connector-option"><input type="checkbox" data-project="${esc(project.key)}"${state.projects.includes(project.key) ? ' checked' : ''} onchange="updateConnectorSelections()"><span>${esc(project.name)}</span><span class="connector-project-key">${esc(project.key)}</span></label>`).join('') || '<span style="font-size:12px;color:var(--text3)">No enabled projects.</span>';
+    return `<label class="connector-option"><input type="checkbox" data-release="${esc(name)}"${selected.includes(name) ? ' checked' : ''} onchange="updateConnectorSelections()"><span class="connector-option-copy"><span>${esc(name)}</span><span class="connector-option-meta">${esc(formatReleasePatchSummary(release))}</span></span></label>`;
+  }).join('') || '<span style="font-size:12px;color:var(--text3)">No market releases configured.</span>';
+  const projectHtml = projects.map(project => `<label class="connector-option"><input type="checkbox" data-project="${esc(project.key)}"${state.projects.includes(project.key) ? ' checked' : ''} onchange="updateConnectorSelections()"><span class="connector-option-copy"><span>${esc(project.name)}</span><span class="connector-option-meta">${esc(formatProjectReleaseSummary(project))}</span></span><span class="connector-project-key">${esc(project.key)}</span></label>`).join('') || '<span style="font-size:12px;color:var(--text3)">No enabled projects.</span>';
   document.getElementById('connector-manual-releases').innerHTML = releaseHtml('manual', state.releases);
   document.getElementById('connector-manual-projects').innerHTML = projectHtml;
   document.getElementById('connector-schedule-enabled').checked = !!state.scheduleEnabled;
   document.getElementById('connector-schedule-rows').innerHTML = releases.map(release => {
     const name = release.name;
     const interval = state.intervals[name] || 60;
-    return `<label class="connector-schedule-row"><span class="connector-option"><input type="checkbox" data-schedule-release="${esc(name)}"${state.scheduleReleases.includes(name) ? ' checked' : ''} onchange="updateConnectorSelections()"><span>${esc(name)}</span></span><select data-interval-release="${esc(name)}" onchange="updateConnectorSelections()"><option value="15"${interval === 15 ? ' selected' : ''}>Every 15 minutes</option><option value="30"${interval === 30 ? ' selected' : ''}>Every 30 minutes</option><option value="60"${interval === 60 ? ' selected' : ''}>Every hour</option><option value="180"${interval === 180 ? ' selected' : ''}>Every 3 hours</option><option value="360"${interval === 360 ? ' selected' : ''}>Every 6 hours</option><option value="720"${interval === 720 ? ' selected' : ''}>Every 12 hours</option><option value="1440"${interval === 1440 ? ' selected' : ''}>Every day</option></select></label>`;
-  }).join('') || '<span style="font-size:12px;color:var(--text3)">Add releases in Config &gt; Releases first.</span>';
+    return `<label class="connector-schedule-row"><span class="connector-option"><input type="checkbox" data-schedule-release="${esc(name)}"${state.scheduleReleases.includes(name) ? ' checked' : ''} onchange="updateConnectorSelections()"><span class="connector-option-copy"><span>${esc(name)}</span><span class="connector-option-meta">${esc(formatReleasePatchSummary(release))}</span></span></span><select data-interval-release="${esc(name)}" onchange="updateConnectorSelections()"><option value="15"${interval === 15 ? ' selected' : ''}>Every 15 minutes</option><option value="30"${interval === 30 ? ' selected' : ''}>Every 30 minutes</option><option value="60"${interval === 60 ? ' selected' : ''}>Every hour</option><option value="180"${interval === 180 ? ' selected' : ''}>Every 3 hours</option><option value="360"${interval === 360 ? ' selected' : ''}>Every 6 hours</option><option value="720"${interval === 720 ? ' selected' : ''}>Every 12 hours</option><option value="1440"${interval === 1440 ? ' selected' : ''}>Every day</option></select></label>`;
+  }).join('') || '<span style="font-size:12px;color:var(--text3)">Add market releases in Config &gt; Releases first.</span>';
+  renderConnectorSyncPreview();
   persist();
+}
+
+function renderConnectorSyncPreview() {
+  const listEl = document.getElementById('connector-sync-preview');
+  const countEl = document.getElementById('connector-preview-count');
+  if (!listEl) return;
+  const state = getConnectorState();
+  const projects = getConnectorProjects().filter(project => (state.projects || []).includes(project.key));
+  const jobs = buildConnectorSyncJobs(state.releases || [], projects);
+  if (!jobs.length) {
+    listEl.innerHTML = '<span style="font-size:12px;color:var(--text3)">Select at least one market release and project to see what Jira will be queried for.</span>';
+    if (countEl) countEl.textContent = '';
+    return;
+  }
+  const fetchCount = jobs.filter(job => !job.skipReason).length;
+  const skipCount = jobs.length - fetchCount;
+  if (countEl) countEl.textContent = `${fetchCount} will fetch · ${skipCount} will skip`;
+  listEl.innerHTML = jobs.map(job => {
+    const skip = job.skipReason;
+    const modeId = getProjectReleaseMode(job.project.key, job.project);
+    const mode = projectIgnoresReleaseFilter(job.project) ? '' : formatReleaseModeLabel(modeId);
+    let versionsLine = '';
+    let extra = '';
+    if (skip === 'not-enabled') {
+      const would = expandFixVersionsForMode(job.release, modeId, getReleasePatchNames(findReleaseByName(job.release)));
+      extra = would.length
+        ? `Enable ${job.release} on this project to query ${would.join(', ')}.`
+        : `Enable ${job.release} on this project in Projects.`;
+    } else if (skip === 'no-versions') {
+      extra = `This project is patches only, and ${job.release} has no patch names.`;
+    } else if (projectIgnoresReleaseFilter(job.project)) {
+      versionsLine = 'No fixVersion filter — all matching issues.';
+    } else {
+      const versions = getConnectorJobVersionNames(job.project, job.release);
+      versionsLine = formatConnectorFixVersionClause(versions);
+      if (modeId === 'market+patch' && versions.length === 1) {
+        extra = `No patch names defined on ${job.release}.`;
+      }
+    }
+    return `<div class="connector-job ${skip ? 'skip' : 'fetch'}">
+      <div class="connector-job-title">${esc(job.release)} · ${esc(job.project.name)}</div>
+      <div class="connector-job-status">${skip ? esc(formatProjectSyncSkipReason(skip)) : `Will fetch${mode ? ' · ' + esc(mode) : ''}`}</div>
+      ${versionsLine ? `<div class="connector-job-versions">${esc(versionsLine)}</div>` : ''}
+      ${extra ? `<div class="connector-job-versions">${esc(extra)}</div>` : ''}
+    </div>`;
+  }).join('');
 }
 
 async function updateConnectorSelections() {
@@ -2151,6 +2478,7 @@ async function updateConnectorSelections() {
   document.querySelectorAll('#connector-schedule-rows select[data-interval-release]').forEach(select => {
     state.intervals[select.dataset.intervalRelease] = Number(select.value);
   });
+  renderConnectorSyncPreview();
   await persistNow();
 }
 
@@ -2170,10 +2498,10 @@ async function updateConnectorScheduleEnabled(enabled) {
 let _connectorSyncing = false;
 
 async function runConnectorSyncBatch(releases, projectKeys, mode = 'manual') {
-  if (_connectorSyncing) return 0;
+  if (_connectorSyncing) return { synced: 0, skipped: 0 };
   const projects = getConnectorProjects().filter(project => projectKeys.includes(project.key));
-  const jobs = releases.flatMap(release => projects.map(project => ({ release, project })));
-  if (!jobs.length) return 0;
+  const jobs = buildConnectorSyncJobs(releases, projects);
+  if (!jobs.length) return { synced: 0, skipped: 0 };
 
   const overlay = document.getElementById('refresh-overlay');
   const rowsEl = document.getElementById('refresh-rows');
@@ -2184,10 +2512,16 @@ async function runConnectorSyncBatch(releases, projectKeys, mode = 'manual') {
   const titleEl = document.getElementById('refresh-title');
   const originalRelease = S.activeRelease;
   let synced = 0;
+  let skipped = 0;
   _connectorSyncing = true;
   window._refreshCancelled = false;
   titleEl.textContent = mode === 'schedule' ? 'Scheduled sync in progress…' : 'Connector sync in progress…';
-  rowsEl.innerHTML = jobs.map((job, index) => `<div class="refresh-proj-row" id="connector-row-${index}"><span style="width:8px;height:8px;border-radius:50%;background:${job.project.color};flex-shrink:0"></span><span class="refresh-proj-name">${esc(job.release)} · ${esc(job.project.name)}</span><span class="refresh-status pending" id="connector-status-${index}">Waiting…</span></div>`).join('');
+  rowsEl.innerHTML = jobs.map((job, index) => {
+    const modeLabel = projectIgnoresReleaseFilter(job.project) ? '' : ` · ${esc(formatReleaseModeLabel(getProjectReleaseMode(job.project.key, job.project)))}`;
+    const versions = job.skipReason ? '' : formatConnectorFixVersionClause(getConnectorJobVersionNames(job.project, job.release));
+    const detail = versions ? ` · ${esc(versions)}` : '';
+    return `<div class="refresh-proj-row" id="connector-row-${index}"><span style="width:8px;height:8px;border-radius:50%;background:${job.project.color};flex-shrink:0"></span><span class="refresh-proj-name">${esc(job.release)} · ${esc(job.project.name)}${modeLabel}${detail}</span><span class="refresh-status pending" id="connector-status-${index}">Waiting…</span></div>`;
+  }).join('');
   summEl.textContent = `0 / ${jobs.length}`;
   barEl.style.width = '0%';
   overlay.classList.remove('hidden');
@@ -2199,19 +2533,26 @@ async function runConnectorSyncBatch(releases, projectKeys, mode = 'manual') {
       if (window._refreshCancelled) break;
       const job = jobs[index];
       const statusEl = document.getElementById('connector-status-' + index);
-      statusEl.className = 'refresh-status loading';
-      statusEl.textContent = 'Loading…';
-      const data = await fetchIssues(job.project, true, job.release);
-      if (data && !data.err) {
-        writeReleaseProjectCache(job.release, job.project.key, data);
-        if (!S.lastSyncAt) S.lastSyncAt = {};
-        S.lastSyncAt[job.release] = Date.now();
-        synced++;
-        statusEl.className = 'refresh-status ok';
-        statusEl.textContent = `✓ ${(data.issues || []).length} issues`;
+      if (job.skipReason) {
+        clearReleaseProjectCache(job.release, job.project.key);
+        skipped++;
+        statusEl.className = 'refresh-status skip';
+        statusEl.textContent = formatProjectSyncSkipReason(job.skipReason);
       } else {
-        statusEl.className = 'refresh-status err';
-        statusEl.textContent = '✗ ' + (data?.err || 'Failed').slice(0, 40);
+        statusEl.className = 'refresh-status loading';
+        statusEl.textContent = 'Loading…';
+        const data = await fetchIssues(job.project, true, job.release);
+        if (data && !data.err) {
+          writeReleaseProjectCache(job.release, job.project.key, data);
+          if (!S.lastSyncAt) S.lastSyncAt = {};
+          S.lastSyncAt[job.release] = Date.now();
+          synced++;
+          statusEl.className = 'refresh-status ok';
+          statusEl.textContent = `✓ ${(data.issues || []).length} issues`;
+        } else {
+          statusEl.className = 'refresh-status err';
+          statusEl.textContent = '✗ ' + (data?.err || 'Failed').slice(0, 40);
+        }
       }
       const done = index + 1;
       barEl.style.width = Math.round(done / jobs.length * 100) + '%';
@@ -2220,7 +2561,9 @@ async function runConnectorSyncBatch(releases, projectKeys, mode = 'manual') {
   } finally {
     S.activeRelease = originalRelease;
     bindCacheToActiveRelease();
-    titleEl.textContent = window._refreshCancelled ? 'Connector sync cancelled' : 'Connector sync complete';
+    titleEl.textContent = window._refreshCancelled
+      ? 'Connector sync cancelled'
+      : (skipped ? `Connector sync complete · ${synced} fetched, ${skipped} skipped` : 'Connector sync complete');
     persist();
     updateSyncStatus();
     const current = getAllProjects().find(project => project.id === S.page);
@@ -2232,7 +2575,7 @@ async function runConnectorSyncBatch(releases, projectKeys, mode = 'manual') {
     window._refreshCancelled = false;
     _connectorSyncing = false;
   }
-  return synced;
+  return { synced, skipped };
 }
 
 async function runConnectorManualSync() {
@@ -2241,8 +2584,12 @@ async function runConnectorManualSync() {
   if (!S.creds.url) { status.textContent = 'Configure Jira credentials first.'; return; }
   if (!state.releases.length || !state.projects.length) { status.textContent = 'Select at least one release and project.'; return; }
   status.textContent = 'Syncing…';
-  const synced = await runConnectorSyncBatch(state.releases, state.projects);
-  status.textContent = `Synced ${synced} release/project selections.`;
+  const result = await runConnectorSyncBatch(state.releases, state.projects);
+  const synced = result.synced || 0;
+  const skipped = result.skipped || 0;
+  status.textContent = skipped
+    ? `Synced ${synced} enabled pair${synced === 1 ? '' : 's'}; skipped ${skipped} not enabled for those projects.`
+    : `Synced ${synced} enabled release/project pair${synced === 1 ? '' : 's'}.`;
   const current = getAllProjects().find(project => project.id === S.page);
   if (current) renderProject(current);
 }
@@ -2580,7 +2927,7 @@ async function checkProxy() {
 
 // ── Deep linking (History API) ───────────────────────────────────────────────
 const STATIC_PAGES = new Set([
-  'setup', 'velocity', 'data-gaps', 'analytics', 'release-report', 'team', 'phase-timeline', 'log',
+  'setup', 'velocity', 'data-gaps', 'analytics', 'release-report', 'quality-insights', 'team', 'phase-timeline', 'log',
   'connector', 'projects-config', 'releases-config', 'fields'
 ]);
 
@@ -2990,6 +3337,9 @@ function nav(id, opts = {}) {
   } else if (id === 'release-report') {
     document.getElementById('topbar-title').textContent = 'Release Report';
     renderReleaseReportPage();
+  } else if (id === 'quality-insights') {
+    document.getElementById('topbar-title').textContent = 'Quality Insights';
+    renderQualityInsights();
   } else if (id === 'team') {
     document.getElementById('topbar-title').textContent = 'Team View';
     renderTeam();
@@ -3133,12 +3483,21 @@ async function refreshAll() {
     }
 
     const statusEl = document.getElementById('rstatus-' + proj.key);
+    const skipReason = getProjectSyncSkipReason(proj, S.activeRelease);
+    if (skipReason) {
+      statusEl.className = 'refresh-status skip';
+      statusEl.textContent = formatProjectSyncSkipReason(skipReason);
+      done++;
+      barEl.style.width = Math.round(done / allProjects.length * 100) + '%';
+      summEl.textContent = `${done} / ${allProjects.length}`;
+      continue;
+    }
+
     statusEl.className = 'refresh-status loading';
-    statusEl.textContent = 'Loading…';
+    statusEl.textContent = 'Loading issues…';
 
     // Call fetchIssues without autoFetchAll - will prompt batch-by-batch
     // (also bulk-fetches full status changelogs so Daily Progress has latest moves)
-    statusEl.textContent = 'Loading issues…';
     const data = await fetchIssues(proj, false);
 
     done++;
@@ -3215,6 +3574,7 @@ async function refreshAll() {
   else if (S.page === 'analytics') renderAnalytics();
   else if (S.page === 'velocity') renderVelocity();
   else if (S.page === 'data-gaps') renderDataGaps();
+  else if (S.page === 'quality-insights') renderQualityInsights();
   else if (S.page === 'log') renderDailyProgress();
 }
 
@@ -3744,7 +4104,8 @@ async function hydrateTruncatedChangelogs(issues, baseUrl, auth) {
 // ── Project page ─────────────────────────────────────────────────────────────
 function renderProject(proj) {
   const el = document.getElementById('page-' + proj.id);
-  const effJql = getEffectiveProjectJql(proj);
+  const skipReason = S.activeRelease ? getProjectSyncSkipReason(proj, S.activeRelease) : '';
+  const effJql = skipReason ? stripFixVersionFromJql(getProjectJql(proj)) : getEffectiveProjectJql(proj);
   el.innerHTML = `
     <div class="proj-header">
       <div class="proj-title">
@@ -3762,6 +4123,14 @@ function renderProject(proj) {
   const issuesEl = document.getElementById('issues-' + proj.key);
 
   if (!S.activeRelease) { issuesEl.innerHTML = `<div class="info-box">No release selected. Select a release from the top bar, then use <button class="btn btn-sm" onclick="nav('connector')">Jira Connector</button> to sync it.</div>`; return; }
+  if (skipReason === 'not-enabled') {
+    issuesEl.innerHTML = `<div class="info-box">This project is not enabled for <strong>${esc(S.activeRelease)}</strong>. Open <button class="btn btn-sm" onclick="nav('projects-config')">Projects</button> to add that market release, or pick a different release in the top bar.</div>`;
+    return;
+  }
+  if (skipReason === 'no-versions') {
+    issuesEl.innerHTML = `<div class="info-box">This project is set to patch releases only, and <strong>${esc(S.activeRelease)}</strong> has no patch names. Add patches in <button class="btn btn-sm" onclick="nav('releases-config')">Releases</button>, or change the include mode in Projects.</div>`;
+    return;
+  }
   if (!data) { issuesEl.innerHTML = `<div class="info-box">No synced data for ${esc(S.activeRelease)}. Open <button class="btn btn-sm" onclick="nav('connector')">Jira Connector</button> to sync it.</div>`; return; }
   if (data.err === 'not_configured') { issuesEl.innerHTML = `<div class="err-box">No synced data is available. Open <button class="btn btn-sm" onclick="nav('connector')">Jira Connector</button> to sync it.</div>`; return; }
   if (data.err) { issuesEl.innerHTML = `<div class="err-box">Error: ${esc(data.err)}</div>`; return; }
@@ -3777,7 +4146,7 @@ function renderProject(proj) {
     partialWarning = `<div class="info-box">ℹ️ Showing ${(data.issues || []).length} of ${data.total ?? (data.issues || []).length} issues (${remaining} more available). Open <button class="btn btn-sm" onclick="nav('connector')">Jira Connector</button> to sync again.</div>`;
   }
   if (filtered.mismatched) {
-    partialWarning += `<div class="info-box">Hidden ${filtered.mismatched} cached issue${filtered.mismatched === 1 ? '' : 's'} whose Fix Version is not ${esc(S.activeRelease)}. Re-sync this release from <button class="btn btn-sm" onclick="nav('connector')">Jira Connector</button>.</div>`;
+    partialWarning += `<div class="info-box">Hidden ${filtered.mismatched} cached issue${filtered.mismatched === 1 ? '' : 's'} whose Fix Version is not ${esc(formatAllowedFixVersionsLabel(proj))}. Re-sync this release from <button class="btn btn-sm" onclick="nav('connector')">Jira Connector</button>.</div>`;
   }
   
   const sm = {}; issues.forEach(i => { const s = i.fields?.status?.name||'Unknown'; sm[s]=(sm[s]||0)+1; });
@@ -3890,6 +4259,11 @@ async function loadAllIssues(projKey) {
   const btn = event.target;
   btn.disabled = true;
   btn.textContent = 'Loading...';
+
+  if (getProjectSyncSkipReason(proj, S.activeRelease)) {
+    await renderProject(proj);
+    return;
+  }
   
   // Clear cache for this project and fetch with autoFetchAll = true
   delete S.cache[projKey];
@@ -4510,10 +4884,10 @@ function renderAnalytics() {
   S.charts = {};
 
   const body = document.getElementById('analytics-body');
-  const loaded = getAllProjects().filter(p => S.cache[p.key] && !S.cache[p.key].err);
+  const loaded = getDeliveryProjects().filter(p => S.cache[p.key] && !S.cache[p.key].err);
 
   if (!loaded.length) {
-    body.innerHTML = `<div class="info-box">No data loaded yet. Visit each project page and click <strong>Refresh</strong>, then come back here.</div>`;
+    body.innerHTML = qualityInsightRedirectBox('analytics');
     return;
   }
 
@@ -5160,10 +5534,10 @@ function velocitySort(col) {
 
 function renderVelocity() {
   const body = document.getElementById('velocity-body');
-  const allLoaded = getAllProjects().filter(p => S.cache[p.key] && !S.cache[p.key].err);
+  const allLoaded = getDeliveryProjects().filter(p => S.cache[p.key] && !S.cache[p.key].err);
 
   if (!allLoaded.length) {
-    body.innerHTML = `<div class="info-box">No data loaded yet. Visit each project page and click <strong>Refresh</strong>, then come back here.</div>`;
+    body.innerHTML = qualityInsightRedirectBox('velocity');
     return;
   }
 
@@ -5773,10 +6147,10 @@ function renderDataGapsSection(id, title, description, count, extraHtml, tableHt
 
 function renderDataGaps() {
   const body = document.getElementById('data-gaps-body');
-  const allLoaded = getAllProjects().filter(p => S.cache[p.key] && !S.cache[p.key].err);
+  const allLoaded = getDeliveryProjects().filter(p => S.cache[p.key] && !S.cache[p.key].err);
 
   if (!allLoaded.length) {
-    body.innerHTML = `<div class="info-box">No data loaded yet. Visit each project page and click <strong>Refresh</strong>, then come back here.</div>`;
+    body.innerHTML = qualityInsightRedirectBox('data-gaps');
     return;
   }
 
@@ -5970,6 +6344,7 @@ function slimIssueForReleaseReport(issue, fieldIds, description) {
     assignee: f.assignee ? { displayName: f.assignee.displayName } : null,
     updated: f.updated,
     description: description != null ? description : (f.description || null),
+    fixVersions: Array.isArray(f.fixVersions) ? f.fixVersions.map(v => ({ name: v && (v.name || v) })).filter(v => v.name) : [],
   };
   [fieldIds.est, fieldIds.act, fieldIds.scope, fieldIds.custcom, fieldIds.clarity].forEach(id => {
     if (id && f[id] != null) fields[id] = f[id];
@@ -6059,7 +6434,7 @@ async function refreshReleaseReportAiStatus() {
 }
 
 function renderReleaseReportPage() {
-  const loaded = getAllProjects().filter(p => S.cache[p.key] && !S.cache[p.key].err);
+  const loaded = getDeliveryProjects().filter(p => S.cache[p.key] && !S.cache[p.key].err);
   buildReleaseReportProjectFilterOptions(loaded);
   refreshReleaseReportAiStatus();
   const pptxBtn = document.getElementById('rr-pptx-btn');
@@ -6074,7 +6449,7 @@ function renderReleaseReportPage() {
       return;
     }
     if (!loaded.length) {
-      body.innerHTML = `<div class="info-box">No synced project data for <strong>${esc(S.activeRelease)}</strong>. Open <button class="btn btn-sm" onclick="nav('connector')">Jira Connector</button> first.</div>`;
+      body.innerHTML = qualityInsightRedirectBox('release-report');
       return;
     }
     body.innerHTML = `<div class="info-box">Uses the current release (<strong>${esc(S.activeRelease)}</strong>) and synced tickets. Generate a snapshot any time, or an end-of-release briefing after GA. High-value items are chosen by reading each ticket’s summary, description, customer commitment, priority, and size.</div>`;
@@ -6098,7 +6473,7 @@ async function generateReleaseReport() {
     document.getElementById('release-report-body').innerHTML = `<div class="err-box">Select a release in the top bar first.</div>`;
     return;
   }
-  const allLoaded = getAllProjects().filter(p => S.cache[p.key] && !S.cache[p.key].err && (S.cache[p.key].issues || []).length);
+  const allLoaded = getDeliveryProjects().filter(p => S.cache[p.key] && !S.cache[p.key].err && (S.cache[p.key].issues || []).length);
   const selected = getSelectedReleaseReportProjects();
   const projects = selected.size ? allLoaded.filter(p => selected.has(p.key)) : allLoaded;
   if (!projects.length) {
@@ -6113,12 +6488,12 @@ async function generateReleaseReport() {
 
   try {
     for (const proj of projects) {
-      const issues = S.cache[proj.key].issues || [];
+      const issues = filterIssuesToActiveRelease(S.cache[proj.key].issues || [], proj).issues;
       const descKeys = pickDescriptionKeys(issues, fieldIds, 80);
       setReleaseReportBusy(true, `Reading ${proj.name} ticket details…`);
       const descriptions = await fetchIssueDescriptions(descKeys);
       payloadProjects.push({
-        project: { key: proj.key, name: proj.name, color: proj.color },
+        project: { key: proj.key, name: proj.name, color: proj.color, category: proj.category || '' },
         issues: issues.map(iss => slimIssueForReleaseReport(iss, fieldIds, descriptions[iss.key])),
       });
     }
@@ -6162,11 +6537,15 @@ function renderReleaseReportPreview(report) {
   if (!body || !report) return;
   const kind = report.reportKind === 'end-of-release' ? 'End of release' : 'Mid-release snapshot';
   const multi = (report.projects || []).length > 1;
+  const qualityCount = report.portfolio?.qualityProjectCount || (report.projects || []).filter(p => p.insightKind === 'quality').length;
+  const deliveryCount = report.portfolio?.deliveryProjectCount ?? (report.projects || []).filter(p => p.insightKind !== 'quality').length;
+  const qualityOnly = qualityCount > 0 && !deliveryCount;
   const aiNote = report.ai?.used
-    ? '<span class="rr-ai-note">High-value write-ups include SpaceXAI reading of ticket descriptions.</span>'
-    : (report.ai?.reason ? `<span class="rr-ai-note">${esc(report.ai.reason)}. Heuristic scoring from ticket fields and descriptions was used instead.</span>` : '<span class="rr-ai-note">High-value items scored from each ticket’s summary, description, commitment, priority, and size.</span>');
+    ? '<span class="rr-ai-note">Write-ups include SpaceXAI reading of ticket descriptions.</span>'
+    : (report.ai?.reason ? `<span class="rr-ai-note">${esc(report.ai.reason)}. Heuristic scoring from ticket fields and descriptions was used instead.</span>` : '<span class="rr-ai-note">Items scored from each ticket’s summary, description, commitment, priority, and size.</span>');
 
   const projectHtml = (report.projects || []).map(p => {
+    const quality = p.insightKind === 'quality';
     const maxPhase = Math.max(1, ...((p.progress.byPhase || []).map(x => x.count)));
     const phases = (p.progress.byPhase || []).map(ph => `
       <div class="rr-phase-row">
@@ -6179,44 +6558,66 @@ function renderReleaseReportPreview(report) {
     const mile = current || next
       ? `Now: ${current ? 'past ' + esc(current.label) : 'before first dated milestone'}${next ? ' → next ' + esc(next.label) + (next.daysAway != null ? ' in ' + next.daysAway + ' days' : '') : ''}`
       : 'No dated milestones on this release.';
+    const sub = quality
+      ? `${p.progress.open} open · ${p.quality?.highPriority || 0} high/critical · ${p.quality?.stale || 0} stale · ${p.quality?.unassigned || 0} unassigned · ${esc(kind)}`
+      : `${p.progress.delivered} delivered · ${p.progress.inQa} in QA · ${p.progress.inDev} in development · ${p.progress.open} open · ${esc(kind)}`;
 
     return `
       <div class="rr-section">
-        <h3>${esc(p.projectName)} — progress</h3>
-        <p class="sub">${p.progress.delivered} delivered · ${p.progress.inQa} in QA · ${p.progress.inDev} in development · ${p.progress.open} open · ${esc(kind)}</p>
+        <h3>${esc(p.projectName)} — ${quality ? 'quality' : 'progress'}</h3>
+        <p class="sub">${sub}</p>
         <p style="font-size:12px;color:var(--blue);margin-bottom:10px">${mile}</p>
         <div class="rr-phase">${phases}</div>
       </div>`;
   }).join('');
 
   const glanceRows = (report.projects || []).map(p => {
+    const quality = p.insightKind === 'quality';
     const hv = (p.highValue || []).filter(t => t.delivered).length;
+    if (qualityOnly) {
+      return `<tr><td>${esc(p.projectName)}</td><td>${p.progress.open}</td><td>${p.quality?.highPriority || 0}</td><td>${p.quality?.stale || 0}</td><td>${p.quality?.unassigned || 0}</td><td>${p.health}</td></tr>`;
+    }
+    if (qualityCount) {
+      const focus = quality ? `${p.quality?.highPriority || 0} high/critical` : `${hv} high-value shipped`;
+      return `<tr><td>${esc(p.projectName)}</td><td>${quality ? 'Quality' : 'Delivery'}</td><td>${p.progress.open}</td><td>${p.health}</td><td>${esc(focus)}</td></tr>`;
+    }
     return `<tr><td>${esc(p.projectName)}</td><td>${p.progress.delivered}/${p.progress.total} (${p.progress.deliveredPct}%)</td><td>${p.progress.open}</td><td>${p.health}</td><td>${hv}</td></tr>`;
   }).join('');
 
   const portfolio = multi ? `
     <div class="rr-hero">
       <div class="rr-hero-k">${esc(report.releaseName)} · ${report.portfolio.projectCount} projects</div>
-      <h3>Release at a glance</h3>
-      <p>${report.portfolio.deliveredPct}% delivered · ${report.portfolio.delivered} closed · ${report.portfolio.open} still open · ${report.portfolio.highRisks} high-severity risks.</p>
+      <h3>${qualityOnly ? 'Quality at a glance' : 'Release at a glance'}</h3>
+      <p>${qualityOnly
+        ? `${report.portfolio.qualityOpen || report.portfolio.open} open quality tickets · ${report.portfolio.qualityHighPriority || 0} high/critical · ${report.portfolio.highRisks} high-severity risks.`
+        : `${report.portfolio.deliveredPct}% delivered · ${report.portfolio.delivered} closed · ${report.portfolio.open} still open · ${report.portfolio.highRisks} high-severity risks.`}</p>
     </div>
     <div class="rr-kpi-grid">
+      ${qualityOnly ? `
+      <div class="rr-kpi"><div class="v">${report.portfolio.qualityOpen || report.portfolio.open}</div><div class="l">Open tickets</div></div>
+      <div class="rr-kpi"><div class="v">${report.portfolio.qualityHighPriority || 0}</div><div class="l">High / critical</div></div>
+      <div class="rr-kpi"><div class="v">${report.portfolio.open}</div><div class="l">Still open</div></div>
+      <div class="rr-kpi"><div class="v">${report.portfolio.highRisks}</div><div class="l">High risks</div></div>` : `
       <div class="rr-kpi"><div class="v">${report.portfolio.deliveredPct}%</div><div class="l">Delivered</div></div>
       <div class="rr-kpi"><div class="v">${report.portfolio.delivered}</div><div class="l">Tickets closed</div></div>
       <div class="rr-kpi"><div class="v">${report.portfolio.open}</div><div class="l">Still open</div></div>
-      <div class="rr-kpi"><div class="v">${report.portfolio.highRisks}</div><div class="l">High risks</div></div>
+      <div class="rr-kpi"><div class="v">${report.portfolio.highRisks}</div><div class="l">High risks</div></div>`}
     </div>
     <div class="rr-section">
       <h3>By project</h3>
       <table class="rr-table">
-        <thead><tr><th>Project</th><th>Delivered</th><th>Open</th><th>Health</th><th>High-value shipped</th></tr></thead>
+        <thead><tr>${qualityOnly
+          ? '<th>Project</th><th>Open</th><th>High / critical</th><th>Stale</th><th>Unassigned</th><th>Health</th>'
+          : (qualityCount
+            ? '<th>Project</th><th>Kind</th><th>Open</th><th>Health</th><th>Focus</th>'
+            : '<th>Project</th><th>Delivered</th><th>Open</th><th>Health</th><th>High-value shipped</th>')}</tr></thead>
         <tbody>${glanceRows}</tbody>
       </table>
     </div>` : '';
 
-  const hvItems = multi
-    ? (report.portfolio?.highValue || [])
-    : (report.projects[0]?.highValue || []);
+  const hvItems = deliveryCount
+    ? (multi || qualityCount ? (report.portfolio?.highValue || []) : (report.projects[0]?.highValue || []))
+    : [];
   const hvHtml = hvItems.map(t => `
     <div class="rr-item">
       <div class="key">${esc(t.key)}</div>
@@ -6225,6 +6626,19 @@ function renderReleaseReportPreview(report) {
         <div class="why">${multi && t.projectName ? esc(t.projectName) + ' · ' : ''}${esc(t.impact || t.whyItMatters || '')}</div>
       </div>
       <div style="font-size:11px;color:${t.delivered ? 'var(--green)' : 'var(--amber)'}">${t.delivered ? 'Delivered' : esc(t.status)}</div>
+    </div>`).join('');
+
+  const mustFixItems = qualityCount
+    ? (multi || deliveryCount ? (report.portfolio?.mustFix || []) : (report.projects.find(p => p.insightKind === 'quality')?.mustFix || []))
+    : [];
+  const mustFixHtml = mustFixItems.map(t => `
+    <div class="rr-item">
+      <div class="key">${esc(t.key)}</div>
+      <div>
+        <div class="sum">${esc(t.summary)}</div>
+        <div class="why">${multi && t.projectName ? esc(t.projectName) + ' · ' : ''}${esc(t.impact || t.whyItMatters || '')}</div>
+      </div>
+      <div style="font-size:11px;color:var(--red)">${esc(t.priority || t.status || 'Open')}</div>
     </div>`).join('');
 
   const riskItems = multi
@@ -6241,19 +6655,29 @@ function renderReleaseReportPreview(report) {
         <div style="font-size:12px;color:var(--text2);margin-top:3px">${esc(r.detail)}</div>
         ${(r.ticketKeys || []).length ? `<div class="keys" style="margin-top:6px">${esc(r.ticketKeys.slice(0, 8).join('  '))}</div>` : ''}
       </div>
-    </div>`).join('') || '<p style="font-size:13px;color:var(--green)">No material risks identified from current ticket data.</p>';
+    </div>`).join('') || `<p style="font-size:13px;color:var(--green)">${qualityOnly ? 'No material quality risks identified from current ticket data.' : 'No material risks identified from current ticket data.'}</p>`;
+
+  const hvSection = deliveryCount ? `
+    <div class="rr-section">
+      <h3>High-value deliverables</h3>
+      <p class="sub">${multi ? 'Feature projects — at least one item from each delivery project. ' : ''}${aiNote}</p>
+      ${hvHtml || '<p style="font-size:13px;color:var(--text3)">None identified.</p>'}
+    </div>` : '';
+  const mustFixSection = qualityCount ? `
+    <div class="rr-section">
+      <h3>Must-fix defects and support tickets</h3>
+      <p class="sub">Quality projects — highest-severity open bugs and support tickets for this market release and its patches. ${aiNote}</p>
+      ${mustFixHtml || '<p style="font-size:13px;color:var(--text3)">None identified.</p>'}
+    </div>` : '';
 
   body.innerHTML = `
     ${projectHtml}
     ${portfolio}
+    ${hvSection}
+    ${mustFixSection}
     <div class="rr-section">
-      <h3>High-value deliverables</h3>
-      <p class="sub">${multi ? 'Accounting portfolio — at least one item from each project. ' : ''}${aiNote}</p>
-      ${hvHtml || '<p style="font-size:13px;color:var(--text3)">None identified.</p>'}
-    </div>
-    <div class="rr-section">
-      <h3>${multi ? 'Accounting portfolio — risks' : 'Risks and issues'}</h3>
-      <p class="sub">${multi ? `Cumulative across ${report.portfolio.projectCount} projects · ${highN} high · ${medN} medium · ${lowN} low` : 'Stale work, commitments, freeze/GA dates, blockers, and estimate overruns'}</p>
+      <h3>${qualityOnly ? 'Quality risks' : (multi ? 'Accounting portfolio — risks' : 'Risks and issues')}</h3>
+      <p class="sub">${multi ? `Cumulative across ${report.portfolio.projectCount} projects · ${highN} high · ${medN} medium · ${lowN} low` : (qualityOnly ? 'Severity, aging, unassigned work, customer-impacting defects, and GA leftover bugs' : 'Stale work, commitments, freeze/GA dates, blockers, and estimate overruns')}</p>
       ${risksHtml}
     </div>`;
 }
@@ -6312,6 +6736,314 @@ async function downloadReleaseReportPptx() {
   } finally {
     if (btn) { btn.disabled = !_releaseReport; btn.textContent = 'Download PowerPoint + HTML'; }
   }
+}
+
+const QUALITY_STALE_DAYS = 14;
+
+function isSevereQualityPriority(priority) {
+  return /blocker|critical|highest/i.test(priority || '');
+}
+
+function isHighQualityPriority(priority) {
+  return isSevereQualityPriority(priority) || /\bhigh\b/i.test(priority || '');
+}
+
+function qualityIssueAgeDays(issue) {
+  const iso = lastActivityIso(issue);
+  if (!iso) return 0;
+  const then = new Date(iso);
+  if (Number.isNaN(then.getTime())) return 0;
+  return Math.round((Date.now() - then.getTime()) / 86400000);
+}
+
+function classifyQualityFixVersion(names, marketName, patches) {
+  const patchSet = new Set(patches || []);
+  const hasMarket = names.includes(marketName);
+  const hasPatch = names.some(n => patchSet.has(n));
+  if (hasMarket && hasPatch) return 'Market + patch';
+  if (hasPatch) return 'Patch only';
+  if (hasMarket) return 'Market only';
+  if (names.length) return names[0];
+  return 'No fixVersion';
+}
+
+function qualityJiraLink(key) {
+  const base = String(S.creds?.url || '').replace(/\/+$/, '');
+  if (!base) return esc(key);
+  return `<a href="${esc(base)}/browse/${esc(key)}" target="_blank" rel="noopener">${esc(key)}</a>`;
+}
+
+function collectQualityInsightRows(projects) {
+  const market = S.activeRelease || '';
+  const patches = getReleasePatchNames(findReleaseByName(market));
+  const rows = [];
+  projects.forEach(proj => {
+    const filtered = filterIssuesToActiveRelease((S.cache[proj.key] && S.cache[proj.key].issues) || [], proj);
+    filtered.issues.forEach(issue => {
+      const f = issue.fields || {};
+      const status = f.status?.name || '';
+      const phase = getPhaseForStatus(status);
+      const priority = f.priority?.name || 'None';
+      const type = f.issuetype?.name || 'Unknown';
+      const assignee = f.assignee?.displayName || getDev(issue) || 'Unassigned';
+      const names = getIssueFixVersionNames(issue);
+      const cust = f.customfield_10208;
+      const customerCommitment = typeof cust === 'string' ? cust : (cust?.value || '');
+      const ageDays = qualityIssueAgeDays(issue);
+      rows.push({
+        key: issue.key,
+        summary: f.summary || '',
+        status,
+        phase: phase?.label || 'Other',
+        priority,
+        type,
+        assignee: assignee === 'Unassigned' ? '' : assignee,
+        unassigned: !assignee || assignee === 'Unassigned',
+        ageDays,
+        stale: ageDays >= QUALITY_STALE_DAYS,
+        severe: isSevereQualityPriority(priority),
+        high: isHighQualityPriority(priority),
+        bounced: /reject|replied/i.test(status),
+        customer: !!(customerCommitment && !/^(no|n\/a|na|none|false|-)$/i.test(customerCommitment)),
+        customerCommitment,
+        fixVersions: names,
+        fixBucket: classifyQualityFixVersion(names, market, patches),
+        projectName: proj.name,
+        projectKey: proj.key,
+        color: proj.color,
+      });
+    });
+  });
+  return rows;
+}
+
+function countQualityBuckets(rows, keyFn) {
+  const map = {};
+  rows.forEach(row => {
+    const label = keyFn(row) || 'Unknown';
+    map[label] = (map[label] || 0) + 1;
+  });
+  return Object.entries(map).sort((a, b) => b[1] - a[1]).map(([label, count]) => ({ label, count }));
+}
+
+function renderQualityBarList(items, color) {
+  const max = Math.max(1, ...items.map(i => i.count));
+  if (!items.length) return '<p style="font-size:12px;color:var(--text3)">None</p>';
+  return `<div class="rr-phase">${items.map(item => `
+    <div class="rr-phase-row">
+      <span>${esc(item.label)}</span>
+      <div class="rr-phase-bar"><span style="width:${Math.round(item.count / max * 100)}%;background:${color}"></span></div>
+      <span>${item.count}</span>
+    </div>`).join('')}</div>`;
+}
+
+function renderQualityTicketTable(rows, emptyText) {
+  if (!rows.length) return `<p style="font-size:13px;color:var(--text3)">${esc(emptyText)}</p>`;
+  return `<table class="qi-table">
+    <thead><tr><th>Key</th><th>Summary</th><th>Priority</th><th>Status</th><th>Assignee</th><th>Age</th><th>Fix Version</th></tr></thead>
+    <tbody>${rows.map(r => `
+      <tr>
+        <td>${qualityJiraLink(r.key)}</td>
+        <td>${esc(r.summary)}</td>
+        <td>${esc(r.priority)}</td>
+        <td>${esc(r.status)}</td>
+        <td>${esc(r.assignee || 'Unassigned')}</td>
+        <td>${r.ageDays ? r.ageDays + 'd' : '—'}</td>
+        <td>${esc(r.fixVersions.join(', ') || r.fixBucket)}</td>
+      </tr>`).join('')}</tbody>
+  </table>`;
+}
+
+function toggleQualityInsightProjectFilter() {
+  const dropdown = document.getElementById('qi-project-filter-dropdown');
+  dropdown.classList.toggle('open');
+  if (dropdown.classList.contains('open')) {
+    setTimeout(() => document.addEventListener('click', closeQualityInsightProjectFilterOnOutside), 0);
+  }
+}
+
+function closeQualityInsightProjectFilterOnOutside(e) {
+  const dropdown = document.getElementById('qi-project-filter-dropdown');
+  const btn = document.getElementById('qi-project-filter-btn');
+  if (!dropdown.contains(e.target) && !btn.contains(e.target)) {
+    dropdown.classList.remove('open');
+    document.removeEventListener('click', closeQualityInsightProjectFilterOnOutside);
+  }
+}
+
+function getSelectedQualityInsightProjects() {
+  const optionsEl = document.getElementById('qi-project-filter-options');
+  if (!optionsEl) return S._qiSelectedProjects instanceof Set ? S._qiSelectedProjects : new Set();
+  const selected = new Set();
+  optionsEl.querySelectorAll('input[type="checkbox"]:checked').forEach(cb => selected.add(cb.value));
+  return selected;
+}
+
+function updateQualityInsightProjectFilter(skipRender) {
+  const selected = getSelectedQualityInsightProjects();
+  S._qiSelectedProjects = selected;
+  const btn = document.getElementById('qi-project-filter-btn');
+  const label = document.getElementById('qi-project-filter-label');
+  const badge = document.getElementById('qi-project-filter-count');
+  if (label && badge) {
+    if (selected.size === 0) {
+      label.textContent = 'All Quality projects';
+      badge.style.display = 'none';
+      btn?.classList.remove('has-selection');
+    } else {
+      label.textContent = 'Projects';
+      badge.textContent = selected.size;
+      badge.style.display = '';
+      btn?.classList.add('has-selection');
+    }
+  }
+  if (!skipRender) renderQualityInsights();
+}
+
+function clearQualityInsightProjectFilter() {
+  document.querySelectorAll('#qi-project-filter-options input[type="checkbox"]').forEach(cb => { cb.checked = false; });
+  updateQualityInsightProjectFilter();
+}
+
+function selectAllQualityInsightProjects() {
+  document.querySelectorAll('#qi-project-filter-options input[type="checkbox"]').forEach(cb => { cb.checked = true; });
+  updateQualityInsightProjectFilter();
+}
+
+function buildQualityInsightProjectFilterOptions(projects) {
+  const optionsEl = document.getElementById('qi-project-filter-options');
+  if (!optionsEl) return;
+  const prev = S._qiSelectedProjects instanceof Set ? S._qiSelectedProjects : getSelectedQualityInsightProjects();
+  optionsEl.innerHTML = projects.map(proj => `
+    <label class="ms-option">
+      <input type="checkbox" value="${esc(proj.key)}" ${prev && prev.size && prev.has(proj.key) ? 'checked' : ''} onchange="updateQualityInsightProjectFilter()">
+      <span class="ms-option-label">
+        <span style="width:8px;height:8px;border-radius:50%;background:${proj.color};display:inline-block;margin-right:6px"></span>
+        ${esc(proj.name)}
+      </span>
+    </label>
+  `).join('');
+}
+
+function renderQualityInsights() {
+  const body = document.getElementById('quality-insights-body');
+  if (!body) return;
+  const qualityProjects = getQualityProjects();
+  buildQualityInsightProjectFilterOptions(qualityProjects);
+  if (!S.activeRelease) {
+    body.innerHTML = `<div class="info-box">Select a market release in the top bar, then sync Quality projects from <button class="btn btn-sm" onclick="nav('connector')">Jira Connector</button>.</div>`;
+    return;
+  }
+  if (!qualityProjects.length) {
+    body.innerHTML = qualityInsightRedirectBox('quality');
+    return;
+  }
+  const selected = getSelectedQualityInsightProjects();
+  const projects = (selected.size ? qualityProjects.filter(p => selected.has(p.key)) : qualityProjects)
+    .filter(p => S.cache[p.key] && !S.cache[p.key].err);
+  if (!projects.length) {
+    body.innerHTML = `<div class="info-box">No synced Quality project data for <strong>${esc(S.activeRelease)}</strong>. Sync from <button class="btn btn-sm" onclick="nav('connector')">Jira Connector</button>.</div>`;
+    return;
+  }
+
+  const rows = collectQualityInsightRows(projects);
+  const high = rows.filter(r => r.high);
+  const stale = rows.filter(r => r.stale);
+  const unassigned = rows.filter(r => r.unassigned);
+  const bounced = rows.filter(r => r.bounced);
+  const customer = rows.filter(r => r.customer);
+  const inQa = rows.filter(r => r.phase === 'QA');
+  const mustFix = [...rows].sort((a, b) => {
+    const rank = t => (t.severe ? 3 : t.high ? 2 : t.customer ? 1 : 0) * 1000 + t.ageDays;
+    return rank(b) - rank(a);
+  }).slice(0, 20);
+
+  const risks = [];
+  const blockers = rows.filter(r => r.severe);
+  if (blockers.length) risks.push({ sev: 'high', title: `${blockers.length} blocker/critical defect${blockers.length === 1 ? '' : 's'} still open`, detail: 'These can stop a patch from shipping or leave customers broken on this market release.' });
+  if (high.length && high.length !== blockers.length) risks.push({ sev: 'high', title: `${high.length} high-priority quality ticket${high.length === 1 ? '' : 's'} open`, detail: 'High-severity bugs and support tickets should be owned and dated for this patch.' });
+  if (customer.length) risks.push({ sev: 'high', title: `${customer.length} customer-impacting ticket${customer.length === 1 ? '' : 's'} not resolved`, detail: 'Customer-facing defects that miss the patch window create support load and trust risk.' });
+  if (unassigned.length >= 3) risks.push({ sev: 'medium', title: `${unassigned.length} open ticket${unassigned.length === 1 ? '' : 's'} unassigned`, detail: 'Unowned bugs and support tickets stall until someone picks them up.' });
+  if (stale.length) risks.push({ sev: 'medium', title: `${stale.length} ticket${stale.length === 1 ? '' : 's'} with no movement in ${QUALITY_STALE_DAYS}+ days`, detail: 'Aging defects often hide missing owners or work that will not make this patch.' });
+  if (bounced.length) risks.push({ sev: 'medium', title: `${bounced.length} ticket${bounced.length === 1 ? '' : 's'} bounced from QA`, detail: 'Rejected or replied defects need another development pass.' });
+
+  body.innerHTML = `
+    <div class="rr-hero">
+      <div class="rr-hero-k">${esc(S.activeRelease)} · Quality</div>
+      <h3>Bugs and support tickets</h3>
+      <p>${rows.length} open quality ticket${rows.length === 1 ? '' : 's'} across ${projects.length} Quality project${projects.length === 1 ? '' : 's'}. This package tracks severity, aging, and ownership — not feature delivery.</p>
+    </div>
+    <div class="rr-kpi-grid" style="margin:16px 0">
+      <div class="rr-kpi"><div class="v">${rows.length}</div><div class="l">Open tickets</div></div>
+      <div class="rr-kpi"><div class="v" style="color:var(--red)">${high.length}</div><div class="l">High / critical</div></div>
+      <div class="rr-kpi"><div class="v">${stale.length}</div><div class="l">Stale ${QUALITY_STALE_DAYS}+ days</div></div>
+      <div class="rr-kpi"><div class="v">${unassigned.length}</div><div class="l">Unassigned</div></div>
+      <div class="rr-kpi"><div class="v">${inQa.length}</div><div class="l">In QA</div></div>
+      <div class="rr-kpi"><div class="v">${customer.length}</div><div class="l">Customer-impacting</div></div>
+    </div>
+    <div class="qi-grid">
+      <div class="rr-section">
+        <h3>By priority</h3>
+        <p class="sub">Severity mix for this market release and its patches</p>
+        ${renderQualityBarList(countQualityBuckets(rows, r => r.priority), 'var(--red)')}
+      </div>
+      <div class="rr-section">
+        <h3>By status</h3>
+        <p class="sub">Where quality work sits in the queue</p>
+        ${renderQualityBarList(countQualityBuckets(rows, r => r.phase), 'var(--blue)')}
+      </div>
+      <div class="rr-section">
+        <h3>Market vs patch</h3>
+        <p class="sub">Which fixVersion bucket the tickets are on</p>
+        ${renderQualityBarList(countQualityBuckets(rows, r => r.fixBucket), '#533AB7')}
+      </div>
+      <div class="rr-section">
+        <h3>By type</h3>
+        <p class="sub">Bugs vs support vs other quality tickets</p>
+        ${renderQualityBarList(countQualityBuckets(rows, r => r.type), 'var(--amber)')}
+      </div>
+    </div>
+    <div class="rr-section" style="margin-bottom:16px">
+      <h3>Quality risks</h3>
+      <p class="sub">What to brief for this patch — not feature freeze or remaining estimate</p>
+      ${risks.map(r => `
+        <div class="rr-risk">
+          ${rrSev(r.sev)}
+          <div>
+            <div style="font-weight:600;font-size:13px">${esc(r.title)}</div>
+            <div style="font-size:12px;color:var(--text2);margin-top:3px">${esc(r.detail)}</div>
+          </div>
+        </div>`).join('') || '<p style="font-size:13px;color:var(--green)">No material quality risks from current ticket data.</p>'}
+    </div>
+    <div class="rr-section" style="margin-bottom:16px">
+      <h3>Must-fix</h3>
+      <p class="sub">Highest-severity open bugs and support tickets</p>
+      ${renderQualityTicketTable(mustFix, 'No must-fix tickets.')}
+    </div>
+    <div class="qi-grid">
+      <div class="rr-section">
+        <h3>Stale</h3>
+        <p class="sub">No movement in ${QUALITY_STALE_DAYS}+ days</p>
+        ${renderQualityTicketTable(stale.slice(0, 15), 'No stale quality tickets.')}
+      </div>
+      <div class="rr-section">
+        <h3>Unassigned</h3>
+        <p class="sub">No owner on the ticket</p>
+        ${renderQualityTicketTable(unassigned.slice(0, 15), 'No unassigned quality tickets.')}
+      </div>
+    </div>
+    <div class="qi-grid">
+      <div class="rr-section">
+        <h3>Bounced from QA</h3>
+        <p class="sub">Rejected or replied — needs another pass</p>
+        ${renderQualityTicketTable(bounced.slice(0, 15), 'No bounced tickets.')}
+      </div>
+      <div class="rr-section">
+        <h3>Customer-impacting</h3>
+        <p class="sub">Customer commitment or impact on the ticket</p>
+        ${renderQualityTicketTable(customer.slice(0, 15), 'No customer-impacting quality tickets.')}
+      </div>
+    </div>`;
 }
 
 // ── CSV export ────────────────────────────────────────────────────────────────
@@ -6449,14 +7181,14 @@ function renderTeam() {
 
   // Gather all issues from cache
   const allIssues = [];
-  getAllProjects().forEach(proj => {
+  getDeliveryProjects().forEach(proj => {
     const data = S.cache[proj.key];
     if (!data || data.err) return;
     (data.issues || []).forEach(i => allIssues.push({ proj, issue: i }));
   });
 
   if (!allIssues.length) {
-    body.innerHTML = '<div class="team-empty">No data loaded yet. Click <strong>Refresh All</strong> first.</div>';
+    body.innerHTML = qualityInsightRedirectBox('team');
     return;
   }
 
@@ -6490,7 +7222,7 @@ function renderTeam() {
 
   const allDevs = [...new Set(allIssues.map(({issue}) => getDev(issue)).filter(Boolean))].sort();
   const allPhaseLabels = [...PHASES.map(p => p.label), 'Other'];
-  const loadedProjNames = getAllProjects().filter(p => S.cache[p.key] && !S.cache[p.key].err).map(p => p.name);
+  const loadedProjNames = getDeliveryProjects().filter(p => S.cache[p.key] && !S.cache[p.key].err).map(p => p.name);
   const allScopeCommitments = [...new Set(allIssues.map(({issue}) => getScopeCommitment(issue)).filter(Boolean))].sort();
   
   // Get product assignees
@@ -6927,10 +7659,10 @@ function renderPhaseTimeline() {
   }
 
   // Gather all issues from all loaded projects
-  const loaded = getAllProjects().filter(p => S.cache[p.key] && !S.cache[p.key].err);
+  const loaded = getDeliveryProjects().filter(p => S.cache[p.key] && !S.cache[p.key].err);
   if (!loaded.length) {
     clearPhaseChartSlot();
-    contentEl.innerHTML = '<div class="info-box">No project data loaded. Click "Refresh All" to load data.</div>';
+    contentEl.innerHTML = qualityInsightRedirectBox('phase');
     buildPhaseProjectFilterOptions(loaded);
     buildPhaseMilestoneFilterOptions(getDatedReleaseMilestones(getPhaseChartRelease([])));
     return;
@@ -8486,9 +9218,9 @@ function renderDailyProgress() {
   const range = parseInt(document.getElementById('log-range').value);
   
   // Gather all issues from all loaded projects
-  const loaded = getAllProjects().filter(p => S.cache[p.key] && !S.cache[p.key].err);
+  const loaded = getDeliveryProjects().filter(p => S.cache[p.key] && !S.cache[p.key].err);
   if (!loaded.length) {
-    contentEl.innerHTML = '<div class="info-box">No project data loaded. Click "Refresh All" to load data.</div>';
+    contentEl.innerHTML = qualityInsightRedirectBox('log');
     buildLogProjectFilterOptions(loaded);
     return;
   }
@@ -9078,6 +9810,7 @@ const PROJECT_COLORS = ['#185FA5','#3B6D11','#c47a0f','#533AB7','#993556','#0F6E
 
 function normalizeProjectReleasesObj(obj) {
   if (!obj) return;
+  obj.releaseMode = normalizeReleaseMode(obj.releaseMode);
   if (Array.isArray(obj.releases) && obj.releases.length > 0) {
     delete obj.release;
     return;
@@ -9118,15 +9851,20 @@ function buildFixVersionClause(releases) {
   return `fixVersion in (${formatted.join(', ')})`;
 }
 
-function injectFixVersionIntoJql(jql, releases) {
-  const clause = buildFixVersionClause(releases);
-  if (!clause || jql.toLowerCase().includes('fixversion')) return jql;
+function injectJqlClause(jql, clause) {
+  if (!clause) return jql;
   const orderByMatch = jql.match(/\s+ORDER\s+BY\s+/i);
   if (orderByMatch) {
     const insertPos = orderByMatch.index;
     return jql.substring(0, insertPos) + ` AND ${clause}` + jql.substring(insertPos);
   }
   return jql + ` AND ${clause}`;
+}
+
+function injectFixVersionIntoJql(jql, releases) {
+  const clause = buildFixVersionClause(releases);
+  if (!clause || jql.toLowerCase().includes('fixversion')) return jql;
+  return injectJqlClause(jql, clause);
 }
 
 function stripFixVersionFromJql(jql) {
@@ -9149,7 +9887,7 @@ function populateProjectReleaseMs(selectedReleases) {
   const selected = new Set(selectedReleases || []);
 
   if (!S.releases || S.releases.length === 0) {
-    optionsEl.innerHTML = '<div style="padding:10px 12px;font-size:12px;color:var(--text3)">No releases configured — add one in Config &gt; Releases</div>';
+    optionsEl.innerHTML = '<div style="padding:10px 12px;font-size:12px;color:var(--text3)">No market releases configured — add one in Config &gt; Releases</div>';
     updateProjectReleaseMsBtn();
     return;
   }
@@ -9173,6 +9911,41 @@ function getSelectedProjectReleases() {
   return selected;
 }
 
+function populateProjectReleaseMode(mode) {
+  const resolved = normalizeReleaseMode(mode);
+  document.querySelectorAll('input[name="pmod-release-mode"]').forEach(input => {
+    input.checked = input.value === resolved;
+  });
+  updateProjectReleasePreview();
+}
+
+function getSelectedProjectReleaseMode() {
+  const checked = document.querySelector('input[name="pmod-release-mode"]:checked');
+  return normalizeReleaseMode(checked && checked.value);
+}
+
+function updateProjectReleasePreview() {
+  const el = document.getElementById('pmod-release-preview');
+  if (!el) return;
+  const selected = getSelectedProjectReleases();
+  const mode = getSelectedProjectReleaseMode();
+  if (!selected.length) {
+    el.textContent = 'Select at least one market release to see which Jira fixVersion values will be queried.';
+    return;
+  }
+  const lines = selected.map(name => {
+    const versions = expandFixVersionsForMode(name, mode, getReleasePatchNames(findReleaseByName(name)));
+    if (!versions.length) {
+      return `<div><strong>${esc(name)}</strong> — nothing to query (no patch names on this market release, and the include mode is patches only).</div>`;
+    }
+    const note = mode === 'market+patch' && versions.length === 1
+      ? ' <span style="color:var(--text3)">(no patch names defined on this market release)</span>'
+      : '';
+    return `<div><strong>${esc(name)}</strong> — ${esc(versions.join(', '))}${note}</div>`;
+  });
+  el.innerHTML = `<div style="font-weight:600;color:var(--text);margin-bottom:4px">fixVersion values when that market release is selected in the top bar</div>${lines.join('')}`;
+}
+
 function updateProjectReleaseMsBtn() {
   const selected = getSelectedProjectReleases();
   const btn = document.getElementById('pmod-release-btn');
@@ -9181,7 +9954,7 @@ function updateProjectReleaseMsBtn() {
   if (!btn || !label) return;
 
   if (selected.length === 0) {
-    label.textContent = 'Select releases...';
+    label.textContent = 'Select market releases...';
     if (badge) badge.style.display = 'none';
     btn.classList.remove('has-selection');
   } else if (selected.length === 1) {
@@ -9196,6 +9969,7 @@ function updateProjectReleaseMsBtn() {
     }
     btn.classList.add('has-selection');
   }
+  updateProjectReleasePreview();
 }
 
 function toggleProjectReleaseMs() {
@@ -9351,6 +10125,7 @@ function openProjectJqlModal(key) {
 
   const storedReleases = getProjectReleases(key, proj);
   populateProjectReleaseMs(storedReleases);
+  populateProjectReleaseMode(getProjectReleaseMode(key, proj));
 
   document.getElementById('proj-modal-title').textContent = 'Edit JQL — ' + proj.name;
   document.getElementById('pmod-name').value  = proj.name;
@@ -9388,12 +10163,14 @@ async function renderProjectsConfig() {
     const hasOverride = effectiveJql !== p.jql;
     const category = p.category || 'Uncategorized';
     const releaseLabel = formatProjectReleasesLabel(getProjectReleases(p.key, p));
+    const modeLabel = formatReleaseModeLabel(getProjectReleaseMode(p.key, p));
     return `
     <div style="display:flex;align-items:center;gap:10px;padding:10px 14px;background:var(--bg2);border:0.5px solid var(--border);border-radius:var(--radius);font-size:13px;${removed ? 'opacity:.65' : ''}">
       <span style="width:10px;height:10px;border-radius:50%;background:${p.color};flex-shrink:0"></span>
       <span style="font-weight:500;flex:0 0 180px">${esc(p.name)}</span>
       <span style="font-size:11px;color:var(--text3);flex:0 0 100px">${esc(category)}</span>
-      ${releaseLabel ? `<span style="font-size:10px;color:var(--purple);background:var(--bg3);padding:2px 8px;border-radius:999px;flex-shrink:0" title="Releases: ${esc(releaseLabel)}">📅 ${esc(releaseLabel)}</span>` : ''}
+      ${releaseLabel ? `<span style="font-size:10px;color:var(--purple);background:var(--bg3);padding:2px 8px;border-radius:999px;flex-shrink:0" title="Market releases: ${esc(releaseLabel)}">📅 ${esc(releaseLabel)}</span>` : ''}
+      <span style="font-size:10px;color:var(--text2);background:var(--bg3);padding:2px 8px;border-radius:999px;flex-shrink:0" title="Include mode for Jira fixVersion queries">${esc(modeLabel)}</span>
       <span style="font-size:11px;color:var(--text3);font-family:monospace;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;flex:1" title="${esc(effectiveJql)}">${esc(effectiveJql)}</span>
       ${hasOverride ? '<span style="font-size:10px;color:var(--blue);background:var(--blue-bg);padding:2px 8px;border-radius:999px;flex-shrink:0">JQL edited</span>' : ''}
       <label style="display:flex;align-items:center;gap:6px;font-size:11px;color:var(--text3);flex-shrink:0"><input type="checkbox" ${enabled ? 'checked' : ''} ${removed ? 'disabled' : ''} onchange="setProjectEnabled('${p.key}', this.checked)">Enabled</label>
@@ -9422,6 +10199,7 @@ async function renderProjectsConfig() {
     const hasOverride = effectiveJql !== p.jql;
     const category = p.category || 'Uncategorized';
     const releaseLabel = formatProjectReleasesLabel(p.releases || []);
+    const modeLabel = formatReleaseModeLabel(getProjectReleaseMode(p.key, p));
     const row = document.createElement('div');
     row.className = 'custom-proj-row';
     row.style.cssText = 'display:flex;align-items:center;gap:10px;padding:10px 14px;background:var(--bg2);border:0.5px solid var(--border2);border-radius:var(--radius);font-size:13px';
@@ -9429,7 +10207,8 @@ async function renderProjectsConfig() {
       <span style="width:10px;height:10px;border-radius:50%;background:${esc(p.color)};flex-shrink:0"></span>
       <span style="font-weight:500;flex:0 0 180px">${esc(p.name)}</span>
       <span style="font-size:11px;color:var(--text3);flex:0 0 100px">${esc(category)}</span>
-      ${releaseLabel ? `<span style="font-size:10px;color:var(--purple);background:var(--bg3);padding:2px 8px;border-radius:999px;flex-shrink:0" title="Releases: ${esc(releaseLabel)}">📅 ${esc(releaseLabel)}</span>` : ''}
+      ${releaseLabel ? `<span style="font-size:10px;color:var(--purple);background:var(--bg3);padding:2px 8px;border-radius:999px;flex-shrink:0" title="Market releases: ${esc(releaseLabel)}">📅 ${esc(releaseLabel)}</span>` : ''}
+      <span style="font-size:10px;color:var(--text2);background:var(--bg3);padding:2px 8px;border-radius:999px;flex-shrink:0" title="Include mode for Jira fixVersion queries">${esc(modeLabel)}</span>
       <span style="font-size:11px;color:var(--text3);font-family:monospace;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;flex:1" title="${esc(effectiveJql)}">${esc(effectiveJql)}</span>
       ${hasOverride ? '<span style="font-size:10px;color:var(--blue);background:var(--blue-bg);padding:2px 8px;border-radius:999px;flex-shrink:0">JQL edited</span>' : ''}
       <label style="display:flex;align-items:center;gap:6px;font-size:11px;color:var(--text3);flex-shrink:0"><input type="checkbox" ${enabled ? 'checked' : ''} onchange="setProjectEnabled('${p.key}', this.checked)">Enabled</label>
@@ -9452,6 +10231,7 @@ function openProjectModal(editIdx) {
   const proj   = isEdit ? S.customProjects[_editingProjIdx] : null;
 
   populateProjectReleaseMs(isEdit ? (proj.releases || []) : []);
+  populateProjectReleaseMode(isEdit ? getProjectReleaseMode(proj.key, proj) : DEFAULT_RELEASE_MODE);
 
   document.getElementById('proj-modal-title').textContent = isEdit ? 'Edit project' : 'Add project';
   document.getElementById('pmod-name').value  = proj ? proj.name  : '';
@@ -9490,11 +10270,12 @@ async function saveProjectModal() {
   const color = document.getElementById('pmod-color').value;
   const category = document.getElementById('pmod-category').value.trim();
   const releases = getSelectedProjectReleases();
+  const releaseMode = getSelectedProjectReleaseMode();
   const jql   = document.getElementById('pmod-jql').value.trim();
   const msgEl = document.getElementById('pmod-msg');
 
   if (!jql)  { msgEl.textContent = 'JQL query is required.'; return; }
-  if (releases.length === 0) { msgEl.textContent = 'Select at least one release. Add releases in Config > Releases first.'; return; }
+  if (releases.length === 0) { msgEl.textContent = 'Select at least one market release. Add releases in Config > Releases first.'; return; }
 
   if (_projectModalMode === 'jql-only') {
     if (!_editingProjKey) { msgEl.textContent = 'Unknown project key.'; return; }
@@ -9502,7 +10283,13 @@ async function saveProjectModal() {
     const st = getProjectSettings(_editingProjKey);
     st.jql = finalJql;
     st.releases = releases;
+    st.releaseMode = releaseMode;
     delete st.release;
+    const custom = (S.customProjects || []).find(p => p.key === _editingProjKey);
+    if (custom) {
+      custom.releases = releases;
+      custom.releaseMode = releaseMode;
+    }
     delete S.cache[_editingProjKey];
     const saved = await saveProjectsConfig();
     rebuildDynamicUI();
@@ -9529,7 +10316,7 @@ async function saveProjectModal() {
   const finalJql = injectFixVersionIntoJql(jql, releases);
 
   const id = 'cp_' + key.toLowerCase();
-  const proj = { id, name, key, color, category: category || 'Uncategorized', jql: finalJql, releases };
+  const proj = { id, name, key, color, category: category || 'Uncategorized', jql: finalJql, releases, releaseMode };
 
   if (isEdit) {
     S.customProjects[_editingProjIdx] = proj;
@@ -9538,6 +10325,9 @@ async function saveProjectModal() {
   }
   // Full project edit owns base JQL for custom projects; remove any stale override.
   if (S.projectSettings && S.projectSettings[key]) delete S.projectSettings[key].jql;
+  getProjectSettings(key).releaseMode = releaseMode;
+  getProjectSettings(key).releases = releases;
+  delete S.cache[key];
   const saved = await saveProjectsConfig();
   rebuildDynamicUI();
   renderProjectsConfig();
@@ -9576,9 +10366,28 @@ const DEFAULT_MILESTONES = [
 ];
 
 // Release configuration is loaded with the local state snapshot.
+function normalizeReleasePatches(release) {
+  if (!release || typeof release !== 'object') return;
+  const raw = release.patches;
+  if (!Array.isArray(raw)) {
+    release.patches = [];
+    return;
+  }
+  release.patches = raw.map(p => {
+    if (typeof p === 'string') return p;
+    if (p && typeof p.name === 'string') return p.name;
+    return '';
+  });
+}
+
+function normalizeAllReleasePatches() {
+  (S.releases || []).forEach(normalizeReleasePatches);
+}
+
 async function loadReleasesConfig() {
   S.releases = S.releases || [];
   S.milestones = S.milestones || JSON.parse(JSON.stringify(DEFAULT_MILESTONES));
+  normalizeAllReleasePatches();
   return true;
 }
 
@@ -9610,8 +10419,9 @@ async function renderReleasesConfig() {
       <div class="card">
         <h2>Release Configuration</h2>
         <p class="desc">
-          Configure releases and their milestone dates. Each release tracks key dates for 
-          milestones like Discovery Alignment, Feature Freeze, General Availability, etc.
+          Configure market releases and their milestone dates. Each market release can also
+          have named patch releases (Jira fixVersion names only — no milestone dates).
+          Projects choose whether to query the market release, its patches, or both.
           <br><strong>Configuration is saved locally on this machine</strong>
         </p>
         
@@ -9621,7 +10431,7 @@ async function renderReleasesConfig() {
               <line x1="12" y1="5" x2="12" y2="19"/>
               <line x1="5" y1="12" x2="19" y2="12"/>
             </svg>
-            Add New Release
+            Add Market Release
           </button>
           <span id="releases-save-msg" style="font-size: 12px; color: var(--text3);"></span>
         </div>
@@ -9654,7 +10464,7 @@ function renderReleasesList() {
   if (S.releases.length === 0) {
     container.innerHTML = `
       <div style="padding: 40px 20px; text-align: center; color: var(--text3); font-size: 13px;">
-        No releases configured yet. Click "Add New Release" to get started.
+        No market releases configured yet. Click "Add Market Release" to get started.
       </div>
     `;
     return;
@@ -9674,7 +10484,7 @@ function renderReleasesList() {
           <input 
             type="text" 
             value="${esc(release.name || '')}"
-            placeholder="Release name (e.g., 2026 Q2)"
+            placeholder="Market release name (e.g., N2026.R1)"
             onchange="updateReleaseName(${index}, this.value)"
             style="
               flex: 1;
@@ -9755,6 +10565,17 @@ function renderReleasesList() {
               />
             </div>
           `).join('')}
+        </div>
+
+        <div style="margin-top:16px;padding-top:14px;border-top:0.5px solid var(--border);">
+          <div style="display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:8px;">
+            <div>
+              <div style="font-size:12px;font-weight:600;">Patch releases</div>
+              <div style="font-size:11px;color:var(--text3);line-height:1.4;">Names only — used as extra Jira fixVersion values. No milestone dates.</div>
+            </div>
+            <button class="btn btn-sm" type="button" onclick="addPatchRelease(${index})">+ Add patch</button>
+          </div>
+          ${renderPatchReleaseList(release, index)}
         </div>
       </div>
     `;
@@ -9868,17 +10689,37 @@ function showSaveMessage(success) {
   }, 3000);
 }
 
+function renderPatchReleaseList(release, releaseIndex) {
+  const patches = Array.isArray(release.patches) ? release.patches : [];
+  if (!patches.length) {
+    return `<div style="padding:10px 0;font-size:12px;color:var(--text3);">No patch releases yet. Add a name to match a Jira fixVersion.</div>`;
+  }
+  return `<div class="patch-list">${patches.map((name, patchIndex) => `
+    <div class="patch-row">
+      <input
+        type="text"
+        value="${esc(name || '')}"
+        placeholder="Patch name (e.g., ${esc(release.name || 'N2026.R1')}.P${patchIndex + 1})"
+        onchange="updatePatchReleaseName(${releaseIndex}, ${patchIndex}, this.value)"
+      />
+      <button class="btn btn-sm" type="button" onclick="deletePatchRelease(${releaseIndex}, ${patchIndex})" style="color:var(--red);">Remove</button>
+    </div>
+  `).join('')}</div>`;
+}
+
 async function addRelease() {
   if (!S.releases) S.releases = [];
   
   S.releases.push({
     name: `N${new Date().getFullYear()}.R${S.releases.length + 1}`,
-    milestones: {}
+    milestones: {},
+    patches: []
   });
   
   const saved = await saveReleasesConfig();
   showSaveMessage(saved);
   renderReleasesList();
+  updateGlobalReleaseSelector();
 }
 
 async function duplicateRelease(index) {
@@ -9887,11 +10728,13 @@ async function duplicateRelease(index) {
   const original = S.releases[index];
   const duplicate = JSON.parse(JSON.stringify(original));
   duplicate.name = `${duplicate.name} (Copy)`;
+  normalizeReleasePatches(duplicate);
   
   S.releases.splice(index + 1, 0, duplicate);
   const saved = await saveReleasesConfig();
   showSaveMessage(saved);
   renderReleasesList();
+  updateGlobalReleaseSelector();
 }
 
 async function deleteRelease(index) {
@@ -9922,6 +10765,39 @@ async function updateReleaseName(index, value) {
   S.releases[index].name = value;
   const saved = await saveReleasesConfig();
   showSaveMessage(saved);
+  updateGlobalReleaseSelector();
+}
+
+async function addPatchRelease(releaseIndex) {
+  if (!S.releases || !S.releases[releaseIndex]) return;
+  normalizeReleasePatches(S.releases[releaseIndex]);
+  const release = S.releases[releaseIndex];
+  const next = (release.patches.filter(Boolean).length) + 1;
+  const base = String(release.name || 'Patch').trim() || 'Patch';
+  release.patches.push(`${base}.P${next}`);
+  const saved = await saveReleasesConfig();
+  showSaveMessage(saved);
+  renderReleasesList();
+}
+
+async function updatePatchReleaseName(releaseIndex, patchIndex, value) {
+  if (!S.releases || !S.releases[releaseIndex]) return;
+  normalizeReleasePatches(S.releases[releaseIndex]);
+  if (patchIndex < 0 || patchIndex >= S.releases[releaseIndex].patches.length) return;
+  S.releases[releaseIndex].patches[patchIndex] = value;
+  const saved = await saveReleasesConfig();
+  showSaveMessage(saved);
+}
+
+async function deletePatchRelease(releaseIndex, patchIndex) {
+  if (!S.releases || !S.releases[releaseIndex]) return;
+  normalizeReleasePatches(S.releases[releaseIndex]);
+  const name = S.releases[releaseIndex].patches[patchIndex] || 'this patch';
+  if (!confirm(`Remove patch ${name}?`)) return;
+  S.releases[releaseIndex].patches.splice(patchIndex, 1);
+  const saved = await saveReleasesConfig();
+  showSaveMessage(saved);
+  renderReleasesList();
 }
 
 async function updateMilestone(releaseIndex, milestoneId, value) {
@@ -10004,6 +10880,9 @@ async function initApp() {
   S._msState = { project: new Set(), phase: new Set(), dev: new Set(), product: new Set(), assignee: new Set(), scope: new Set() };
 
   const storeLoaded = await loadStoredState();
+  if (!S.releases) S.releases = [];
+  normalizeAllReleasePatches();
+  normalizeAllProjectReleases();
   if (!storeLoaded && !_dashboardUser) {
     const error = document.getElementById('auth-gate-error');
     if (error && _storeError && !_storeError.includes('Sign in to access')) {

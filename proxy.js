@@ -304,7 +304,17 @@ async function enrichReleaseReportWithAi(report, body) {
       messages: [
         {
           role: 'system',
-          content: 'You write internal company all-hands briefings for software releases. Be specific and factual. Use business language, not Jira jargon. Never invent tickets, dates, or metrics. High-value work is customer impact, contractual commitments, large capabilities, compliance/security, or work that unblocks other teams — not ticket volume. If a ticket description is thin, say so rather than guessing.',
+          content: (() => {
+            const quality = (report.projects || []).some(p => p.insightKind === 'quality');
+            const delivery = (report.projects || []).some(p => p.insightKind !== 'quality');
+            if (quality && !delivery) {
+              return 'You write internal quality briefings for market releases and their patches. These projects are bugs and support tickets, not feature deliverables. Focus on severity, aging, unassigned work, customer-impacting defects, and what must be fixed before a patch ships. Never invent tickets, dates, or metrics. Do not describe bugs as high-value features. If a ticket description is thin, say so rather than guessing.';
+            }
+            if (quality && delivery) {
+              return 'You write internal company all-hands briefings for software releases. Be specific and factual. Use business language, not Jira jargon. Never invent tickets, dates, or metrics. High-value work is customer impact, contractual commitments, large capabilities, compliance/security, or work that unblocks other teams — not ticket volume. Some projects are Quality (bugs and support tickets for patches): for those, write about defects, aging, and must-fix items — not feature value. If a ticket description is thin, say so rather than guessing.';
+            }
+            return 'You write internal company all-hands briefings for software releases. Be specific and factual. Use business language, not Jira jargon. Never invent tickets, dates, or metrics. High-value work is customer impact, contractual commitments, large capabilities, compliance/security, or work that unblocks other teams — not ticket volume. If a ticket description is thin, say so rather than guessing.';
+          })(),
         },
         {
           role: 'user',
@@ -314,9 +324,12 @@ async function enrichReleaseReportWithAi(report, body) {
             portfolio: report.portfolio,
             projectSummaries: (report.projects || []).map(p => ({
               name: p.projectName,
+              insightKind: p.insightKind || 'delivery',
               progress: p.progress,
+              quality: p.quality,
               heuristicThemes: p.delivered?.themes,
               heuristicHighValue: p.highValue,
+              heuristicMustFix: p.mustFix,
               heuristicRisks: p.risks,
               narrative: p.narrative,
             })),
