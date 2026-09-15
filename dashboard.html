@@ -540,7 +540,8 @@ table.issues tr:hover td { background: var(--bg2); }
   height: 100%;
   max-width: none;
 }
-.phase-chart-card.is-fullscreen #phase-chart-wrap {
+.phase-chart-card.is-fullscreen #phase-chart-wrap,
+.phase-chart-card.is-fullscreen #qi-phase-chart-wrap {
   flex: 1;
   min-height: 320px;
   height: auto !important;
@@ -2501,7 +2502,9 @@ function isProjectVisible(proj) {
 }
 
 function getAllProjects() {
-  return [...PROJECTS, ...(S.customProjects || [])].filter(isProjectVisible);
+  const builtinKeys = new Set(PROJECTS.map(p => p.key));
+  const custom = (S.customProjects || []).filter(p => !builtinKeys.has(p.key));
+  return [...PROJECTS, ...custom].filter(isProjectVisible);
 }
 
 function isQualityDashboardProject(proj) {
@@ -7787,7 +7790,8 @@ const PHASE_TREND_DEFAULT_VISIBLE = {
   releaseBurndown: true,
 };
 
-/** Chart series styles for aggregate and per-project drill-down lines. */
+/** Chart series styles for aggregate and per-project drill-down lines.
+ *  Snapshot vs transition series never share a hue so the tooltip swatches stay distinct. */
 const PHASE_SERIES_META = {
   prodDev: {
     label: 'Prod → Dev', color: '#7C3AED', bg: 'rgba(124, 58, 237, 0.1)',
@@ -7795,39 +7799,39 @@ const PHASE_SERIES_META = {
     hoverColor: '#5B21B6', isTransition: true,
   },
   devQA: {
-    label: 'Dev → QA', color: '#059669', bg: 'rgba(5, 150, 105, 0.1)',
+    label: 'Dev → QA', color: '#0F766E', bg: 'rgba(15, 118, 110, 0.1)',
     borderWidth: 2, borderDash: [6, 4], pointRadius: 4, pointHoverRadius: 6,
-    hoverColor: '#047857', isTransition: true,
+    hoverColor: '#115E59', isTransition: true,
   },
   qaClosed: {
-    label: 'QA → Closed', color: '#2563EB', bg: 'rgba(37, 99, 235, 0.1)',
+    label: 'QA → Closed', color: '#0284C7', bg: 'rgba(2, 132, 199, 0.1)',
     borderWidth: 2, borderDash: [6, 4], pointRadius: 4, pointHoverRadius: 6,
-    hoverColor: '#1D4ED8', isTransition: true,
+    hoverColor: '#0369A1', isTransition: true,
   },
   prodPending: {
-    label: 'Prod-Pending', color: '#533AB7', bg: 'rgba(83, 58, 183, 0.08)',
+    label: 'Prod-Pending', color: '#2563EB', bg: 'rgba(37, 99, 235, 0.08)',
     borderWidth: 2.5, borderDash: [], pointRadius: 5, pointHoverRadius: 7,
-    hoverColor: '#3F2A8F', isTransition: false,
+    hoverColor: '#1D4ED8', isTransition: false,
   },
   devPending: {
-    label: 'Dev-Pending', color: '#854F0B', bg: 'rgba(133, 79, 11, 0.08)',
+    label: 'Dev-Pending', color: '#16A34A', bg: 'rgba(22, 163, 74, 0.08)',
     borderWidth: 2.5, borderDash: [], pointRadius: 5, pointHoverRadius: 7,
-    hoverColor: '#6B3F09', isTransition: false,
+    hoverColor: '#15803D', isTransition: false,
   },
   qaPending: {
-    label: 'QA-Pending', color: '#0F6E56', bg: 'rgba(15, 110, 86, 0.08)',
+    label: 'QA-Pending', color: '#CA8A04', bg: 'rgba(202, 138, 4, 0.08)',
     borderWidth: 2.5, borderDash: [], pointRadius: 5, pointHoverRadius: 7,
-    hoverColor: '#0B5744', isTransition: false,
+    hoverColor: '#A16207', isTransition: false,
   },
   closed: {
-    label: 'Closed', color: '#555555', bg: 'rgba(85, 85, 85, 0.08)',
+    label: 'Closed', color: '#44403C', bg: 'rgba(68, 64, 60, 0.08)',
     borderWidth: 2.5, borderDash: [], pointRadius: 5, pointHoverRadius: 7,
-    hoverColor: '#3D3D3D', isTransition: false,
+    hoverColor: '#292524', isTransition: false,
   },
   onHold: {
-    label: 'On-Hold', color: '#B45309', bg: 'rgba(180, 83, 9, 0.08)',
+    label: 'On-Hold', color: '#E11D48', bg: 'rgba(225, 29, 72, 0.08)',
     borderWidth: 2.5, borderDash: [], pointRadius: 5, pointHoverRadius: 7,
-    hoverColor: '#92400E', isTransition: false,
+    hoverColor: '#BE123C', isTransition: false,
   },
 };
 
@@ -7845,21 +7849,21 @@ const QUALITY_PHASE_SERIES_META = {
     hoverColor: '#5B21B6', isTransition: true,
   },
   bounce: {
-    label: 'Dev → Rejected', color: '#C47A0F', bg: 'rgba(196, 122, 15, 0.1)',
+    label: 'Dev → Rejected', color: '#C026D3', bg: 'rgba(192, 38, 211, 0.1)',
     borderWidth: 2, borderDash: [6, 4], pointRadius: 4, pointHoverRadius: 6,
-    hoverColor: '#92400E', isTransition: true,
+    hoverColor: '#A21CAF', isTransition: true,
   },
   rework: {
-    label: 'Rejected → Dev', color: '#185FA5', bg: 'rgba(24, 95, 165, 0.1)',
+    label: 'Rejected → Dev', color: '#0891B2', bg: 'rgba(8, 145, 178, 0.1)',
     borderWidth: 2, borderDash: [6, 4], pointRadius: 4, pointHoverRadius: 6,
-    hoverColor: '#0F4A82', isTransition: true,
+    hoverColor: '#0E7490', isTransition: true,
   },
   prodPending: PHASE_SERIES_META.prodPending,
   devPending: PHASE_SERIES_META.devPending,
   rejected: {
-    label: 'Rejected / Replied', color: '#C47A0F', bg: 'rgba(196, 122, 15, 0.08)',
+    label: 'Rejected / Replied', color: '#EA580C', bg: 'rgba(234, 88, 12, 0.08)',
     borderWidth: 2.5, borderDash: [], pointRadius: 5, pointHoverRadius: 7,
-    hoverColor: '#92400E', isTransition: false,
+    hoverColor: '#C2410C', isTransition: false,
   },
   onHold: PHASE_SERIES_META.onHold,
 };
@@ -7982,6 +7986,108 @@ function buildPhaseSeriesDataset(key, data, overrides = {}) {
     projectKey: overrides.projectKey,
     seriesKey: key,
     spanGaps: false,
+  };
+}
+
+function phaseSeriesSwatchHtml(color, isTransition) {
+  const border = isTransition ? `2px dashed ${color}` : `3px solid ${color}`;
+  return `<span aria-hidden="true" style="width:16px;height:0;border-top:${border};display:inline-block;flex-shrink:0;margin-top:1px"></span>`;
+}
+
+function phaseSeriesIsTransition(dataset) {
+  if (!dataset) return false;
+  const meta = phaseSeriesMeta()[dataset.seriesKey];
+  if (meta) return !!meta.isTransition;
+  return !!(dataset.borderDash && dataset.borderDash.length);
+}
+
+function phaseTrendLegendOptions(drillByProject) {
+  return {
+    display: !drillByProject,
+    position: 'top',
+    labels: {
+      usePointStyle: true,
+      padding: 14,
+      boxWidth: 16,
+      boxHeight: 8,
+      generateLabels(chart) {
+        const items = Chart.defaults.plugins.legend.labels.generateLabels(chart);
+        items.forEach(item => {
+          const ds = chart.data.datasets[item.datasetIndex];
+          if (!ds) return;
+          const isTransition = phaseSeriesIsTransition(ds);
+          item.pointStyle = isTransition ? 'line' : 'circle';
+          item.lineWidth = isTransition ? 3 : 2;
+          item.lineDash = isTransition ? (ds.borderDash || [6, 4]) : [];
+          item.strokeStyle = ds.borderColor;
+          item.fillStyle = isTransition ? 'rgba(0,0,0,0)' : ds.borderColor;
+        });
+        return items;
+      },
+    },
+  };
+}
+
+function phaseTrendTooltipOptions() {
+  return {
+    usePointStyle: true,
+    padding: 12,
+    bodySpacing: 8,
+    boxPadding: 6,
+    titleMarginBottom: 8,
+    titleFont: { size: 13, weight: '600' },
+    bodyFont: { size: 12, weight: '500' },
+    backgroundColor: 'rgba(24, 24, 22, 0.94)',
+    titleColor: '#fff',
+    bodyColor: '#f4f4f0',
+    borderColor: 'rgba(255,255,255,0.14)',
+    borderWidth: 1,
+    itemSort: (a, b) => (Number(b.parsed?.y) || 0) - (Number(a.parsed?.y) || 0),
+    filter: (item) => {
+      if (item.dataset.milestoneMeta) return !!item.dataset.milestoneMeta[item.dataIndex];
+      const y = item.parsed && item.parsed.y;
+      return y != null && y !== 0;
+    },
+    callbacks: {
+      title: (items) => {
+        const item = items[0];
+        const milestone = item.dataset.milestoneMeta?.[item.dataIndex];
+        if (milestone) return milestone.label;
+        return item.label;
+      },
+      label: (context) => {
+        const milestone = context.dataset.milestoneMeta?.[context.dataIndex];
+        if (milestone) {
+          const dateStr = milestone.date.toLocaleDateString('en-US', {
+            month: 'short', day: 'numeric', year: 'numeric',
+          });
+          const val = context.parsed.y;
+          const target = val != null ? ` · ${val} issues remaining` : '';
+          return ` ${dateStr}${target}`;
+        }
+        const val = context.parsed.y;
+        if (val == null) return ` ${context.dataset.label}: —`;
+        const meta = phaseSeriesMeta()[context.dataset.seriesKey];
+        const kind = meta ? (meta.isTransition ? 'Moved' : 'Open') : null;
+        return kind
+          ? ` ${kind} · ${context.dataset.label}: ${val}`
+          : ` ${context.dataset.label}: ${val}`;
+      },
+      labelColor: (context) => {
+        const color = context.dataset.borderColor;
+        const isTransition = phaseSeriesIsTransition(context.dataset);
+        return {
+          borderColor: color,
+          backgroundColor: isTransition ? 'rgba(0,0,0,0)' : color,
+          borderWidth: 2,
+          borderDash: isTransition ? [4, 3] : [],
+        };
+      },
+      labelPointStyle: (context) => ({
+        pointStyle: phaseSeriesIsTransition(context.dataset) ? 'line' : 'rect',
+        rotation: 0,
+      }),
+    },
   };
 }
 
@@ -8338,23 +8444,24 @@ function renderPhaseTimeline() {
   if (S.phaseDetailsView !== 'phase' && S.phaseDetailsView !== 'project') S.phaseDetailsView = 'project';
   const detailsView = S.phaseDetailsView;
 
+  const seriesMeta = phaseSeriesMeta();
   const PERIOD_DETAIL_CATEGORIES = qualityMode ? [
-    { key: 'prodDev', title: 'Product → Dev', color: '#7C3AED', snapshot: false },
-    { key: 'bounce', title: 'Dev → Rejected', color: '#C47A0F', snapshot: false },
-    { key: 'rework', title: 'Rejected → Dev', color: '#185FA5', snapshot: false },
-    { key: 'prodPending', title: 'Product (open)', color: '#533AB7', snapshot: true },
-    { key: 'devPending', title: 'In development (open)', color: '#854F0B', snapshot: true },
-    { key: 'rejected', title: 'Rejected / Replied (open)', color: '#C47A0F', snapshot: true },
-    { key: 'onHold', title: 'On-Hold (open)', color: '#B45309', snapshot: true },
+    { key: 'prodDev', title: 'Product → Dev', color: seriesMeta.prodDev.color, snapshot: false },
+    { key: 'bounce', title: 'Dev → Rejected', color: seriesMeta.bounce.color, snapshot: false },
+    { key: 'rework', title: 'Rejected → Dev', color: seriesMeta.rework.color, snapshot: false },
+    { key: 'prodPending', title: 'Product (open)', color: seriesMeta.prodPending.color, snapshot: true },
+    { key: 'devPending', title: 'In development (open)', color: seriesMeta.devPending.color, snapshot: true },
+    { key: 'rejected', title: 'Rejected / Replied (open)', color: seriesMeta.rejected.color, snapshot: true },
+    { key: 'onHold', title: 'On-Hold (open)', color: seriesMeta.onHold.color, snapshot: true },
   ] : [
-    { key: 'prodDev', title: 'Prod → Dev', color: '#7C3AED', snapshot: false },
-    { key: 'devQA', title: 'Dev → QA', color: '#059669', snapshot: false },
-    { key: 'qaClosed', title: 'QA → Closed', color: '#2563EB', snapshot: false },
-    { key: 'prodPending', title: 'Prod-Pending (all open)', color: '#533AB7', snapshot: true },
-    { key: 'devPending', title: 'Dev-Pending (all open)', color: '#854F0B', snapshot: true },
-    { key: 'qaPending', title: 'QA-Pending (all open)', color: '#0F6E56', snapshot: true },
-    { key: 'closed', title: 'Closed (all open)', color: '#555555', snapshot: true },
-    { key: 'onHold', title: 'On-Hold (all open)', color: '#B45309', snapshot: true },
+    { key: 'prodDev', title: 'Prod → Dev', color: seriesMeta.prodDev.color, snapshot: false },
+    { key: 'devQA', title: 'Dev → QA', color: seriesMeta.devQA.color, snapshot: false },
+    { key: 'qaClosed', title: 'QA → Closed', color: seriesMeta.qaClosed.color, snapshot: false },
+    { key: 'prodPending', title: 'Prod-Pending (all open)', color: seriesMeta.prodPending.color, snapshot: true },
+    { key: 'devPending', title: 'Dev-Pending (all open)', color: seriesMeta.devPending.color, snapshot: true },
+    { key: 'qaPending', title: 'QA-Pending (all open)', color: seriesMeta.qaPending.color, snapshot: true },
+    { key: 'closed', title: 'Closed (all open)', color: seriesMeta.closed.color, snapshot: true },
+    { key: 'onHold', title: 'On-Hold (all open)', color: seriesMeta.onHold.color, snapshot: true },
   ];
 
   function renderPhaseItemsTable(items, options = {}) {
@@ -8541,14 +8648,14 @@ function renderPhaseTimeline() {
 
     const summaryRow = `<tr class="period-summary-row" onclick="togglePeriodDetails('${esc(p.key)}')" style="cursor:pointer">
       <td style="font-weight:600">${esc(dateLabel)}</td>
-      <td style="text-align:center;font-size:15px;font-weight:700;color:#7C3AED">${prodDevCnt}</td>
-      <td style="text-align:center;font-size:15px;font-weight:700;color:#059669">${devQACnt}</td>
-      <td style="text-align:center;font-size:15px;font-weight:700;color:#2563EB">${qaClosedCnt}</td>
-      <td style="text-align:center;font-size:14px;font-weight:700;color:#533AB7">${prodPendingCnt}</td>
-      <td style="text-align:center;font-size:14px;font-weight:700;color:#854F0B">${devPendingCnt}</td>
-      <td style="text-align:center;font-size:14px;font-weight:700;color:${qualityMode ? '#C47A0F' : '#0F6E56'}">${qaPendingCnt}</td>
-      ${qualityMode ? '' : `<td style="text-align:center;font-size:14px;font-weight:700;color:#555555">${closedCnt}</td>`}
-      <td style="text-align:center;font-size:14px;font-weight:700;color:#B45309">${onHoldCnt}</td>
+      <td style="text-align:center;font-size:15px;font-weight:700;color:${seriesMeta.prodDev.color}">${prodDevCnt}</td>
+      <td style="text-align:center;font-size:15px;font-weight:700;color:${qualityMode ? seriesMeta.bounce.color : seriesMeta.devQA.color}">${devQACnt}</td>
+      <td style="text-align:center;font-size:15px;font-weight:700;color:${qualityMode ? seriesMeta.rework.color : seriesMeta.qaClosed.color}">${qaClosedCnt}</td>
+      <td style="text-align:center;font-size:14px;font-weight:700;color:${seriesMeta.prodPending.color}">${prodPendingCnt}</td>
+      <td style="text-align:center;font-size:14px;font-weight:700;color:${seriesMeta.devPending.color}">${devPendingCnt}</td>
+      <td style="text-align:center;font-size:14px;font-weight:700;color:${qualityMode ? seriesMeta.rejected.color : seriesMeta.qaPending.color}">${qaPendingCnt}</td>
+      ${qualityMode ? '' : `<td style="text-align:center;font-size:14px;font-weight:700;color:${seriesMeta.closed.color}">${closedCnt}</td>`}
+      <td style="text-align:center;font-size:14px;font-weight:700;color:${seriesMeta.onHold.color}">${onHoldCnt}</td>
       <td style="text-align:center;font-size:16px;font-weight:700;color:var(--blue)">${total}</td>
       <td style="font-size:12px">${projectBreakdown}</td>
       <td style="text-align:center">
@@ -8632,15 +8739,17 @@ function renderPhaseTimeline() {
           const split = idx > 0 && prev && prev.isTransition && !meta.isTransition
             ? '<span style="color:var(--text3);margin:0 2px">|</span>'
             : '';
-          return `${split}<label style="display:inline-flex; align-items:center; gap:4px; cursor:pointer">
+          return `${split}<label style="display:inline-flex; align-items:center; gap:5px; cursor:pointer">
           <input type="checkbox" ${trendVisible[seriesKey] ? 'checked' : ''} onchange="togglePhaseSeriesVisibility('${seriesKey}', this.checked)">
-          <span style="color:${meta.color}">${esc(meta.label)}</span>
+          ${phaseSeriesSwatchHtml(meta.color, meta.isTransition)}
+          <span>${esc(meta.label)}</span>
         </label>`;
         }).join('')}
         ${releaseBurndown?.canBurndown ? `<span style="color:var(--text3);margin:0 2px">|</span>
-        <label style="display:inline-flex; align-items:center; gap:4px; cursor:pointer">
+        <label style="display:inline-flex; align-items:center; gap:5px; cursor:pointer">
           <input type="checkbox" ${trendVisible.releaseBurndown ? 'checked' : ''} onchange="togglePhaseSeriesVisibility('releaseBurndown', this.checked)">
-          <span style="color:${releaseBurndown.lineColor}">Release Target</span>
+          ${phaseSeriesSwatchHtml(releaseBurndown.lineColor, true)}
+          <span>Release Target</span>
         </label>` : ''}
       </div>
       ${projectLineTogglesHtml}
@@ -8702,7 +8811,7 @@ function renderPhaseTimeline() {
           if (phaseSnapshotKeys().includes(seriesKey) && p.date > now) return null;
           return (p.byProject[proj.key] && p.byProject[proj.key][seriesKey]) || 0;
         });
-        const meta = PHASE_SERIES_META[seriesKey];
+        const meta = phaseSeriesMeta()[seriesKey];
         const ds = buildPhaseSeriesDataset(seriesKey, data, {
           label: `${proj.name}: ${meta.label}`,
           hidden: false,
@@ -8770,40 +8879,8 @@ function renderPhaseTimeline() {
           }
         },
         plugins: {
-          legend: {
-            // In drill-down mode, project on/off is controlled by the Projects checkboxes above
-            // (legend would list project × series and get too crowded).
-            display: !drillByProject,
-            position: 'top',
-          },
-          tooltip: {
-            callbacks: {
-              title: (items) => {
-                const item = items[0];
-                const milestone = item.dataset.milestoneMeta?.[item.dataIndex];
-                if (milestone) return milestone.label;
-                return item.label;
-              },
-              label: (context) => {
-                const milestone = context.dataset.milestoneMeta?.[context.dataIndex];
-                if (milestone) {
-                  const dateStr = milestone.date.toLocaleDateString('en-US', {
-                    month: 'short', day: 'numeric', year: 'numeric',
-                  });
-                  const val = context.parsed.y;
-                  const target = val != null ? ` · ${val} issues remaining` : '';
-                  return ` ${dateStr}${target}`;
-                }
-                const val = context.parsed.y;
-                if (val == null) return ` ${context.dataset.label}: —`;
-                return ` ${context.dataset.label}: ${val}`;
-              },
-              filter: (item) => {
-                if (item.dataset.milestoneMeta?.[item.dataIndex]) return true;
-                return item.dataset.milestoneMeta == null;
-              },
-            },
-          },
+          legend: phaseTrendLegendOptions(drillByProject),
+          tooltip: phaseTrendTooltipOptions(),
           ...(releaseBurndown?.markers?.length ? {
             phaseReleaseTimeline: {
               markers: releaseBurndown.markers,
@@ -9923,8 +10000,19 @@ function renderDailyProgress() {
           }
         },
         plugins: {
-          legend: { display: true, position: 'top' },
+          legend: { display: true, position: 'top', labels: { usePointStyle: true, padding: 14, boxWidth: 12 } },
           tooltip: {
+            padding: 12,
+            bodySpacing: 8,
+            boxPadding: 6,
+            titleFont: { size: 13, weight: '600' },
+            bodyFont: { size: 12, weight: '500' },
+            backgroundColor: 'rgba(24, 24, 22, 0.94)',
+            titleColor: '#fff',
+            bodyColor: '#f4f4f0',
+            borderColor: 'rgba(255,255,255,0.14)',
+            borderWidth: 1,
+            filter: (item) => (item.parsed?.y || 0) !== 0,
             callbacks: {
               footer: (items) => {
                 const index = items[0].dataIndex;
@@ -10447,8 +10535,37 @@ const DEFAULT_PROJECTS = [
   { id:'p3', name:'General Ledger', key:'GL', color:'#533AB7', category:'Core Modules', jql:'project in (GL) AND issuetype in (Enhancement, Epic) ORDER BY "Scope Commitment At SC", status desc, Priority DESC' },
   { id:'p4', name:'Fixed Asset Accounting', key:'FAA', color:'#993556', category:'Core Modules', jql:'project in (FAA) AND issuetype in (Enhancement, Epic) ORDER BY "Scope Commitment At SC" asc, status desc, Priority DESC' },
   { id:'p5', name:'Procure To Pay', key:'P2P', color:'#0F6E56', category:'Core Modules', jql:'project in (P2P) AND issuetype in (Enhancement) ORDER BY "Scope Commitment At SC", status desc, Priority DESC' },
-  { id:'p6', name:'Open Bugs (All Projects)', key:'BUGS', color:'#D32F2F', category:'Quality', jql:'project in (NFS, GL, FCO, FAA, INC, P2P) AND issuetype = Bug AND status not in (QA, PQA, "Pending DEP", "EOA Pending", Closed, Done, Resolved, Cancelled, "Won\'t Fix") ORDER BY priority DESC, created DESC', excludeRelease:true }
+  { id:'p6', name:'Open Bugs (All Projects)', key:'BUGS', color:'#D32F2F', category:'Quality', jql:'project in (NFS, GL, FCO, FAA, INC, P2P) AND issuetype = Bug AND status not in (QA, PQA, "Pending DEP", "EOA Pending", Closed, Done, Resolved, Cancelled, "Won\'t Fix") ORDER BY priority DESC, created DESC', excludeRelease:true },
+  { id:'p7', name:'Pre-Go Live Bugs', key:'PEGL', color:'#a51818', category:'Quality', jql:'project in (NFS, GL, FCO, FAA, INC, P2P) AND issuetype in ("R&D Pre-GoLive Bug") AND status not in (QA, PQA, "Pending DEP", "EOA Pending", Closed, Done, Resolved, Cancelled, "Won\'t Fix") ORDER BY priority DESC, created DESC', excludeRelease:true },
+  { id:'p8', name:'Post Go Live Bug', key:'POGL', color:'#6e111f', category:'Quality', jql:'project in (NFS, GL, FCO, FAA, INC, P2P) AND issuetype in ("R&D Post-GoLive Bug") AND status not in (QA, PQA, "Pending DEP", "EOA Pending", Closed, Done, Resolved, Cancelled, "Won\'t Fix") ORDER BY priority DESC, created DESC', excludeRelease:true }
 ];
+
+// If a built-in key was previously added as a custom project, drop the custom
+// copy and keep its release settings so the project is not listed twice.
+function promoteCustomProjectsToBuiltin() {
+  const byKey = {};
+  PROJECTS.forEach(p => { byKey[p.key] = p; });
+  const custom = S.customProjects || [];
+  if (!custom.length) return false;
+  const remaining = [];
+  let changed = false;
+  custom.forEach(proj => {
+    const builtin = byKey[proj.key];
+    if (!builtin) {
+      remaining.push(proj);
+      return;
+    }
+    changed = true;
+    if (S.page === proj.id) S.page = builtin.id;
+    const st = getProjectSettings(proj.key);
+    if (!(st.releases && st.releases.length) && proj.releases && proj.releases.length) {
+      st.releases = [...proj.releases];
+    }
+    if (!st.releaseMode && proj.releaseMode) st.releaseMode = proj.releaseMode;
+  });
+  if (changed) S.customProjects = remaining;
+  return changed;
+}
 
 // Load built-in projects from the application bundle and inject configured releases
 async function loadDefaultProjects() {
@@ -10472,6 +10589,7 @@ async function loadDefaultProjects() {
     // Populate PROJECTS array
     PROJECTS.length = 0;
     PROJECTS.push(...defaultProjects);
+    if (promoteCustomProjectsToBuiltin()) persist();
     return true;
   } catch (err) {
     console.error('[loadDefaultProjects]', err.message);
@@ -10578,6 +10696,7 @@ async function renderProjectsConfig() {
   // Load configuration from server
   await loadProjectsConfig();
   if (PROJECTS.length === 0) await loadDefaultProjects();
+  else promoteCustomProjectsToBuiltin();
 
   // Built-in list
   const builtinEl = document.getElementById('pc-builtin');
