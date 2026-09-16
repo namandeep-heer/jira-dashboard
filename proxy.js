@@ -30,6 +30,7 @@ const { buildReleaseReportHtml, htmlFilename, normalizeTicketGroupBy } = require
 const { createLocalStore } = require('./lib/local-store');
 const { slimDashboardState, dashboardStateForClient } = require('./lib/slim-cache');
 const { createPageConfig } = require('./lib/page-config');
+const { ensureStatusPipelineFile, loadStatusPipeline } = require('./lib/status-pipeline');
 if (!fs.existsSync(CONFIG_DIR)) {
   fs.mkdirSync(CONFIG_DIR, { recursive: true });
 }
@@ -55,6 +56,9 @@ const store = createLocalStore({
   adminEmail,
 });
 const pageConfig = createPageConfig({ configDir: CONFIG_DIR });
+try { ensureStatusPipelineFile(CONFIG_DIR); } catch (err) {
+  console.warn('[status-pipeline] Could not create config/status-pipeline.json:', err.message);
+}
 
 function persistDashboardState(state, opts) {
   const slimmed = slimDashboardState(state);
@@ -173,6 +177,13 @@ app.get('/config/app', (req, res) => {
     return;
   }
   res.json({ jiraUrl: jiraBaseUrl });
+});
+
+app.get('/config/status-pipeline', (req, res) => {
+  const loaded = loadStatusPipeline(CONFIG_DIR);
+  if (loaded.error) console.warn('[status-pipeline]', loaded.error);
+  res.setHeader('Cache-Control', 'no-store');
+  res.json(loaded.public);
 });
 
 app.post('/api/auth/register', async (req, res) => {

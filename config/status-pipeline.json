@@ -1,0 +1,59 @@
+{
+  "stages": [
+    {
+      "id": "creating",
+      "rank": 5,
+      "match": "creating",
+      "note": "Intake, including PQA/EOA-Creating. Not Product QA. Creating → Dev-Pending is forward."
+    },
+    {
+      "id": "prod",
+      "rank": 10,
+      "match": "^prod"
+    },
+    {
+      "id": "dev-queue",
+      "rank": 25,
+      "match": "^dev[\\s-]*(pending|grooming|designing)",
+      "note": "Dev prep / queue. Pending, Grooming, and Designing are peers (lateral)."
+    },
+    {
+      "id": "dev-active",
+      "rank": 30,
+      "match": "^dev[\\s-]*(developing|cr|merge|reopened)"
+    },
+    {
+      "id": "on-hold",
+      "rank": 35,
+      "match": "^on[\\s-]*hold"
+    },
+    {
+      "id": "deploy-queue",
+      "rank": 40,
+      "match": "^(eoa[\\s-]*pending|pending[\\s-]*dep)",
+      "note": "Still pre–Product QA. EOA-Pending / Pending DEP → PQA-Pending is forward."
+    },
+    {
+      "id": "pqa",
+      "rank": 50,
+      "match": "^pqa",
+      "note": "Product QA after deployment. Does not match PQA/EOA-Creating because creating is listed first."
+    },
+    {
+      "id": "qa",
+      "rank": 55,
+      "match": "^qa"
+    },
+    {
+      "id": "feedback",
+      "rank": 58,
+      "match": "^(rejected|replied)",
+      "note": "Rejected and Replied are the same stage (lateral)."
+    },
+    {
+      "id": "closed",
+      "rank": 70,
+      "match": "^(closed|done|resolved|cancelled|won't\\s*fix)"
+    }
+  ]
+}

@@ -8180,10 +8180,25 @@ function ensurePhaseProjectVisible(projects) {
   return S.phaseProjectVisible;
 }
 
+function applyPhaseSeriesVisibilityToChart() {
+  const chart = S.charts && S.charts.phaseTimeline;
+  if (!chart || S.phaseDrillByProject) return false;
+  const vis = ensurePhaseTrendVisible();
+  chart.data.datasets.forEach((ds, index) => {
+    const key = ds.seriesKey || (ds.milestoneMeta ? 'releaseBurndown' : null);
+    if (!key || !Object.prototype.hasOwnProperty.call(vis, key)) return;
+    const visible = !!vis[key];
+    ds.hidden = !visible;
+    chart.setDatasetVisibility(index, visible);
+  });
+  chart.update();
+  return true;
+}
+
 function togglePhaseSeriesVisibility(key, checked) {
   const vis = ensurePhaseTrendVisible();
   vis[key] = !!checked;
-  renderPhaseTimeline();
+  if (!applyPhaseSeriesVisibilityToChart()) renderPhaseTimeline();
   if (!_routeNavigating) syncRoute();
 }
 
@@ -8384,6 +8399,24 @@ function updatePhaseChartFsBtn(isFullscreen) {
     : '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M8 3H5a2 2 0 0 0-2 2v3m18 0V5a2 2 0 0 0-2-2h-3m0 18h3a2 2 0 0 0 2-2v-3M3 16v3a2 2 0 0 0 2 2h3"/></svg><span>Full screen</span>';
 }
 
+function destroyManagedChart(name, canvas) {
+  if (!S.charts) S.charts = {};
+  const managed = S.charts[name];
+  if (managed) {
+    try { managed.destroy(); } catch (e) {}
+    delete S.charts[name];
+  }
+  if (typeof Chart === 'undefined' || !Chart.getChart) return;
+  const seen = new Set();
+  [canvas, canvas && canvas.id].forEach(key => {
+    if (!key) return;
+    const existing = Chart.getChart(key);
+    if (!existing || seen.has(existing)) return;
+    seen.add(existing);
+    try { existing.destroy(); } catch (e) {}
+  });
+}
+
 function resizePhaseTimelineChart() {
   if (S.charts.phaseTimeline) {
     requestAnimationFrame(() => {
@@ -8419,11 +8452,6 @@ function renderPhaseTimeline() {
   const contentEl = insightEl('phase-timeline-content');
   const chartSlot = insightEl('phase-chart-slot');
   if (!contentEl) return;
-
-  // Clean previous trend chart(s)
-  ['phaseTimeline', 'phaseTimelineSent', 'phaseTimelineClosed'].forEach(k => {
-    if (S.charts[k]) { try { S.charts[k].destroy(); } catch(e){} delete S.charts[k]; }
-  });
 
   const period = insightEl('phase-period')?.value || 'week';
   const rangeVal = insightEl('phase-range')?.value || 'milestones';
@@ -9086,6 +9114,9 @@ function renderPhaseTimeline() {
       </table>
     </div>`;
 
+  destroyManagedChart('phaseTimeline', insightEl('phase-timeline-chart'));
+  destroyManagedChart('phaseTimelineSent');
+  destroyManagedChart('phaseTimelineClosed');
   if (chartSlot) {
     chartSlot.innerHTML = chartHtml;
     contentEl.innerHTML = tableHtml;
@@ -9151,8 +9182,9 @@ function renderPhaseTimeline() {
   // Render combined line chart with transitions (dotted) and snapshots (solid) series
   const ctx = insightEl('phase-timeline-chart');
   if (ctx) {
-    if (S.charts.phaseTimeline) S.charts.phaseTimeline.destroy();
-    S.charts.phaseTimeline = new Chart(ctx, {
+    destroyManagedChart('phaseTimeline', ctx);
+    try {
+      S.charts.phaseTimeline = new Chart(ctx, {
       type: 'line',
       data: {
         labels: chartLabels,
@@ -9197,6 +9229,9 @@ function renderPhaseTimeline() {
         }
       }
     });
+    } catch (err) {
+      console.warn('[phase-chart] Failed to render:', err);
+    }
     if (S.phaseChartFullscreen) {
       const card = insightEl('phase-chart-card');
       if (card) {
@@ -9205,6 +9240,8 @@ function renderPhaseTimeline() {
         updatePhaseChartFsBtn(true);
         resizePhaseTimelineChart();
       }
+    } else {
+      resizePhaseTimelineChart();
     }
   }
 
@@ -9740,31 +9777,41 @@ function formatDateTime(date) {
 const LOG_PHASE_ORDER = PHASES.map(p => p.label);
 
 /**
- * Fine-grained status ranks along the delivery pipeline (higher = further along).
- * Needed because several statuses share the same PHASES bucket (e.g. QA):
- * EOA-Pending Deployment / Pending DEP → PQA-Pending is forward progress
- * (deployment done, ready for Product QA to pick up).
- * PQA/EOA-Creating is intake (not Product QA); Creating → Dev-Pending is forward.
- * More specific patterns must come before broader ones.
+ * Fine-grained status ranks from config/status-pipeline.json (higher = further along).
+ * First matching stage wins. Loaded at startup; built-in list is only a fallback.
  */
-const STATUS_PIPELINE_STAGES = [
-  { re: /creating/i, rank: 5 },
-  { re: /^prod/i, rank: 10 },
-  // Dev prep / queue — Pending, Grooming, Designing are peers (not forward/back vs each other)
-  { re: /^dev[\s-]*(pending|grooming|designing)/i, rank: 25 },
-  // Active development
-  { re: /^dev[\s-]*(developing|cr|merge|reopened)/i, rank: 30 },
-  { re: /^on[\s-]*hold/i, rank: 35 },
-  // Deployment queue (still pre–Product QA)
-  { re: /^(eoa[\s-]*pending|pending[\s-]*dep)/i, rank: 40 },
-  // Product QA after deployment
-  { re: /^pqa/i, rank: 50 },
-  // Other / in-progress QA
-  { re: /^qa/i, rank: 55 },
-  // Feedback loop — treat Rejected and Replied as the same stage
-  { re: /^(rejected|replied)/i, rank: 58 },
-  { re: /^(closed|done|resolved|cancelled|won't\s*fix)/i, rank: 70 },
-];
+let STATUS_PIPELINE_STAGES = [];
+
+function compileStatusPipelineStages(stages) {
+  if (!Array.isArray(stages)) return [];
+  const compiled = [];
+  stages.forEach((stage, index) => {
+    const match = String(stage && stage.match || '').trim();
+    const rank = Number(stage && stage.rank);
+    if (!match || !Number.isFinite(rank)) return;
+    try {
+      compiled.push({
+        id: (stage && stage.id) || ('stage-' + index),
+        rank,
+        match,
+        re: new RegExp(match, (stage && stage.flags) || 'i'),
+      });
+    } catch (err) {
+      console.warn('[status-pipeline] Invalid match, skipped:', match, err.message);
+    }
+  });
+  return compiled;
+}
+
+async function loadStatusPipelineConfig() {
+  try {
+    const data = await fetchConfigJson('/config/status-pipeline', 1);
+    const compiled = compileStatusPipelineStages(data && data.stages);
+    if (compiled.length) STATUS_PIPELINE_STAGES = compiled;
+  } catch (err) {
+    console.warn('[status-pipeline] Using phase-order fallback:', err.message);
+  }
+}
 
 function getStatusPipelineRank(statusName) {
   const s = (statusName || '').trim();
@@ -10274,7 +10321,7 @@ function renderDailyProgress() {
   // Render chart with click handler
   const ctx = insightEl('log-chart');
   if (ctx) {
-    if (S.charts.logChart) S.charts.logChart.destroy();
+    destroyManagedChart('logChart', ctx);
     S.charts.logChart = new Chart(ctx, {
       type: 'bar',
       data: {
@@ -11732,7 +11779,10 @@ async function initApp() {
   // Sets are not JSON-serialisable, so always re-create as empty on load
   S._msState = { project: new Set(), phase: new Set(), dev: new Set(), product: new Set(), assignee: new Set(), scope: new Set() };
 
-  const storeLoaded = await loadStoredState();
+  const [, storeLoaded] = await Promise.all([
+    loadStatusPipelineConfig(),
+    loadStoredState(),
+  ]);
   if (!S.releases) S.releases = [];
   normalizeAllReleasePatches();
   normalizeAllProjectReleases();

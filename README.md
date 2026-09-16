@@ -85,6 +85,7 @@ FIRST TIME USE
     config/projects.json    Projects, JQL overrides, enable/disable
     config/releases.json    Market releases, patches, milestones
     config/fields.json      Visible columns and custom field IDs
+    config/status-pipeline.json  Daily Progress forward/backward status ranks
 
   These files are pretty-printed so you can edit them by hand. Quotes inside
   JQL strings must be escaped as `\"` (for example `issuetype = \"Bug\"`).
@@ -92,6 +93,12 @@ FIRST TIME USE
   server will not replace it with an empty file. Existing `data/store.json`
   values are copied into these files on first startup if the JSON files are
   not there yet. After that, the config files win.
+
+  `config/status-pipeline.json` is hand-edited (not saved from the Config
+  sidebar). Stages are matched in order; the first match wins. Higher `rank`
+  is further along the pipeline, so a change to a higher rank is forward,
+  lower is backward, and the same rank is lateral. Regex backslashes in
+  `match` must be escaped (`\\s`). Restart the proxy and refresh after editing.
 
   Accounts, sessions, encrypted Jira API tokens, the selected market release,
   synced Jira issue cache, and activity logs stay in `data/store.json`. No
