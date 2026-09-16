@@ -266,7 +266,7 @@ table.issues td { padding: 7px 10px; border-bottom: 0.5px solid var(--border); v
 .th-filter { display: inline-flex; align-items: center; justify-content: center; width: 18px; height: 18px; padding: 0; border: none; border-radius: 4px; background: none; color: inherit; cursor: pointer; opacity: .35; flex-shrink: 0; }
 .th-filter:hover, .th-filter.active, .th-filter.has-filter { opacity: 1; color: var(--blue); background: var(--blue-bg); }
 .th-filter svg { width: 11px; height: 11px; }
-.proj-table-tools { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; margin-bottom: 10px; }
+.proj-table-tools { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; margin-bottom: 10px; position: relative; z-index: 5; overflow: visible; }
 .proj-search { padding: 6px 10px; border: 0.5px solid var(--border2); border-radius: var(--radius); background: var(--bg); color: var(--text); font-size: 13px; font-family: inherit; width: 240px; }
 .proj-search:focus { outline: 2px solid var(--blue); outline-offset: -1px; }
 .proj-count { font-size: 12px; color: var(--text3); }
@@ -4880,7 +4880,8 @@ function renderIssueTable(proj, issues, activeFilter) {
   const total = source.length;
   const countLabel = shown === total ? `${total} issue${total !== 1 ? 's' : ''}` : `${shown} of ${total} issues`;
 
-  const jiraFilterHtml = isQualityDashboardProject(proj) ? jiraProjectFilterToolbarHtml('proj') : '';
+  const jiraPrefix = listingJiraProjectFilterPrefix(proj);
+  const jiraFilterHtml = isQualityDashboardProject(proj) ? jiraProjectFilterToolbarHtml(jiraPrefix) : '';
   issuesEl.innerHTML = `
     <div class="proj-table-tools">
       ${jiraFilterHtml}
@@ -4895,7 +4896,7 @@ function renderIssueTable(proj, issues, activeFilter) {
       </table>
     </div>`;
 
-  if (isQualityDashboardProject(proj)) buildJiraProjectFilterOptions('proj', [proj]);
+  if (isQualityDashboardProject(proj)) buildJiraProjectFilterOptions(jiraPrefix, getQualityProjects());
 
   const search = document.getElementById('proj-search-' + proj.key);
   if (search && hadFocus) {
@@ -7186,6 +7187,10 @@ function refreshQualityJiraProjectViews() {
       renderIssueTable(proj, getFilteredProjectIssues(proj.key), filter);
     }
   }
+}
+
+function listingJiraProjectFilterPrefix(proj) {
+  return 'proj-' + String(proj && proj.key || 'page').replace(/[^A-Za-z0-9_]/g, '');
 }
 
 function jiraProjectFilterToolbarHtml(prefix) {
