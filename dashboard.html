@@ -2255,9 +2255,12 @@ function isBuiltinProjectKey(key) {
   return PROJECTS.some(p => p.key === key);
 }
 
-function getProjectSettings(key) {
+function getProjectSettings(key, create) {
   if (!S.projectSettings) S.projectSettings = {};
-  if (!S.projectSettings[key]) S.projectSettings[key] = {};
+  if (!S.projectSettings[key]) {
+    if (!create) return {};
+    S.projectSettings[key] = {};
+  }
   return S.projectSettings[key];
 }
 
@@ -10861,7 +10864,7 @@ function promoteCustomProjectsToBuiltin() {
     }
     changed = true;
     if (S.page === proj.id) S.page = builtin.id;
-    const st = getProjectSettings(proj.key);
+    const st = getProjectSettings(proj.key, true);
     if (!(st.releases && st.releases.length) && proj.releases && proj.releases.length) {
       st.releases = [...proj.releases];
     }
@@ -10935,7 +10938,7 @@ function showProjectsSaveMessage(success) {
 }
 
 async function setProjectEnabled(key, enabled) {
-  getProjectSettings(key).enabled = !!enabled;
+  getProjectSettings(key, true).enabled = !!enabled;
   const saved = await saveProjectsConfig();
   showProjectsSaveMessage(saved);
   rebuildDynamicUI();
@@ -10944,7 +10947,7 @@ async function setProjectEnabled(key, enabled) {
 
 async function removeBuiltinProject(key) {
   if (!confirm('Remove this built-in project from dashboard views? You can restore it later.')) return;
-  const st = getProjectSettings(key);
+  const st = getProjectSettings(key, true);
   st.removed = true;
   st.enabled = false;
   delete S.cache[key];
@@ -10955,7 +10958,7 @@ async function removeBuiltinProject(key) {
 }
 
 async function restoreBuiltinProject(key) {
-  const st = getProjectSettings(key);
+  const st = getProjectSettings(key, true);
   st.removed = false;
   st.enabled = true;
   const saved = await saveProjectsConfig();
@@ -11129,7 +11132,7 @@ async function saveProjectModal() {
   if (_projectModalMode === 'jql-only') {
     if (!_editingProjKey) { msgEl.textContent = 'Unknown project key.'; return; }
     const finalJql = injectFixVersionIntoJql(jql, releases);
-    const st = getProjectSettings(_editingProjKey);
+    const st = getProjectSettings(_editingProjKey, true);
     st.jql = finalJql;
     st.releases = releases;
     st.releaseMode = releaseMode;
@@ -11174,8 +11177,8 @@ async function saveProjectModal() {
   }
   // Full project edit owns base JQL for custom projects; remove any stale override.
   if (S.projectSettings && S.projectSettings[key]) delete S.projectSettings[key].jql;
-  getProjectSettings(key).releaseMode = releaseMode;
-  getProjectSettings(key).releases = releases;
+  getProjectSettings(key, true).releaseMode = releaseMode;
+  getProjectSettings(key, true).releases = releases;
   delete S.cache[key];
   const saved = await saveProjectsConfig();
   rebuildDynamicUI();

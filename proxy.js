@@ -56,9 +56,9 @@ const store = createLocalStore({
 });
 const pageConfig = createPageConfig({ configDir: CONFIG_DIR });
 
-function persistDashboardState(state) {
+function persistDashboardState(state, opts) {
   const slimmed = slimDashboardState(state);
-  pageConfig.writeFromState(slimmed);
+  if (!opts || opts.pages !== false) pageConfig.writeFromState(slimmed);
   store.setSharedState(pageConfig.stripFromState(slimmed));
 }
 
@@ -77,7 +77,7 @@ function compactStoredDashboardState() {
   const hasReleaseCache = current.releaseCache && typeof current.releaseCache === 'object'
     && Object.keys(current.releaseCache).length;
   if (!hasCache && !hasReleaseCache) return;
-  persistDashboardState(current);
+  persistDashboardState(current, { pages: false });
 }
 
 function migratePageConfigFromStore() {

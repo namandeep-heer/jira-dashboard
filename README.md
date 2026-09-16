@@ -86,9 +86,12 @@ FIRST TIME USE
     config/releases.json    Market releases, patches, milestones
     config/fields.json      Visible columns and custom field IDs
 
-  These files are pretty-printed so you can edit them by hand. Existing
-  `data/store.json` values are copied into these files on first startup if
-  the JSON files are not there yet. After that, the config files win.
+  These files are pretty-printed so you can edit them by hand. Quotes inside
+  JQL strings must be escaped as `\"` (for example `issuetype = \"Bug\"`).
+  Invalid JSON is left in place and copied to a `.corrupt-*` backup; the
+  server will not replace it with an empty file. Existing `data/store.json`
+  values are copied into these files on first startup if the JSON files are
+  not there yet. After that, the config files win.
 
   Accounts, sessions, encrypted Jira API tokens, the selected market release,
   synced Jira issue cache, and activity logs stay in `data/store.json`. No

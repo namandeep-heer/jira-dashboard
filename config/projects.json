@@ -67,7 +67,7 @@
     "PEGL": {
       "enabled": true,
       "releaseMode": "market+patch",
-      "jql": "project in (NFS, GL, FCO, FAA, INC, P2P) AND issuetype = "R&D Pre-GoLive Bug" ORDER BY priority DESC, created DESC",
+      "jql": "project in (NFS, GL, FCO, FAA, INC, P2P) AND issuetype = \"R&D Pre-GoLive Bug\" ORDER BY priority DESC, created DESC",
       "releases": [
         "N2027.R1",
         "N2026.R2"
@@ -76,7 +76,7 @@
     "POGL": {
       "enabled": true,
       "releaseMode": "market+patch",
-      "jql": "project in (NFS, GL, FCO, FAA, INC, P2P) AND issuetype = "R&D Post-GoLive Bug" ORDER BY priority DESC, created DESC",
+      "jql": "project in (NFS, GL, FCO, FAA, INC, P2P) AND issuetype = \"R&D Post-GoLive Bug\" ORDER BY priority DESC, created DESC",
       "releases": [
         "N2027.R1",
         "N2026.R2"

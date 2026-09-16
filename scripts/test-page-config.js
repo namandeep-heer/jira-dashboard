@@ -109,13 +109,64 @@ assert.ok(!mergedAfterMigrate.projectSettings.NFS);
 
 const corruptDir = fs.mkdtempSync(path.join(os.tmpdir(), 'jira-dashboard-page-config-corrupt-'));
 const corruptor = createPageConfig({ configDir: corruptDir });
-fs.writeFileSync(path.join(corruptDir, 'fields.json'), '{ not json', 'utf8');
+const corruptFields = path.join(corruptDir, 'fields.json');
+const corruptProjects = path.join(corruptDir, 'projects.json');
+fs.writeFileSync(corruptFields, '{ not json', 'utf8');
+fs.writeFileSync(corruptProjects, JSON.stringify({
+  customProjects: [],
+  projectSettings: {
+    PEGL: { jql: 'project in (NFS) AND issuetype = "R&D Pre-GoLive Bug"' },
+  },
+}).replace('\\"', '"'), 'utf8');
 const recovered = corruptor.mergeIntoState({ enabled: ['summary'] });
 assert.deepStrictEqual(recovered.enabled, ['summary']);
 assert.ok(recovered._pageConfigErrors.some(msg => msg.includes('fields.json')));
+assert.ok(recovered._pageConfigErrors.some(msg => msg.includes('projects.json')));
 assert.ok(fs.readdirSync(corruptDir).some(name => name.startsWith('fields.json.corrupt-')));
+assert.ok(fs.readdirSync(corruptDir).some(name => name.startsWith('projects.json.corrupt-')));
+const written = corruptor.writeFromState({
+  enabled: ['other'],
+  customIds: {},
+  customProjects: [],
+  projectSettings: {},
+});
+assert.ok(!written.includes('fields.json'));
+assert.ok(!written.includes('projects.json'));
+assert.strictEqual(fs.readFileSync(corruptFields, 'utf8'), '{ not json');
+assert.ok(fs.readFileSync(corruptProjects, 'utf8').includes('R&D Pre-GoLive Bug'));
+corruptor.mergeIntoState({});
+assert.strictEqual(
+  fs.readdirSync(corruptDir).filter(name => name.startsWith('fields.json.corrupt-')).length,
+  1
+);
+
+const keepDir = fs.mkdtempSync(path.join(os.tmpdir(), 'jira-dashboard-page-config-keep-'));
+const keeper = createPageConfig({ configDir: keepDir });
+const keepProjects = path.join(keepDir, 'projects.json');
+fs.writeFileSync(keepProjects, JSON.stringify({
+  customProjects: [],
+  projectSettings: { NFS: { jql: 'project = NFS' } },
+}, null, 2) + '\n');
+assert.ok(!keeper.writeFromState({
+  customProjects: [],
+  projectSettings: {},
+}).includes('projects.json'));
+assert.strictEqual(JSON.parse(fs.readFileSync(keepProjects, 'utf8')).projectSettings.NFS.jql, 'project = NFS');
+
+keeper.writeFromState({
+  customProjects: [],
+  projectSettings: {
+    NFS: { releaseMode: 'market', releases: [] },
+    PEGL: { releaseMode: 'market', releases: [] },
+  },
+});
+const kept = JSON.parse(fs.readFileSync(keepProjects, 'utf8'));
+assert.strictEqual(kept.projectSettings.NFS.jql, 'project = NFS');
+assert.strictEqual(kept.projectSettings.NFS.releaseMode, undefined);
+assert.deepStrictEqual(kept.projectSettings.PEGL, { releaseMode: 'market', releases: [] });
 
 fs.rmSync(tmpDir, { recursive: true, force: true });
 fs.rmSync(otherDir, { recursive: true, force: true });
 fs.rmSync(corruptDir, { recursive: true, force: true });
+fs.rmSync(keepDir, { recursive: true, force: true });
 console.log('page-config: ok');
