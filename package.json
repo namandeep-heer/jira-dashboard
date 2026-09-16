@@ -6,7 +6,7 @@
   "bin": "proxy.js",
   "scripts": {
     "start": "node proxy.js",
-    "test": "node scripts/test-release-report.js && node scripts/test-local-store.js && node scripts/test-slim-cache.js && node scripts/test-fix-version-jql.js && node scripts/test-release-cache.js && node scripts/test-quality-insights.js",
+    "test": "node scripts/test-release-report.js && node scripts/test-local-store.js && node scripts/test-slim-cache.js && node scripts/test-fix-version-jql.js && node scripts/test-release-cache.js && node scripts/test-quality-insights.js && node scripts/test-page-config.js",
     "build": "node scripts/build-standalone.js",
     "build:win": "node scripts/build-standalone.js win",
     "build:mac": "node scripts/build-standalone.js mac",

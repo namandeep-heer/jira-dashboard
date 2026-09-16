@@ -13,6 +13,7 @@
 const path = require('path');
 const fetch = require('node-fetch');
 const { createLocalStore } = require('../lib/local-store');
+const { createPageConfig } = require('../lib/page-config');
 
 const ROOT = path.join(__dirname, '..');
 
@@ -105,7 +106,10 @@ function summarizeState(state) {
     adminEmail,
   });
   const { slimDashboardState } = require('../lib/slim-cache');
-  store.setSharedState(slimDashboardState(state));
+  const pageConfig = createPageConfig({ configDir: path.join(ROOT, 'config') });
+  const slimmed = slimDashboardState(state);
+  pageConfig.writeFromState(slimmed);
+  store.setSharedState(pageConfig.stripFromState(slimmed));
   (Array.isArray(credentialRows) ? credentialRows : []).forEach(row => {
     store.importEncryptedCredentials({
       jiraUrl: row.jira_url,
@@ -126,7 +130,7 @@ function summarizeState(state) {
   if (Array.isArray(users) && users.length) {
     users.forEach(user => console.log('  user', user.email || user.id));
   }
-  console.log('Saved to data/store.json');
+  console.log('Saved to data/store.json and config/*.json');
   console.log('Passwords were not imported. Create a local account with ADMIN_EMAIL to open the workspace.');
 })().catch(err => {
   console.error(err);

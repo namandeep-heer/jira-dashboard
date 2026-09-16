@@ -55,6 +55,11 @@ function copyPackageFiles(outDir) {
     path.join(ROOT, 'config', '.env'),
     path.join(outDir, 'config', '.env')
   );
+  const srcConfigDir = path.join(ROOT, 'config');
+  fs.readdirSync(srcConfigDir).forEach(name => {
+    if (!name.endsWith('.json')) return;
+    fs.copyFileSync(path.join(srcConfigDir, name), path.join(outDir, 'config', name));
+  });
 
   if (process.platform === 'win32') {
     fs.copyFileSync(

@@ -1,0 +1,124 @@
+{
+  "releases": [
+    {
+      "name": "N2027.R1",
+      "milestones": {
+        "DA": "2026-09-01",
+        "FF": "2027-03-08",
+        "GA": "2027-04-14",
+        "GE": "2027-04-19",
+        "GL": "2027-06-07",
+        "KO": "2026-10-06",
+        "PF": "2027-04-01",
+        "SC": "2026-11-12",
+        "VR": "2027-03-19",
+        "EOS": "2028-01-10",
+        "GE2": "2027-05-10",
+        "SC2": "2026-10-27"
+      },
+      "patches": [
+        "N2027.R1.01",
+        "N2027.R1.02",
+        "N2027.R1.03"
+      ]
+    },
+    {
+      "name": "N2026.R2",
+      "milestones": {
+        "DA": "2026-03-03",
+        "FF": "2026-08-24",
+        "GA": "2026-09-30",
+        "GE": "2026-10-05",
+        "GL": "2026-11-09",
+        "KO": "2026-04-07",
+        "PF": "2026-09-17",
+        "SC": "2026-05-14",
+        "VR": "2026-09-04",
+        "EOS": "2027-06-07",
+        "GE2": "2026-10-26",
+        "SC2": "2026-04-28"
+      },
+      "patches": [
+        "N2026.R2.01",
+        "N2026.R2.02",
+        "N2026.R2.03",
+        "N2026.R2.04",
+        "N2026.R2.05"
+      ]
+    }
+  ],
+  "milestones": [
+    {
+      "id": "DA",
+      "color": "#185FA5",
+      "label": "Discovery Alignment",
+      "fullName": "DISCOVERY ALIGNMENT"
+    },
+    {
+      "id": "KO",
+      "color": "#185FA5",
+      "label": "Release Kickoff",
+      "fullName": "RELEASE KICKOFF"
+    },
+    {
+      "id": "SC2",
+      "color": "#5b9fd6",
+      "label": "Scope Commitment",
+      "fullName": "SCOPE COMMITMENT"
+    },
+    {
+      "id": "SC",
+      "color": "#5b9fd6",
+      "label": "Scope Close",
+      "fullName": "SCOPE CLOSE"
+    },
+    {
+      "id": "FF",
+      "color": "#e0a040",
+      "label": "Feature Freeze",
+      "fullName": "FEATURE FREEZE"
+    },
+    {
+      "id": "VR",
+      "color": "#c47a0f",
+      "label": "Validation Results",
+      "fullName": "VALIDATION RESULTS"
+    },
+    {
+      "id": "PF",
+      "color": "#7cb842",
+      "label": "Preview Freeze",
+      "fullName": "PREVIEW FREEZE"
+    },
+    {
+      "id": "GA",
+      "color": "#7cb842",
+      "label": "General Availability",
+      "fullName": "GENERAL AVAILABILITY"
+    },
+    {
+      "id": "GE",
+      "color": "#7cb842",
+      "label": "Globally Enabled (Nakisa)",
+      "fullName": "GLOBALLY ENABLED Nakisa"
+    },
+    {
+      "id": "GE2",
+      "color": "#7cb842",
+      "label": "Globally Enabled (Customer)",
+      "fullName": "GLOBALLY ENABLED Customer"
+    },
+    {
+      "id": "GL",
+      "color": "#533AB7",
+      "label": "Globally Live",
+      "fullName": "GLOBALLY LIVE"
+    },
+    {
+      "id": "EOS",
+      "color": "#e07070",
+      "label": "End of Support",
+      "fullName": "END OF SUPPORT"
+    }
+  ]
+}

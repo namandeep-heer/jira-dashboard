@@ -78,11 +78,22 @@ FIRST TIME USE
 
   Local persistence
   -----------------
-  Accounts, sessions, encrypted Jira tokens, shared workspace settings, release
-  and project configuration, synced Jira data, connector schedules, and activity
-  logs are stored in `data/store.json` next to the app (or next to the standalone
-  executable). No cloud database or extra service is required. The connector
-  scheduler runs while the dashboard tab is open.
+  Each Config sidebar page saves to its own JSON file in `config/`:
+
+    config/setup.json       Jira Setup (email only; API token is not stored here)
+    config/connector.json   Jira Connector selections and schedule
+    config/projects.json    Projects, JQL overrides, enable/disable
+    config/releases.json    Market releases, patches, milestones
+    config/fields.json      Visible columns and custom field IDs
+
+  These files are pretty-printed so you can edit them by hand. Existing
+  `data/store.json` values are copied into these files on first startup if
+  the JSON files are not there yet. After that, the config files win.
+
+  Accounts, sessions, encrypted Jira API tokens, the selected market release,
+  synced Jira issue cache, and activity logs stay in `data/store.json`. No
+  cloud database or extra service is required. The connector scheduler runs
+  while the dashboard tab is open.
 
   Set `JIRA_URL` and `JIRA_CREDENTIAL_ENCRYPTION_KEY` in `config/.env`; the Jira
   base URL is managed by the proxy and API tokens are encrypted before storage.

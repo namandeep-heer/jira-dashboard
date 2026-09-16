@@ -1,0 +1,30 @@
+{
+  "lastRun": {
+    "N2026.R2": 1789581711922,
+    "N2027.R1": 1789569217922
+  },
+  "projects": [
+    "NFS",
+    "FCO",
+    "INC",
+    "GL",
+    "FAA",
+    "P2P",
+    "BUGS",
+    "PEGL",
+    "POGL"
+  ],
+  "releases": [
+    "N2027.R1",
+    "N2026.R2"
+  ],
+  "intervals": {
+    "N2026.R2": 30,
+    "N2027.R1": 360
+  },
+  "scheduleEnabled": true,
+  "scheduleReleases": [
+    "N2027.R1",
+    "N2026.R2"
+  ]
+}

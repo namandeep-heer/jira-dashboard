@@ -918,7 +918,7 @@ code { font-family: monospace; font-size: 12px; background: var(--bg3); padding:
           <!-- Jira credentials -->
           <div class="card">
             <h2>Jira credentials</h2>
-            <p class="desc">Stored in the local dashboard account on this machine. The proxy forwards requests to your Jira using Basic Auth.</p>
+            <p class="desc">The API token is encrypted in data/store.json. Your Jira email is also saved to config/setup.json. The proxy forwards requests to your Jira using Basic Auth.</p>
             <p class="desc">Jira base URL is managed by the proxy configuration. Enter only the Jira email and API token here.</p>
             <div class="field-row">
               <label>Email</label>
@@ -948,7 +948,7 @@ code { font-family: monospace; font-size: 12px; background: var(--bg3); padding:
       <div class="page" id="page-connector">
         <div id="connector-page">
           <h2 style="font-size:18px;font-weight:600;margin-bottom:6px">Jira Connector</h2>
-          <p style="font-size:13px;color:var(--text2);line-height:1.65;margin-bottom:18px">Sync selected market releases and projects from Jira. A project is queried only when that market release is enabled on it, using its include mode (market, patches, or both). Scheduled sync runs while this dashboard is open.</p>
+          <p style="font-size:13px;color:var(--text2);line-height:1.65;margin-bottom:18px">Sync selected market releases and projects from Jira. A project is queried only when that market release is enabled on it, using its include mode (market, patches, or both). Scheduled sync runs while this dashboard is open. Selections are saved to <strong>config/connector.json</strong>.</p>
           <div class="connector-grid">
             <div class="connector-card">
               <h3>Manual sync</h3>
@@ -987,7 +987,7 @@ code { font-family: monospace; font-size: 12px; background: var(--bg3); padding:
           <h2 style="font-size:18px;font-weight:600;margin-bottom:6px">Project Configuration</h2>
           <p style="font-size:13px;color:var(--text2);line-height:1.65;margin-bottom:16px">
             Enable/disable projects, remove/restore built-ins, and edit JQL per project. Each project can include market releases with their patches, market releases only, or patch releases only. Custom projects can also be added, edited, and deleted.
-            <br><strong>Configuration is saved locally on this machine</strong>
+            <br><strong>Saved to config/projects.json</strong>
           </p>
           <div style="margin-bottom: 20px;">
             <span id="projects-save-msg" style="font-size: 12px; color: var(--text3);"></span>
@@ -1015,7 +1015,7 @@ code { font-family: monospace; font-size: 12px; background: var(--bg3); padding:
       <div class="page" id="page-fields">
         <div style="max-width:900px">
           <h2 style="font-size:18px;font-weight:600;margin-bottom:6px">Field configuration</h2>
-          <p style="font-size:13px;color:var(--text2);line-height:1.65;margin-bottom:20px">Choose which columns to display. For custom fields, update the field IDs to match your Jira instance (Jira Admin → Issues → Custom Fields).</p>
+          <p style="font-size:13px;color:var(--text2);line-height:1.65;margin-bottom:20px">Choose which columns to display. For custom fields, update the field IDs to match your Jira instance (Jira Admin → Issues → Custom Fields). Saved to <strong>config/fields.json</strong>.</p>
           <div class="info-box">Custom field IDs like <code>customfield_10200</code> differ per Jira instance. Use <strong>Auto-discover</strong> or the <strong>Field Inspector</strong> below to find the right IDs.</div>
           <div class="fields-grid" id="fields-grid"></div>
           <div class="section-h">Custom field ID mapping</div>
@@ -3867,7 +3867,7 @@ async function saveCredentials() {
     catch (err) { credentialSaved = false; _storeError = err.message; }
   }
   msg.className = credentialSaved ? 'msg ok' : 'msg err';
-  msg.textContent = credentialSaved ? '✓ Credentials saved locally.' : '✗ Failed to save credentials locally.';
+  msg.textContent = credentialSaved ? '✓ Token encrypted in data/store.json. Email saved to config/setup.json.' : '✗ Failed to save credentials locally.';
 }
 
 async function testConnection() {
@@ -3889,7 +3889,7 @@ async function testConnection() {
       try { await saveUserCredentials(email, token); }
       catch (err) { credentialSaved = false; _storeError = err.message; }
     }
-    if (!credentialSaved) msg.textContent = '✗ Connected, but credentials could not be saved locally.';
+    if (!credentialSaved) msg.textContent = '✗ Connected, but credentials could not be saved.';
   } else {
     msg.className='msg err'; msg.textContent='✗ HTTP ' + result.status + ' — check credentials or proxy.';
   }
@@ -5020,8 +5020,8 @@ function toggleField(id) {
   const el = document.getElementById('fc-'+id);
   if (el) el.classList.toggle('on', S.enabled.includes(id));
 }
-async function saveFields()  { const saved = await persistNow(); const m=document.getElementById('fields-msg'); m.textContent = saved ? '✓ Saved locally.' : '✗ Failed to save locally.'; setTimeout(()=>m.textContent='',3000); }
-async function resetFields() { S.enabled=[...DEFAULT_ENABLED]; S.customIds={}; const saved = await persistNow(); renderFields(); const m=document.getElementById('fields-msg'); if (m) m.textContent = saved ? '✓ Saved locally.' : '✗ Failed to save locally.'; }
+async function saveFields()  { const saved = await persistNow(); const m=document.getElementById('fields-msg'); m.textContent = saved ? '✓ Saved to config/fields.json' : '✗ Failed to save.'; setTimeout(()=>m.textContent='',3000); }
+async function resetFields() { S.enabled=[...DEFAULT_ENABLED]; S.customIds={}; const saved = await persistNow(); renderFields(); const m=document.getElementById('fields-msg'); if (m) m.textContent = saved ? '✓ Saved to config/fields.json' : '✗ Failed to save.'; }
 
 async function discoverFields() {
   const msg = document.getElementById('discover-msg');
@@ -10901,7 +10901,7 @@ async function loadDefaultProjects() {
   return false;
 }
 
-// Mutable project configuration is loaded with the local state snapshot.
+// Mutable project configuration is loaded from config/projects.json via dashboard state.
 async function loadProjectsConfig() {
   S.customProjects = S.customProjects || [];
   S.projectSettings = S.projectSettings || {};
@@ -10909,7 +10909,7 @@ async function loadProjectsConfig() {
   return false;
 }
 
-// Project configuration is persisted as part of the local state snapshot.
+// Project configuration is persisted to config/projects.json.
 async function saveProjectsConfig() {
   if (!isAdmin()) return false;
   normalizeAllProjectReleases();
@@ -10923,7 +10923,7 @@ function showProjectsSaveMessage(success) {
   
   if (success) {
     msgEl.style.color = 'var(--green)';
-    msgEl.textContent = '✓ Saved locally';
+    msgEl.textContent = '✓ Saved to config/projects.json';
   } else {
     msgEl.style.color = 'var(--red)';
     msgEl.textContent = '✗ Failed to save';
@@ -11240,7 +11240,7 @@ async function loadReleasesConfig() {
   return true;
 }
 
-// Release configuration is persisted as part of the local state snapshot.
+// Release configuration is persisted to config/releases.json.
 async function saveReleasesConfig() {
   if (!isAdmin()) return false;
   return persistNow();
@@ -11271,7 +11271,7 @@ async function renderReleasesConfig() {
           Configure market releases and their milestone dates. Each market release can also
           have named patch releases (Jira fixVersion names only — no milestone dates).
           Projects choose whether to query the market release, its patches, or both.
-          <br><strong>Configuration is saved locally on this machine</strong>
+          <br><strong>Saved to config/releases.json</strong>
         </p>
         
         <div style="margin-bottom: 20px; display: flex; gap: 10px; align-items: center;">
@@ -11527,7 +11527,7 @@ function showSaveMessage(success) {
   
   if (success) {
     msgEl.style.color = 'var(--green)';
-    msgEl.textContent = '✓ Saved locally';
+    msgEl.textContent = '✓ Saved to config/releases.json';
   } else {
     msgEl.style.color = 'var(--red)';
     msgEl.textContent = '✗ ' + (_storeError || 'Failed to save');

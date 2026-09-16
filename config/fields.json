@@ -1,0 +1,32 @@
+{
+  "enabled": [
+    "issuetype",
+    "key",
+    "summary",
+    "parent",
+    "priority",
+    "fixVersions",
+    "cf_scope",
+    "cf_scopesc",
+    "status",
+    "cf_clarity",
+    "cf_devact",
+    "cf_devest",
+    "assignee",
+    "cf_devpart",
+    "cf_dev",
+    "cf_product",
+    "cf_custcom"
+  ],
+  "customIds": {
+    "cf_dev": "customfield_13004",
+    "cf_scope": "customfield_13116",
+    "cf_devact": "customfield_16133",
+    "cf_devest": "customfield_14042",
+    "cf_clarity": "customfield_13894",
+    "cf_custcom": "customfield_13981",
+    "cf_devpart": "customfield_13779",
+    "cf_product": "customfield_13037",
+    "cf_scopesc": "customfield_17017"
+  }
+}

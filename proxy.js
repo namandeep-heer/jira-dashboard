@@ -29,6 +29,7 @@ const { buildReleaseReportPptx, sanitizeFilename } = require('./lib/release-repo
 const { buildReleaseReportHtml, htmlFilename, normalizeTicketGroupBy } = require('./lib/release-report-html');
 const { createLocalStore } = require('./lib/local-store');
 const { slimDashboardState, dashboardStateForClient } = require('./lib/slim-cache');
+const { createPageConfig } = require('./lib/page-config');
 if (!fs.existsSync(CONFIG_DIR)) {
   fs.mkdirSync(CONFIG_DIR, { recursive: true });
 }
@@ -53,20 +54,44 @@ const store = createLocalStore({
   encryptionKey: credentialEncryptionKey,
   adminEmail,
 });
+const pageConfig = createPageConfig({ configDir: CONFIG_DIR });
+
+function persistDashboardState(state) {
+  const slimmed = slimDashboardState(state);
+  pageConfig.writeFromState(slimmed);
+  store.setSharedState(pageConfig.stripFromState(slimmed));
+}
+
+function loadDashboardState() {
+  const merged = pageConfig.mergeIntoState(store.getSharedState());
+  if (Array.isArray(merged._pageConfigErrors) && merged._pageConfigErrors.length) {
+    merged._pageConfigErrors.forEach(message => console.warn('[page-config]', message));
+  }
+  return merged;
+}
 
 function compactStoredDashboardState() {
-  const current = store.getSharedState();
+  const current = loadDashboardState();
   if (!current || typeof current !== 'object') return;
   const hasCache = current.cache && typeof current.cache === 'object' && Object.keys(current.cache).length;
   const hasReleaseCache = current.releaseCache && typeof current.releaseCache === 'object'
     && Object.keys(current.releaseCache).length;
   if (!hasCache && !hasReleaseCache) return;
-  store.setSharedState(slimDashboardState(current));
+  persistDashboardState(current);
+}
+
+function migratePageConfigFromStore() {
+  const stored = store.getSharedState();
+  const merged = pageConfig.migrateFromStore(stored);
+  if (pageConfig.hasPageKeys(stored)) {
+    store.setSharedState(pageConfig.stripFromState(slimDashboardState(merged)));
+  }
 }
 
 try {
   const before = fs.existsSync(store.filePath) ? fs.statSync(store.filePath).size : 0;
   compactStoredDashboardState();
+  migratePageConfigFromStore();
   const after = fs.existsSync(store.filePath) ? fs.statSync(store.filePath).size : 0;
   if (before && after && after < before) {
     console.log('[store] Compacted cached Jira data: '
@@ -220,7 +245,7 @@ app.get('/api/dashboard', async (req, res) => {
         jiraEmail: credentials.jiraEmail,
         token: credentials.token,
       } : null,
-      state: dashboardStateForClient(store.getSharedState()),
+      state: dashboardStateForClient(loadDashboardState()),
     });
   } catch (err) {
     sendStoreError(res, err);
@@ -235,7 +260,7 @@ app.post('/api/dashboard/state', (req, res) => {
     return;
   }
   try {
-    store.setSharedState(slimDashboardState(req.body.state));
+    persistDashboardState(req.body.state);
     res.json({ ok: true });
   } catch (err) {
     sendStoreError(res, err);
