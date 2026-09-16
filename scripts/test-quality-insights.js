@@ -21,6 +21,25 @@ function qualityModuleFromKey(key) {
   return m ? m[1].toUpperCase() : 'Other';
 }
 
+function jiraProjectsFromJql(jql) {
+  const text = String(jql || '');
+  const keys = [];
+  const seen = new Set();
+  function add(raw) {
+    const k = String(raw || '').trim().replace(/^["']|["']$/g, '').toUpperCase();
+    if (/^[A-Z][A-Z0-9_]*$/.test(k) && !seen.has(k)) {
+      seen.add(k);
+      keys.push(k);
+    }
+  }
+  const inMatch = text.match(/project\s+in\s*\(([^)]*)\)/i);
+  if (inMatch) inMatch[1].split(',').forEach(add);
+  const eqRe = /project\s*=\s*(?:"([^"]+)"|'([^']+)'|([A-Z][A-Z0-9_]*))/gi;
+  let m;
+  while ((m = eqRe.exec(text))) add(m[1] || m[2] || m[3]);
+  return keys;
+}
+
 function classifyQualityFixVersion(names, marketName, patches) {
   const patchSet = new Set(patches || []);
   const hasMarket = !!(marketName && names.includes(marketName));
@@ -82,6 +101,14 @@ assert.strictEqual(qualityAgeBand(90), '60+ days');
 assert.strictEqual(qualityModuleFromKey('NFS-200'), 'NFS');
 assert.strictEqual(qualityModuleFromKey('P2P-9'), 'P2P');
 assert.strictEqual(qualityModuleFromKey('no-key'), 'Other');
+
+assert.deepStrictEqual(
+  jiraProjectsFromJql('project in (NFS, GL, FCO, FAA, INC, P2P) AND issuetype in (Bug) AND status not in (QA, PQA, "Pending DEP", "EOA Pending", Closed, Done, Resolved, Cancelled, "Won\'t Fix") ORDER BY priority DESC, created DESC'),
+  ['NFS', 'GL', 'FCO', 'FAA', 'INC', 'P2P']
+);
+assert.deepStrictEqual(jiraProjectsFromJql('project = NFS AND issuetype = Bug'), ['NFS']);
+assert.deepStrictEqual(jiraProjectsFromJql('project in (NFS) AND issuetype in ("R&D Pre-GoLive Bug")'), ['NFS']);
+assert.deepStrictEqual(jiraProjectsFromJql(''), []);
 
 assert.strictEqual(classifyQualityFixVersion(['N2027.R1'], 'N2027.R1', ['N2027.R1.01']), 'Market only');
 assert.strictEqual(classifyQualityFixVersion(['N2027.R1.01'], 'N2027.R1', ['N2027.R1.01']), 'Patch only');
