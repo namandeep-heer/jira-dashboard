@@ -1584,7 +1584,7 @@ let _dashboardRole = 'viewer';
 let _authRegisterMode = false;
 
 const PHASES = [
-  { label: 'Product',           re: /^prod/i,                                                        color: '#533AB7' },
+  { label: 'Product',           re: /(creating|^prod)/i,                                             color: '#533AB7' },
   { label: 'Developer Pending', re: /^dev[\s-]*pending/i,                                            color: '#854F0B' },
   { label: 'Developing',        re: /^dev[\s-]*(developing|designing|grooming|cr|merge|reopened)/i,  color: '#185FA5' },
 
@@ -1604,7 +1604,7 @@ const DEV_ACTIVE_STATUS_RES = [
   /^on[\s-]*hold/i,
 ];
 
-const DATA_GAPS_SKIP_STATUS_RES = [/^creating$/i];
+const DATA_GAPS_SKIP_STATUS_RES = [/creating/i];
 
 function shouldSkipDataGapsTicket(statusName) {
   const s = (statusName || '').trim();
@@ -1619,7 +1619,7 @@ function isDevWorkComplete(statusName) {
 }
 
 const PENDING_STATUS = {
-  prod: /^(prod[\s-]*(pending|grooming|groomed)|creating)/i,
+  prod: /(creating|^(prod[\s-]*(pending|grooming|groomed)))/i,
   dev: /^dev[\s-]*(pending|reopened|developing|designing|grooming)/i,
   qa: /^(pqa|pending[\s-]*dep|eoa[\s-]*pending)/i,
   onHold: /^on[\s-]*hold/i,
@@ -9744,10 +9744,11 @@ const LOG_PHASE_ORDER = PHASES.map(p => p.label);
  * Needed because several statuses share the same PHASES bucket (e.g. QA):
  * EOA-Pending Deployment / Pending DEP → PQA-Pending is forward progress
  * (deployment done, ready for Product QA to pick up).
+ * PQA/EOA-Creating is intake (not Product QA); Creating → Dev-Pending is forward.
  * More specific patterns must come before broader ones.
  */
 const STATUS_PIPELINE_STAGES = [
-  { re: /^creating$/i, rank: 5 },
+  { re: /creating/i, rank: 5 },
   { re: /^prod/i, rank: 10 },
   // Dev prep / queue — Pending, Grooming, Designing are peers (not forward/back vs each other)
   { re: /^dev[\s-]*(pending|grooming|designing)/i, rank: 25 },
