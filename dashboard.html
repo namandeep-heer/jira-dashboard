@@ -10839,9 +10839,9 @@ const DEFAULT_PROJECTS = [
   { id:'p3', name:'General Ledger', key:'GL', color:'#533AB7', category:'Core Modules', jql:'project in (GL) AND issuetype in (Enhancement, Epic) ORDER BY "Scope Commitment At SC", status desc, Priority DESC' },
   { id:'p4', name:'Fixed Asset Accounting', key:'FAA', color:'#993556', category:'Core Modules', jql:'project in (FAA) AND issuetype in (Enhancement, Epic) ORDER BY "Scope Commitment At SC" asc, status desc, Priority DESC' },
   { id:'p5', name:'Procure To Pay', key:'P2P', color:'#0F6E56', category:'Core Modules', jql:'project in (P2P) AND issuetype in (Enhancement) ORDER BY "Scope Commitment At SC", status desc, Priority DESC' },
-  { id:'p6', name:'Open Bugs (All Projects)', key:'BUGS', color:'#D32F2F', category:'Quality', jql:'project in (NFS, GL, FCO, FAA, INC, P2P) AND issuetype = Bug AND status not in (QA, PQA, "Pending DEP", "EOA Pending", Closed, Done, Resolved, Cancelled, "Won\'t Fix") ORDER BY priority DESC, created DESC', excludeRelease:true },
-  { id:'p7', name:'Pre-Go Live Bugs', key:'PEGL', color:'#a51818', category:'Quality', jql:'project in (NFS, GL, FCO, FAA, INC, P2P) AND issuetype in ("R&D Pre-GoLive Bug") AND status not in (QA, PQA, "Pending DEP", "EOA Pending", Closed, Done, Resolved, Cancelled, "Won\'t Fix") ORDER BY priority DESC, created DESC', excludeRelease:true },
-  { id:'p8', name:'Post Go Live Bug', key:'POGL', color:'#6e111f', category:'Quality', jql:'project in (NFS, GL, FCO, FAA, INC, P2P) AND issuetype in ("R&D Post-GoLive Bug") AND status not in (QA, PQA, "Pending DEP", "EOA Pending", Closed, Done, Resolved, Cancelled, "Won\'t Fix") ORDER BY priority DESC, created DESC', excludeRelease:true }
+  { id:'p6', name:'Open Bugs (All Projects)', key:'BUGS', color:'#D32F2F', category:'Quality', jql:'project in (NFS, GL, FCO, FAA, INC, P2P) AND issuetype = Bug ORDER BY priority DESC, created DESC', excludeRelease:true },
+  { id:'p7', name:'Pre-Go Live Bugs', key:'PEGL', color:'#a51818', category:'Quality', jql:'project in (NFS, GL, FCO, FAA, INC, P2P) AND issuetype = "R&D Pre-GoLive Bug" ORDER BY priority DESC, created DESC', excludeRelease:true },
+  { id:'p8', name:'Post Go Live Bug', key:'POGL', color:'#6e111f', category:'Quality', jql:'project in (NFS, GL, FCO, FAA, INC, P2P) AND issuetype = "R&D Post-GoLive Bug" ORDER BY priority DESC, created DESC', excludeRelease:true }
 ];
 
 // If a built-in key was previously added as a custom project, drop the custom
