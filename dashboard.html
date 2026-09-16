@@ -4401,9 +4401,7 @@ function renderProject(proj) {
 
   const filtered = filterIssuesToActiveRelease(data.issues || [], proj);
   const issues = filtered.issues;
-  const total  = issues.length;
-  
-  // Show info box if partial results
+
   let partialWarning = '';
   if (data.partial) {
     const remaining = (data.total ?? (data.issues || []).length) - (data.issues || []).length;
@@ -4412,50 +4410,61 @@ function renderProject(proj) {
   if (filtered.mismatched) {
     partialWarning += `<div class="info-box">Hidden ${filtered.mismatched} cached issue${filtered.mismatched === 1 ? '' : 's'} whose Fix Version is not ${esc(formatAllowedFixVersionsLabel(proj))}. Re-sync this release from <button class="btn btn-sm" onclick="nav('connector')">Jira Connector</button>.</div>`;
   }
-  
-  const sm = {}; issues.forEach(i => { const s = i.fields?.status?.name||'Unknown'; sm[s]=(sm[s]||0)+1; });
 
-  // Desired phases in display order; matched by regex against actual Jira status names
-  // (PHASES is defined globally)
+  if (!S.activeFilter) S.activeFilter = {};
+  S.activeFilter[proj.key] = null;
+
+  if (!S._projData) S._projData = {};
+  S._projData[proj.key] = { issues, vf: null, cardDefs: [], sm: {}, PHASES, partialWarning };
+
+  renderProjectStatCards(proj.key);
+  renderIssueTable(proj, issues, null);
+}
+
+function issuesForProjectStatCards(projKey) {
+  const d = S._projData && S._projData[projKey];
+  if (!d) return [];
+  const proj = getAllProjects().find(p => p.key === projKey);
+  let issues = d.issues || [];
+  if (proj && isQualityDashboardProject(proj) && getSelectedJiraProjects().size) {
+    issues = issues.filter(issueInSelectedJiraProjects);
+  }
+  return issues;
+}
+
+function renderProjectStatCards(projKey) {
+  const d = S._projData && S._projData[projKey];
+  const statsEl = document.getElementById('stats-' + projKey);
+  if (!d || !statsEl) return;
+
+  const issues = issuesForProjectStatCards(projKey);
+  const sm = {};
+  issues.forEach(i => { const s = i.fields?.status?.name || 'Unknown'; sm[s] = (sm[s] || 0) + 1; });
 
   const phaseCounts = {};
   PHASES.forEach(p => { phaseCounts[p.label] = 0; });
   const otherCounts = {};
-
   Object.entries(sm).forEach(([name, count]) => {
     const matched = PHASES.find(p => p.re.test(name.trim()));
-    if (matched) {
-      phaseCounts[matched.label] += count;
-    } else {
-      otherCounts[name] = (otherCounts[name] || 0) + count;
-    }
+    if (matched) phaseCounts[matched.label] += count;
+    else otherCounts[name] = (otherCounts[name] || 0) + count;
   });
 
-  // Build stat cards — store filter info so clicking filters the table
   const cardDefs = [{ label: 'Total', filter: null }]
     .concat(PHASES.map(p => ({ label: p.label, filter: { type: 'phase', phase: p } })))
-    .concat(Object.entries(otherCounts).sort((a,b) => b[1]-a[1]).map(([name]) => ({ label: name, filter: { type: 'status', name } })));
-
-  // Keep a map of label -> count for rendering
-  const cardCounts = { 'Total': total };
+    .concat(Object.entries(otherCounts).sort((a, b) => b[1] - a[1]).map(([name]) => ({ label: name, filter: { type: 'status', name } })));
+  const cardCounts = { Total: issues.length };
   PHASES.forEach(p => { cardCounts[p.label] = phaseCounts[p.label]; });
-  Object.entries(otherCounts).forEach(([n,v]) => { cardCounts[n] = v; });
+  Object.entries(otherCounts).forEach(([n, v]) => { cardCounts[n] = v; });
 
-  statsEl.innerHTML = partialWarning + cardDefs.map(({ label }) =>
-    `<div class="stat-card" data-filter-key="${esc(label)}" style="cursor:pointer" onclick="filterByCard('${proj.key}','${esc(label)}')">
-      <div class="sl">${esc(label)}</div><div class="sv">${cardCounts[label]}</div>
+  d.cardDefs = cardDefs;
+  d.sm = sm;
+  const active = S.activeFilter && S.activeFilter[projKey];
+  statsEl.innerHTML = (d.partialWarning || '') + cardDefs.map(({ label }) =>
+    `<div class="stat-card${active === label ? ' active' : ''}" data-filter-key="${esc(label)}" style="cursor:pointer" onclick="filterByCard('${esc(projKey)}','${esc(label)}')">
+      <div class="sl">${esc(label)}</div><div class="sv">${cardCounts[label] || 0}</div>
     </div>`
   ).join('');
-
-  // Store filter state per project key
-  if (!S.activeFilter) S.activeFilter = {};
-  S.activeFilter[proj.key] = null;
-
-  // Store issues & cardDefs for re-render on click
-  if (!S._projData) S._projData = {};
-  S._projData[proj.key] = { issues, vf: null, cardDefs, sm, PHASES };
-
-  renderIssueTable(proj, issues, null);
 }
 
 function navToPhase(projId, phaseLabel, scopeCommitment) {
@@ -4877,7 +4886,7 @@ function renderIssueTable(proj, issues, activeFilter) {
     : '';
 
   const shown = sorted.length;
-  const total = source.length;
+  const total = issuesForProjectStatCards(proj.key).length || source.length;
   const countLabel = shown === total ? `${total} issue${total !== 1 ? 's' : ''}` : `${shown} of ${total} issues`;
 
   const jiraPrefix = listingJiraProjectFilterPrefix(proj);
@@ -7184,6 +7193,7 @@ function refreshQualityJiraProjectViews() {
     const proj = getAllProjects().find(p => p.id === S.page);
     if (proj && isQualityDashboardProject(proj)) {
       const filter = S.activeFilter && S.activeFilter[proj.key];
+      renderProjectStatCards(proj.key);
       renderIssueTable(proj, getFilteredProjectIssues(proj.key), filter);
     }
   }
