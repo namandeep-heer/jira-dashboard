@@ -8454,13 +8454,18 @@ async function exportCSV() {
     alert(snap.emptyMessage || 'No matching tickets to export.');
     return;
   }
+  const suggested = snap.title || 'Tickets';
+  const named = window.prompt('Name this export', suggested);
+  if (named == null) return;
+  const title = String(named).trim() || suggested;
+  const filename = (title.replace(/[^\w.-]+/g, '-').replace(/-+/g, '-').replace(/^-|-$/g, '') || 'tickets') + '.html';
   try {
     const res = await fetch(API_BASE + '/api/export/html', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         tickets,
-        title: snap.title || 'Tickets',
+        title,
         kicker: snap.kicker || 'Filtered ticket list',
         groupBy: 'project-status',
         jiraBaseUrl: String(S.creds?.url || '').replace(/\/+$/, ''),
@@ -8472,7 +8477,7 @@ async function exportCSV() {
       alert(json.error || 'Could not build HTML export.');
       return;
     }
-    triggerFileDownload(await res.blob(), snap.filename || 'tickets.html');
+    triggerFileDownload(await res.blob(), filename);
   } catch (err) {
     alert('Could not export: ' + (err && err.message ? err.message : err));
   }
