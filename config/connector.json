@@ -1,6 +1,6 @@
 {
   "lastRun": {
-    "N2026.R2": 1790360447309,
+    "N2026.R2": 1790367687524,
     "N2027.R1": 1790360447309
   },
   "projects": [
@@ -15,12 +15,16 @@
     "POGL"
   ],
   "releases": [
+    "Blank",
+    "UnPlanned",
     "N2027.R1",
     "N2026.R2"
   ],
   "intervals": {
     "N2026.R2": 30,
-    "N2027.R1": 360
+    "N2027.R1": 360,
+    "Blank": 60,
+    "UnPlanned": 60
   },
   "scheduleEnabled": true,
   "scheduleReleases": [

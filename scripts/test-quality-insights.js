@@ -208,4 +208,41 @@ assert.strictEqual(ticketMatchesPriorityFilter('High', new Set(['High'])), true)
 assert.strictEqual(ticketMatchesPriorityFilter('Low', new Set(['High'])), false);
 assert.strictEqual(ticketMatchesPriorityFilter('None', new Set(['None'])), true);
 
+const PHASES = [
+  { label: 'Product', re: /(creating|^prod)/i },
+  { label: 'Developer Pending', re: /^dev[\s-]*pending/i },
+  { label: 'Developing', re: /^dev[\s-]*(developing|designing|grooming|cr|merge|reopened)/i },
+  { label: 'QA', re: /^(qa|pqa|pending[\s-]*dep|eoa[\s-]*pending)/i },
+  { label: 'Rejected / Replied', re: /^(rejected|replied)/i },
+  { label: 'Closed', re: /^(closed|done|resolved|cancelled|won't\s*fix)/i },
+];
+
+function countIssuesByPhase(issues) {
+  const sm = {};
+  (issues || []).forEach(i => {
+    const s = i.fields?.status?.name || 'Unknown';
+    sm[s] = (sm[s] || 0) + 1;
+  });
+  const phaseCounts = {};
+  PHASES.forEach(p => { phaseCounts[p.label] = 0; });
+  const otherCounts = {};
+  Object.entries(sm).forEach(([name, count]) => {
+    const matched = PHASES.find(p => p.re.test(name.trim()));
+    if (matched) phaseCounts[matched.label] += count;
+    else otherCounts[name] = (otherCounts[name] || 0) + count;
+  });
+  return { sm, phaseCounts, otherCounts, total: (issues || []).length };
+}
+
+const counted = countIssuesByPhase([
+  { fields: { status: { name: 'QA' } } },
+  { fields: { status: { name: 'QA' } } },
+  { fields: { status: { name: 'Dev Developing' } } },
+  { fields: { status: { name: 'Prod Grooming' } } },
+]);
+assert.strictEqual(counted.total, 4);
+assert.strictEqual(counted.phaseCounts.QA, 2);
+assert.strictEqual(counted.phaseCounts.Developing, 1);
+assert.strictEqual(counted.phaseCounts.Product, 1);
+
 console.log('quality-insights: ok');

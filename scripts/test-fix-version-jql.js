@@ -20,12 +20,22 @@ function buildFixVersionClause(releases) {
 }
 
 function stripFixVersionFromJql(jql) {
-  return jql
-    .replace(/\s+AND\s+fixVersion\s+in\s*\([^)]*\)/gi, '')
-    .replace(/\s+AND\s+fixVersion\s*=\s*(?:"[^"]*"|[^\s]+)/gi, '')
-    .replace(/^\s*fixVersion\s+in\s*\([^)]*\)\s*(?:AND\s+)?/gi, '')
-    .replace(/^\s*fixVersion\s*=\s*(?:"[^"]*"|[^\s]+)\s*(?:AND\s+)?/gi, '')
-    .trim();
+  let out = String(jql || '');
+  [
+    /\s+AND\s+\(\s*fixVersion\s+not\s+in\s*\([^)]*\)\s+AND\s+fixVersion\s+is\s+not\s+EMPTY\s*\)/gi,
+    /\s+AND\s+fixVersion\s+is\s+not\s+EMPTY/gi,
+    /\s+AND\s+fixVersion\s+is\s+EMPTY/gi,
+    /\s+AND\s+fixVersion\s+not\s+in\s*\([^)]*\)/gi,
+    /\s+AND\s+fixVersion\s+in\s*\([^)]*\)/gi,
+    /\s+AND\s+fixVersion\s*=\s*(?:"[^"]*"|[^\s]+)/gi,
+    /^\s*\(\s*fixVersion\s+not\s+in\s*\([^)]*\)\s+AND\s+fixVersion\s+is\s+not\s+EMPTY\s*\)\s*(?:AND\s+)?/gi,
+    /^\s*fixVersion\s+is\s+not\s+EMPTY\s*(?:AND\s+)?/gi,
+    /^\s*fixVersion\s+is\s+EMPTY\s*(?:AND\s+)?/gi,
+    /^\s*fixVersion\s+not\s+in\s*\([^)]*\)\s*(?:AND\s+)?/gi,
+    /^\s*fixVersion\s+in\s*\([^)]*\)\s*(?:AND\s+)?/gi,
+    /^\s*fixVersion\s*=\s*(?:"[^"]*"|[^\s]+)\s*(?:AND\s+)?/gi,
+  ].forEach(re => { out = out.replace(re, ' '); });
+  return out.replace(/\s+/g, ' ').trim();
 }
 
 function injectJqlClause(jql, clause) {
@@ -112,6 +122,22 @@ assert.strictEqual(getEffectiveProjectJql(noAnd, 'N2027.R1'), 'project in (NFS) 
 
 const quoted = 'project = NFS AND fixVersion = "N 2027 R1" ORDER BY created';
 assert.strictEqual(getEffectiveProjectJql(quoted, 'N2026.R2'), 'project = NFS AND fixVersion = N2026.R2 ORDER BY created');
+
+const blankJql = injectJqlClause(stripFixVersionFromJql(stored), 'fixVersion is EMPTY');
+assert.ok(blankJql.includes('fixVersion is EMPTY'));
+assert.ok(!blankJql.toLowerCase().includes('n2027.r1'));
+const unplannedJql = injectJqlClause(stripFixVersionFromJql(stored), 'fixVersion = UnPlanned');
+assert.ok(unplannedJql.includes('fixVersion = UnPlanned'));
+assert.ok(!unplannedJql.includes('not in'));
+
+const combined = injectJqlClause(
+  stripFixVersionFromJql(stored),
+  '(' + buildFixVersionClause(['UnPlanned', 'N2027.R1', 'N2027.R1.01', 'N2026.R2']) + ' OR fixVersion is EMPTY)'
+);
+assert.ok(combined.includes('fixVersion in (UnPlanned, N2027.R1, N2027.R1.01, N2026.R2)'));
+assert.ok(combined.includes('OR fixVersion is EMPTY'));
+assert.ok(!combined.includes('not in'));
+assert.ok(combined.includes('ORDER BY'));
 
 assert.ok(!getEffectiveProjectJql(stored, 'N2027.R1').toLowerCase().includes('n2026.r2'));
 

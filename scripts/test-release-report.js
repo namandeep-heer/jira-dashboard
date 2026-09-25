@@ -381,8 +381,10 @@ assert.strictEqual(groupedStatus.ticketGroupBy, 'status');
 const {
   collectReleaseTickets,
   groupReleaseTickets,
+  buildTicketListHtml,
   buildReleaseReportHtml,
   htmlFilename,
+  ticketListFilename,
 } = require('../lib/release-report-html');
 
 const allTickets = collectReleaseTickets(portfolioReport);
@@ -418,6 +420,25 @@ assert.ok(html.includes('Lease Accounting 6.x'));
 assert.ok(html.includes('https://jira.example.com/browse/NFS-10'));
 assert.ok(html.includes('by project, then status'));
 assert.strictEqual(htmlFilename(portfolioReport), '2026.2-tickets.html');
+
+const listHtml = buildTicketListHtml({
+  title: 'Open Bugs filtered',
+  kicker: 'Quality Insights · filtered ticket list',
+  tickets: allTickets,
+  groupBy: 'project-status',
+  jiraBaseUrl: 'https://jira.example.com/',
+  toolbarMeta: 'search: War',
+});
+assert.ok(listHtml.includes('Open Bugs filtered'));
+assert.ok(listHtml.includes('filtered ticket list'));
+assert.ok(listHtml.includes('NFS-10'));
+assert.ok(listHtml.includes('search: War'));
+assert.ok(listHtml.includes('data-tab="insights"'));
+assert.ok(listHtml.includes('data-tab="tickets"'));
+assert.ok(listHtml.includes('By phase'));
+assert.ok(listHtml.includes('By priority'));
+assert.ok(listHtml.includes('panel-insights'));
+assert.strictEqual(ticketListFilename('Open Bugs (All Projects)'), 'Open-Bugs-All-Projects.html');
 
 const xssReport = build([issue({
   key: 'NFS-99',

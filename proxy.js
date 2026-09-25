@@ -26,7 +26,7 @@ const CONFIG_DIR = path.join(ROOT, 'config');
 const { analyzeCache } = require('./lib/data-gaps');
 const { analyzeRelease, mergeAiInsights, AI_RESPONSE_SCHEMA, adfToText } = require('./lib/release-report');
 const { buildReleaseReportPptx, sanitizeFilename } = require('./lib/release-report-pptx');
-const { buildReleaseReportHtml, htmlFilename, normalizeTicketGroupBy } = require('./lib/release-report-html');
+const { buildReleaseReportHtml, buildTicketListHtml, htmlFilename, ticketListFilename, normalizeTicketGroupBy } = require('./lib/release-report-html');
 const { createLocalStore } = require('./lib/local-store');
 const { slimDashboardState, dashboardStateForClient } = require('./lib/slim-cache');
 const { createPageConfig } = require('./lib/page-config');
@@ -456,6 +456,32 @@ app.post('/api/release-report/pptx', async (req, res) => {
         ? "Cannot find module 'pptxgenjs'. From the Jira Dashboard folder run `npm install`, then restart the app."
         : (err.message || 'Could not build PowerPoint'),
     });
+  }
+});
+
+app.post('/api/export/html', (req, res) => {
+  try {
+    const tickets = req.body?.tickets;
+    if (!Array.isArray(tickets)) {
+      res.status(400).json({ error: 'Missing tickets' });
+      return;
+    }
+    const title = String(req.body.title || 'Tickets').slice(0, 120);
+    const html = buildTicketListHtml({
+      title,
+      kicker: String(req.body.kicker || 'Filtered ticket list').slice(0, 160),
+      tickets,
+      groupBy: normalizeTicketGroupBy(req.body.groupBy || 'project-status'),
+      jiraBaseUrl: String(req.body.jiraBaseUrl || '').replace(/\/+$/, ''),
+      toolbarMeta: String(req.body.toolbarMeta || ''),
+    });
+    const name = ticketListFilename(title);
+    res.setHeader('Content-Type', 'text/html; charset=utf-8');
+    res.setHeader('Content-Disposition', `attachment; filename="${name}"`);
+    res.send(html);
+  } catch (err) {
+    console.error('[export-html]', err.message);
+    res.status(500).json({ error: err.message || 'Could not build ticket HTML' });
   }
 });
 

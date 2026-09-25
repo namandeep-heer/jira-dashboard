@@ -128,4 +128,71 @@ buggy.releaseCache['N2026.R2'].NFS = nfs2026;
 buggy.releaseCache['N2027.R1'].NFS = nfs2027;
 assert.strictEqual(buggy.releaseCache['N2027.R1'].NFS.issues[0].key, 'NFS-9');
 
+function mergeReleaseCacheBuckets(releaseCache, names) {
+  const merged = {};
+  (names || []).forEach(name => {
+    const bucket = releaseCache[name];
+    if (!bucket) return;
+    Object.keys(bucket).forEach(projKey => {
+      const src = bucket[projKey];
+      if (!merged[projKey]) {
+        merged[projKey] = Object.assign({}, src, { issues: (src.issues || []).slice() });
+        return;
+      }
+      const seen = new Set(merged[projKey].issues.map(i => i.key));
+      (src.issues || []).forEach(issue => {
+        if (!seen.has(issue.key)) {
+          seen.add(issue.key);
+          merged[projKey].issues.push(issue);
+        }
+      });
+    });
+  });
+  return merged;
+}
+
+function issueMatchesRelease(issue, releaseName) {
+  const names = ((issue.fields && issue.fields.fixVersions) || []).map(v => v.name).filter(Boolean);
+  if (releaseName === 'Blank') return names.length === 0;
+  return names.includes(releaseName);
+}
+
+function mergeReleaseCacheBucketsFiltered(releaseCache, names) {
+  const merged = {};
+  names.forEach(name => {
+    const bucket = releaseCache[name];
+    if (!bucket) return;
+    Object.keys(bucket).forEach(projKey => {
+      const srcIssues = (bucket[projKey].issues || []).filter(issue => issueMatchesRelease(issue, name));
+      if (!merged[projKey]) {
+        merged[projKey] = { issues: srcIssues.slice() };
+        return;
+      }
+      const seen = new Set(merged[projKey].issues.map(i => i.key));
+      srcIssues.forEach(issue => {
+        if (!seen.has(issue.key)) {
+          seen.add(issue.key);
+          merged[projKey].issues.push(issue);
+        }
+      });
+    });
+  });
+  return merged;
+}
+
+const merged = mergeReleaseCacheBuckets({
+  'N2026.R2': { NFS: nfs2026 },
+  Blank: { NFS: { issues: [{ key: 'NFS-0', fields: { fixVersions: [] } }] } },
+}, ['N2026.R2', 'Blank']);
+assert.deepStrictEqual(merged.NFS.issues.map(i => i.key).sort(), ['NFS-0', 'NFS-1']);
+
+const polluted = mergeReleaseCacheBucketsFiltered({
+  Blank: { NFS: { issues: [
+    { key: 'NFS-0', fields: { fixVersions: [] } },
+    { key: 'NFS-1', fields: { fixVersions: [{ name: 'N2026.R2' }] } },
+  ] } },
+  'N2026.R2': { NFS: nfs2026 },
+}, ['Blank', 'N2026.R2']);
+assert.deepStrictEqual(polluted.NFS.issues.map(i => i.key).sort(), ['NFS-0', 'NFS-1']);
+
 console.log('release-cache: ok');

@@ -61,9 +61,9 @@ body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sa
 #main { flex: 1; display: flex; flex-direction: column; overflow: hidden; min-width: 0; }
 #topbar { height: var(--header-h); background: var(--bg); border-bottom: 0.5px solid var(--border); display: flex; align-items: center; padding: 0 20px; gap: 10px; flex-shrink: 0; }
 #topbar h1 { font-size: 15px; font-weight: 600; flex: 1; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-#global-release-wrap { display:flex; align-items:center; gap:6px; flex-shrink:0; color:var(--text2); font-size:12px; }
-#global-release-select { min-width:150px; max-width:220px; padding:6px 28px 6px 9px; border:0.5px solid var(--border2); border-radius:var(--radius); background:var(--bg); color:var(--text); font:inherit; cursor:pointer; }
-#global-release-select:focus { outline:2px solid var(--blue); outline-offset:1px; }
+#global-release-wrap { display:flex; align-items:center; gap:6px; flex-shrink:0; color:var(--text2); font-size:12px; position:relative; z-index:40; }
+#global-release-wrap .ms-btn { min-width:168px; max-width:260px; }
+#global-release-dropdown { left:auto; right:0; min-width:240px; z-index:500; }
 #sync-status-btn { min-width:190px; justify-content:center; }
 #sync-status-btn.sync-stale { border-color:var(--amber); color:var(--amber); background:var(--amber-bg); }
 #sync-status-btn.sync-scheduled { border-color:var(--green); color:var(--green); background:var(--green-bg); }
@@ -108,7 +108,7 @@ body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sa
 .connector-job.fetch .connector-job-status { color:var(--green); }
 .connector-job.skip .connector-job-status { color:var(--text3); }
 .connector-job-versions { font-size:11px; color:var(--text2); margin-top:4px; line-height:1.45; font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace; }
-@media (max-width:700px) { .connector-grid { grid-template-columns:1fr; } #global-release-wrap span { display:none; } #global-release-select { min-width:120px; max-width:150px; } }
+@media (max-width:700px) { .connector-grid { grid-template-columns:1fr; } #global-release-wrap > span { display:none; } #global-release-wrap .ms-btn { min-width:120px; max-width:180px; } }
 #content { flex: 1; overflow-y: auto; padding: 24px; background: var(--bg3); }
 
 /* ── Sidebar ── */
@@ -243,7 +243,8 @@ html.sidebar-collapsed #log-badge { position: absolute; top: 3px; right: 3px; ma
 .jql-box { font-family: 'SFMono-Regular', Consolas, monospace; font-size: 11px; color: var(--text3); background: var(--bg2); border: 0.5px solid var(--border); border-radius: var(--radius); padding: 5px 10px; max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; cursor: pointer; display: block; }
 .jql-box.expanded { white-space: normal; word-break: break-all; }
 
-.stat-strip { display: grid; grid-template-columns: repeat(auto-fill, minmax(110px, 1fr)); gap: 10px; margin-bottom: 18px; }
+.stat-strip { display: grid; grid-template-columns: repeat(auto-fill, minmax(110px, 1fr)); gap: 10px; margin-bottom: 18px; align-items: start; }
+.stat-filter-note { font-size: 12px; color: var(--text3); margin: 0 0 10px; }
 .stat-card { background: var(--bg); border: 0.5px solid var(--border); border-radius: var(--radius); padding: 10px 14px; transition: border-color .12s, background .12s; user-select: none; }
 .stat-card:hover { background: var(--bg2); border-color: var(--border2); }
 .stat-card.active { border-color: var(--blue); background: var(--blue-bg); }
@@ -251,6 +252,7 @@ html.sidebar-collapsed #log-badge { position: absolute; top: 3px; right: 3px; ma
 .stat-card.active .sv { color: var(--blue); }
 .stat-card .sl { font-size: 11px; color: var(--text3); margin-bottom: 3px; }
 .stat-card .sv { font-size: 22px; font-weight: 700; }
+.stat-card .so { font-size: 10px; color: var(--text3); margin-top: 2px; font-weight: 500; }
 
 .table-wrap { overflow: auto; max-height: calc(100vh - 280px); background: var(--bg); border: 0.5px solid var(--border); border-radius: var(--radius-lg); }
 table.issues { width: 100%; border-collapse: collapse; font-size: 12px; }
@@ -330,6 +332,7 @@ table.issues tr:hover td { background: var(--bg2); }
 .rr-kpi { background:var(--bg); border:0.5px solid var(--border); border-radius:var(--radius); padding:12px 14px; }
 .rr-kpi .v { font-size:26px; font-weight:700; line-height:1.1; }
 .rr-kpi .l { font-size:11px; color:var(--text3); margin-top:4px; }
+.rr-kpi .so { font-size:10px; color:var(--text3); margin-top:2px; }
 .rr-section { background:var(--bg); border:0.5px solid var(--border); border-radius:var(--radius-lg); padding:18px 20px; }
 .rr-section h3 { font-size:15px; font-weight:600; margin-bottom:4px; }
 .rr-section .sub { font-size:12px; color:var(--text2); margin-bottom:12px; }
@@ -770,18 +773,29 @@ code { font-family: monospace; font-size: 12px; background: var(--bg3); padding:
       <div id="proxy-indicator"></div>
       <span id="auth-role-indicator" style="font-size:12px;color:var(--text2)"></span>
       <button class="btn btn-sm" id="auth-btn" onclick="submitDashboardAuth()">Sign in</button>
-      <label id="global-release-wrap" for="global-release-select">
+      <div id="global-release-wrap">
         <span>Market release</span>
-        <select id="global-release-select" onchange="changeGlobalRelease(this.value)" aria-label="Market release filter">
-          <option value="">Loading…</option>
-        </select>
-      </label>
+        <div class="ms-wrap">
+          <button class="ms-btn" id="global-release-btn" type="button" onclick="toggleGlobalReleaseFilter()" aria-label="Market release filter">
+            <span id="global-release-label">Select a market release</span>
+            <span class="ms-badge" id="global-release-count" style="display:none">0</span>
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"/></svg>
+          </button>
+          <div class="ms-dropdown" id="global-release-dropdown">
+            <div class="ms-options" id="global-release-options"></div>
+            <div class="ms-footer">
+              <button type="button" onclick="clearGlobalReleaseFilter()">Clear</button>
+              <button type="button" onclick="selectAllGlobalReleases()">Select All</button>
+            </div>
+          </div>
+        </div>
+      </div>
       <button class="btn btn-sm" id="theme-btn" onclick="toggleTheme()" title="Switch between light and dark theme">
         Theme: Light
       </button>
-      <button class="btn btn-sm" onclick="exportCSV()">
+      <button class="btn btn-sm" onclick="exportCSV()" title="Export the current page after filters as an HTML ticket list">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
-        Export CSV
+        Export HTML
       </button>
       <button class="btn btn-sm" id="sync-status-btn" onclick="handleSyncStatusAction()" title="Sync status">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="1 4 1 10 7 10"/><path d="M3.51 15a9 9 0 1 0 .49-3.56"/></svg>
@@ -1083,6 +1097,7 @@ code { font-family: monospace; font-size: 12px; background: var(--bg3); padding:
                 </div>
               </div>
             </div>
+            <button class="btn btn-sm" type="button" onclick="exportCSV()" title="Export filtered velocity tickets">Export HTML</button>
           </div>
         </div>
         <div id="velocity-body"></div>
@@ -1124,6 +1139,7 @@ code { font-family: monospace; font-size: 12px; background: var(--bg3); padding:
                 </div>
               </div>
             </div>
+            <button class="btn btn-sm" type="button" onclick="exportCSV()" title="Export filtered data-gap tickets">Export HTML</button>
           </div>
         </div>
         <div id="data-gaps-body"></div>
@@ -1235,6 +1251,7 @@ code { font-family: monospace; font-size: 12px; background: var(--bg3); padding:
               <input type="checkbox" id="qi-priority-chart-toggle" checked onchange="toggleQualityPriorityOnChart(this.checked)">
               Show on chart
             </label>
+            <button class="btn btn-sm" type="button" onclick="exportCSV()" title="Export filtered quality tickets">Export HTML</button>
           </div>
         </div>
         <div id="quality-insights-body"></div>
@@ -1321,6 +1338,7 @@ code { font-family: monospace; font-size: 12px; background: var(--bg3); padding:
                 <option value="180">Last 6 months</option>
                 <option value="365">Last year</option>
               </select>
+              <button class="btn btn-sm" type="button" onclick="exportCSV()" title="Export filtered quality-phase tickets">Export HTML</button>
             </div>
           </div>
           <div id="qi-phase-chart-slot"></div>
@@ -1404,6 +1422,7 @@ code { font-family: monospace; font-size: 12px; background: var(--bg3); padding:
               <option value="60">Last 60 days</option>
               <option value="90" selected>Last 90 days</option>
             </select>
+            <button class="btn btn-sm" type="button" onclick="exportCSV()" title="Export filtered quality-progress movements">Export HTML</button>
           </div>
         </div>
         <div id="qi-log-content"></div>
@@ -1498,6 +1517,7 @@ code { font-family: monospace; font-size: 12px; background: var(--bg3); padding:
               </div>
             </div>
             <input id="team-search" class="team-search" type="text" placeholder="Search key or summary…" oninput="onTeamSearchInput()" />
+            <button class="btn btn-sm" type="button" onclick="exportCSV()" title="Export filtered team tickets">Export HTML</button>
           </div>
         </div>
         <div id="team-body"></div>
@@ -1601,6 +1621,7 @@ code { font-family: monospace; font-size: 12px; background: var(--bg3); padding:
                 <option value="180">Last 6 months</option>
                 <option value="365">Last year</option>
               </select>
+              <button class="btn btn-sm" type="button" onclick="exportCSV()" title="Export filtered phase tickets">Export HTML</button>
             </div>
           </div>
           <div id="phase-chart-slot"></div>
@@ -1670,6 +1691,7 @@ code { font-family: monospace; font-size: 12px; background: var(--bg3); padding:
               <option value="60">Last 60 days</option>
               <option value="90" selected>Last 90 days</option>
             </select>
+            <button class="btn btn-sm" type="button" onclick="exportCSV()" title="Export filtered daily-progress movements">Export HTML</button>
           </div>
         </div>
         <div id="log-content"></div>
@@ -1967,6 +1989,8 @@ function formatMilestoneShortDate(d) {
 }
 
 function getPhaseChartRelease(filteredProjects) {
+  const selectedMarket = getSelectedReleaseNames().map(name => findReleaseByName(name)).find(Boolean);
+  if (selectedMarket) return selectedMarket;
   if (S.activeRelease && S.releases?.length) {
     const selected = S.releases.find(r => r.name === S.activeRelease);
     if (selected) return selected;
@@ -2257,6 +2281,7 @@ let S = {
   customProjects:[],
   projectSettings:{},
   activeRelease:'',
+  activeReleases:[],
   lastSyncAt:{},
   connector:{ releases:[], projects:null, scheduleEnabled:false, intervals:{}, lastRun:{} },
   theme:'',
@@ -2404,6 +2429,8 @@ const RELEASE_MODES = [
   { id: 'patch', label: 'Patches only', fullLabel: 'Patch releases only' },
 ];
 const DEFAULT_RELEASE_MODE = 'market';
+const BLANK_RELEASE = 'Blank';
+const UNPLANNED_RELEASE = 'UnPlanned';
 
 function uniqueReleaseNames(names) {
   const seen = new Set();
@@ -2415,6 +2442,47 @@ function uniqueReleaseNames(names) {
     out.push(value);
   });
   return out;
+}
+
+function isVirtualRelease(name) {
+  return name === BLANK_RELEASE || name === UNPLANNED_RELEASE;
+}
+
+function getSelectableReleases() {
+  return [
+    { name: BLANK_RELEASE, virtual: true, kind: 'blank' },
+    { name: UNPLANNED_RELEASE, virtual: true, kind: 'unplanned' },
+    ...(S.releases || []).filter(release => release && release.name),
+  ];
+}
+
+function getSelectedReleaseNames() {
+  const fromList = Array.isArray(S.activeReleases) ? S.activeReleases : [];
+  const names = uniqueReleaseNames(fromList);
+  if (names.length) return names;
+  return S.activeRelease ? [S.activeRelease] : [];
+}
+
+function formatSelectedReleasesLabel(names) {
+  const list = names && names.length ? names : getSelectedReleaseNames();
+  if (!list.length) return 'Select a market release';
+  if (list.length === 1) return list[0];
+  return list.length + ' releases';
+}
+
+function getAllConfiguredFixVersionNames() {
+  const names = [];
+  (S.releases || []).forEach(release => {
+    if (release && release.name) names.push(release.name);
+    getReleasePatchNames(release).forEach(patch => names.push(patch));
+  });
+  return uniqueReleaseNames(names);
+}
+
+function getVirtualReleaseClause(releaseName) {
+  if (releaseName === BLANK_RELEASE) return 'fixVersion is EMPTY';
+  if (releaseName === UNPLANNED_RELEASE) return buildFixVersionClause([UNPLANNED_RELEASE]);
+  return '';
 }
 
 function normalizeReleaseMode(mode) {
@@ -2470,15 +2538,50 @@ function projectIgnoresReleaseFilter(proj) {
   return getProjectReleases(proj.key, proj).length === 0;
 }
 
+function getReleaseFilterClause(proj, releaseName) {
+  if (!releaseName) return '';
+  if (isVirtualRelease(releaseName)) return getVirtualReleaseClause(releaseName);
+  if (!isProjectEnabledForRelease(proj, releaseName)) return '';
+  return buildFixVersionClause(getFixVersionsForRelease(releaseName, proj.key, proj));
+}
+
+function getSelectedReleasesFilterClause(proj) {
+  const selected = getSelectedReleaseNames().filter(name =>
+    projectIgnoresReleaseFilter(proj) || isProjectEnabledForRelease(proj, name)
+  );
+  if (!selected.length) return '';
+  const versions = [];
+  selected.forEach(name => {
+    if (name === BLANK_RELEASE) return;
+    if (name === UNPLANNED_RELEASE) {
+      versions.push(UNPLANNED_RELEASE);
+      return;
+    }
+    getFixVersionsForRelease(name, proj.key, proj).forEach(v => versions.push(v));
+  });
+  const inClause = buildFixVersionClause(uniqueReleaseNames(versions));
+  if (selected.includes(BLANK_RELEASE) && inClause) return '(' + inClause + ' OR fixVersion is EMPTY)';
+  if (selected.includes(BLANK_RELEASE)) return 'fixVersion is EMPTY';
+  return inClause;
+}
+
 function getEffectiveProjectJql(proj, releaseName) {
   const jql = getProjectJql(proj);
-  const release = releaseName !== undefined ? releaseName : S.activeRelease;
-  if (!release || projectIgnoresReleaseFilter(proj)) return stripFixVersionFromJql(jql);
   const stripped = stripFixVersionFromJql(jql);
-  if (!isProjectEnabledForRelease(proj, release)) return injectJqlClause(stripped, 'key is EMPTY');
-  const versions = getFixVersionsForRelease(release, proj.key, proj);
-  if (!versions.length) return injectJqlClause(stripped, 'key is EMPTY');
-  return injectFixVersionIntoJql(stripped, versions);
+  if (projectIgnoresReleaseFilter(proj)) return stripped;
+  if (releaseName !== undefined) {
+    if (!releaseName) return stripped;
+    if (!isProjectEnabledForRelease(proj, releaseName)) return injectJqlClause(stripped, 'key is EMPTY');
+    if (isVirtualRelease(releaseName)) return injectJqlClause(stripped, getVirtualReleaseClause(releaseName));
+    const versions = getFixVersionsForRelease(releaseName, proj.key, proj);
+    if (!versions.length) return injectJqlClause(stripped, 'key is EMPTY');
+    return injectFixVersionIntoJql(stripped, versions);
+  }
+  const selected = getSelectedReleaseNames();
+  if (!selected.length) return stripped;
+  const clause = getSelectedReleasesFilterClause(proj);
+  if (!clause) return injectJqlClause(stripped, 'key is EMPTY');
+  return injectJqlClause(stripped, clause);
 }
 
 function isProjectEnabledForRelease(proj, releaseName) {
@@ -2495,6 +2598,7 @@ function getProjectSyncSkipReason(proj, releaseName) {
   const release = releaseName !== undefined ? releaseName : S.activeRelease;
   if (!release) return 'not-enabled';
   if (!isProjectEnabledForRelease(proj, release)) return 'not-enabled';
+  if (isVirtualRelease(release)) return '';
   if (!getFixVersionsForRelease(release, proj.key, proj).length) return 'no-versions';
   return '';
 }
@@ -2507,6 +2611,8 @@ function formatProjectSyncSkipReason(reason) {
 }
 
 function formatReleasePatchSummary(release) {
+  if (release && (release.kind === 'blank' || release.name === BLANK_RELEASE)) return 'fixVersion is EMPTY';
+  if (release && (release.kind === 'unplanned' || release.name === UNPLANNED_RELEASE)) return 'fixVersion = UnPlanned';
   const patches = getReleasePatchNames(release);
   if (!patches.length) return 'No patches';
   return (patches.length === 1 ? 'Patch: ' : 'Patches: ') + patches.join(', ');
@@ -2521,10 +2627,13 @@ function formatProjectReleaseSummary(project) {
 
 function getConnectorJobVersionNames(project, releaseName) {
   if (!project || projectIgnoresReleaseFilter(project)) return [];
+  if (isVirtualRelease(releaseName)) return [];
   return getFixVersionsForRelease(releaseName, project.key, project);
 }
 
-function formatConnectorFixVersionClause(versions) {
+function formatConnectorFixVersionClause(versions, releaseName) {
+  if (releaseName === BLANK_RELEASE) return 'fixVersion is EMPTY';
+  if (releaseName === UNPLANNED_RELEASE) return 'fixVersion = ' + UNPLANNED_RELEASE;
   if (!versions || !versions.length) return '';
   if (versions.length === 1) return `fixVersion = ${versions[0]}`;
   return `fixVersion in (${versions.join(', ')})`;
@@ -2570,11 +2679,50 @@ function releaseCacheOwnerOf(obj) {
   return '';
 }
 
+function mergeReleaseCacheBuckets(names) {
+  const merged = {};
+  (names || []).forEach(name => {
+    const bucket = S.releaseCache && S.releaseCache[name];
+    if (!bucket || typeof bucket !== 'object') return;
+    Object.keys(bucket).forEach(projKey => {
+      const src = bucket[projKey];
+      if (!src) return;
+      const proj = getAllProjects().find(p => p.key === projKey);
+      const srcIssues = (src.issues || []).filter(issue => {
+        if (!proj || projectIgnoresReleaseFilter(proj)) return true;
+        return issueMatchesSelectedRelease(issue, name, proj);
+      });
+      if (!merged[projKey]) {
+        merged[projKey] = Object.assign({}, src, { issues: srcIssues.slice(), total: srcIssues.length });
+        return;
+      }
+      const seen = new Set((merged[projKey].issues || []).map(issue => issue && issue.key));
+      srcIssues.forEach(issue => {
+        if (!issue || !issue.key || seen.has(issue.key)) return;
+        seen.add(issue.key);
+        merged[projKey].issues.push(issue);
+      });
+      merged[projKey].total = (merged[projKey].issues || []).length;
+    });
+  });
+  return merged;
+}
+
 function bindCacheToActiveRelease() {
-  S.cache = ensureReleaseCacheBucket(S.activeRelease);
+  const names = getSelectedReleaseNames();
+  S.activeReleases = names;
+  S.activeRelease = names[0] || '';
+  if (names.length <= 1) {
+    S._cacheViewMerged = false;
+    S.cache = ensureReleaseCacheBucket(S.activeRelease);
+    return;
+  }
+  S._cacheViewMerged = true;
+  S.cache = mergeReleaseCacheBuckets(names);
 }
 
 function adoptCacheAsActiveReleaseBucket() {
+  if (S._cacheViewMerged) return;
   if (!S.releaseCache || typeof S.releaseCache !== 'object') S.releaseCache = {};
   if (!S.cache || typeof S.cache !== 'object') S.cache = {};
   const key = S.activeRelease || '';
@@ -2594,6 +2742,10 @@ function adoptCacheAsActiveReleaseBucket() {
 function writeReleaseProjectCache(releaseName, projectKey, data) {
   const bucket = ensureReleaseCacheBucket(releaseName);
   bucket[projectKey] = data;
+  if (S._cacheViewMerged) {
+    bindCacheToActiveRelease();
+    return;
+  }
   if ((releaseName || '') === (S.activeRelease || '') && S.cache !== bucket) {
     if (!S.cache || typeof S.cache !== 'object') S.cache = {};
     S.cache[projectKey] = data;
@@ -2615,46 +2767,136 @@ function getIssueFixVersionNames(issue) {
   return versions.map(v => (typeof v === 'string' ? v : (v && v.name) || '')).filter(Boolean);
 }
 
+function issueMatchesSelectedRelease(issue, releaseName, proj) {
+  const names = getIssueFixVersionNames(issue);
+  if (releaseName === BLANK_RELEASE) return names.length === 0;
+  if (releaseName === UNPLANNED_RELEASE) {
+    return names.some(name => String(name).toLowerCase() === String(UNPLANNED_RELEASE).toLowerCase());
+  }
+  const allowed = new Set(getFixVersionsForRelease(releaseName, proj && proj.key, proj));
+  if (!allowed.size) return false;
+  return names.some(name => allowed.has(name));
+}
+
 function filterIssuesToActiveRelease(issues, proj) {
-  if (!S.activeRelease || projectIgnoresReleaseFilter(proj)) {
+  if (projectIgnoresReleaseFilter(proj)) {
     return { issues: issues || [], mismatched: 0 };
   }
-  const allowed = new Set(getFixVersionsForRelease(S.activeRelease, proj && proj.key, proj));
+  const selected = getSelectedReleaseNames();
+  if (!selected.length) {
+    return { issues: issues || [], mismatched: 0 };
+  }
   const kept = [];
   let mismatched = 0;
   (issues || []).forEach(issue => {
-    const names = getIssueFixVersionNames(issue);
-    if (!names.length || names.some(name => allowed.has(name))) kept.push(issue);
+    if (selected.some(name => issueMatchesSelectedRelease(issue, name, proj))) kept.push(issue);
     else mismatched++;
   });
   return { issues: kept, mismatched };
 }
 
 function formatAllowedFixVersionsLabel(proj) {
-  const versions = getFixVersionsForRelease(S.activeRelease, proj && proj.key, proj);
-  if (!versions.length) return S.activeRelease || 'this release';
+  const selected = getSelectedReleaseNames();
+  if (!selected.length) return 'the selected releases';
+  if (selected.length > 1) return selected.join(', ');
+  if (isVirtualRelease(selected[0])) return selected[0];
+  const versions = getFixVersionsForRelease(selected[0], proj && proj.key, proj);
+  if (!versions.length) return selected[0];
   if (versions.length === 1) return versions[0];
   if (versions.length === 2) return versions.join(' or ');
   return versions.slice(0, -1).join(', ') + ', or ' + versions[versions.length - 1];
 }
 
+function syncGlobalReleaseButton() {
+  const selected = getSelectedReleaseNames();
+  const btn = document.getElementById('global-release-btn');
+  const label = document.getElementById('global-release-label');
+  const badge = document.getElementById('global-release-count');
+  if (!label) return;
+  label.textContent = formatSelectedReleasesLabel(selected);
+  if (badge) {
+    if (selected.length > 1) {
+      badge.textContent = selected.length;
+      badge.style.display = '';
+    } else {
+      badge.style.display = 'none';
+    }
+  }
+  if (btn) btn.classList.toggle('has-selection', selected.length > 0);
+}
+
 function updateGlobalReleaseSelector() {
-  const select = document.getElementById('global-release-select');
-  if (!select) return;
-  const releases = (S.releases || []).filter(release => release && release.name);
-  const names = releases.map(release => release.name);
-  if (!names.includes(S.activeRelease)) S.activeRelease = '';
-  select.innerHTML = names.length
-    ? `<option value="">Select a market release</option>${names.map(name => `<option value="${esc(name)}">${esc(name)}</option>`).join('')}`
-    : '<option value="">No market releases configured</option>';
-  select.value = S.activeRelease;
-  select.disabled = names.length === 0;
+  const optionsEl = document.getElementById('global-release-options');
+  if (!optionsEl) return;
+  const selectable = getSelectableReleases();
+  const allowed = new Set(selectable.map(r => r.name));
+  S.activeReleases = getSelectedReleaseNames().filter(name => allowed.has(name));
+  S.activeRelease = S.activeReleases[0] || '';
+  const selected = new Set(S.activeReleases);
+  optionsEl.innerHTML = selectable.map(release => {
+    const hint = release.kind === 'blank'
+      ? 'fixVersion is EMPTY'
+      : release.kind === 'unplanned'
+        ? 'fixVersion = UnPlanned'
+        : formatReleasePatchSummary(release);
+    return `
+    <label class="ms-option">
+      <input type="checkbox" value="${esc(release.name)}" ${selected.has(release.name) ? 'checked' : ''} onchange="updateGlobalReleaseFilter()">
+      <span class="ms-option-label">
+        ${esc(release.name)}
+        <span style="display:block;font-size:10px;color:var(--text3);font-weight:400">${esc(hint)}</span>
+      </span>
+    </label>`;
+  }).join('');
+  syncGlobalReleaseButton();
+}
+
+function toggleGlobalReleaseFilter() {
+  const dropdown = document.getElementById('global-release-dropdown');
+  if (!dropdown) return;
+  dropdown.classList.toggle('open');
+}
+
+async function updateGlobalReleaseFilter() {
+  const optionsEl = document.getElementById('global-release-options');
+  const selected = [];
+  if (optionsEl) {
+    optionsEl.querySelectorAll('input[type="checkbox"]:checked').forEach(cb => selected.push(cb.value));
+  }
+  const next = uniqueReleaseNames(selected);
+  const prev = getSelectedReleaseNames().join('\0');
+  if (next.join('\0') === prev) {
+    syncGlobalReleaseButton();
+    return;
+  }
+  S.activeReleases = next;
+  S.activeRelease = next[0] || '';
+  bindCacheToActiveRelease();
+  syncGlobalReleaseButton();
+  const currentProject = getAllProjects().find(project => project.id === S.page);
+  S._skipNextProjectFetch = !!currentProject && !S.cache[currentProject.key];
+  await persistNow();
+  updateSyncStatus();
+  nav(S.page);
+}
+
+async function clearGlobalReleaseFilter() {
+  const optionsEl = document.getElementById('global-release-options');
+  if (optionsEl) optionsEl.querySelectorAll('input[type="checkbox"]').forEach(cb => { cb.checked = false; });
+  await updateGlobalReleaseFilter();
+}
+
+async function selectAllGlobalReleases() {
+  const optionsEl = document.getElementById('global-release-options');
+  if (optionsEl) optionsEl.querySelectorAll('input[type="checkbox"]').forEach(cb => { cb.checked = true; });
+  await updateGlobalReleaseFilter();
 }
 
 async function changeGlobalRelease(releaseName) {
-  if (releaseName === S.activeRelease) return;
-  S.activeRelease = releaseName;
+  S.activeReleases = releaseName ? [releaseName] : [];
+  S.activeRelease = releaseName || '';
   bindCacheToActiveRelease();
+  updateGlobalReleaseSelector();
   const currentProject = getAllProjects().find(project => project.id === S.page);
   S._skipNextProjectFetch = !!currentProject && !S.cache[currentProject.key];
   await persistNow();
@@ -2733,10 +2975,11 @@ function getConnectorState() {
 
 function renderConnectorPage() {
   const state = getConnectorState();
-  const releases = (S.releases || []).filter(release => release && release.name);
+  const marketReleases = (S.releases || []).filter(release => release && release.name);
+  const releases = getSelectableReleases();
   const projects = getConnectorProjects();
-  if (!state.releases.length) state.releases = releases.map(release => release.name);
-  if (!state.scheduleReleases.length) state.scheduleReleases = releases.map(release => release.name);
+  if (!state.releases.length) state.releases = marketReleases.map(release => release.name);
+  if (!state.scheduleReleases.length) state.scheduleReleases = marketReleases.map(release => release.name);
   if (!Array.isArray(state.projects)) state.projects = projects.map(project => project.key);
 
   const releaseHtml = (id, selected) => releases.map(release => {
@@ -2851,7 +3094,7 @@ async function runConnectorSyncBatch(releases, projectKeys, mode = 'manual') {
   titleEl.textContent = mode === 'schedule' ? 'Scheduled sync in progress…' : 'Connector sync in progress…';
   rowsEl.innerHTML = jobs.map((job, index) => {
     const modeLabel = projectIgnoresReleaseFilter(job.project) ? '' : ` · ${esc(formatReleaseModeLabel(getProjectReleaseMode(job.project.key, job.project)))}`;
-    const versions = job.skipReason ? '' : formatConnectorFixVersionClause(getConnectorJobVersionNames(job.project, job.release));
+    const versions = job.skipReason ? '' : formatConnectorFixVersionClause(getConnectorJobVersionNames(job.project, job.release), job.release);
     const detail = versions ? ` · ${esc(versions)}` : '';
     return `<div class="refresh-proj-row" id="connector-row-${index}"><span style="width:8px;height:8px;border-radius:50%;background:${job.project.color};flex-shrink:0"></span><span class="refresh-proj-name">${esc(job.release)} · ${esc(job.project.name)}${modeLabel}${detail}</span><span class="refresh-status pending" id="connector-status-${index}">Waiting…</span></div>`;
   }).join('');
@@ -3830,6 +4073,15 @@ async function refreshAll() {
     alert('No enabled projects are available. Enable at least one project in Config > Projects.');
     return;
   }
+  const selectedReleases = getSelectedReleaseNames();
+  if (!selectedReleases.length) {
+    alert('Select at least one market release, Blank, or UnPlanned in the top bar.');
+    return;
+  }
+  if (selectedReleases.length > 1) {
+    await runConnectorSyncBatch(selectedReleases, allProjects.map(p => p.key));
+    return;
+  }
 
   // Build rows
   rowsEl.innerHTML = allProjects.map(p =>
@@ -4513,10 +4765,21 @@ async function hydrateTruncatedChangelogs(issues, baseUrl, auth) {
 }
 
 // ── Project page ─────────────────────────────────────────────────────────────
+function getViewSkipReason(proj) {
+  const selected = getSelectedReleaseNames();
+  if (!selected.length) return 'not-enabled';
+  if (projectIgnoresReleaseFilter(proj)) return '';
+  if (selected.some(name => !getProjectSyncSkipReason(proj, name))) return '';
+  return getProjectSyncSkipReason(proj, selected[0]);
+}
+
 function renderProject(proj) {
   const el = document.getElementById('page-' + proj.id);
-  const skipReason = S.activeRelease ? getProjectSyncSkipReason(proj, S.activeRelease) : '';
-  const effJql = skipReason ? stripFixVersionFromJql(getProjectJql(proj)) : getEffectiveProjectJql(proj);
+  const selectedReleases = getSelectedReleaseNames();
+  const skipReason = selectedReleases.length ? getViewSkipReason(proj) : 'not-enabled';
+  const effJql = skipReason && skipReason !== 'not-enabled' && skipReason !== 'no-versions'
+    ? stripFixVersionFromJql(getProjectJql(proj))
+    : getEffectiveProjectJql(proj);
   el.innerHTML = `
     <div class="proj-header">
       <div class="proj-title">
@@ -4525,24 +4788,25 @@ function renderProject(proj) {
       </div>
       <div class="jql-box" title="Click to expand/collapse" onclick="this.classList.toggle('expanded')">${esc(effJql)}</div>
     </div>
-    <div class="stat-strip" id="stats-${proj.key}"></div>
+    <div id="stats-${proj.key}"></div>
     <div id="issues-${proj.key}"><div class="state-box"><span>Loading synced data…</span></div></div>`;
 
-  const data = S.activeRelease ? S.cache[proj.key] : null;
+  const data = selectedReleases.length ? S.cache[proj.key] : null;
+  const releaseLabel = formatSelectedReleasesLabel(selectedReleases);
 
   const statsEl  = document.getElementById('stats-'  + proj.key);
   const issuesEl = document.getElementById('issues-' + proj.key);
 
-  if (!S.activeRelease) { issuesEl.innerHTML = `<div class="info-box">No release selected. Select a release from the top bar, then use <button class="btn btn-sm" onclick="nav('connector')">Jira Connector</button> to sync it.</div>`; return; }
+  if (!selectedReleases.length) { issuesEl.innerHTML = `<div class="info-box">No release selected. Select a release from the top bar, then use <button class="btn btn-sm" onclick="nav('connector')">Jira Connector</button> to sync it.</div>`; return; }
   if (skipReason === 'not-enabled') {
-    issuesEl.innerHTML = `<div class="info-box">This project is not enabled for <strong>${esc(S.activeRelease)}</strong>. Open <button class="btn btn-sm" onclick="nav('projects-config')">Projects</button> to add that market release, or pick a different release in the top bar.</div>`;
+    issuesEl.innerHTML = `<div class="info-box">This project is not enabled for <strong>${esc(releaseLabel)}</strong>. Open <button class="btn btn-sm" onclick="nav('projects-config')">Projects</button> to add that market release, or pick a different release in the top bar.</div>`;
     return;
   }
   if (skipReason === 'no-versions') {
-    issuesEl.innerHTML = `<div class="info-box">This project is set to patch releases only, and <strong>${esc(S.activeRelease)}</strong> has no patch names. Add patches in <button class="btn btn-sm" onclick="nav('releases-config')">Releases</button>, or change the include mode in Projects.</div>`;
+    issuesEl.innerHTML = `<div class="info-box">This project is set to patch releases only, and <strong>${esc(releaseLabel)}</strong> has no patch names. Add patches in <button class="btn btn-sm" onclick="nav('releases-config')">Releases</button>, or change the include mode in Projects.</div>`;
     return;
   }
-  if (!data) { issuesEl.innerHTML = `<div class="info-box">No synced data for ${esc(S.activeRelease)}. Open <button class="btn btn-sm" onclick="nav('connector')">Jira Connector</button> to sync it.</div>`; return; }
+  if (!data) { issuesEl.innerHTML = `<div class="info-box">No synced data for ${esc(releaseLabel)}. Open <button class="btn btn-sm" onclick="nav('connector')">Jira Connector</button> to sync it.</div>`; return; }
   if (data.err === 'not_configured') { issuesEl.innerHTML = `<div class="err-box">No synced data is available. Open <button class="btn btn-sm" onclick="nav('connector')">Jira Connector</button> to sync it.</div>`; return; }
   if (data.err) { issuesEl.innerHTML = `<div class="err-box">Error: ${esc(data.err)}</div>`; return; }
 
@@ -4568,7 +4832,7 @@ function renderProject(proj) {
   renderIssueTable(proj, issues, null);
 }
 
-function issuesForProjectStatCards(projKey) {
+function issuesForProjectStatCardsOriginal(projKey) {
   const d = S._projData && S._projData[projKey];
   if (!d) return [];
   const proj = getAllProjects().find(p => p.key === projKey);
@@ -4579,15 +4843,40 @@ function issuesForProjectStatCards(projKey) {
   return issues;
 }
 
-function renderProjectStatCards(projKey) {
+function issueMatchesListingSearchAndCols(proj, issue) {
+  const vf = qualityListingFields(proj, S.enabled.map(id => ALL_FIELDS.find(f => f.id === id)).filter(Boolean));
+  const st = getProjectColFilters(proj && proj.key);
+  const q = (st.q || '').trim().toLowerCase();
+  if (q) {
+    const hay = vf.map(f => String(getCellValue(issue, f))).join(' ').toLowerCase();
+    if (!hay.includes(q)) return false;
+  }
+  for (const [fieldId, selected] of Object.entries(st.cols || {})) {
+    if (!selected || !selected.size) continue;
+    const field = listingFieldById(fieldId);
+    if (!field) continue;
+    if (!selected.has(projectCellFilterKey(issue, field))) return false;
+  }
+  return true;
+}
+
+function issuesForProjectListingContext(projKey) {
   const d = S._projData && S._projData[projKey];
-  const statsEl = document.getElementById('stats-' + projKey);
-  if (!d || !statsEl) return;
+  if (!d) return [];
+  const proj = getAllProjects().find(p => p.key === projKey);
+  return issuesForProjectStatCardsOriginal(projKey).filter(issue => issueMatchesListingSearchAndCols(proj, issue));
+}
 
-  const issues = issuesForProjectStatCards(projKey);
+function issuesForProjectStatCards(projKey) {
+  return issuesForProjectListingContext(projKey);
+}
+
+function countIssuesByPhase(issues) {
   const sm = {};
-  issues.forEach(i => { const s = i.fields?.status?.name || 'Unknown'; sm[s] = (sm[s] || 0) + 1; });
-
+  (issues || []).forEach(i => {
+    const s = i.fields?.status?.name || 'Unknown';
+    sm[s] = (sm[s] || 0) + 1;
+  });
   const phaseCounts = {};
   PHASES.forEach(p => { phaseCounts[p.label] = 0; });
   const otherCounts = {};
@@ -4596,22 +4885,51 @@ function renderProjectStatCards(projKey) {
     if (matched) phaseCounts[matched.label] += count;
     else otherCounts[name] = (otherCounts[name] || 0) + count;
   });
+  return { sm, phaseCounts, otherCounts, total: (issues || []).length };
+}
+
+function renderProjectStatCards(projKey) {
+  const d = S._projData && S._projData[projKey];
+  const statsEl = document.getElementById('stats-' + projKey);
+  if (!d || !statsEl) return;
+
+  const originalIssues = issuesForProjectStatCardsOriginal(projKey);
+  const issues = issuesForProjectListingContext(projKey);
+  const orig = countIssuesByPhase(originalIssues);
+  const cur = countIssuesByPhase(issues);
+  const showOriginal = hasProjectColFilters(projKey) || cur.total !== orig.total;
+
+  const otherNames = [...new Set([...Object.keys(orig.otherCounts), ...Object.keys(cur.otherCounts)])]
+    .sort((a, b) => (cur.otherCounts[b] || orig.otherCounts[b] || 0) - (cur.otherCounts[a] || orig.otherCounts[a] || 0));
 
   const cardDefs = [{ label: 'Total', filter: null }]
     .concat(PHASES.map(p => ({ label: p.label, filter: { type: 'phase', phase: p } })))
-    .concat(Object.entries(otherCounts).sort((a, b) => b[1] - a[1]).map(([name]) => ({ label: name, filter: { type: 'status', name } })));
-  const cardCounts = { Total: issues.length };
-  PHASES.forEach(p => { cardCounts[p.label] = phaseCounts[p.label]; });
-  Object.entries(otherCounts).forEach(([n, v]) => { cardCounts[n] = v; });
+    .concat(otherNames.map(name => ({ label: name, filter: { type: 'status', name } })));
+  const cardCounts = { Total: cur.total };
+  const origCounts = { Total: orig.total };
+  PHASES.forEach(p => {
+    cardCounts[p.label] = cur.phaseCounts[p.label];
+    origCounts[p.label] = orig.phaseCounts[p.label];
+  });
+  otherNames.forEach(n => {
+    cardCounts[n] = cur.otherCounts[n] || 0;
+    origCounts[n] = orig.otherCounts[n] || 0;
+  });
 
   d.cardDefs = cardDefs;
-  d.sm = sm;
+  d.sm = cur.sm;
   const active = S.activeFilter && S.activeFilter[projKey];
-  statsEl.innerHTML = (d.partialWarning || '') + cardDefs.map(({ label }) =>
+  const visibleCards = cardDefs.filter(({ label }) => (cardCounts[label] || 0) > 0 || (origCounts[label] || 0) > 0 || label === 'Total');
+  const note = showOriginal
+    ? `<p class="stat-filter-note">Showing ${cur.total} of ${orig.total} issues. Original totals are under each card.</p>`
+    : '';
+  statsEl.innerHTML = (d.partialWarning || '') + note + `<div class="stat-strip">${visibleCards.map(({ label }) =>
     `<div class="stat-card${active === label ? ' active' : ''}" data-filter-key="${esc(label)}" style="cursor:pointer" onclick="filterByCard('${esc(projKey)}','${esc(label)}')">
-      <div class="sl">${esc(label)}</div><div class="sv">${cardCounts[label] || 0}</div>
+      <div class="sl">${esc(label)}</div>
+      <div class="sv">${cardCounts[label] || 0}</div>
+      ${showOriginal ? `<div class="so">of ${origCounts[label] || 0}</div>` : ''}
     </div>`
-  ).join('');
+  ).join('')}</div>`;
 }
 
 function navToPhase(projId, phaseLabel, scopeCommitment) {
@@ -4762,24 +5080,17 @@ function qualityListingFields(proj, enabledFields) {
 
 function getFilteredProjectIssues(projKey) {
   const proj = getAllProjects().find(p => p.key === projKey);
-  const vf = qualityListingFields(proj, S.enabled.map(id => ALL_FIELDS.find(f => f.id === id)).filter(Boolean));
-  const st = getProjectColFilters(projKey);
-  const q = (st.q || '').trim().toLowerCase();
   const jiraSelected = (proj && isQualityDashboardProject(proj)) ? getSelectedJiraProjects() : new Set();
   return getPhaseFilteredProjectIssues(projKey).filter(issue => {
     if (jiraSelected.size && !issueInSelectedJiraProjects(issue)) return false;
-    if (q) {
-      const hay = vf.map(f => String(getCellValue(issue, f))).join(' ').toLowerCase();
-      if (!hay.includes(q)) return false;
-    }
-    for (const [fieldId, selected] of Object.entries(st.cols || {})) {
-      if (!selected || !selected.size) continue;
-      const field = listingFieldById(fieldId);
-      if (!field) continue;
-      if (!selected.has(projectCellFilterKey(issue, field))) return false;
-    }
-    return true;
+    return issueMatchesListingSearchAndCols(proj, issue);
   });
+}
+
+function refreshProjectListing(projKey) {
+  const filter = S.activeFilter && S.activeFilter[projKey];
+  renderProjectStatCards(projKey);
+  renderIssueTable({ key: projKey }, getFilteredProjectIssues(projKey), filter);
 }
 
 function getProjectFieldValues(projKey, fieldId) {
@@ -4851,14 +5162,14 @@ function projectSort(projKey, fieldId) {
 
 function onProjectSearchInput(projKey, value) {
   getProjectColFilters(projKey).q = value;
-  renderIssueTable({ key: projKey });
+  refreshProjectListing(projKey);
   if (!_routeNavigating) syncRoute();
 }
 
 function clearProjectFilters(projKey) {
   S._projColFilter[projKey] = { q: '', cols: {} };
   closeProjectColFilter();
-  renderIssueTable({ key: projKey });
+  refreshProjectListing(projKey);
   if (!_routeNavigating) syncRoute();
 }
 
@@ -4950,7 +5261,7 @@ function toggleProjectColValue(projKey, fieldId, value, checked) {
   if (checked) st.cols[fieldId].add(value);
   else st.cols[fieldId].delete(value);
   normalizeProjectColSelection(projKey, fieldId);
-  renderIssueTable({ key: projKey });
+  refreshProjectListing(projKey);
   if (!_routeNavigating) syncRoute();
 }
 
@@ -4969,7 +5280,7 @@ function selectVisibleProjectColValues() {
     st.cols[open.fieldId].add(el.dataset.value);
   });
   normalizeProjectColSelection(open.projKey, open.fieldId);
-  renderIssueTable({ key: open.projKey });
+  refreshProjectListing(open.projKey);
   if (!_routeNavigating) syncRoute();
 }
 
@@ -4980,7 +5291,7 @@ function clearProjectColFilter() {
   delete st.cols[open.fieldId];
   const opts = document.getElementById('proj-col-filter-opts');
   if (opts) opts.querySelectorAll('input[type=checkbox]').forEach(cb => { cb.checked = false; });
-  renderIssueTable({ key: open.projKey });
+  refreshProjectListing(open.projKey);
   if (!_routeNavigating) syncRoute();
 }
 
@@ -4992,6 +5303,7 @@ function renderIssueTable(proj, issues, activeFilter) {
   const d = S._projData && S._projData[proj.key];
   const source = d ? (d.issues || []) : (issues || []);
   if (!source.length) {
+    setExportSnapshot({ page: S.page, title: proj.name || 'Tickets', tickets: [], filename: (proj.key || 'tickets') + '.html', emptyMessage: 'No issues to export.' });
     issuesEl.innerHTML=`<div class="state-box"><span>No issues found${activeFilter && activeFilter!=='Total' ? ' for "'+esc(activeFilter)+'"' : ''}.</span></div>`;
     return;
   }
@@ -5033,16 +5345,26 @@ function renderIssueTable(proj, issues, activeFilter) {
     : '';
 
   const shown = sorted.length;
-  const total = issuesForProjectStatCards(proj.key).length || source.length;
-  const countLabel = shown === total ? `${total} issue${total !== 1 ? 's' : ''}` : `${shown} of ${total} issues`;
+  const originalTotal = issuesForProjectStatCardsOriginal(proj.key).length || source.length;
+  const countLabel = shown === originalTotal ? `${originalTotal} issue${originalTotal !== 1 ? 's' : ''}` : `${shown} of ${originalTotal} issues`;
 
   const jiraPrefix = listingJiraProjectFilterPrefix(proj);
   const jiraFilterHtml = isQualityDashboardProject(proj) ? jiraProjectFilterToolbarHtml(jiraPrefix) : '';
+  setExportSnapshot({
+    page: S.page,
+    title: proj.name || proj.key,
+    kicker: `${S.activeRelease || 'Release'} · filtered ticket list`,
+    tickets: sorted.map(issue => exportTicketFromIssue(issue, proj)),
+    filename: `${proj.key}-tickets.html`,
+    toolbarMeta: [S.activeRelease, colSt.q && ('search: ' + colSt.q)].filter(Boolean).join(' · '),
+    emptyMessage: 'No matching issues to export.',
+  });
   issuesEl.innerHTML = `
     <div class="proj-table-tools">
       ${jiraFilterHtml}
       <input id="proj-search-${proj.key}" class="proj-search" type="search" placeholder="Search issues…" value="${esc(colSt.q || '')}" oninput='onProjectSearchInput(${JSON.stringify(proj.key)},this.value)' />
       ${hasProjectColFilters(proj.key) ? `<button class="btn btn-sm" onclick='clearProjectFilters(${JSON.stringify(proj.key)})'>Clear filters</button>` : ''}
+      <button class="btn btn-sm" type="button" onclick="exportCSV()" title="Export the filtered table">Export HTML</button>
       <span class="proj-count">${countLabel}</span>
     </div>
     <div class="table-wrap">
@@ -6362,6 +6684,26 @@ function renderVelocity() {
   window.toggleVelocityDetailsHTML = function(devId) {
     showVelocityDetails(devId, 'all');
   };
+
+  setExportSnapshot({
+    page: 'velocity',
+    title: 'Developer Velocity',
+    kicker: `${S.activeRelease || 'Release'} · filtered ticket list`,
+    tickets: devMetrics.flatMap(dev => (dev.tickets || []).map(t => ({
+      key: t.key,
+      summary: t.summary,
+      type: '',
+      priority: t.priority || '',
+      status: t.status || t.phase || '',
+      phase: t.phase || '',
+      assignee: dev.name,
+      estimate: t.estimate,
+      projectKey: t.project,
+      projectName: t.project,
+    }))),
+    filename: 'velocity-tickets.html',
+    emptyMessage: 'No velocity tickets match the current filters.',
+  });
   
   body.innerHTML = summaryCards + velocityTable;
 
@@ -6625,11 +6967,15 @@ function renderDataGaps() {
   let { missingEstimate, devDoneMissingActual, inDevMissingActual } = collectDataGapTickets(loaded);
   const gapPriorities = [...missingEstimate, ...devDoneMissingActual, ...inDevMissingActual].map(t => t.priority);
   buildQualityPriorityFilterOptions('data-gaps', gapPriorities);
+  const origMissing = missingEstimate.length;
+  const origDevDone = devDoneMissingActual.length;
+  const origInDev = inDevMissingActual.length;
   if (getSelectedQualityPriorities().size) {
     missingEstimate = missingEstimate.filter(t => ticketMatchesPriorityFilter(t.priority));
     devDoneMissingActual = devDoneMissingActual.filter(t => ticketMatchesPriorityFilter(t.priority));
     inDevMissingActual = inDevMissingActual.filter(t => ticketMatchesPriorityFilter(t.priority));
   }
+  const showGapOriginal = origMissing !== missingEstimate.length || origDevDone !== devDoneMissingActual.length || origInDev !== inDevMissingActual.length;
 
   const inDevNote = (!devDoneMissingActual.length && inDevMissingActual.length)
     ? `<div class="info-box">${inDevMissingActual.length} ticket(s) still in <strong>Product / Dev</strong> phases also lack actual days (e.g. Dev Merge, Dev CR) — not shown here because dev is not complete yet.</div>`
@@ -6649,9 +6995,9 @@ function renderDataGaps() {
 
   body.innerHTML = `
     <div class="stat-strip" style="margin-bottom:24px">
-      <div class="stat-card" style="border-color:var(--amber);cursor:pointer" onclick="toggleDataGapsSection('missingEstimate')"><div class="sl">Missing Estimate</div><div class="sv" style="color:var(--amber)">${missingEstimate.length}</div></div>
-      <div class="stat-card" style="border-color:var(--red);cursor:pointer" onclick="toggleDataGapsSection('devDoneMissingActual')"><div class="sl">Post-Dev, Missing Actual</div><div class="sv" style="color:var(--red)">${devDoneMissingActual.length}</div></div>
-      <div class="stat-card"><div class="sl">In-Dev, Missing Actual</div><div class="sv" style="color:var(--text3)">${inDevMissingActual.length}</div></div>
+      <div class="stat-card" style="border-color:var(--amber);cursor:pointer" onclick="toggleDataGapsSection('missingEstimate')"><div class="sl">Missing Estimate</div><div class="sv" style="color:var(--amber)">${missingEstimate.length}</div>${showGapOriginal ? `<div class="so">of ${origMissing}</div>` : ''}</div>
+      <div class="stat-card" style="border-color:var(--red);cursor:pointer" onclick="toggleDataGapsSection('devDoneMissingActual')"><div class="sl">Post-Dev, Missing Actual</div><div class="sv" style="color:var(--red)">${devDoneMissingActual.length}</div>${showGapOriginal ? `<div class="so">of ${origDevDone}</div>` : ''}</div>
+      <div class="stat-card"><div class="sl">In-Dev, Missing Actual</div><div class="sv" style="color:var(--text3)">${inDevMissingActual.length}</div>${showGapOriginal ? `<div class="so">of ${origInDev}</div>` : ''}</div>
     </div>
 
     ${renderDataGapsSection(
@@ -6672,6 +7018,31 @@ function renderDataGaps() {
       renderDataGapsTable('devDoneMissingActual', devDoneMissingActual)
     )}
   `;
+
+  const gapExportTickets = [
+    ...missingEstimate.map(t => ({ ...t, section: 'Missing Estimate' })),
+    ...devDoneMissingActual.map(t => ({ ...t, section: 'Post-Dev, Missing Actual' })),
+    ...inDevMissingActual.map(t => ({ ...t, section: 'In-Dev, Missing Actual' })),
+  ];
+  setExportSnapshot({
+    page: 'data-gaps',
+    title: 'Data Gaps',
+    kicker: `${S.activeRelease || 'Release'} · filtered ticket list`,
+    tickets: gapExportTickets.map(t => ({
+      key: t.key,
+      summary: t.summary,
+      type: t.section || '',
+      priority: t.priority || '',
+      status: t.status,
+      phase: t.phase,
+      assignee: t.devName,
+      estimate: t.hasEstimate ? t.estimate : '',
+      projectKey: t.project,
+      projectName: t.project,
+    })),
+    filename: 'data-gaps-tickets.html',
+    emptyMessage: 'No data-gap tickets match the current filters.',
+  });
 
   const fieldEst = jiraId(ALL_FIELDS.find(f => f.id === 'cf_devest') || { id: 'cf_devest', jira: 'customfield_10204' }) || 'customfield_10204';
   const fieldAct = jiraId(ALL_FIELDS.find(f => f.id === 'cf_devact') || { id: 'cf_devact', jira: 'customfield_10203' }) || 'customfield_10203';
@@ -7834,6 +8205,7 @@ function renderQualityInsights() {
   buildQualityPriorityFilterOptions('qi', []);
   syncQualityPriorityChartToggle();
   if (!S.activeRelease) {
+    setExportSnapshot({ page: 'quality-insights', title: 'Quality Insights', tickets: [], filename: 'quality-insights-tickets.html', emptyMessage: 'No quality tickets to export.' });
     body.innerHTML = `<div class="info-box">Select a market release in the top bar, then sync Quality projects from <button class="btn btn-sm" onclick="nav('connector')">Jira Connector</button>.</div>`;
     return;
   }
@@ -7855,6 +8227,27 @@ function renderQualityInsights() {
   buildQualityPriorityFilterOptions('qi', jiraFiltered.map(r => r.priority));
   syncQualityPriorityChartToggle();
   const rows = filterRowsByQualityPriority(jiraFiltered);
+  const unfilteredCount = allRows.length;
+  const showOriginal = rows.length !== unfilteredCount;
+  setExportSnapshot({
+    page: 'quality-insights',
+    title: S.activeRelease || 'Quality Insights',
+    kicker: 'Quality Insights · filtered ticket list',
+    tickets: rows.map(r => ({
+      key: r.key,
+      summary: r.summary,
+      type: r.type,
+      priority: r.priority,
+      status: r.status,
+      phase: r.phase,
+      assignee: r.owner || '',
+      estimate: '',
+      projectKey: r.module,
+      projectName: r.module || r.projectName,
+    })),
+    filename: 'quality-insights-tickets.html',
+    emptyMessage: 'No quality tickets match the current filters.',
+  });
   const market = S.activeRelease;
   const patches = getReleasePatchNames(findReleaseByName(market));
   const hideLifecycle = qualityJqlHidesLifecycle(projects);
@@ -7899,7 +8292,7 @@ function renderQualityInsights() {
   }
 
   const kpiHtml = [
-    `<div class="rr-kpi"><div class="v">${rows.length}</div><div class="l">Open tickets</div></div>`,
+    `<div class="rr-kpi"><div class="v">${rows.length}</div>${showOriginal ? `<div class="so">of ${unfilteredCount}</div>` : ''}<div class="l">Open tickets</div></div>`,
     `<div class="rr-kpi"><div class="v" style="color:var(--red)">${blockers.length}</div><div class="l">Blocker / critical</div></div>`,
     `<div class="rr-kpi"><div class="v">${high.length}</div><div class="l">High or above</div></div>`,
     `<div class="rr-kpi"><div class="v">${customer.length}</div><div class="l">Customer-impacting</div></div>`,
@@ -7914,7 +8307,7 @@ function renderQualityInsights() {
       <div class="rr-hero">
         <div class="rr-hero-k">${esc(market)} · Quality</div>
         <h3>Open defect risk</h3>
-        <p>${rows.length} open quality ticket${rows.length === 1 ? '' : 's'} across ${projects.length} Quality project${projects.length === 1 ? '' : 's'}${patches.length ? ` · ${patches.length} named patch${patches.length === 1 ? '' : 'es'}` : ''}.</p>
+        <p>${rows.length} open quality ticket${rows.length === 1 ? '' : 's'} across ${projects.length} Quality project${projects.length === 1 ? '' : 's'}${patches.length ? ` · ${patches.length} named patch${patches.length === 1 ? '' : 'es'}` : ''}${showOriginal ? ` · filtered from ${unfilteredCount}` : ''}.</p>
       </div>
       <div class="rr-kpi-grid" style="margin:16px 0">${kpiHtml}</div>
       <div class="rr-section" style="margin-bottom:16px">
@@ -8024,21 +8417,65 @@ function renderQualityInsights() {
     </div>`;
 }
 
-// ── CSV export ────────────────────────────────────────────────────────────────
-function exportCSV() {
-  const proj = getAllProjects().find(p=>p.id===S.page);
-  if (!proj||!S.cache[proj.key]||S.cache[proj.key].err) { alert('Load a project page first.'); return; }
-  const issues = S.cache[proj.key].issues || [];
-  const vf = S.enabled.map(id=>ALL_FIELDS.find(f=>f.id===id)).filter(Boolean);
-  const csv = [
-    vf.map(f=>'"'+f.label.replace(/"/g,'""')+'"').join(','),
-    ...issues.map(i => vf.map(f=>'"'+String(getCellValue(i,f)).replace(/"/g,'""')+'"').join(','))
-  ].join('\n');
-  const a = Object.assign(document.createElement('a'),{
-    href: URL.createObjectURL(new Blob(['\uFEFF'+csv],{type:'text/csv;charset=utf-8;'})),
-    download: proj.key+'_'+new Date().toISOString().slice(0,10)+'.csv'
-  });
-  a.click(); URL.revokeObjectURL(a.href);
+// ── Filtered HTML export (same ticket-list format as the release report) ─────
+function exportTicketFromIssue(issue, proj) {
+  const f = (issue && issue.fields) || {};
+  const status = f.status?.name || '';
+  const phase = getPhaseForStatus(status);
+  const dev = getDev(issue);
+  const jiraKey = qualityModuleFromKey(issue && issue.key);
+  const quality = proj && isQualityDashboardProject(proj);
+  return {
+    key: (issue && issue.key) || '',
+    summary: f.summary || '',
+    type: f.issuetype?.name || '',
+    priority: f.priority?.name || '',
+    status,
+    phase: phase ? phase.label : '',
+    assignee: (dev && dev !== 'Unassigned') ? dev : (f.assignee?.displayName || ''),
+    estimate: getIssueDays(issue, 'cf_devest', 'customfield_10204'),
+    projectKey: jiraKey || (proj && proj.key) || '',
+    projectName: quality ? (jiraKey || (proj && proj.name) || '') : ((proj && proj.name) || jiraKey || ''),
+  };
+}
+
+function setExportSnapshot(snap) {
+  S._exportSnapshot = snap || null;
+}
+
+async function exportCSV() {
+  const snap = S._exportSnapshot;
+  if (!snap || snap.page !== S.page) {
+    alert('Nothing to export on this page. Open a ticket list and apply filters first.');
+    return;
+  }
+  const tickets = snap.tickets || [];
+  if (!tickets.length) {
+    alert(snap.emptyMessage || 'No matching tickets to export.');
+    return;
+  }
+  try {
+    const res = await fetch(API_BASE + '/api/export/html', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        tickets,
+        title: snap.title || 'Tickets',
+        kicker: snap.kicker || 'Filtered ticket list',
+        groupBy: 'project-status',
+        jiraBaseUrl: String(S.creds?.url || '').replace(/\/+$/, ''),
+        toolbarMeta: snap.toolbarMeta || S.activeRelease || '',
+      }),
+    });
+    if (!res.ok) {
+      const json = await res.json().catch(() => ({}));
+      alert(json.error || 'Could not build HTML export.');
+      return;
+    }
+    triggerFileDownload(await res.blob(), snap.filename || 'tickets.html');
+  } catch (err) {
+    alert('Could not export: ' + (err && err.message ? err.message : err));
+  }
 }
 
 // ── Developer name helper ────────────────────────────────────────────────────
@@ -8167,6 +8604,7 @@ function renderTeam() {
 
   if (!allIssues.length) {
     buildQualityPriorityFilterOptions('team', []);
+    setExportSnapshot({ page: 'team', title: 'Team View', tickets: [], filename: 'team-tickets.html', emptyMessage: 'No team tickets to export.' });
     body.innerHTML = qualityInsightRedirectBox('team');
     return;
   }
@@ -8287,6 +8725,7 @@ function renderTeam() {
   });
 
   if (!filtered.length) {
+    setExportSnapshot({ page: 'team', title: 'Team View', tickets: [], filename: 'team-tickets.html', emptyMessage: 'No team tickets match the current filters.' });
     body.innerHTML = '<div class="team-empty">No tickets match the current filters.</div>';
     return;
   }
@@ -8373,7 +8812,18 @@ function renderTeam() {
     </div>`;
   }).join('');
 
-  body.innerHTML = `<div style="font-size:12px;color:var(--text3);margin-bottom:12px">${filtered.length} ticket${filtered.length!==1?'s':''} across ${Object.keys(devMap).length} developer${Object.keys(devMap).length!==1?'s':''}</div>${blocks}`;
+  const teamCountLabel = filtered.length === allIssues.length
+    ? `${filtered.length} ticket${filtered.length!==1?'s':''} across ${Object.keys(devMap).length} developer${Object.keys(devMap).length!==1?'s':''}`
+    : `${filtered.length} of ${allIssues.length} tickets across ${Object.keys(devMap).length} developer${Object.keys(devMap).length!==1?'s':''}`;
+  setExportSnapshot({
+    page: 'team',
+    title: 'Team View',
+    kicker: `${S.activeRelease || 'Release'} · filtered ticket list`,
+    tickets: filtered.map(({ proj, issue }) => exportTicketFromIssue(issue, proj)),
+    filename: 'team-tickets.html',
+    emptyMessage: 'No team tickets match the current filters.',
+  });
+  body.innerHTML = `<div style="font-size:12px;color:var(--text3);margin-bottom:12px">${teamCountLabel}</div>${blocks}`;
 }
 
 function navToDev(devName, phaseLabel) {
@@ -8916,6 +9366,15 @@ function renderPhaseTimeline() {
   if (getSelectedQualityPriorities().size) {
     filteredIssues = filteredIssues.filter(item => issueInSelectedQualityPriorities(item.issue));
   }
+
+  setExportSnapshot({
+    page: S.page,
+    title: isQualityInsightPage() ? 'Quality Phase' : 'Project Phase',
+    kicker: `${S.activeRelease || 'Release'} · filtered ticket list`,
+    tickets: filteredIssues.map(item => exportTicketFromIssue(item.issue, item.proj)),
+    filename: `${isQualityInsightPage() ? 'quality-phase' : 'phase'}-tickets.html`,
+    emptyMessage: 'No phase tickets match the current filters.',
+  });
 
   const now = new Date();
   const phaseChartRelease = getPhaseChartRelease(filteredProjects);
@@ -10563,6 +11022,22 @@ function renderDailyProgress() {
     });
   });
 
+  const progressTickets = [];
+  const progressSeen = new Set();
+  movementData.forEach(m => {
+    if (!m.key || progressSeen.has(m.key)) return;
+    progressSeen.add(m.key);
+    progressTickets.push(exportTicketFromIssue(m.issue, m.proj));
+  });
+  setExportSnapshot({
+    page: S.page,
+    title: isQualityInsightPage() ? 'Quality Progress' : 'Daily Progress',
+    kicker: `${S.activeRelease || 'Release'} · filtered ticket list`,
+    tickets: progressTickets,
+    filename: `${isQualityInsightPage() ? 'quality-progress' : 'daily-progress'}-tickets.html`,
+    emptyMessage: 'No ticket movements match the current filters.',
+  });
+
   if (movementData.length === 0) {
     contentEl.innerHTML = '<div class="info-box">No ticket movements in the selected time range.</div>';
     return;
@@ -11117,12 +11592,22 @@ function injectFixVersionIntoJql(jql, releases) {
 }
 
 function stripFixVersionFromJql(jql) {
-  return jql
-    .replace(/\s+AND\s+fixVersion\s+in\s*\([^)]*\)/gi, '')
-    .replace(/\s+AND\s+fixVersion\s*=\s*(?:"[^"]*"|[^\s]+)/gi, '')
-    .replace(/^\s*fixVersion\s+in\s*\([^)]*\)\s*(?:AND\s+)?/gi, '')
-    .replace(/^\s*fixVersion\s*=\s*(?:"[^"]*"|[^\s]+)\s*(?:AND\s+)?/gi, '')
-    .trim();
+  let out = String(jql || '');
+  [
+    /\s+AND\s+\(\s*fixVersion\s+not\s+in\s*\([^)]*\)\s+AND\s+fixVersion\s+is\s+not\s+EMPTY\s*\)/gi,
+    /\s+AND\s+fixVersion\s+is\s+not\s+EMPTY/gi,
+    /\s+AND\s+fixVersion\s+is\s+EMPTY/gi,
+    /\s+AND\s+fixVersion\s+not\s+in\s*\([^)]*\)/gi,
+    /\s+AND\s+fixVersion\s+in\s*\([^)]*\)/gi,
+    /\s+AND\s+fixVersion\s*=\s*(?:"[^"]*"|[^\s]+)/gi,
+    /^\s*\(\s*fixVersion\s+not\s+in\s*\([^)]*\)\s+AND\s+fixVersion\s+is\s+not\s+EMPTY\s*\)\s*(?:AND\s+)?/gi,
+    /^\s*fixVersion\s+is\s+not\s+EMPTY\s*(?:AND\s+)?/gi,
+    /^\s*fixVersion\s+is\s+EMPTY\s*(?:AND\s+)?/gi,
+    /^\s*fixVersion\s+not\s+in\s*\([^)]*\)\s*(?:AND\s+)?/gi,
+    /^\s*fixVersion\s+in\s*\([^)]*\)\s*(?:AND\s+)?/gi,
+    /^\s*fixVersion\s*=\s*(?:"[^"]*"|[^\s]+)\s*(?:AND\s+)?/gi,
+  ].forEach(re => { out = out.replace(re, ' '); });
+  return out.replace(/\s+/g, ' ').trim();
 }
 
 function formatProjectReleasesLabel(releases) {
@@ -11134,19 +11619,19 @@ function populateProjectReleaseMs(selectedReleases) {
   const optionsEl = document.getElementById('pmod-release-options');
   if (!optionsEl) return;
   const selected = new Set(selectedReleases || []);
-
-  if (!S.releases || S.releases.length === 0) {
-    optionsEl.innerHTML = '<div style="padding:10px 12px;font-size:12px;color:var(--text3)">No market releases configured — add one in Config &gt; Releases</div>';
-    updateProjectReleaseMsBtn();
-    return;
-  }
-
-  optionsEl.innerHTML = S.releases.map(release => `
+  const selectable = getSelectableReleases();
+  optionsEl.innerHTML = selectable.map(release => {
+    const hint = release.kind === 'blank'
+      ? 'fixVersion is EMPTY'
+      : release.kind === 'unplanned'
+        ? 'Included in fixVersion in (UnPlanned, …)'
+        : '';
+    return `
     <label class="ms-option">
       <input type="checkbox" value="${esc(release.name)}" onchange="updateProjectReleaseMsBtn()" ${selected.has(release.name) ? 'checked' : ''}>
-      <span class="ms-option-label" title="${esc(release.name)}">${esc(release.name)}</span>
-    </label>
-  `).join('');
+      <span class="ms-option-label" title="${esc(hint || release.name)}">${esc(release.name)}${hint ? `<span style="display:block;font-size:10px;color:var(--text3);font-weight:400">${esc(hint)}</span>` : ''}</span>
+    </label>`;
+  }).join('');
   updateProjectReleaseMsBtn();
 }
 
@@ -11183,6 +11668,12 @@ function updateProjectReleasePreview() {
     return;
   }
   const lines = selected.map(name => {
+    if (name === BLANK_RELEASE) {
+      return `<div><strong>${esc(name)}</strong> — fixVersion is EMPTY</div>`;
+    }
+    if (name === UNPLANNED_RELEASE) {
+      return `<div><strong>${esc(name)}</strong> — ${esc(UNPLANNED_RELEASE)}</div>`;
+    }
     const versions = expandFixVersionsForMode(name, mode, getReleasePatchNames(findReleaseByName(name)));
     if (!versions.length) {
       return `<div><strong>${esc(name)}</strong> — nothing to query (no patch names on this market release, and the include mode is patches only).</div>`;
@@ -11555,7 +12046,7 @@ async function saveProjectModal() {
   const msgEl = document.getElementById('pmod-msg');
 
   if (!jql)  { msgEl.textContent = 'JQL query is required.'; return; }
-  if (releases.length === 0) { msgEl.textContent = 'Select at least one market release. Add releases in Config > Releases first.'; return; }
+  if (releases.length === 0) { msgEl.textContent = 'Select at least one market release, Blank, or UnPlanned.'; return; }
 
   if (_projectModalMode === 'jql-only') {
     if (!_editingProjKey) { msgEl.textContent = 'Unknown project key.'; return; }
@@ -12024,7 +12515,8 @@ async function deleteRelease(index) {
   if (!confirm(`Delete ${releaseName}? This cannot be undone.`)) return;
   
   S.releases.splice(index, 1);
-  if (S.activeRelease === releaseName) S.activeRelease = '';
+  S.activeReleases = getSelectedReleaseNames().filter(name => name !== releaseName);
+  S.activeRelease = S.activeReleases[0] || '';
   delete S.releaseCache?.[releaseName];
   bindCacheToActiveRelease();
   delete S.lastSyncAt?.[releaseName];
