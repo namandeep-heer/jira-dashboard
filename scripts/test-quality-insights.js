@@ -198,4 +198,14 @@ const filteredHigh = filterRowsByQualityPriority(priRows, new Set(['High', 'Bloc
 assert.strictEqual(filteredHigh.length, 3);
 assert.strictEqual(filterRowsByQualityPriority(priRows, new Set()).length, 5);
 
+function ticketMatchesPriorityFilter(priorityName, selected) {
+  const set = selected instanceof Set ? selected : new Set(selected || []);
+  if (!set.size) return true;
+  return set.has(priorityName || 'None');
+}
+assert.strictEqual(ticketMatchesPriorityFilter('High', new Set()), true);
+assert.strictEqual(ticketMatchesPriorityFilter('High', new Set(['High'])), true);
+assert.strictEqual(ticketMatchesPriorityFilter('Low', new Set(['High'])), false);
+assert.strictEqual(ticketMatchesPriorityFilter('None', new Set(['None'])), true);
+
 console.log('quality-insights: ok');

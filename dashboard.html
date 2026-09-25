@@ -1069,6 +1069,20 @@ code { font-family: monospace; font-size: 12px; background: var(--bg3); padding:
                 </div>
               </div>
             </div>
+            <div class="ms-wrap">
+              <button class="ms-btn" id="velocity-priority-filter-btn" type="button" onclick="toggleQualityPriorityFilter('velocity')">
+                <span id="velocity-priority-filter-label">All priorities</span>
+                <span class="ms-badge" id="velocity-priority-filter-count" style="display:none">0</span>
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"/></svg>
+              </button>
+              <div class="ms-dropdown" id="velocity-priority-filter-dropdown">
+                <div class="ms-options" id="velocity-priority-filter-options"></div>
+                <div class="ms-footer">
+                  <button type="button" onclick="clearQualityPriorityFilter('velocity')">Clear</button>
+                  <button type="button" onclick="selectAllQualityPriorities('velocity')">Select All</button>
+                </div>
+              </div>
+            </div>
           </div>
         </div>
         <div id="velocity-body"></div>
@@ -1093,6 +1107,20 @@ code { font-family: monospace; font-size: 12px; background: var(--bg3); padding:
                 <div class="ms-footer">
                   <button onclick="clearDataGapsProjectFilter()">Clear</button>
                   <button onclick="selectAllDataGapsProjects()">Select All</button>
+                </div>
+              </div>
+            </div>
+            <div class="ms-wrap">
+              <button class="ms-btn" id="data-gaps-priority-filter-btn" type="button" onclick="toggleQualityPriorityFilter('data-gaps')">
+                <span id="data-gaps-priority-filter-label">All priorities</span>
+                <span class="ms-badge" id="data-gaps-priority-filter-count" style="display:none">0</span>
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"/></svg>
+              </button>
+              <div class="ms-dropdown" id="data-gaps-priority-filter-dropdown">
+                <div class="ms-options" id="data-gaps-priority-filter-options"></div>
+                <div class="ms-footer">
+                  <button type="button" onclick="clearQualityPriorityFilter('data-gaps')">Clear</button>
+                  <button type="button" onclick="selectAllQualityPriorities('data-gaps')">Select All</button>
                 </div>
               </div>
             </div>
@@ -1411,6 +1439,20 @@ code { font-family: monospace; font-size: 12px; background: var(--bg3); padding:
                 <div class="ms-footer"><button onclick="selectAllMs('phase')">Select all</button><button onclick="clearMs('phase')">Clear</button></div>
               </div>
             </div>
+            <div class="ms-wrap">
+              <button class="ms-btn" id="team-priority-filter-btn" type="button" onclick="toggleQualityPriorityFilter('team')">
+                <span id="team-priority-filter-label">All priorities</span>
+                <span class="ms-badge" id="team-priority-filter-count" style="display:none">0</span>
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"/></svg>
+              </button>
+              <div class="ms-dropdown" id="team-priority-filter-dropdown">
+                <div class="ms-options" id="team-priority-filter-options"></div>
+                <div class="ms-footer">
+                  <button type="button" onclick="clearQualityPriorityFilter('team')">Clear</button>
+                  <button type="button" onclick="selectAllQualityPriorities('team')">Select All</button>
+                </div>
+              </div>
+            </div>
             <div class="ms-wrap" id="ms-wrap-dev">
               <div class="ms-btn" id="ms-btn-dev" onclick="toggleMs('dev')">
                 <span id="ms-label-dev">Developers</span>
@@ -1481,6 +1523,20 @@ code { font-family: monospace; font-size: 12px; background: var(--bg3); padding:
                   <div class="ms-footer">
                     <button onclick="clearPhaseProjectFilter()">Clear</button>
                     <button onclick="selectAllPhaseProjects()">Select All</button>
+                  </div>
+                </div>
+              </div>
+              <div class="ms-wrap">
+                <button class="ms-btn" id="phase-priority-filter-btn" type="button" onclick="toggleQualityPriorityFilter('phase')">
+                  <span id="phase-priority-filter-label">All priorities</span>
+                  <span class="ms-badge" id="phase-priority-filter-count" style="display:none">0</span>
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"/></svg>
+                </button>
+                <div class="ms-dropdown" id="phase-priority-filter-dropdown">
+                  <div class="ms-options" id="phase-priority-filter-options"></div>
+                  <div class="ms-footer">
+                    <button type="button" onclick="clearQualityPriorityFilter('phase')">Clear</button>
+                    <button type="button" onclick="selectAllQualityPriorities('phase')">Select All</button>
                   </div>
                 </div>
               </div>
@@ -1571,6 +1627,20 @@ code { font-family: monospace; font-size: 12px; background: var(--bg3); padding:
                 <div class="ms-footer">
                   <button onclick="clearLogProjectFilter()">Clear</button>
                   <button onclick="selectAllLogProjects()">Select All</button>
+                </div>
+              </div>
+            </div>
+            <div class="ms-wrap">
+              <button class="ms-btn" id="log-priority-filter-btn" type="button" onclick="toggleQualityPriorityFilter('log')">
+                <span id="log-priority-filter-label">All priorities</span>
+                <span class="ms-badge" id="log-priority-filter-count" style="display:none">0</span>
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"/></svg>
+              </button>
+              <div class="ms-dropdown" id="log-priority-filter-dropdown">
+                <div class="ms-options" id="log-priority-filter-options"></div>
+                <div class="ms-footer">
+                  <button type="button" onclick="clearQualityPriorityFilter('log')">Clear</button>
+                  <button type="button" onclick="selectAllQualityPriorities('log')">Select All</button>
                 </div>
               </div>
             </div>
@@ -1860,6 +1930,7 @@ function applyPhaseSnapshots(periodMap, filteredIssues, periodType, now) {
         issue,
         key: issue.key,
         summary: issue.fields?.summary || '',
+        priority: qualityIssuePriorityName(issue),
         targetStatus: status,
         currentStatus: issue.fields?.status?.name || '',
         developer,
@@ -3300,6 +3371,8 @@ function applyPendingRouteState(page) {
         try { return decodeURIComponent(s.trim()); } catch (e) { return s.trim(); }
       }).filter(Boolean));
     }
+  }
+  if (['quality-insights', 'quality-phase', 'quality-progress', 'phase-timeline', 'log', 'team', 'velocity', 'data-gaps'].includes(page)) {
     const priorities = params.get('priorities');
     if (priorities) {
       S._qiPriorityFilter = new Set(priorities.split(',').map(s => {
@@ -3458,6 +3531,8 @@ function collectRouteParams() {
   } else if (page === 'velocity') {
     const projects = csvParam(getSelectedVelocityProjects());
     if (projects) params.set('projects', projects);
+    const priorities = csvParam(getSelectedQualityPriorities());
+    if (priorities) params.set('priorities', priorities);
     if (S._velocitySort) {
       params.set('sort', S._velocitySort.col);
       params.set('dir', S._velocitySort.dir < 0 ? 'desc' : 'asc');
@@ -3469,6 +3544,8 @@ function collectRouteParams() {
   } else if (page === 'data-gaps') {
     const projects = csvParam(getSelectedDataGapsProjects());
     if (projects) params.set('projects', projects);
+    const priorities = csvParam(getSelectedQualityPriorities());
+    if (priorities) params.set('priorities', priorities);
     if (S._dataGapsOpenSection) params.set('section', S._dataGapsOpenSection);
     if (S._dataGapsSort) {
       Object.entries(S._dataGapsSort).forEach(([sec, s]) => {
@@ -3513,6 +3590,8 @@ function collectRouteParams() {
       params.set('sort', S._teamSort.col);
       params.set('dir', S._teamSort.dir < 0 ? 'desc' : 'asc');
     }
+    const priorities = csvParam(getSelectedQualityPriorities());
+    if (priorities) params.set('priorities', priorities);
   } else if (page === 'phase-timeline' || page === 'quality-phase') {
     const projects = csvParam(getSelectedPhaseProjects());
     const developers = csvParam(getSelectedPhaseDevelopers());
@@ -3523,9 +3602,9 @@ function collectRouteParams() {
     if (page === 'quality-phase') {
       const jira = csvParam(getSelectedJiraProjects());
       if (jira) params.set('jiraProjects', jira);
-      const priorities = csvParam(getSelectedQualityPriorities());
-      if (priorities) params.set('priorities', priorities);
     }
+    const phasePriorities = csvParam(getSelectedQualityPriorities());
+    if (phasePriorities) params.set('priorities', phasePriorities);
     const period = insightEl('phase-period')?.value;
     const range = insightEl('phase-range')?.value;
     if (period && period !== 'week') params.set('period', period);
@@ -3556,9 +3635,9 @@ function collectRouteParams() {
     if (page === 'quality-progress') {
       const jira = csvParam(getSelectedJiraProjects());
       if (jira) params.set('jiraProjects', jira);
-      const priorities = csvParam(getSelectedQualityPriorities());
-      if (priorities) params.set('priorities', priorities);
     }
+    const logPriorities = csvParam(getSelectedQualityPriorities());
+    if (logPriorities) params.set('priorities', logPriorities);
     const period = insightEl('log-period')?.value;
     const range = insightEl('log-range')?.value;
     if (period && period !== 'week') params.set('period', period);
@@ -5049,11 +5128,7 @@ function renderCell(f, issue) {
     const cls=/progress|active|dev/i.test(sl)?'b-ip':/done|closed|resolved|complete/i.test(sl)?'b-done':/block/i.test(sl)?'b-blocked':/review|test/i.test(sl)?'b-review':'b-todo';
     return `<span class="badge ${cls}">${esc(s)}</span>`;
   }
-  if (f.id==='priority') {
-    const cl=/high|critical|blocker/i.test(s)?'pri-high':/low|minor/i.test(s)?'pri-low':'pri-med';
-    const ar=/high|critical|blocker/i.test(s)?'↑ ':/low|minor/i.test(s)?'↓ ':'→ ';
-    return `<span class="${cl}">${ar}${esc(s)}</span>`;
-  }
+  if (f.id==='priority') return renderPriorityCell(s);
   if (f.id==='issuetype') {
     const cl=s.toLowerCase()==='epic'?'type-epic':s.toLowerCase()==='enhancement'?'type-enh':'type-other';
     return `<span class="${cl}">${esc(s)}</span>`;
@@ -5902,6 +5977,7 @@ function renderVelocity() {
   const allLoaded = getDeliveryProjects().filter(p => S.cache[p.key] && !S.cache[p.key].err);
 
   if (!allLoaded.length) {
+    buildQualityPriorityFilterOptions('velocity', []);
     body.innerHTML = qualityInsightRedirectBox('velocity');
     return;
   }
@@ -5915,6 +5991,7 @@ function renderVelocity() {
     : allLoaded.filter(p => selectedProjects.has(p.key));
 
   if (!loaded.length) {
+    buildQualityPriorityFilterOptions('velocity', []);
     body.innerHTML = `<div class="info-box">No projects match the current filter.</div>`;
     return;
   }
@@ -5922,8 +5999,12 @@ function renderVelocity() {
   const devVelocity = {};
   const missingDataTickets = [];
   
+  const velocityPriorities = [];
   loaded.forEach(proj => {
     (S.cache[proj.key].issues || []).forEach(issue => {
+      const priority = qualityIssuePriorityName(issue);
+      velocityPriorities.push(priority);
+      if (!ticketMatchesPriorityFilter(priority)) return;
       const devName = getDev(issue);
       if (devName === 'Unassigned') return;
       
@@ -6020,6 +6101,7 @@ function renderVelocity() {
         actual: isCompleted ? actual : 0,
         status,
         phase: phase?.label || 'Other',
+        priority,
         project: proj.name,
         projectColor: proj.color,
         releases,
@@ -6028,7 +6110,8 @@ function renderVelocity() {
       });
     });
   });
-  
+  buildQualityPriorityFilterOptions('velocity', velocityPriorities);
+
   const devMetrics = Object.values(devVelocity).map(dev => {
     // Capacity needed = actuals from completed + estimates from incomplete
     const totalCapacityNeeded = dev.totalActual + (dev.totalEstimate - dev.completedEstimate);
@@ -6204,6 +6287,7 @@ function renderVelocity() {
             <a href="${jiraUrl}/browse/${esc(ticket.key)}" target="_blank" class="key-link">${esc(ticket.key)}</a>
             <span class="velocity-ticket-project" style="color:${ticket.projectColor}">${esc(ticket.project)}</span>
             <span class="velocity-ticket-phase">${esc(ticket.phase)}</span>
+            ${ticket.priority ? `<span class="velocity-ticket-release">${renderPriorityCell(ticket.priority)}</span>` : ''}
             ${ticket.releases ? `<span class="velocity-ticket-release">${esc(ticket.releases)}</span>` : ''}
           </div>
           <div class="velocity-ticket-summary">${esc(ticket.summary)}</div>
@@ -6392,6 +6476,7 @@ function collectDataGapTickets(loaded) {
         projectColor: proj.color,
         status,
         phase: phase?.label || 'Other',
+        priority: qualityIssuePriorityName(issue),
         releases,
         estimate,
         actual,
@@ -6430,6 +6515,7 @@ function renderDataGapsTable(section, tickets) {
       case 'dev': return (ticket.devName || '').toLowerCase();
       case 'status': return (ticket.status || '').toLowerCase();
       case 'phase': return (ticket.phase || '').toLowerCase();
+      case 'priority': return qualityPriorityRank(ticket.priority);
       case 'releases': return (ticket.releases || '').toLowerCase();
       case 'estimate': return ticket.estimate;
       case 'actual': return ticket.actual;
@@ -6462,6 +6548,7 @@ function renderDataGapsTable(section, tickets) {
       <td>${esc(ticket.devName)}</td>
       <td class="status-cell">${renderStatusBadge(ticket.status)}</td>
       <td>${esc(ticket.phase)}</td>
+      <td>${renderPriorityCell(ticket.priority)}</td>
       <td>${ticket.releases ? esc(ticket.releases) : '<span style="color:var(--text3)">—</span>'}</td>
       <td>${ticket.hasEstimate ? ticket.estimate.toFixed(1) + 'd' : '<span style="color:var(--red);font-weight:600">Missing</span>'}</td>
       <td>${ticket.hasActual ? ticket.actual.toFixed(1) + 'd' : '<span style="color:var(--red);font-weight:600">Missing</span>'}</td>
@@ -6478,6 +6565,7 @@ function renderDataGapsTable(section, tickets) {
           ${thSort('dev', 'Developer')}
           ${thSort('status', 'Status')}
           ${thSort('phase', 'Phase')}
+          ${thSort('priority', 'Priority')}
           ${thSort('releases', 'Release(s)')}
           ${thSort('estimate', 'Est Days')}
           ${thSort('actual', 'Actual Days')}
@@ -6515,6 +6603,7 @@ function renderDataGaps() {
   const allLoaded = getDeliveryProjects().filter(p => S.cache[p.key] && !S.cache[p.key].err);
 
   if (!allLoaded.length) {
+    buildQualityPriorityFilterOptions('data-gaps', []);
     body.innerHTML = qualityInsightRedirectBox('data-gaps');
     return;
   }
@@ -6528,11 +6617,19 @@ function renderDataGaps() {
     : allLoaded.filter(p => selectedProjects.has(p.key));
 
   if (!loaded.length) {
+    buildQualityPriorityFilterOptions('data-gaps', []);
     body.innerHTML = `<div class="info-box">No projects match the current filter.</div>`;
     return;
   }
 
-  const { missingEstimate, devDoneMissingActual, inDevMissingActual } = collectDataGapTickets(loaded);
+  let { missingEstimate, devDoneMissingActual, inDevMissingActual } = collectDataGapTickets(loaded);
+  const gapPriorities = [...missingEstimate, ...devDoneMissingActual, ...inDevMissingActual].map(t => t.priority);
+  buildQualityPriorityFilterOptions('data-gaps', gapPriorities);
+  if (getSelectedQualityPriorities().size) {
+    missingEstimate = missingEstimate.filter(t => ticketMatchesPriorityFilter(t.priority));
+    devDoneMissingActual = devDoneMissingActual.filter(t => ticketMatchesPriorityFilter(t.priority));
+    inDevMissingActual = inDevMissingActual.filter(t => ticketMatchesPriorityFilter(t.priority));
+  }
 
   const inDevNote = (!devDoneMissingActual.length && inDevMissingActual.length)
     ? `<div class="info-box">${inDevMissingActual.length} ticket(s) still in <strong>Product / Dev</strong> phases also lack actual days (e.g. Dev Merge, Dev CR) — not shown here because dev is not complete yet.</div>`
@@ -7132,6 +7229,36 @@ function qualityPriorityColor(priority) {
   return '#888780';
 }
 
+function renderPriorityCell(priority) {
+  const s = String(priority || '').trim();
+  if (!s || s === 'None') return '<span style="color:var(--text3)">—</span>';
+  const cl = /high|critical|blocker|highest/i.test(s) ? 'pri-high'
+    : /low|minor|lowest|trivial/i.test(s) ? 'pri-low'
+    : 'pri-med';
+  const ar = /high|critical|blocker|highest/i.test(s) ? '↑ '
+    : /low|minor|lowest|trivial/i.test(s) ? '↓ '
+    : '→ ';
+  return `<span class="${cl}">${ar}${esc(s)}</span>`;
+}
+
+function currentPriorityFilterPrefix() {
+  if (S.page === 'quality-insights') return 'qi';
+  if (S.page === 'quality-phase') return 'qi-phase';
+  if (S.page === 'quality-progress') return 'qi-log';
+  if (S.page === 'phase-timeline') return 'phase';
+  if (S.page === 'log') return 'log';
+  if (S.page === 'team') return 'team';
+  if (S.page === 'velocity') return 'velocity';
+  if (S.page === 'data-gaps') return 'data-gaps';
+  return 'qi';
+}
+
+function ticketMatchesPriorityFilter(priorityName) {
+  const selected = getSelectedQualityPriorities();
+  if (!selected.size) return true;
+  return selected.has(priorityName || 'None');
+}
+
 function countQualityPriorityBuckets(rows) {
   const map = {};
   (rows || []).forEach(row => {
@@ -7399,8 +7526,11 @@ function toggleQualityPriorityOnChart(checked) {
 
 function refreshQualityJiraProjectViews() {
   if (S.page === 'quality-insights') renderQualityInsights();
-  else if (S.page === 'quality-phase') renderPhaseTimeline();
-  else if (S.page === 'quality-progress') renderDailyProgress();
+  else if (S.page === 'quality-phase' || S.page === 'phase-timeline') renderPhaseTimeline();
+  else if (S.page === 'quality-progress' || S.page === 'log') renderDailyProgress();
+  else if (S.page === 'team') renderTeam();
+  else if (S.page === 'velocity') renderVelocity();
+  else if (S.page === 'data-gaps') renderDataGaps();
   else {
     const proj = getAllProjects().find(p => p.id === S.page);
     if (proj && isQualityDashboardProject(proj)) {
@@ -7614,7 +7744,7 @@ function renderQualityTicketTable(rows, emptyText) {
         <td>${esc(r.summary)}</td>
         <td><span style="display:inline-flex;align-items:center;gap:6px"><span style="width:8px;height:8px;border-radius:50%;background:${jiraProjectColor(r.module)};display:inline-block"></span>${esc(r.module)}</span></td>
         <td><span style="display:inline-flex;align-items:center;gap:6px"><span style="width:8px;height:8px;border-radius:50%;background:${r.color};display:inline-block"></span>${esc(r.projectName)}</span></td>
-        <td>${esc(r.priority)}</td>
+        <td>${renderPriorityCell(r.priority)}</td>
         <td>${esc(r.status)}</td>
         <td>${esc(r.owner || 'Unowned')}</td>
         <td>${r.ageDays ? r.ageDays + 'd' : '—'}</td>
@@ -8036,6 +8166,7 @@ function renderTeam() {
   });
 
   if (!allIssues.length) {
+    buildQualityPriorityFilterOptions('team', []);
     body.innerHTML = qualityInsightRedirectBox('team');
     return;
   }
@@ -8092,6 +8223,7 @@ function renderTeam() {
   populateMs('assignee', allAssignees);
   populateMs('scope',   allScopeCommitments);
   ['project','phase','dev','product','assignee','scope'].forEach(updateMsBtn);
+  buildQualityPriorityFilterOptions('team', allIssues.map(({issue}) => qualityIssuePriorityName(issue)));
 
   // Remove dev entries no longer in data
   const devSet = new Set(allDevs);
@@ -8145,6 +8277,7 @@ function renderTeam() {
     }
     
     if (fScopes.size && !fScopes.has(getScopeCommitment(issue))) return false;
+    if (!ticketMatchesPriorityFilter(qualityIssuePriorityName(issue))) return false;
     if (fSearch) {
       const key = (issue.key || '').toLowerCase();
       const sum = (issue.fields?.summary || '').toLowerCase();
@@ -8169,6 +8302,7 @@ function renderTeam() {
     if (ts.col === 'status')  return (issue.fields?.status?.name || '').toLowerCase();
     if (ts.col === 'phase') { const ph = getPhaseForStatus(issue.fields?.status?.name || ''); return ph ? ph.label.toLowerCase() : 'zzz'; }
     if (ts.col === 'project') return proj.name.toLowerCase();
+    if (ts.col === 'priority') return qualityPriorityRank(qualityIssuePriorityName(issue));
     return '';
   }
   filtered.sort((a, b) => { const r = sortVal(a) < sortVal(b) ? -1 : sortVal(a) > sortVal(b) ? 1 : 0; return r * ts.dir; });
@@ -8211,7 +8345,7 @@ function renderTeam() {
         <td><span style="display:inline-flex;align-items:center;gap:5px"><span class="team-proj-dot" style="background:${proj.color}"></span>${esc(proj.name)}</span></td>
         <td><span class="log-badge-to" style="background:${phColor}20;color:${phColor}">${esc(phLabel)}</span></td>
         <td><span class="log-badge-from">${esc(status)}</span></td>
-        <td style="color:var(--text3);font-size:12px">${esc(priority)}</td>
+        <td>${renderPriorityCell(priority)}</td>
         <td style="font-weight:500;color:var(--text)">${scopeValue ? esc(scopeValue) : '<span style="color:var(--text3)">—</span>'}</td>
       </tr>`;
     }).join('');
@@ -8690,10 +8824,8 @@ function renderPhaseTimeline() {
     clearPhaseChartSlot();
     contentEl.innerHTML = qualityInsightRedirectBox(isQualityInsightPage() ? 'quality' : 'phase');
     buildPhaseProjectFilterOptions(loaded);
-    if (isQualityInsightPage()) {
-      buildJiraProjectFilterOptions('qi-phase', getQualityProjects());
-      buildQualityPriorityFilterOptions('qi-phase', []);
-    }
+    if (isQualityInsightPage()) buildJiraProjectFilterOptions('qi-phase', getQualityProjects());
+    buildQualityPriorityFilterOptions(isQualityInsightPage() ? 'qi-phase' : 'phase', []);
     buildPhaseMilestoneFilterOptions(getDatedReleaseMilestones(getPhaseChartRelease([])));
     return;
   }
@@ -8776,10 +8908,13 @@ function renderPhaseTimeline() {
     if (selectedJira.size) {
       filteredIssues = filteredIssues.filter(item => selectedJira.has(qualityModuleFromKey(item.issue.key)));
     }
-    buildQualityPriorityFilterOptions('qi-phase', filteredIssues.map(item => qualityIssuePriorityName(item.issue)));
-    if (getSelectedQualityPriorities().size) {
-      filteredIssues = filteredIssues.filter(item => issueInSelectedQualityPriorities(item.issue));
-    }
+  }
+  buildQualityPriorityFilterOptions(
+    isQualityInsightPage() ? 'qi-phase' : 'phase',
+    filteredIssues.map(item => qualityIssuePriorityName(item.issue))
+  );
+  if (getSelectedQualityPriorities().size) {
+    filteredIssues = filteredIssues.filter(item => issueInSelectedQualityPriorities(item.issue));
   }
 
   const now = new Date();
@@ -8880,6 +9015,7 @@ function renderPhaseTimeline() {
       if (qualityMode ? (prodDevDate && bounceDate && reworkDate) : (prodDevDate && qaDate && closedDate)) break;
     }
     
+    const priority = qualityIssuePriorityName(issue);
     if (prodDevDate) {
       prodToDev.push({
         proj,
@@ -8887,6 +9023,7 @@ function renderPhaseTimeline() {
         eventDate: prodDevDate,
         key: issue.key,
         summary: issue.fields?.summary || '',
+        priority,
         targetStatus: prodDevTargetStatus,
         currentStatus,
         currentPhase,
@@ -8901,6 +9038,7 @@ function renderPhaseTimeline() {
         eventDate: qaDate,
         key: issue.key,
         summary: issue.fields?.summary || '',
+        priority,
         targetStatus: qaTargetStatus,
         currentStatus,
         currentPhase,
@@ -8915,6 +9053,7 @@ function renderPhaseTimeline() {
         eventDate: closedDate,
         key: issue.key,
         summary: issue.fields?.summary || '',
+        priority,
         targetStatus: closedTargetStatus,
         currentStatus,
         currentPhase,
@@ -8925,14 +9064,14 @@ function renderPhaseTimeline() {
     if (bounceDate) {
       bounceEvents.push({
         proj, issue, eventDate: bounceDate, key: issue.key,
-        summary: issue.fields?.summary || '', targetStatus: bounceTargetStatus,
+        summary: issue.fields?.summary || '', priority, targetStatus: bounceTargetStatus,
         currentStatus, currentPhase, developer, assignee
       });
     }
     if (reworkDate) {
       reworkEvents.push({
         proj, issue, eventDate: reworkDate, key: issue.key,
-        summary: issue.fields?.summary || '', targetStatus: reworkTargetStatus,
+        summary: issue.fields?.summary || '', priority, targetStatus: reworkTargetStatus,
         currentStatus, currentPhase, developer, assignee
       });
     }
@@ -9025,6 +9164,7 @@ function renderPhaseTimeline() {
             <th>Summary</th>
             ${showJiraProject ? '<th style="width:80px">Project</th>' : ''}
             ${showProjectCol ? `<th style="width:140px">${showJiraProject ? 'Queue' : 'Project'}</th>` : ''}
+            <th style="width:90px">Priority</th>
             <th style="width:120px">Developer</th>
             <th style="width:110px">${statusCol}</th>
             <th style="width:130px">${dateCol}</th>
@@ -9039,6 +9179,7 @@ function renderPhaseTimeline() {
               <td style="max-width:280px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(t.summary)}</td>
               ${showJiraProject ? `<td><span style="display:inline-flex;align-items:center;gap:5px"><span style="width:7px;height:7px;border-radius:50%;background:${jiraProjectColor(jiraKey)}"></span>${esc(jiraKey)}</span></td>` : ''}
               ${showProjectCol ? `<td><span style="display:inline-flex;align-items:center;gap:5px"><span style="width:7px;height:7px;border-radius:50%;background:${t.proj.color}"></span>${esc(t.proj.name)}</span></td>` : ''}
+              <td style="font-size:10px">${renderPriorityCell(t.priority || qualityIssuePriorityName(t.issue))}</td>
               <td style="font-size:10px;color:var(--text2)">${esc(t.developer)}</td>
               <td style="font-size:10px">${esc(t.targetStatus || t.currentStatus)}</td>
               <td style="font-size:10px;color:var(--text3)">${formatDateTime(t.eventDate)}</td>
@@ -10100,6 +10241,7 @@ function renderLogMovementsTable(items, options = {}) {
           <th>Summary</th>
           ${showJiraProject ? '<th style="width:80px">Project</th>' : ''}
           ${showProjectCol ? `<th style="width:140px">${showJiraProject ? 'Queue' : 'Project'}</th>` : ''}
+          <th style="width:90px">Priority</th>
           <th style="width:200px">From → To</th>
           <th style="width:120px">Direction</th>
           <th style="width:140px">Developer</th>
@@ -10123,6 +10265,7 @@ function renderLogMovementsTable(items, options = {}) {
             <td style="max-width:280px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(m.summary)}</td>
             ${showJiraProject ? `<td><span style="display:inline-flex;align-items:center;gap:6px"><span style="width:8px;height:8px;border-radius:50%;background:${jiraProjectColor(jiraKey)}"></span>${esc(jiraKey)}</span></td>` : ''}
             ${showProjectCol ? `<td><span style="display:inline-flex;align-items:center;gap:6px"><span style="width:8px;height:8px;border-radius:50%;background:${m.proj.color}"></span>${esc(m.proj.name)}</span></td>` : ''}
+            <td>${renderPriorityCell(m.priority || qualityIssuePriorityName(m.issue))}</td>
             <td style="font-size:11px">
               <span style="color:${m.fromColor}">${esc(m.from)}</span>
               <span style="color:var(--text3)"> → </span>
@@ -10298,10 +10441,8 @@ function renderDailyProgress() {
   if (!loaded.length) {
     contentEl.innerHTML = qualityInsightRedirectBox(isQualityInsightPage() ? 'quality' : 'log');
     buildLogProjectFilterOptions(loaded);
-    if (isQualityInsightPage()) {
-      buildJiraProjectFilterOptions('qi-log', getQualityProjects());
-      buildQualityPriorityFilterOptions('qi-log', []);
-    }
+    if (isQualityInsightPage()) buildJiraProjectFilterOptions('qi-log', getQualityProjects());
+    buildQualityPriorityFilterOptions(isQualityInsightPage() ? 'qi-log' : 'log', []);
     return;
   }
 
@@ -10368,10 +10509,13 @@ function renderDailyProgress() {
     if (selectedJira.size) {
       filteredIssues = filteredIssues.filter(item => selectedJira.has(qualityModuleFromKey(item.issue.key)));
     }
-    buildQualityPriorityFilterOptions('qi-log', filteredIssues.map(item => qualityIssuePriorityName(item.issue)));
-    if (getSelectedQualityPriorities().size) {
-      filteredIssues = filteredIssues.filter(item => issueInSelectedQualityPriorities(item.issue));
-    }
+  }
+  buildQualityPriorityFilterOptions(
+    isQualityInsightPage() ? 'qi-log' : 'log',
+    filteredIssues.map(item => qualityIssuePriorityName(item.issue))
+  );
+  if (getSelectedQualityPriorities().size) {
+    filteredIssues = filteredIssues.filter(item => issueInSelectedQualityPriorities(item.issue));
   }
 
   // Get current date and range start date
@@ -10411,7 +10555,8 @@ function renderDailyProgress() {
             toColor: toPhase?.color || '#888780',
             author: history.author?.displayName || 'Unknown',
             assignee: assignee,
-            developer: developer
+            developer: developer,
+            priority: qualityIssuePriorityName(issue)
           });
         });
       }
