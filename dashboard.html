@@ -593,6 +593,10 @@ body.phase-chart-fs-active { overflow: hidden; }
 .ms-footer { display:flex; justify-content:space-between; padding:6px 10px; border-top:0.5px solid var(--border); }
 .ms-footer button { font-size:11px; color:var(--blue); background:none; border:none; cursor:pointer; font-family:inherit; padding:2px 4px; }
 .ms-footer button:hover { text-decoration:underline; }
+.qi-show-chart { display:inline-flex; align-items:center; gap:6px; padding:6px 10px; border:0.5px solid var(--border2); border-radius:var(--radius); background:var(--bg); color:var(--text); font-size:13px; font-family:inherit; cursor:pointer; white-space:nowrap; user-select:none; }
+.qi-show-chart:hover { background:var(--bg2); }
+.qi-show-chart.is-on { border-color:var(--blue); color:var(--blue); background:var(--blue-bg); }
+.qi-show-chart input { accent-color:var(--blue); }
 .release-mode-options { display:flex; flex-direction:column; gap:8px; }
 .release-mode-option { display:flex; align-items:flex-start; gap:8px; padding:8px 10px; border:0.5px solid var(--border); border-radius:var(--radius); background:var(--bg); cursor:pointer; }
 .release-mode-option:hover { border-color:var(--border2); }
@@ -1185,6 +1189,24 @@ code { font-family: monospace; font-size: 12px; background: var(--bg3); padding:
                 </div>
               </div>
             </div>
+            <div class="ms-wrap">
+              <button class="ms-btn" id="qi-priority-filter-btn" type="button" onclick="toggleQualityPriorityFilter('qi')">
+                <span id="qi-priority-filter-label">All priorities</span>
+                <span class="ms-badge" id="qi-priority-filter-count" style="display:none">0</span>
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"/></svg>
+              </button>
+              <div class="ms-dropdown" id="qi-priority-filter-dropdown">
+                <div class="ms-options" id="qi-priority-filter-options"></div>
+                <div class="ms-footer">
+                  <button type="button" onclick="clearQualityPriorityFilter('qi')">Clear</button>
+                  <button type="button" onclick="selectAllQualityPriorities('qi')">Select All</button>
+                </div>
+              </div>
+            </div>
+            <label class="qi-show-chart" id="qi-priority-chart-toggle-wrap" title="Show a priority breakdown in the Queue charts">
+              <input type="checkbox" id="qi-priority-chart-toggle" checked onchange="toggleQualityPriorityOnChart(this.checked)">
+              Show on chart
+            </label>
           </div>
         </div>
         <div id="quality-insights-body"></div>
@@ -1224,6 +1246,20 @@ code { font-family: monospace; font-size: 12px; background: var(--bg3); padding:
                   <div class="ms-footer">
                     <button type="button" onclick="clearJiraProjectFilter('qi-phase')">Clear</button>
                     <button type="button" onclick="selectAllJiraProjects('qi-phase')">Select All</button>
+                  </div>
+                </div>
+              </div>
+              <div class="ms-wrap">
+                <button class="ms-btn" id="qi-phase-priority-filter-btn" type="button" onclick="toggleQualityPriorityFilter('qi-phase')">
+                  <span id="qi-phase-priority-filter-label">All priorities</span>
+                  <span class="ms-badge" id="qi-phase-priority-filter-count" style="display:none">0</span>
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"/></svg>
+                </button>
+                <div class="ms-dropdown" id="qi-phase-priority-filter-dropdown">
+                  <div class="ms-options" id="qi-phase-priority-filter-options"></div>
+                  <div class="ms-footer">
+                    <button type="button" onclick="clearQualityPriorityFilter('qi-phase')">Clear</button>
+                    <button type="button" onclick="selectAllQualityPriorities('qi-phase')">Select All</button>
                   </div>
                 </div>
               </div>
@@ -1297,6 +1333,20 @@ code { font-family: monospace; font-size: 12px; background: var(--bg3); padding:
                 <div class="ms-footer">
                   <button type="button" onclick="clearJiraProjectFilter('qi-log')">Clear</button>
                   <button type="button" onclick="selectAllJiraProjects('qi-log')">Select All</button>
+                </div>
+              </div>
+            </div>
+            <div class="ms-wrap">
+              <button class="ms-btn" id="qi-log-priority-filter-btn" type="button" onclick="toggleQualityPriorityFilter('qi-log')">
+                <span id="qi-log-priority-filter-label">All priorities</span>
+                <span class="ms-badge" id="qi-log-priority-filter-count" style="display:none">0</span>
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"/></svg>
+              </button>
+              <div class="ms-dropdown" id="qi-log-priority-filter-dropdown">
+                <div class="ms-options" id="qi-log-priority-filter-options"></div>
+                <div class="ms-footer">
+                  <button type="button" onclick="clearQualityPriorityFilter('qi-log')">Clear</button>
+                  <button type="button" onclick="selectAllQualityPriorities('qi-log')">Select All</button>
                 </div>
               </div>
             </div>
@@ -3250,6 +3300,12 @@ function applyPendingRouteState(page) {
         try { return decodeURIComponent(s.trim()); } catch (e) { return s.trim(); }
       }).filter(Boolean));
     }
+    const priorities = params.get('priorities');
+    if (priorities) {
+      S._qiPriorityFilter = new Set(priorities.split(',').map(s => {
+        try { return decodeURIComponent(s.trim()); } catch (e) { return s.trim(); }
+      }).filter(Boolean));
+    }
   }
   if (page === 'quality-insights') {
     const projects = params.get('projects');
@@ -3258,6 +3314,8 @@ function applyPendingRouteState(page) {
         try { return decodeURIComponent(s.trim()); } catch (e) { return s.trim(); }
       }).filter(Boolean));
     }
+    if (params.get('showPriority') === '0') S._qiShowPriorityOnChart = false;
+    if (params.get('showPriority') === '1') S._qiShowPriorityOnChart = true;
   }
 
   if (page === 'release-report') {
@@ -3439,6 +3497,9 @@ function collectRouteParams() {
     if (queues) params.set('projects', queues);
     const jira = csvParam(getSelectedJiraProjects());
     if (jira) params.set('jiraProjects', jira);
+    const priorities = csvParam(getSelectedQualityPriorities());
+    if (priorities) params.set('priorities', priorities);
+    if (S._qiShowPriorityOnChart === false) params.set('showPriority', '0');
   } else if (page === 'team') {
     if (S._msState) {
       ['project', 'phase', 'dev', 'product', 'assignee', 'scope'].forEach(id => {
@@ -3462,6 +3523,8 @@ function collectRouteParams() {
     if (page === 'quality-phase') {
       const jira = csvParam(getSelectedJiraProjects());
       if (jira) params.set('jiraProjects', jira);
+      const priorities = csvParam(getSelectedQualityPriorities());
+      if (priorities) params.set('priorities', priorities);
     }
     const period = insightEl('phase-period')?.value;
     const range = insightEl('phase-range')?.value;
@@ -3493,6 +3556,8 @@ function collectRouteParams() {
     if (page === 'quality-progress') {
       const jira = csvParam(getSelectedJiraProjects());
       if (jira) params.set('jiraProjects', jira);
+      const priorities = csvParam(getSelectedQualityPriorities());
+      if (priorities) params.set('priorities', priorities);
     }
     const period = insightEl('log-period')?.value;
     const range = insightEl('log-range')?.value;
@@ -7049,6 +7114,47 @@ function isHighQualityPriority(priority) {
   return isSevereQualityPriority(priority) || /\bhigh\b/i.test(priority || '');
 }
 
+function qualityIssuePriorityName(issue) {
+  return (issue && issue.fields && issue.fields.priority && issue.fields.priority.name) || 'None';
+}
+
+function qualityPriorityRank(priority) {
+  const rank = PRIORITY_RANK[String(priority || '').toLowerCase()];
+  return rank != null ? rank : 50;
+}
+
+function qualityPriorityColor(priority) {
+  const s = String(priority || '').toLowerCase();
+  if (/blocker|highest|critical/.test(s)) return '#A32D2D';
+  if (/\bhigh\b|major/.test(s)) return '#c47a0f';
+  if (/medium|normal/.test(s)) return '#533AB7';
+  if (/\blow\b|minor|lowest|trivial/.test(s)) return '#3B6D11';
+  return '#888780';
+}
+
+function countQualityPriorityBuckets(rows) {
+  const map = {};
+  (rows || []).forEach(row => {
+    const label = row.priority || 'None';
+    map[label] = (map[label] || 0) + 1;
+  });
+  return Object.entries(map)
+    .sort((a, b) => qualityPriorityRank(a[0]) - qualityPriorityRank(b[0]) || b[1] - a[1])
+    .map(([label, count]) => ({ label, count, color: qualityPriorityColor(label) }));
+}
+
+function filterRowsByQualityPriority(rows) {
+  const selected = getSelectedQualityPriorities();
+  if (!selected.size) return rows || [];
+  return (rows || []).filter(row => selected.has(row.priority || 'None'));
+}
+
+function issueInSelectedQualityPriorities(issue) {
+  const selected = getSelectedQualityPriorities();
+  if (!selected.size) return true;
+  return selected.has(qualityIssuePriorityName(issue));
+}
+
 function qualityAgeBand(days) {
   const n = Number(days) || 0;
   if (n <= 7) return '0–7 days';
@@ -7186,6 +7292,109 @@ function selectAllJiraProjects(prefix) {
   const optionsEl = document.getElementById(prefix + '-jira-project-filter-options');
   if (optionsEl) optionsEl.querySelectorAll('input[type="checkbox"]').forEach(cb => { cb.checked = true; });
   updateJiraProjectFilter(prefix);
+}
+
+function getSelectedQualityPriorities() {
+  return S._qiPriorityFilter instanceof Set ? S._qiPriorityFilter : new Set();
+}
+
+function qualityPriorityShownOnChart() {
+  return S._qiShowPriorityOnChart !== false;
+}
+
+function syncQualityPriorityFilterButton(prefix) {
+  const selected = getSelectedQualityPriorities();
+  const btn = document.getElementById(prefix + '-priority-filter-btn');
+  const label = document.getElementById(prefix + '-priority-filter-label');
+  const badge = document.getElementById(prefix + '-priority-filter-count');
+  if (!label) return;
+  if (selected.size === 0) {
+    label.textContent = 'All priorities';
+    if (badge) badge.style.display = 'none';
+    btn && btn.classList.remove('has-selection');
+  } else {
+    label.textContent = selected.size === 1 ? [...selected][0] : 'Priorities';
+    if (badge) {
+      badge.textContent = selected.size;
+      badge.style.display = '';
+    }
+    btn && btn.classList.add('has-selection');
+  }
+}
+
+function syncQualityPriorityChartToggle() {
+  const el = document.getElementById('qi-priority-chart-toggle');
+  const wrap = document.getElementById('qi-priority-chart-toggle-wrap');
+  const on = qualityPriorityShownOnChart();
+  if (el) el.checked = on;
+  if (wrap) wrap.classList.toggle('is-on', on);
+}
+
+function buildQualityPriorityFilterOptions(prefix, priorities) {
+  const optionsEl = document.getElementById(prefix + '-priority-filter-options');
+  if (!optionsEl) return;
+  const keys = [...new Set((priorities || []).map(p => p || 'None'))]
+    .sort((a, b) => qualityPriorityRank(a) - qualityPriorityRank(b) || String(a).localeCompare(String(b)));
+  const selected = getSelectedQualityPriorities();
+  optionsEl.innerHTML = keys.length
+    ? keys.map(key => `
+    <label class="ms-option">
+      <input type="checkbox" value="${esc(key)}" ${selected.has(key) ? 'checked' : ''} onchange="updateQualityPriorityFilter('${prefix}')">
+      <span class="ms-option-label">
+        <span style="width:8px;height:8px;border-radius:50%;background:${qualityPriorityColor(key)};display:inline-block;margin-right:6px"></span>
+        ${esc(key)}
+      </span>
+    </label>`).join('')
+    : '<div style="padding:8px 10px;font-size:12px;color:var(--text3)">No priorities in the current Quality data.</div>';
+  syncQualityPriorityFilterButton(prefix);
+}
+
+function toggleQualityPriorityFilter(prefix) {
+  const dropdown = document.getElementById(prefix + '-priority-filter-dropdown');
+  if (!dropdown) return;
+  dropdown.classList.toggle('open');
+  if (dropdown.classList.contains('open')) {
+    setTimeout(() => {
+      const handler = function (e) {
+        const btn = document.getElementById(prefix + '-priority-filter-btn');
+        if (dropdown.contains(e.target) || (btn && btn.contains(e.target))) return;
+        dropdown.classList.remove('open');
+        document.removeEventListener('click', handler);
+      };
+      document.addEventListener('click', handler);
+    }, 0);
+  }
+}
+
+function updateQualityPriorityFilter(prefix) {
+  const optionsEl = document.getElementById(prefix + '-priority-filter-options');
+  const selected = new Set();
+  if (optionsEl) {
+    optionsEl.querySelectorAll('input[type="checkbox"]:checked').forEach(cb => selected.add(cb.value));
+  }
+  S._qiPriorityFilter = selected;
+  syncQualityPriorityFilterButton(prefix);
+  refreshQualityJiraProjectViews();
+  if (!_routeNavigating) syncRoute();
+}
+
+function clearQualityPriorityFilter(prefix) {
+  const optionsEl = document.getElementById(prefix + '-priority-filter-options');
+  if (optionsEl) optionsEl.querySelectorAll('input[type="checkbox"]').forEach(cb => { cb.checked = false; });
+  updateQualityPriorityFilter(prefix);
+}
+
+function selectAllQualityPriorities(prefix) {
+  const optionsEl = document.getElementById(prefix + '-priority-filter-options');
+  if (optionsEl) optionsEl.querySelectorAll('input[type="checkbox"]').forEach(cb => { cb.checked = true; });
+  updateQualityPriorityFilter(prefix);
+}
+
+function toggleQualityPriorityOnChart(checked) {
+  S._qiShowPriorityOnChart = !!checked;
+  syncQualityPriorityChartToggle();
+  if (S.page === 'quality-insights') renderQualityInsights();
+  if (!_routeNavigating) syncRoute();
 }
 
 function refreshQualityJiraProjectViews() {
@@ -7390,7 +7599,7 @@ function renderQualityBarList(items, color) {
   return `<div class="rr-phase">${items.map(item => `
     <div class="rr-phase-row">
       <span>${esc(item.label)}</span>
-      <div class="rr-phase-bar"><span style="width:${Math.round(item.count / max * 100)}%;background:${color}"></span></div>
+      <div class="rr-phase-bar"><span style="width:${Math.round(item.count / max * 100)}%;background:${item.color || color}"></span></div>
       <span>${item.count}</span>
     </div>`).join('')}</div>`;
 }
@@ -7492,6 +7701,8 @@ function renderQualityInsights() {
   const qualityProjects = getQualityProjects();
   buildQualityInsightProjectFilterOptions(qualityProjects);
   buildJiraProjectFilterOptions('qi', qualityProjects);
+  buildQualityPriorityFilterOptions('qi', []);
+  syncQualityPriorityChartToggle();
   if (!S.activeRelease) {
     body.innerHTML = `<div class="info-box">Select a market release in the top bar, then sync Quality projects from <button class="btn btn-sm" onclick="nav('connector')">Jira Connector</button>.</div>`;
     return;
@@ -7510,7 +7721,10 @@ function renderQualityInsights() {
 
   const allRows = collectQualityInsightRows(projects);
   const jiraSelected = getSelectedJiraProjects();
-  const rows = jiraSelected.size ? allRows.filter(r => jiraSelected.has(r.module)) : allRows;
+  const jiraFiltered = jiraSelected.size ? allRows.filter(r => jiraSelected.has(r.module)) : allRows;
+  buildQualityPriorityFilterOptions('qi', jiraFiltered.map(r => r.priority));
+  syncQualityPriorityChartToggle();
+  const rows = filterRowsByQualityPriority(jiraFiltered);
   const market = S.activeRelease;
   const patches = getReleasePatchNames(findReleaseByName(market));
   const hideLifecycle = qualityJqlHidesLifecycle(projects);
@@ -7533,6 +7747,8 @@ function renderQualityInsights() {
   })).filter(item => item.count);
   const typeCounts = countQualityBuckets(rows, r => r.type);
   const showType = typeCounts.length > 1;
+  const showPriorityChart = qualityPriorityShownOnChart();
+  const priorityCounts = countQualityPriorityBuckets(rows);
 
   const risks = [];
   if (blockers.length) risks.push({ sev: 'high', title: `${blockers.length} blocker/critical defect${blockers.length === 1 ? '' : 's'} still open`, detail: 'These can stop a patch from shipping or leave customers broken on this market release.' });
@@ -7594,6 +7810,11 @@ function renderQualityInsights() {
       <h2>Queue</h2>
       <p class="sub">Where open bugs sit, who owns them, and how long they have been stuck.</p>
       <div class="qi-grid">
+        ${showPriorityChart ? `<div class="rr-section">
+          <h3>By priority</h3>
+          <p class="sub">Open queue split by Jira priority</p>
+          ${renderQualityBarList(priorityCounts, 'var(--red)')}
+        </div>` : ''}
         <div class="rr-section">
           <h3>By phase</h3>
           <p class="sub">Product = untriaged. Rejected/Replied = bounced from QA.</p>
@@ -8469,7 +8690,10 @@ function renderPhaseTimeline() {
     clearPhaseChartSlot();
     contentEl.innerHTML = qualityInsightRedirectBox(isQualityInsightPage() ? 'quality' : 'phase');
     buildPhaseProjectFilterOptions(loaded);
-    if (isQualityInsightPage()) buildJiraProjectFilterOptions('qi-phase', getQualityProjects());
+    if (isQualityInsightPage()) {
+      buildJiraProjectFilterOptions('qi-phase', getQualityProjects());
+      buildQualityPriorityFilterOptions('qi-phase', []);
+    }
     buildPhaseMilestoneFilterOptions(getDatedReleaseMilestones(getPhaseChartRelease([])));
     return;
   }
@@ -8551,6 +8775,10 @@ function renderPhaseTimeline() {
     const selectedJira = getSelectedJiraProjects();
     if (selectedJira.size) {
       filteredIssues = filteredIssues.filter(item => selectedJira.has(qualityModuleFromKey(item.issue.key)));
+    }
+    buildQualityPriorityFilterOptions('qi-phase', filteredIssues.map(item => qualityIssuePriorityName(item.issue)));
+    if (getSelectedQualityPriorities().size) {
+      filteredIssues = filteredIssues.filter(item => issueInSelectedQualityPriorities(item.issue));
     }
   }
 
@@ -10070,7 +10298,10 @@ function renderDailyProgress() {
   if (!loaded.length) {
     contentEl.innerHTML = qualityInsightRedirectBox(isQualityInsightPage() ? 'quality' : 'log');
     buildLogProjectFilterOptions(loaded);
-    if (isQualityInsightPage()) buildJiraProjectFilterOptions('qi-log', getQualityProjects());
+    if (isQualityInsightPage()) {
+      buildJiraProjectFilterOptions('qi-log', getQualityProjects());
+      buildQualityPriorityFilterOptions('qi-log', []);
+    }
     return;
   }
 
@@ -10136,6 +10367,10 @@ function renderDailyProgress() {
     const selectedJira = getSelectedJiraProjects();
     if (selectedJira.size) {
       filteredIssues = filteredIssues.filter(item => selectedJira.has(qualityModuleFromKey(item.issue.key)));
+    }
+    buildQualityPriorityFilterOptions('qi-log', filteredIssues.map(item => qualityIssuePriorityName(item.issue)));
+    if (getSelectedQualityPriorities().size) {
+      filteredIssues = filteredIssues.filter(item => issueInSelectedQualityPriorities(item.issue));
     }
   }
 

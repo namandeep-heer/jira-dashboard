@@ -51,6 +51,42 @@ function classifyQualityFixVersion(names, marketName, patches) {
   return 'No fixVersion';
 }
 
+const PRIORITY_RANK = {
+  blocker: 0, highest: 1, critical: 2, high: 3, major: 4,
+  medium: 5, normal: 5, low: 6, minor: 7, lowest: 8, trivial: 9
+};
+
+function qualityPriorityRank(priority) {
+  const rank = PRIORITY_RANK[String(priority || '').toLowerCase()];
+  return rank != null ? rank : 50;
+}
+
+function qualityPriorityColor(priority) {
+  const s = String(priority || '').toLowerCase();
+  if (/blocker|highest|critical/.test(s)) return '#A32D2D';
+  if (/\bhigh\b|major/.test(s)) return '#c47a0f';
+  if (/medium|normal/.test(s)) return '#533AB7';
+  if (/\blow\b|minor|lowest|trivial/.test(s)) return '#3B6D11';
+  return '#888780';
+}
+
+function countQualityPriorityBuckets(rows) {
+  const map = {};
+  (rows || []).forEach(row => {
+    const label = row.priority || 'None';
+    map[label] = (map[label] || 0) + 1;
+  });
+  return Object.entries(map)
+    .sort((a, b) => qualityPriorityRank(a[0]) - qualityPriorityRank(b[0]) || b[1] - a[1])
+    .map(([label, count]) => ({ label, count, color: qualityPriorityColor(label) }));
+}
+
+function filterRowsByQualityPriority(rows, selected) {
+  const set = selected instanceof Set ? selected : new Set(selected || []);
+  if (!set.size) return rows || [];
+  return (rows || []).filter(row => set.has(row.priority || 'None'));
+}
+
 function countQualityBounces(issue) {
   let n = 0;
   ((issue && issue.changelog && issue.changelog.histories) || []).forEach(history => {
@@ -140,5 +176,26 @@ assert.strictEqual(patchRows.find(r => r.label === 'N2027.R1.01').open, 2);
 assert.strictEqual(patchRows.find(r => r.label === 'N2027.R1.01').blockers, 2);
 assert.strictEqual(patchRows.find(r => r.label === 'N2027.R1.02').open, 0);
 assert.strictEqual(patchRows.find(r => r.kind === 'other').open, 1);
+
+assert.strictEqual(qualityPriorityRank('Blocker'), 0);
+assert.strictEqual(qualityPriorityRank('High'), 3);
+assert.ok(qualityPriorityRank('None') > qualityPriorityRank('Low'));
+assert.strictEqual(qualityPriorityColor('Critical'), '#A32D2D');
+assert.strictEqual(qualityPriorityColor('High'), '#c47a0f');
+
+const priRows = [
+  { priority: 'Low' },
+  { priority: 'Blocker' },
+  { priority: 'High' },
+  { priority: 'Blocker' },
+  { priority: 'Medium' },
+];
+const priBuckets = countQualityPriorityBuckets(priRows);
+assert.deepStrictEqual(priBuckets.map(b => b.label), ['Blocker', 'High', 'Medium', 'Low']);
+assert.strictEqual(priBuckets[0].count, 2);
+
+const filteredHigh = filterRowsByQualityPriority(priRows, new Set(['High', 'Blocker']));
+assert.strictEqual(filteredHigh.length, 3);
+assert.strictEqual(filterRowsByQualityPriority(priRows, new Set()).length, 5);
 
 console.log('quality-insights: ok');
