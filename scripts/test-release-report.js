@@ -441,6 +441,9 @@ assert.ok(listHtml.includes('panel-insights'));
 assert.ok(listHtml.includes('Still with development'));
 assert.ok(listHtml.includes('After development'));
 assert.ok(listHtml.includes('insight-split'));
+assert.ok(listHtml.includes('data-filter-dim="workflow"'));
+assert.ok(listHtml.includes('data-workflow="dev"') || listHtml.includes('data-workflow="after"'));
+assert.ok(listHtml.includes('filter-chip'));
 assert.strictEqual(ticketListFilename('Open Bugs (All Projects)'), 'Open-Bugs-All-Projects.html');
 
 const xssReport = build([issue({

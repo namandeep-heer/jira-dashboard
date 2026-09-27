@@ -1,7 +1,9 @@
 {
   "lastRun": {
-    "N2026.R2": 1790369867972,
-    "N2027.R1": 1790360447309
+    "N2026.R2": 1790478573406,
+    "N2027.R1": 1790478573406,
+    "Blank": 1790478573406,
+    "UnPlanned": 1790478573406
   },
   "projects": [
     "NFS",
@@ -21,13 +23,15 @@
     "N2026.R2"
   ],
   "intervals": {
-    "N2026.R2": 30,
-    "N2027.R1": 360,
-    "Blank": 60,
-    "UnPlanned": 60
+    "N2026.R2": 180,
+    "N2027.R1": 1440,
+    "Blank": 1440,
+    "UnPlanned": 1440
   },
   "scheduleEnabled": true,
   "scheduleReleases": [
+    "Blank",
+    "UnPlanned",
     "N2027.R1",
     "N2026.R2"
   ]

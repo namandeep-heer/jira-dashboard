@@ -553,18 +553,22 @@ body.phase-chart-fs-active { overflow: hidden; }
 /* ── Refresh overlay ── */
 #refresh-overlay { position:fixed; inset:0; z-index:999; background:rgba(0,0,0,.45); display:flex; align-items:center; justify-content:center; backdrop-filter:blur(3px); }
 #refresh-overlay.hidden { display:none; }
-.refresh-modal { background:var(--bg); border:0.5px solid var(--border2); border-radius:var(--radius-lg); padding:28px 32px; min-width:340px; max-width:440px; width:100%; box-shadow:0 12px 40px rgba(0,0,0,.35); }
-.refresh-modal h3 { font-size:15px; font-weight:600; margin-bottom:18px; }
-.refresh-proj-row { display:flex; align-items:center; gap:10px; padding:6px 0; font-size:13px; border-bottom:0.5px solid var(--border); }
+.refresh-modal { background:var(--bg); border:0.5px solid var(--border2); border-radius:var(--radius-lg); padding:20px 22px 16px; width:min(680px, calc(100vw - 32px)); max-height:min(85vh, 760px); display:flex; flex-direction:column; box-shadow:0 12px 40px rgba(0,0,0,.35); }
+.refresh-modal h3 { font-size:15px; font-weight:600; margin:0 0 12px; flex-shrink:0; }
+#refresh-rows { overflow-y:auto; flex:1; min-height:0; margin:0 -4px 4px; padding:0 4px; }
+.refresh-release-head { position:sticky; top:0; z-index:1; background:var(--bg); font-size:11px; font-weight:700; letter-spacing:.04em; text-transform:uppercase; color:var(--text3); padding:10px 4px 4px; }
+.refresh-proj-row { display:grid; grid-template-columns:10px minmax(0,1fr) auto; gap:8px; align-items:start; padding:8px 4px; font-size:13px; border-bottom:0.5px solid var(--border); }
 .refresh-proj-row:last-child { border-bottom:none; }
-.refresh-proj-name { flex:1; }
-.refresh-status { font-size:12px; white-space:nowrap; }
+.refresh-proj-name { min-width:0; display:flex; flex-direction:column; gap:2px; }
+.refresh-proj-title { font-weight:500; }
+.refresh-proj-detail { font-size:11px; color:var(--text3); line-height:1.35; word-break:break-word; }
+.refresh-status { font-size:12px; white-space:nowrap; padding-top:1px; }
 .refresh-status.pending  { color:var(--text3); }
 .refresh-status.loading  { color:var(--blue); }
 .refresh-status.ok       { color:var(--green); }
 .refresh-status.err      { color:var(--red); }
 .refresh-status.skip     { color:var(--text3); }
-.refresh-bar-wrap { height:4px; background:var(--bg3); border-radius:2px; margin:18px 0 6px; overflow:hidden; }
+.refresh-bar-wrap { height:4px; background:var(--bg3); border-radius:2px; margin:10px 0 6px; overflow:hidden; flex-shrink:0; }
 .refresh-bar { height:100%; background:var(--blue); border-radius:2px; transition:width .3s; }
 #auto-sync-overlay { position:fixed; inset:0; z-index:998; background:rgba(0,0,0,.45); display:flex; align-items:center; justify-content:center; backdrop-filter:blur(3px); }
 #auto-sync-overlay.hidden { display:none; }
@@ -774,7 +778,7 @@ code { font-family: monospace; font-size: 12px; background: var(--bg3); padding:
       <span id="auth-role-indicator" style="font-size:12px;color:var(--text2)"></span>
       <button class="btn btn-sm" id="auth-btn" onclick="submitDashboardAuth()">Sign in</button>
       <div id="global-release-wrap">
-        <span>Market release</span>
+        <span id="global-release-scope">Market release</span>
         <div class="ms-wrap">
           <button class="ms-btn" id="global-release-btn" type="button" onclick="toggleGlobalReleaseFilter()" aria-label="Market release filter">
             <span id="global-release-label">Select a market release</span>
@@ -783,6 +787,7 @@ code { font-family: monospace; font-size: 12px; background: var(--bg3); padding:
           </button>
           <div class="ms-dropdown" id="global-release-dropdown">
             <div class="ms-options" id="global-release-options"></div>
+            <div id="global-release-scope-note" style="padding:6px 10px 0;font-size:10px;color:var(--text3);line-height:1.4"></div>
             <div class="ms-footer">
               <button type="button" onclick="clearGlobalReleaseFilter()">Clear</button>
               <button type="button" onclick="selectAllGlobalReleases()">Select All</button>
@@ -808,7 +813,7 @@ code { font-family: monospace; font-size: 12px; background: var(--bg3); padding:
         <h3 id="refresh-title">Refreshing all projects…</h3>
         <div id="refresh-rows"></div>
         <div class="refresh-bar-wrap"><div class="refresh-bar" id="refresh-bar" style="width:0%"></div></div>
-        <div style="display:flex;align-items:center;justify-content:space-between;margin-top:10px;">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-top:8px;flex-shrink:0;">
           <div style="font-size:12px;color:var(--text3);" id="refresh-summary">0 / …</div>
           <button class="btn btn-sm" id="refresh-cancel-btn" onclick="cancelRefresh()" style="display:none;">Cancel</button>
         </div>
@@ -2282,6 +2287,7 @@ let S = {
   projectSettings:{},
   activeRelease:'',
   activeReleases:[],
+  categoryReleases:{},
   lastSyncAt:{},
   connector:{ releases:[], projects:null, scheduleEnabled:false, intervals:{}, lastRun:{} },
   theme:'',
@@ -2456,11 +2462,58 @@ function getSelectableReleases() {
   ];
 }
 
+function getPageCategory() {
+  const page = S.page;
+  if (page === 'quality-insights' || page === 'quality-phase' || page === 'quality-progress') return 'Quality';
+  const proj = getAllProjects().find(p => p.id === page);
+  if (proj) {
+    if (isQualityDashboardProject(proj)) return 'Quality';
+    return String(proj.category || '').trim() || 'Delivery';
+  }
+  if (['team', 'velocity', 'analytics', 'phase-timeline', 'log', 'data-gaps', 'release-report'].includes(page)) {
+    return 'Delivery';
+  }
+  return '';
+}
+
+function getCategoryReleaseMap() {
+  return S.categoryReleases && typeof S.categoryReleases === 'object' ? S.categoryReleases : {};
+}
+
+function sanitizeSelectedReleaseNames(names) {
+  const list = uniqueReleaseNames(names);
+  const markets = (S.releases || []).filter(release => release && release.name).map(release => release.name);
+  if (!markets.length) return list;
+  const allowed = new Set([BLANK_RELEASE, UNPLANNED_RELEASE, ...markets]);
+  return list.filter(name => allowed.has(name));
+}
+
 function getSelectedReleaseNames() {
+  const category = getPageCategory();
+  const map = getCategoryReleaseMap();
+  if (category && Object.prototype.hasOwnProperty.call(map, category) && Array.isArray(map[category])) {
+    return sanitizeSelectedReleaseNames(map[category]);
+  }
   const fromList = Array.isArray(S.activeReleases) ? S.activeReleases : [];
-  const names = uniqueReleaseNames(fromList);
+  const names = sanitizeSelectedReleaseNames(fromList);
   if (names.length) return names;
-  return S.activeRelease ? [S.activeRelease] : [];
+  return S.activeRelease ? sanitizeSelectedReleaseNames([S.activeRelease]) : [];
+}
+
+function setSelectedReleaseNames(names) {
+  const next = uniqueReleaseNames(names);
+  const category = getPageCategory();
+  if (category) {
+    if (!S.categoryReleases || typeof S.categoryReleases !== 'object') S.categoryReleases = {};
+    S.categoryReleases[category] = next;
+    if (!Array.isArray(S.activeReleases) || !S.activeReleases.length) {
+      const markets = next.filter(name => !isVirtualRelease(name));
+      S.activeReleases = markets.length ? [markets[0]] : next.slice(0, 1);
+    }
+  } else {
+    S.activeReleases = next;
+  }
+  S.activeRelease = next[0] || '';
 }
 
 function formatSelectedReleasesLabel(names) {
@@ -2710,7 +2763,6 @@ function mergeReleaseCacheBuckets(names) {
 
 function bindCacheToActiveRelease() {
   const names = getSelectedReleaseNames();
-  S.activeReleases = names;
   S.activeRelease = names[0] || '';
   if (names.length <= 1) {
     S._cacheViewMerged = false;
@@ -2809,9 +2861,18 @@ function formatAllowedFixVersionsLabel(proj) {
 
 function syncGlobalReleaseButton() {
   const selected = getSelectedReleaseNames();
+  const category = getPageCategory();
   const btn = document.getElementById('global-release-btn');
   const label = document.getElementById('global-release-label');
   const badge = document.getElementById('global-release-count');
+  const scope = document.getElementById('global-release-scope');
+  const note = document.getElementById('global-release-scope-note');
+  if (scope) scope.textContent = category ? (category + ' releases') : 'Market release';
+  if (note) {
+    note.textContent = category
+      ? 'Saved for ' + category + '. Quality, Core Modules, and other categories each keep their own selection.'
+      : 'Default when a category has not set its own releases yet.';
+  }
   if (!label) return;
   label.textContent = formatSelectedReleasesLabel(selected);
   if (badge) {
@@ -2829,10 +2890,7 @@ function updateGlobalReleaseSelector() {
   const optionsEl = document.getElementById('global-release-options');
   if (!optionsEl) return;
   const selectable = getSelectableReleases();
-  const allowed = new Set(selectable.map(r => r.name));
-  S.activeReleases = getSelectedReleaseNames().filter(name => allowed.has(name));
-  S.activeRelease = S.activeReleases[0] || '';
-  const selected = new Set(S.activeReleases);
+  const selected = new Set(getSelectedReleaseNames());
   optionsEl.innerHTML = selectable.map(release => {
     const hint = release.kind === 'blank'
       ? 'fixVersion is EMPTY'
@@ -2869,8 +2927,7 @@ async function updateGlobalReleaseFilter() {
     syncGlobalReleaseButton();
     return;
   }
-  S.activeReleases = next;
-  S.activeRelease = next[0] || '';
+  setSelectedReleaseNames(next);
   bindCacheToActiveRelease();
   syncGlobalReleaseButton();
   const currentProject = getAllProjects().find(project => project.id === S.page);
@@ -2893,8 +2950,7 @@ async function selectAllGlobalReleases() {
 }
 
 async function changeGlobalRelease(releaseName) {
-  S.activeReleases = releaseName ? [releaseName] : [];
-  S.activeRelease = releaseName || '';
+  setSelectedReleaseNames(releaseName ? [releaseName] : []);
   bindCacheToActiveRelease();
   updateGlobalReleaseSelector();
   const currentProject = getAllProjects().find(project => project.id === S.page);
@@ -3092,11 +3148,14 @@ async function runConnectorSyncBatch(releases, projectKeys, mode = 'manual') {
   _connectorSyncing = true;
   window._refreshCancelled = false;
   titleEl.textContent = mode === 'schedule' ? 'Scheduled sync in progress…' : 'Connector sync in progress…';
+  let lastRelease = null;
   rowsEl.innerHTML = jobs.map((job, index) => {
-    const modeLabel = projectIgnoresReleaseFilter(job.project) ? '' : ` · ${esc(formatReleaseModeLabel(getProjectReleaseMode(job.project.key, job.project)))}`;
+    const head = job.release !== lastRelease ? `<div class="refresh-release-head">${esc(job.release)}</div>` : '';
+    lastRelease = job.release;
+    const modeLabel = projectIgnoresReleaseFilter(job.project) ? '' : formatReleaseModeLabel(getProjectReleaseMode(job.project.key, job.project));
     const versions = job.skipReason ? '' : formatConnectorFixVersionClause(getConnectorJobVersionNames(job.project, job.release), job.release);
-    const detail = versions ? ` · ${esc(versions)}` : '';
-    return `<div class="refresh-proj-row" id="connector-row-${index}"><span style="width:8px;height:8px;border-radius:50%;background:${job.project.color};flex-shrink:0"></span><span class="refresh-proj-name">${esc(job.release)} · ${esc(job.project.name)}${modeLabel}${detail}</span><span class="refresh-status pending" id="connector-status-${index}">Waiting…</span></div>`;
+    const detail = [modeLabel, versions].filter(Boolean).join(' · ');
+    return `${head}<div class="refresh-proj-row" id="connector-row-${index}"><span style="width:8px;height:8px;border-radius:50%;background:${job.project.color};flex-shrink:0;margin-top:4px"></span><span class="refresh-proj-name"><span class="refresh-proj-title">${esc(job.project.name)}</span>${detail ? `<span class="refresh-proj-detail">${esc(detail)}</span>` : ''}</span><span class="refresh-status pending" id="connector-status-${index}">Waiting…</span></div>`;
   }).join('');
   summEl.textContent = `0 / ${jobs.length}`;
   barEl.style.width = '0%';
@@ -3117,6 +3176,8 @@ async function runConnectorSyncBatch(releases, projectKeys, mode = 'manual') {
       } else {
         statusEl.className = 'refresh-status loading';
         statusEl.textContent = 'Loading…';
+        const rowEl = document.getElementById('connector-row-' + index);
+        if (rowEl && rowEl.scrollIntoView) rowEl.scrollIntoView({ block: 'nearest' });
         const data = await fetchIssues(job.project, true, job.release);
         if (data && !data.err) {
           writeReleaseProjectCache(job.release, job.project.key, data);
@@ -3964,7 +4025,10 @@ function nav(id, opts = {}) {
   const navBtn = document.getElementById('nav-' + id);
   if (page) page.classList.add('active');
   if (navBtn) navBtn.classList.add('active');
+  const prevNames = getSelectedReleaseNames().join('\0');
   S.page = id;
+  if (getSelectedReleaseNames().join('\0') !== prevNames) bindCacheToActiveRelease();
+  updateGlobalReleaseSelector();
   if (!S._expandedPeriods || !opts.fromRoute) S._expandedPeriods = new Set();
 
   const proj = getAllProjects().find(p => p.id === id);
@@ -12520,8 +12584,13 @@ async function deleteRelease(index) {
   if (!confirm(`Delete ${releaseName}? This cannot be undone.`)) return;
   
   S.releases.splice(index, 1);
-  S.activeReleases = getSelectedReleaseNames().filter(name => name !== releaseName);
-  S.activeRelease = S.activeReleases[0] || '';
+  S.activeReleases = sanitizeSelectedReleaseNames((S.activeReleases || []).filter(name => name !== releaseName));
+  if (S.categoryReleases && typeof S.categoryReleases === 'object') {
+    Object.keys(S.categoryReleases).forEach(cat => {
+      S.categoryReleases[cat] = sanitizeSelectedReleaseNames((S.categoryReleases[cat] || []).filter(name => name !== releaseName));
+    });
+  }
+  S.activeRelease = getSelectedReleaseNames()[0] || '';
   delete S.releaseCache?.[releaseName];
   bindCacheToActiveRelease();
   delete S.lastSyncAt?.[releaseName];
