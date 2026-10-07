@@ -44,6 +44,11 @@ function copyPackageFiles(outDir) {
     path.join(ROOT, 'dashboard.html'),
     path.join(outDir, 'dashboard.html')
   );
+  fs.mkdirSync(path.join(outDir, 'lib'), { recursive: true });
+  fs.copyFileSync(
+    path.join(ROOT, 'lib', 'release-milestones.js'),
+    path.join(outDir, 'lib', 'release-milestones.js')
+  );
 
   fs.copyFileSync(
     path.join(ROOT, 'README.md'),

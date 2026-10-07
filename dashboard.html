@@ -8,6 +8,7 @@
 <title>Jira Dashboard</title>
 <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'><rect x='3' y='3' width='7' height='7' rx='1.5' fill='%23185FA5'/><rect x='14' y='3' width='7' height='7' rx='1.5' fill='%23185FA5'/><rect x='3' y='14' width='7' height='7' rx='1.5' fill='%23185FA5'/><rect x='14' y='14' width='7' height='7' rx='1.5' fill='%23185FA5'/></svg>">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js"></script>
+<script src="/lib/release-milestones.js"></script>
 <style>
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 :root {
@@ -614,6 +615,29 @@ body.phase-chart-fs-active { overflow: hidden; }
 .patch-list { display:flex; flex-direction:column; gap:8px; }
 .patch-row { display:flex; align-items:center; gap:8px; }
 .patch-row input { flex:1; padding:6px 8px; border:0.5px solid var(--border2); border-radius:var(--radius); background:var(--bg); color:var(--text); font-size:12px; font-family:inherit; }
+.ms-config-toolbar { display:flex; flex-wrap:wrap; gap:8px; align-items:center; margin:0 0 8px; }
+.ms-config-toolbar select, .ms-draft input[type="text"] { padding:6px 8px; border:0.5px solid var(--border2); border-radius:var(--radius); background:var(--bg); color:var(--text); font-size:12px; font-family:inherit; }
+.ms-config-toolbar select { max-width:240px; }
+.ms-config-hint { font-size:11px; color:var(--text3); line-height:1.45; margin:0 0 10px; }
+.ms-config-list { display:flex; flex-direction:column; gap:8px; }
+.ms-config-empty { padding:12px; font-size:12px; color:var(--text3); border:0.5px dashed var(--border); border-radius:var(--radius); }
+.milestone-row, .master-ms-row { display:flex; align-items:center; gap:8px; flex-wrap:wrap; }
+.milestone-row { padding:8px 10px; border:0.5px solid var(--border); border-radius:var(--radius); background:var(--bg); }
+.master-ms-row { padding:8px 10px; border:0.5px solid var(--border); border-radius:var(--radius); background:var(--bg2); }
+.master-ms-row input[type="text"], .milestone-row .ms-label-input { padding:6px 8px; border:0.5px solid var(--border2); border-radius:var(--radius); background:var(--bg); color:var(--text); font-size:12px; font-family:inherit; }
+.milestone-row .ms-label, .milestone-row .ms-label-input { flex:1; min-width:140px; }
+.milestone-row .ms-label { font-size:13px; }
+.ms-swatch { width:10px; height:10px; border-radius:3px; flex-shrink:0; display:inline-block; }
+.ms-id { font-family:ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; font-size:12px; font-weight:600; min-width:36px; }
+.ms-local-tag { font-size:10px; font-weight:600; letter-spacing:.04em; text-transform:uppercase; color:var(--amber); }
+.ms-default-tag { font-size:10px; font-weight:600; letter-spacing:.04em; text-transform:uppercase; color:var(--text3); }
+.ms-move { min-width:28px; padding:5px 6px; }
+.ms-color { width:32px; height:32px; border:0.5px solid var(--border2); border-radius:var(--radius); padding:0; background:var(--bg); cursor:pointer; }
+.ms-date { width:148px; padding:6px 8px; border:0.5px solid var(--border2); border-radius:var(--radius); background:var(--bg); color:var(--text); font-size:12px; font-family:inherit; }
+.ms-draft { display:flex; flex-wrap:wrap; gap:8px; align-items:center; padding:10px; margin-bottom:10px; border:0.5px solid var(--border); border-radius:var(--radius); background:var(--bg); }
+.ms-draft .ms-draft-err { flex-basis:100%; font-size:12px; color:var(--red); min-height:0; }
+.ms-copy-dates { display:inline-flex; align-items:center; gap:6px; font-size:12px; color:var(--text2); }
+.ms-actions { display:flex; gap:8px; margin-top:16px; flex-wrap:wrap; }
 .team-dev-block { margin-bottom:24px; }
 .team-dev-header { display:flex; align-items:center; gap:10px; padding:10px 0 8px; border-bottom:2px solid var(--border2); margin-bottom:0; font-size:14px; font-weight:600; }
 .team-dev-count { font-size:11px; font-weight:400; color:var(--text3); margin-left:4px; }
@@ -759,6 +783,10 @@ code { font-family: monospace; font-size: 12px; background: var(--bg3); padding:
     <button class="nav-item" onclick="nav('releases-config')" id="nav-releases-config" title="Releases">
       <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"/><line x1="9" y1="3" x2="9" y2="21"/><line x1="15" y1="3" x2="15" y2="21"/><line x1="3" y1="9" x2="21" y2="9"/><line x1="3" y1="15" x2="21" y2="15"/></svg>
       <span class="nav-label">Releases</span>
+    </button>
+    <button class="nav-item" onclick="nav('milestones-config')" id="nav-milestones-config" title="Milestones">
+      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 15s1-1 4-1 5 2 8 2 4-1 4-1V3s-1 1-4 1-5-2-8-2-4 1-4 1z"/><line x1="4" y1="22" x2="4" y2="15"/></svg>
+      <span class="nav-label">Milestones</span>
     </button>
     <button class="nav-item" onclick="nav('fields')" id="nav-fields" title="Field Configuration">
       <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="8" y1="6" x2="21" y2="6"/><line x1="8" y1="12" x2="21" y2="12"/><line x1="8" y1="18" x2="21" y2="18"/><line x1="3" y1="6" x2="3.01" y2="6"/><line x1="3" y1="12" x2="3.01" y2="12"/><line x1="3" y1="18" x2="3.01" y2="18"/></svg>
@@ -1033,6 +1061,9 @@ code { font-family: monospace; font-size: 12px; background: var(--bg3); padding:
 
       <!-- Releases Config -->
       <div class="page" id="page-releases-config"></div>
+
+      <!-- Milestone Config -->
+      <div class="page" id="page-milestones-config"></div>
 
       <!-- Fields -->
       <div class="page" id="page-fields">
@@ -1984,7 +2015,11 @@ function countSnapshotAtDate(filteredIssues, snapshotType, atDate) {
 function parseReleaseMilestoneDate(release, milestoneId) {
   const raw = release?.milestones?.[milestoneId];
   if (!raw) return null;
-  const d = new Date(raw + 'T12:00:00');
+  const normalized = (typeof ReleaseMilestones !== 'undefined' && ReleaseMilestones.normalizeMilestoneDate)
+    ? ReleaseMilestones.normalizeMilestoneDate(raw)
+    : String(raw).trim();
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(normalized)) return null;
+  const d = new Date(normalized + 'T12:00:00');
   return isNaN(d.getTime()) ? null : d;
 }
 
@@ -2013,9 +2048,19 @@ function getPhaseChartRelease(filteredProjects) {
 
 const PHASE_EXCLUDED_DEFAULT_MILESTONE_IDS = new Set(['EOS']);
 
+function releaseMilestoneOrder(release) {
+  if (release && typeof ReleaseMilestones !== 'undefined') {
+    return ReleaseMilestones.releaseMilestoneDefs(release, getMilestones()).map(m => m.id);
+  }
+  return getMilestones().map(m => m.id);
+}
+
 function getDatedReleaseMilestones(release) {
   if (!release) return [];
-  return getMilestones().map(m => {
+  const defs = (typeof ReleaseMilestones !== 'undefined')
+    ? ReleaseMilestones.releaseMilestoneDefs(release, getMilestones())
+    : getMilestones();
+  return defs.map(m => {
     const date = parseReleaseMilestoneDate(release, m.id);
     if (!date) return null;
     return {
@@ -2028,8 +2073,10 @@ function getDatedReleaseMilestones(release) {
   }).filter(Boolean).sort((a, b) => a.date - b.date);
 }
 
-function defaultPhaseMilestoneIds(datedMilestones) {
-  const order = getMilestones().map(m => m.id);
+function defaultPhaseMilestoneIds(datedMilestones, orderIds) {
+  const order = Array.isArray(orderIds) && orderIds.length
+    ? orderIds
+    : getMilestones().map(m => m.id);
   const datedSet = new Set(datedMilestones.map(m => m.id));
   const daIdx = order.indexOf('DA');
   const gaIdx = order.indexOf('GA');
@@ -2055,15 +2102,28 @@ function isLegacyPhaseMilestoneDefault(ids) {
   return set.has('SC') && set.has('FF');
 }
 
-function ensurePhaseMilestoneSelection(datedMilestones) {
-  const datedSet = new Set(datedMilestones.map(m => m.id));
-  if (Array.isArray(S.phaseSelectedMilestones)) {
-    S.phaseSelectedMilestones = S.phaseSelectedMilestones.filter(id => datedSet.has(id));
+function ensurePhaseMilestoneSelection(datedMilestones, orderIds) {
+  const datedIds = datedMilestones.map(m => m.id);
+  const datedSet = new Set(datedIds);
+  const defaults = defaultPhaseMilestoneIds(datedMilestones, orderIds);
+  const defaultKey = defaults.join('\0');
+  const legacy = isLegacyPhaseMilestoneDefault(S.phaseSelectedMilestones);
+  if (!Array.isArray(S.phaseSelectedMilestones) || S.phaseSelectedMilestones.length === 0 || legacy) {
+    S.phaseSelectedMilestones = defaults.slice();
+    S.phaseMilestoneDefaultKey = defaultKey;
+    return S.phaseSelectedMilestones;
   }
-  if (!Array.isArray(S.phaseSelectedMilestones) || S.phaseSelectedMilestones.length === 0
-      || isLegacyPhaseMilestoneDefault(S.phaseSelectedMilestones)) {
-    S.phaseSelectedMilestones = defaultPhaseMilestoneIds(datedMilestones);
+  // A saved filter from before DF/VF (or any later milestone) existed would keep
+  // those new dates off the chart. When the default window changes, check the
+  // new milestones without dropping ones the user added outside that window.
+  if (S.phaseMilestoneDefaultKey !== defaultKey) {
+    const selected = new Set(S.phaseSelectedMilestones.filter(id => datedSet.has(id)));
+    defaults.forEach(id => selected.add(id));
+    S.phaseSelectedMilestones = datedIds.filter(id => selected.has(id));
+    S.phaseMilestoneDefaultKey = defaultKey;
+    return S.phaseSelectedMilestones;
   }
+  S.phaseSelectedMilestones = S.phaseSelectedMilestones.filter(id => datedSet.has(id));
   return S.phaseSelectedMilestones;
 }
 
@@ -2201,8 +2261,9 @@ const phaseReleaseTimelinePlugin = {
     const markers = opts?.markers || [];
     if (!markers.length) return;
     const { ctx, chartArea, scales } = chart;
-    const x = scales.x;
-    const y = scales.y;
+    const x = scales && scales.x;
+    const y = scales && scales.y;
+    if (!ctx || !chartArea || !x || !y || chartArea.height < 1 || chartArea.width < 1) return;
     const releaseDataset = chart.data.datasets.find(d => d.milestoneMeta);
     const dsIndex = releaseDataset ? chart.data.datasets.indexOf(releaseDataset) : -1;
     const burndownVisible = dsIndex >= 0 && chart.isDatasetVisible(dsIndex);
@@ -3565,7 +3626,7 @@ async function checkProxy() {
 // ── Deep linking (History API) ───────────────────────────────────────────────
 const STATIC_PAGES = new Set([
   'setup', 'velocity', 'data-gaps', 'analytics', 'release-report', 'quality-insights', 'quality-phase', 'quality-progress', 'team', 'phase-timeline', 'log',
-  'connector', 'projects-config', 'releases-config', 'fields'
+  'connector', 'projects-config', 'releases-config', 'milestones-config', 'fields'
 ]);
 
 let _routeNavigating = false;
@@ -4074,6 +4135,9 @@ function nav(id, opts = {}) {
   } else if (id === 'releases-config') {
     document.getElementById('topbar-title').textContent = 'Releases';
     renderReleasesConfig();
+  } else if (id === 'milestones-config') {
+    document.getElementById('topbar-title').textContent = 'Milestones';
+    renderMilestonesConfig();
   } else if (id === 'fields') {
     document.getElementById('topbar-title').textContent = 'Field Configuration';
     renderFields();
@@ -7399,7 +7463,9 @@ async function generateReleaseReport() {
     const release = (S.releases || []).find(r => r.name === S.activeRelease) || { name: S.activeRelease, milestones: {} };
     const body = {
       release: { name: release.name, milestones: release.milestones || {} },
-      milestones: getMilestones(),
+      milestones: (typeof ReleaseMilestones !== 'undefined')
+        ? ReleaseMilestones.releaseMilestoneDefs(release, getMilestones())
+        : getMilestones(),
       fieldIds,
       reportMode: document.getElementById('rr-mode')?.value || 'auto',
       ticketGroupBy: document.getElementById('rr-ticket-group')?.value || 'project-status',
@@ -9145,7 +9211,7 @@ function buildPhaseSeriesDataset(key, data, overrides = {}) {
     borderColor: color,
     backgroundColor: overrides.backgroundColor || meta.bg,
     borderWidth: meta.borderWidth,
-    borderDash: meta.borderDash.length ? meta.borderDash : undefined,
+    borderDash: meta.borderDash && meta.borderDash.length ? meta.borderDash : [],
     fill: false,
     tension: 0.3,
     pointRadius: meta.pointRadius,
@@ -9173,9 +9239,11 @@ function phaseSeriesIsTransition(dataset) {
   return !!(dataset.borderDash && dataset.borderDash.length);
 }
 
-function phaseTrendLegendOptions(drillByProject) {
+function phaseTrendLegendOptions() {
   return {
-    display: !drillByProject,
+    // The checkbox row above the plot is the legend. The in-canvas legend
+    // duplicates it and, in the short pinned chart, can consume the plot.
+    display: false,
     position: 'top',
     labels: {
       usePointStyle: true,
@@ -9292,11 +9360,19 @@ function destroyManagedChart(name, canvas) {
 }
 
 function resizePhaseTimelineChart() {
-  if (S.charts.phaseTimeline) {
-    requestAnimationFrame(() => {
-      try { S.charts.phaseTimeline.resize(); } catch (e) {}
-    });
-  }
+  const chart = S.charts && S.charts.phaseTimeline;
+  if (!chart) return;
+  const draw = () => {
+    if (!S.charts || S.charts.phaseTimeline !== chart) return;
+    try {
+      chart.resize();
+      chart.update('none');
+    } catch (e) {}
+  };
+  requestAnimationFrame(() => {
+    draw();
+    requestAnimationFrame(draw);
+  });
 }
 
 function togglePhaseChartFullscreen(force) {
@@ -9345,7 +9421,8 @@ function renderPhaseTimeline() {
     buildPhaseProjectFilterOptions(loaded);
     if (isQualityInsightPage()) buildJiraProjectFilterOptions('qi-phase', getQualityProjects());
     buildQualityPriorityFilterOptions(isQualityInsightPage() ? 'qi-phase' : 'phase', []);
-    buildPhaseMilestoneFilterOptions(getDatedReleaseMilestones(getPhaseChartRelease([])));
+    const emptyRelease = getPhaseChartRelease([]);
+    buildPhaseMilestoneFilterOptions(getDatedReleaseMilestones(emptyRelease), releaseMilestoneOrder(emptyRelease));
     return;
   }
 
@@ -9448,7 +9525,8 @@ function renderPhaseTimeline() {
   const now = new Date();
   const phaseChartRelease = getPhaseChartRelease(filteredProjects);
   const datedMilestones = getDatedReleaseMilestones(phaseChartRelease);
-  buildPhaseMilestoneFilterOptions(datedMilestones);
+  const milestoneOrder = releaseMilestoneOrder(phaseChartRelease);
+  buildPhaseMilestoneFilterOptions(datedMilestones, milestoneOrder);
   const pendingMilestones = consumePendingRouteParam('milestones');
   if (pendingMilestones) {
     const pendingIds = pendingMilestones.split(',').map(s => decodeURIComponent(s.trim())).filter(Boolean);
@@ -9462,7 +9540,7 @@ function renderPhaseTimeline() {
   const selectedMilestones = datedMilestones.filter(m => selectedMilestoneIds.has(m.id));
   const resolvedMilestones = selectedMilestones.length
     ? selectedMilestones
-    : datedMilestones.filter(m => defaultPhaseMilestoneIds(datedMilestones).includes(m.id));
+    : datedMilestones.filter(m => defaultPhaseMilestoneIds(datedMilestones, milestoneOrder).includes(m.id));
   const chartWindow = getPhaseChartWindow(rangeVal, resolvedMilestones, now);
   const rangeStart = chartWindow.start;
   const chartEnd = chartWindow.end;
@@ -10016,7 +10094,8 @@ function renderPhaseTimeline() {
   destroyManagedChart('phaseTimelineClosed');
   if (chartSlot) {
     chartSlot.innerHTML = chartHtml;
-    contentEl.innerHTML = tableHtml;
+    try { contentEl.innerHTML = tableHtml; }
+    catch (err) { console.warn('[phase-chart] Could not render the period table:', err); }
   } else {
     contentEl.innerHTML = chartHtml + tableHtml;
   }
@@ -10077,6 +10156,12 @@ function renderPhaseTimeline() {
   }
 
   // Render combined line chart with transitions (dotted) and snapshots (solid) series
+  const phaseAxisColor = (typeof getComputedStyle === 'function'
+    ? getComputedStyle(document.body).getPropertyValue('--text2').trim()
+    : '') || '#5a5955';
+  const phaseGridColor = (typeof getComputedStyle === 'function'
+    ? getComputedStyle(document.body).getPropertyValue('--border').trim()
+    : '') || 'rgba(0,0,0,0.08)';
   const ctx = insightEl('phase-timeline-chart');
   if (ctx) {
     destroyManagedChart('phaseTimeline', ctx);
@@ -10091,19 +10176,31 @@ function renderPhaseTimeline() {
       options: {
         responsive: true,
         maintainAspectRatio: false,
+        animation: false,
         clip: false,
-        layout: (releaseBurndown?.markers?.length) ? { padding: { top: 28, bottom: 14, right: 14 } } : undefined,
+        layout: (releaseBurndown?.markers?.length) ? { padding: { top: 22, bottom: 4, right: 8 } } : { padding: { bottom: 4, right: 8 } },
         interaction: drillByProject
           ? { mode: 'nearest', intersect: false, axis: 'x' }
           : { mode: 'index', intersect: false },
         scales: {
+          x: {
+            ticks: {
+              color: phaseAxisColor,
+              maxRotation: 50,
+              minRotation: 0,
+              autoSkip: true,
+              autoSkipPadding: 8,
+            },
+            grid: { color: phaseGridColor },
+          },
           y: {
             beginAtZero: true,
-            ticks: { precision: 0 }
+            ticks: { precision: 0, color: phaseAxisColor },
+            grid: { color: phaseGridColor },
           }
         },
         plugins: {
-          legend: phaseTrendLegendOptions(drillByProject),
+          legend: phaseTrendLegendOptions(),
           tooltip: phaseTrendTooltipOptions(),
           ...(releaseBurndown?.markers?.length ? {
             phaseReleaseTimeline: {
@@ -10128,6 +10225,10 @@ function renderPhaseTimeline() {
     });
     } catch (err) {
       console.warn('[phase-chart] Failed to render:', err);
+      const wrap = insightEl('phase-chart-wrap');
+      if (wrap) {
+        wrap.insertAdjacentHTML('beforeend', `<div class="info-box" style="position:absolute;inset:8px;overflow:auto">Completion Trend could not be drawn. ${esc(err && err.message)}</div>`);
+      }
     }
     if (S.phaseChartFullscreen) {
       const card = insightEl('phase-chart-card');
@@ -10524,7 +10625,7 @@ function selectAllPhaseScopes() {
   updatePhaseScopeFilter();
 }
 
-function buildPhaseMilestoneFilterOptions(datedMilestones) {
+function buildPhaseMilestoneFilterOptions(datedMilestones, orderIds) {
   const optionsEl = insightEl('phase-milestone-filter-options');
   if (!optionsEl) return;
 
@@ -10542,7 +10643,7 @@ function buildPhaseMilestoneFilterOptions(datedMilestones) {
     return;
   }
 
-  ensurePhaseMilestoneSelection(list);
+  ensurePhaseMilestoneSelection(list, orderIds);
   const selected = new Set(S.phaseSelectedMilestones || []);
   optionsEl.innerHTML = list.map(m => `
     <label class="ms-option">
@@ -12224,10 +12325,23 @@ function normalizeAllReleasePatches() {
   (S.releases || []).forEach(normalizeReleasePatches);
 }
 
+let _milestoneDraft = null;
+
+function normalizeAllReleaseMilestones() {
+  if (typeof ReleaseMilestones === 'undefined') return;
+  const catalog = getMilestones();
+  (S.releases || []).forEach(release => {
+    ReleaseMilestones.ensureReleaseMilestoneSet(release, catalog);
+  });
+}
+
 async function loadReleasesConfig() {
   S.releases = S.releases || [];
-  S.milestones = S.milestones || JSON.parse(JSON.stringify(DEFAULT_MILESTONES));
+  if (!Array.isArray(S.milestones)) {
+    S.milestones = JSON.parse(JSON.stringify(DEFAULT_MILESTONES));
+  }
   normalizeAllReleasePatches();
+  normalizeAllReleaseMilestones();
   return true;
 }
 
@@ -12238,10 +12352,29 @@ async function saveReleasesConfig() {
 }
 
 function getMilestones() {
-  if (!S.milestones || S.milestones.length === 0) {
+  if (!Array.isArray(S.milestones)) {
     S.milestones = JSON.parse(JSON.stringify(DEFAULT_MILESTONES));
   }
   return S.milestones;
+}
+
+function milestoneIdTaken(id, except) {
+  const key = String(id || '').trim();
+  if (!key) return 'Enter an id.';
+  if (!/^[A-Za-z][A-Za-z0-9]{0,11}$/.test(key)) {
+    return 'Use 1–12 letters and digits, starting with a letter.';
+  }
+  if (getMilestones().some(m => m.id === key) && !(except && except.where === 'master' && except.id === key)) {
+    return key + ' is already on the default list.';
+  }
+  const releaseHit = (S.releases || []).find(release => {
+    const ids = Array.isArray(release.milestoneIds) ? release.milestoneIds : [];
+    if (!ids.includes(key)) return false;
+    if (except && except.where === 'release' && except.release === release && except.id === key) return false;
+    return true;
+  });
+  if (releaseHit) return key + ' is already used on ' + (releaseHit.name || 'a release') + '.';
+  return '';
 }
 
 async function renderReleasesConfig() {
@@ -12255,16 +12388,22 @@ async function renderReleasesConfig() {
   await loadReleasesConfig();
 
   container.innerHTML = `
-    <div class="setup-wrap" style="max-width: 900px;">
+    <div class="setup-wrap" style="max-width: 980px;">
       <div class="card">
         <h2>Release Configuration</h2>
         <p class="desc">
-          Configure market releases and their milestone dates. Each market release can also
-          have named patch releases (Jira fixVersion names only — no milestone dates).
-          Projects choose whether to query the market release, its patches, or both.
+          Configure each market release: its name, the milestones on that release, their dates,
+          and its patch names. A new release starts from the default milestone list.
           <br><strong>Saved to config/releases.json</strong>
         </p>
-        
+        <div style="margin:12px 0 4px;">
+          <button class="btn btn-sm" type="button" onclick="nav('milestones-config')">Edit default milestones</button>
+        </div>
+        <span id="releases-save-msg" style="font-size: 12px; color: var(--text3);"></span>
+      </div>
+
+      <div class="card">
+        <h2>Market releases</h2>
         <div style="margin-bottom: 20px; display: flex; gap: 10px; align-items: center;">
           <button class="btn primary" onclick="addRelease()">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
@@ -12273,27 +12412,50 @@ async function renderReleasesConfig() {
             </svg>
             Add Market Release
           </button>
-          <span id="releases-save-msg" style="font-size: 12px; color: var(--text3);"></span>
         </div>
-
         <div id="releases-list"></div>
-      </div>
-
-      <div class="card">
-        <h2>Milestone Definitions</h2>
-        <p class="desc">
-          These are the standard milestones tracked for each release. You can customize 
-          the labels and colors for your organization.
-        </p>
-        <div id="milestones-list"></div>
-        <div style="margin-top: 16px;">
-          <button class="btn" onclick="resetMilestones()">Reset to Defaults</button>
-        </div>
       </div>
     </div>
   `;
 
   renderReleasesList();
+}
+
+async function renderMilestonesConfig() {
+  const container = document.getElementById('page-milestones-config');
+  if (!container) return;
+
+  container.innerHTML = `<div class="state-box"><div class="spinner"></div><div>Loading configuration…</div></div>`;
+  await loadReleasesConfig();
+
+  container.innerHTML = `
+    <div class="setup-wrap" style="max-width: 980px;">
+      <div class="card">
+        <h2>Milestones</h2>
+        <p class="desc">
+          This is the shared milestone list. Copy a release into it, then add, remove, rename,
+          or reorder. A new market release starts from this list. Names and colors apply
+          everywhere that milestone is still used. Which milestones a release includes, and
+          their dates, are set on each release.
+          <br><strong>Saved to config/releases.json</strong>
+        </p>
+        <div style="margin:12px 0 4px;">
+          <button class="btn btn-sm" type="button" onclick="nav('releases-config')">Open Releases</button>
+        </div>
+        <span id="milestones-save-msg" style="font-size: 12px; color: var(--text3);"></span>
+      </div>
+
+      <div class="card">
+        <h2>Default milestones</h2>
+        <p class="desc">
+          Copy a release’s milestones into this list, then add, remove, rename, or reorder.
+          Changing the list does not add or remove milestones on releases you already have.
+        </p>
+        <div id="milestones-list"></div>
+      </div>
+    </div>
+  `;
+
   renderMilestonesList();
 }
 
@@ -12361,51 +12523,8 @@ function renderReleasesList() {
             Delete
           </button>
         </div>
-        
-        <div class="milestones-grid" style="
-          display: grid;
-          grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
-          gap: 10px;
-        ">
-          ${getMilestones().map(milestone => `
-            <div class="milestone-field">
-              <label style="
-                display: block;
-                font-size: 11px;
-                font-weight: 600;
-                color: var(--text3);
-                margin-bottom: 4px;
-                text-transform: uppercase;
-                letter-spacing: 0.05em;
-              ">
-                <span style="
-                  display: inline-block;
-                  width: 10px;
-                  height: 10px;
-                  border-radius: 3px;
-                  background: ${milestone.color};
-                  margin-right: 5px;
-                "></span>
-                ${esc(milestone.id)} - ${esc(milestone.label)}
-              </label>
-              <input 
-                type="date"
-                value="${release.milestones && release.milestones[milestone.id] || ''}"
-                onchange="updateMilestone(${index}, '${milestone.id}', this.value)"
-                style="
-                  width: 100%;
-                  padding: 6px 8px;
-                  border: 0.5px solid var(--border2);
-                  border-radius: var(--radius);
-                  background: var(--bg);
-                  color: var(--text);
-                  font-size: 12px;
-                  font-family: inherit;
-                "
-              />
-            </div>
-          `).join('')}
-        </div>
+
+        ${renderReleaseMilestoneEditor(release, index)}
 
         <div style="margin-top:16px;padding-top:14px;border-top:0.5px solid var(--border);">
           <div style="display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:8px;">
@@ -12424,109 +12543,168 @@ function renderReleasesList() {
   container.innerHTML = html;
 }
 
+function milestoneDraftPrefix(type, releaseIndex) {
+  return type === 'master' ? 'master-new' : ('rel-new-' + releaseIndex);
+}
+
+function milestoneDraftHtml(type, releaseIndex) {
+  const open = _milestoneDraft
+    && _milestoneDraft.type === type
+    && (type === 'master' || _milestoneDraft.releaseIndex === releaseIndex);
+  if (!open) return '';
+  const prefix = milestoneDraftPrefix(type, releaseIndex);
+  return `
+    <div class="ms-draft">
+      <input id="${prefix}-id" type="text" maxlength="12" placeholder="Id (e.g. RC)" style="width:110px;font-family:ui-monospace,monospace;font-weight:600;">
+      <input id="${prefix}-label" type="text" placeholder="Short label" style="flex:1;min-width:140px;">
+      <input id="${prefix}-full" type="text" placeholder="Full name" style="flex:1;min-width:140px;">
+      <input id="${prefix}-color" class="ms-color" type="color" value="#185FA5">
+      <button class="btn btn-sm primary" type="button" onclick="commitMilestoneDraft('${type}', ${type === 'master' ? 'null' : releaseIndex})">Add</button>
+      <button class="btn btn-sm" type="button" onclick="cancelMilestoneDraft()">Cancel</button>
+      <div class="ms-draft-err" id="${prefix}-err"></div>
+    </div>
+  `;
+}
+
+function renderReleaseMilestoneEditor(release, index) {
+  const catalog = getMilestones();
+  if (typeof ReleaseMilestones !== 'undefined') {
+    ReleaseMilestones.ensureReleaseMilestoneSet(release, catalog);
+  }
+  const defs = (typeof ReleaseMilestones !== 'undefined')
+    ? ReleaseMilestones.releaseMilestoneDefs(release, catalog)
+    : catalog;
+  const onRelease = new Set(defs.map(m => m.id));
+  const available = catalog.filter(m => m.id && !onRelease.has(m.id));
+  const copyOptions = ['<option value="master">Default milestones</option>']
+    .concat((S.releases || []).map((other, otherIndex) => {
+      if (otherIndex === index) return '';
+      return `<option value="${otherIndex}">${esc(other.name || ('Release ' + (otherIndex + 1)))}</option>`;
+    }))
+    .join('');
+  const addOptions = available.length
+    ? available.map(m => `<option value="${esc(m.id)}">${esc(m.id)} — ${esc(m.label)}</option>`).join('')
+    : '<option value="" disabled>All default milestones are on this release</option>';
+  const rows = defs.length
+    ? `<div class="ms-config-list">${defs.map((milestone, milestoneIndex) => {
+        const local = !catalog.some(m => m.id === milestone.id);
+        const date = (release.milestones && release.milestones[milestone.id]) || '';
+        const color = (typeof ReleaseMilestones !== 'undefined')
+          ? ReleaseMilestones.safeColor(milestone.color)
+          : (milestone.color || '#888888');
+        const fieldFn = local ? 'updateReleaseLocalMilestone' : 'updateLinkedMilestoneField';
+        return `
+          <div class="milestone-row">
+            <button class="btn btn-sm ms-move" type="button" ${milestoneIndex === 0 ? 'disabled' : ''} onclick="moveReleaseMilestone(${index}, ${milestoneIndex}, -1)" title="Move earlier">↑</button>
+            <button class="btn btn-sm ms-move" type="button" ${milestoneIndex === defs.length - 1 ? 'disabled' : ''} onclick="moveReleaseMilestone(${index}, ${milestoneIndex}, 1)" title="Move later">↓</button>
+            <input class="ms-color" type="color" value="${color}" onchange="${fieldFn}(${index}, ${milestoneIndex}, 'color', this.value)">
+            <span class="ms-id">${esc(milestone.id)}</span>
+            <input class="ms-label-input" type="text" value="${esc(milestone.label)}" onchange="${fieldFn}(${index}, ${milestoneIndex}, 'label', this.value)">
+            ${local
+              ? `<span class="ms-local-tag">This release</span><button class="btn btn-sm" type="button" onclick="addReleaseMilestoneToDefault(${index}, ${milestoneIndex})">Add to default</button>`
+              : '<span class="ms-default-tag">Default</span>'}
+            <input class="ms-date" type="date" value="${esc(date)}" onchange="updateMilestone(${index}, ${milestoneIndex}, this.value)">
+            <button class="btn btn-sm" type="button" style="color:var(--red)" onclick="removeReleaseMilestone(${index}, ${milestoneIndex})">Remove</button>
+          </div>`;
+      }).join('')}</div>`
+    : '<div class="ms-config-empty">No milestones on this release yet. Copy the default list, or add one.</div>';
+
+  return `
+    <div class="ms-config-toolbar">
+      <select id="copy-ms-${index}" onchange="syncCopyDatesCheckbox(${index})">${copyOptions}</select>
+      <label class="ms-copy-dates"><input id="copy-ms-dates-${index}" type="checkbox" disabled> Copy dates</label>
+      <button class="btn btn-sm" type="button" onclick="copyReleaseMilestones(${index})">Copy</button>
+      <select id="add-ms-${index}">
+        <option value="">Add from default…</option>
+        ${addOptions}
+      </select>
+      <button class="btn btn-sm" type="button" onclick="addSelectedReleaseMilestone(${index})">Add</button>
+      <button class="btn btn-sm" type="button" onclick="openMilestoneDraft('release', ${index})">New milestone</button>
+    </div>
+    <p class="ms-config-hint">Copy replaces this release’s milestone list. Dates already set here are kept for milestones that stay, unless you check Copy dates. Removing a milestone clears its date on this release only.</p>
+    ${milestoneDraftHtml('release', index)}
+    ${rows}
+  `;
+}
+
 function renderMilestonesList() {
   const container = document.getElementById('milestones-list');
   if (!container) return;
 
   const milestones = getMilestones();
-  
-  let html = '<div style="display: flex; flex-direction: column; gap: 8px;">';
-  milestones.forEach((milestone, index) => {
-    html += `
-      <div style="
-        display: flex;
-        align-items: center;
-        gap: 10px;
-        padding: 8px 12px;
-        border: 0.5px solid var(--border);
-        border-radius: var(--radius);
-        background: var(--bg2);
-      ">
-        <input 
-          type="color"
-          value="${milestone.color}"
-          onchange="updateMilestoneColor(${index}, this.value)"
-          style="
-            width: 32px;
-            height: 32px;
-            border: 0.5px solid var(--border2);
-            border-radius: var(--radius);
-            cursor: pointer;
-          "
-        />
-        <input 
-          type="text"
-          value="${esc(milestone.id)}"
-          onchange="updateMilestoneId(${index}, this.value)"
-          placeholder="ID (e.g., DA)"
-          style="
-            width: 60px;
-            padding: 6px 8px;
-            border: 0.5px solid var(--border2);
-            border-radius: var(--radius);
-            background: var(--bg);
-            color: var(--text);
-            font-size: 12px;
-            font-weight: 600;
-            font-family: monospace;
-          "
-        />
-        <input 
-          type="text"
-          value="${esc(milestone.label)}"
-          onchange="updateMilestoneLabel(${index}, this.value)"
-          placeholder="Short label"
-          style="
-            flex: 1;
-            padding: 6px 8px;
-            border: 0.5px solid var(--border2);
-            border-radius: var(--radius);
-            background: var(--bg);
-            color: var(--text);
-            font-size: 12px;
-            font-family: inherit;
-          "
-        />
-        <input 
-          type="text"
-          value="${esc(milestone.fullName || milestone.label)}"
-          onchange="updateMilestoneFullName(${index}, this.value)"
-          placeholder="Full name"
-          style="
-            flex: 1;
-            padding: 6px 8px;
-            border: 0.5px solid var(--border2);
-            border-radius: var(--radius);
-            background: var(--bg);
-            color: var(--text);
-            font-size: 12px;
-            font-family: inherit;
-          "
-        />
-      </div>
-    `;
-  });
-  html += '</div>';
+  const copyOptions = (S.releases || []).map((release, index) =>
+    `<option value="${index}">${esc(release.name || ('Release ' + (index + 1)))}</option>`
+  ).join('');
+  const rows = milestones.length
+    ? milestones.map((milestone, index) => `
+        <div class="master-ms-row">
+          <button class="btn btn-sm ms-move" type="button" ${index === 0 ? 'disabled' : ''} onclick="moveMasterMilestone(${index}, -1)" title="Move earlier">↑</button>
+          <button class="btn btn-sm ms-move" type="button" ${index === milestones.length - 1 ? 'disabled' : ''} onclick="moveMasterMilestone(${index}, 1)" title="Move later">↓</button>
+          <input class="ms-color" type="color" value="${(typeof ReleaseMilestones !== 'undefined' ? ReleaseMilestones.safeColor(milestone.color) : milestone.color)}" onchange="updateMilestoneColor(${index}, this.value)">
+          <input type="text" value="${esc(milestone.id)}" onchange="updateMilestoneId(${index}, this.value)" placeholder="ID" style="width:72px;font-family:ui-monospace,monospace;font-weight:600;">
+          <input type="text" value="${esc(milestone.label)}" onchange="updateMilestoneLabel(${index}, this.value)" placeholder="Short label" style="flex:1;min-width:140px;">
+          <input type="text" value="${esc(milestone.fullName || milestone.label)}" onchange="updateMilestoneFullName(${index}, this.value)" placeholder="Full name" style="flex:1;min-width:140px;">
+          <button class="btn btn-sm" type="button" style="color:var(--red)" onclick="removeMasterMilestone(${index})">Remove</button>
+        </div>
+      `).join('')
+    : '<div class="ms-config-empty">The default list is empty. Copy a release or add a milestone. New releases will start with no milestones until you do.</div>';
 
-  container.innerHTML = html;
+  container.innerHTML = `
+    <div class="ms-config-toolbar">
+      <select id="copy-default-from">
+        <option value="">Copy from a release…</option>
+        ${copyOptions}
+      </select>
+      <button class="btn btn-sm" type="button" onclick="copyReleaseOntoDefault()">Copy</button>
+      <button class="btn btn-sm" type="button" onclick="openMilestoneDraft('master')">Add milestone</button>
+      <button class="btn btn-sm" type="button" onclick="resetMilestones()">Reset to built-in</button>
+    </div>
+    <p class="ms-config-hint">Copy replaces this default list with the milestones on that release. Then add or remove milestones here. Existing releases keep their own lists.</p>
+    ${milestoneDraftHtml('master')}
+    <div class="ms-config-list">${rows}</div>
+  `;
+}
+
+function openMilestoneDraft(type, releaseIndex) {
+  _milestoneDraft = { type, releaseIndex: type === 'master' ? null : releaseIndex };
+  if (type === 'master') renderMilestonesList();
+  else renderReleasesList();
+  const prefix = milestoneDraftPrefix(type, releaseIndex);
+  const input = document.getElementById(prefix + '-id');
+  if (input) input.focus();
+}
+
+function cancelMilestoneDraft() {
+  const type = _milestoneDraft && _milestoneDraft.type;
+  _milestoneDraft = null;
+  if (type === 'master') renderMilestonesList();
+  else renderReleasesList();
+}
+
+function syncCopyDatesCheckbox(index) {
+  const sel = document.getElementById('copy-ms-' + index);
+  const box = document.getElementById('copy-ms-dates-' + index);
+  if (!sel || !box) return;
+  const fromMaster = sel.value === 'master';
+  box.disabled = fromMaster;
+  if (fromMaster) box.checked = false;
 }
 
 // Helper to show save status message
-function showSaveMessage(success) {
-  const msgEl = document.getElementById('releases-save-msg');
-  if (!msgEl) return;
-  
-  if (success) {
-    msgEl.style.color = 'var(--green)';
-    msgEl.textContent = '✓ Saved to config/releases.json';
-  } else {
-    msgEl.style.color = 'var(--red)';
-    msgEl.textContent = '✗ ' + (_storeError || 'Failed to save');
-  }
-  
-  setTimeout(() => {
-    msgEl.textContent = '';
-  }, 3000);
+function showSaveMessage(success, detail) {
+  const text = success
+    ? '✓ Saved to config/releases.json'
+    : '✗ ' + (detail || _storeError || 'Failed to save');
+  const color = success ? 'var(--green)' : 'var(--red)';
+  ['releases-save-msg', 'milestones-save-msg'].forEach(id => {
+    const msgEl = document.getElementById(id);
+    if (!msgEl) return;
+    msgEl.style.color = color;
+    msgEl.textContent = text;
+    setTimeout(() => {
+      if (msgEl.textContent === text) msgEl.textContent = '';
+    }, 3000);
+  });
 }
 
 function renderPatchReleaseList(release, releaseIndex) {
@@ -12549,12 +12727,12 @@ function renderPatchReleaseList(release, releaseIndex) {
 
 async function addRelease() {
   if (!S.releases) S.releases = [];
-  
-  S.releases.push({
-    name: `N${new Date().getFullYear()}.R${S.releases.length + 1}`,
-    milestones: {},
-    patches: []
-  });
+  const name = `N${new Date().getFullYear()}.R${S.releases.length + 1}`;
+  const created = (typeof ReleaseMilestones !== 'undefined')
+    ? ReleaseMilestones.newReleaseFromMaster(name, getMilestones())
+    : { name, milestones: {}, patches: [] };
+  if (!created.patches) created.patches = [];
+  S.releases.push(created);
   
   const saved = await saveReleasesConfig();
   showSaveMessage(saved);
@@ -12646,14 +12824,216 @@ async function deletePatchRelease(releaseIndex, patchIndex) {
   renderReleasesList();
 }
 
-async function updateMilestone(releaseIndex, milestoneId, value) {
-  if (!S.releases || !S.releases[releaseIndex]) return;
-  if (!S.releases[releaseIndex].milestones) {
-    S.releases[releaseIndex].milestones = {};
-  }
-  S.releases[releaseIndex].milestones[milestoneId] = value;
+async function updateMilestone(releaseIndex, milestoneIndex, value) {
+  const release = S.releases && S.releases[releaseIndex];
+  if (!release || !Array.isArray(release.milestoneIds)) return;
+  const milestoneId = release.milestoneIds[milestoneIndex];
+  if (!milestoneId) return;
+  if (!release.milestones || typeof release.milestones !== 'object') release.milestones = {};
+  if (value) release.milestones[milestoneId] = value;
+  else delete release.milestones[milestoneId];
   const saved = await saveReleasesConfig();
   showSaveMessage(saved);
+}
+
+async function moveReleaseMilestone(releaseIndex, milestoneIndex, delta) {
+  const release = S.releases && S.releases[releaseIndex];
+  if (!release || typeof ReleaseMilestones === 'undefined') return;
+  release.milestoneIds = ReleaseMilestones.moveId(release.milestoneIds, milestoneIndex, delta);
+  const saved = await saveReleasesConfig();
+  showSaveMessage(saved);
+  renderReleasesList();
+}
+
+async function removeReleaseMilestone(releaseIndex, milestoneIndex) {
+  const release = S.releases && S.releases[releaseIndex];
+  if (!release || !Array.isArray(release.milestoneIds)) return;
+  const id = release.milestoneIds[milestoneIndex];
+  if (!id) return;
+  const def = (typeof ReleaseMilestones !== 'undefined')
+    ? ReleaseMilestones.resolveMilestoneDef(release, getMilestones(), id)
+    : { label: id };
+  if (!confirm(`Remove ${def.label} (${id}) from ${release.name || 'this release'}? Its date on this release will be cleared.`)) return;
+  if (typeof ReleaseMilestones !== 'undefined') {
+    ReleaseMilestones.removeMilestoneFromRelease(release, id, getMilestones());
+  } else {
+    release.milestoneIds.splice(milestoneIndex, 1);
+    if (release.milestones) delete release.milestones[id];
+  }
+  const saved = await saveReleasesConfig();
+  showSaveMessage(saved);
+  renderReleasesList();
+}
+
+async function addSelectedReleaseMilestone(releaseIndex) {
+  const release = S.releases && S.releases[releaseIndex];
+  const sel = document.getElementById('add-ms-' + releaseIndex);
+  if (!release || !sel || !sel.value) return;
+  if (typeof ReleaseMilestones !== 'undefined') {
+    ReleaseMilestones.addMilestoneToRelease(release, sel.value, getMilestones());
+  }
+  const saved = await saveReleasesConfig();
+  showSaveMessage(saved);
+  renderReleasesList();
+}
+
+async function copyReleaseMilestones(releaseIndex) {
+  const release = S.releases && S.releases[releaseIndex];
+  const sel = document.getElementById('copy-ms-' + releaseIndex);
+  if (!release || !sel || typeof ReleaseMilestones === 'undefined') return;
+  const copyDates = !!document.getElementById('copy-ms-dates-' + releaseIndex)?.checked;
+  let sourceName = 'the default milestones';
+  let sourceIds = getMilestones().map(m => m.id);
+  let sourceLocal = {};
+  let sourceDates = {};
+  if (sel.value !== 'master') {
+    const source = S.releases[Number(sel.value)];
+    if (!source || source === release) return;
+    ReleaseMilestones.ensureReleaseMilestoneSet(source, getMilestones());
+    sourceName = source.name || 'the selected release';
+    sourceIds = source.milestoneIds;
+    sourceLocal = source.localMilestones;
+    sourceDates = source.milestones;
+  }
+  const lead = copyDates && sel.value !== 'master'
+    ? `Copy milestones and dates from ${sourceName}`
+    : `Copy milestones from ${sourceName}`;
+  if (!confirm(`${lead} onto ${release.name || 'this release'}? Milestones that are not in that list are removed from this release.`)) return;
+  ReleaseMilestones.applyMilestoneSet(release, sourceIds, sourceLocal, getMilestones(), {
+    copyDates: copyDates && sel.value !== 'master',
+    sourceDates,
+  });
+  const saved = await saveReleasesConfig();
+  showSaveMessage(saved);
+  renderReleasesList();
+}
+
+async function updateLinkedMilestoneField(releaseIndex, milestoneIndex, field, value) {
+  const release = S.releases && S.releases[releaseIndex];
+  if (!release || !Array.isArray(release.milestoneIds)) return;
+  const id = release.milestoneIds[milestoneIndex];
+  const masterIndex = getMilestones().findIndex(milestone => milestone.id === id);
+  if (masterIndex < 0) return updateReleaseLocalMilestone(releaseIndex, milestoneIndex, field, value);
+  if (field === 'label') return updateMilestoneLabel(masterIndex, value);
+  if (field === 'color') return updateMilestoneColor(masterIndex, value);
+}
+
+async function addReleaseMilestoneToDefault(releaseIndex, milestoneIndex) {
+  const release = S.releases && S.releases[releaseIndex];
+  if (!release || !Array.isArray(release.milestoneIds)) return;
+  const id = release.milestoneIds[milestoneIndex];
+  const local = release.localMilestones && release.localMilestones[id];
+  if (!local || getMilestones().some(milestone => milestone.id === id)) return;
+  const def = (typeof ReleaseMilestones !== 'undefined')
+    ? ReleaseMilestones.cloneDef(local)
+    : { id, label: local.label || id, fullName: local.fullName || local.label || id, color: local.color || '#888888' };
+  getMilestones().push(def);
+  normalizeAllReleaseMilestones();
+  const saved = await saveReleasesConfig();
+  showSaveMessage(saved);
+  renderMilestonesList();
+  renderReleasesList();
+}
+
+async function copyReleaseOntoDefault() {
+  const sel = document.getElementById('copy-default-from');
+  if (!sel || sel.value === '' || typeof ReleaseMilestones === 'undefined') return;
+  const release = S.releases && S.releases[Number(sel.value)];
+  if (!release) return;
+  const name = release.name || 'the selected release';
+  if (!confirm(`Replace the default milestone list with the milestones on ${name}? Releases you already have keep their own lists.`)) return;
+  normalizeAllReleaseMilestones();
+  S.milestones = ReleaseMilestones.catalogFromRelease(release, getMilestones(), S.releases);
+  normalizeAllReleaseMilestones();
+  const saved = await saveReleasesConfig();
+  showSaveMessage(saved);
+  renderMilestonesList();
+  renderReleasesList();
+}
+
+async function updateReleaseLocalMilestone(releaseIndex, milestoneIndex, field, value) {
+  const release = S.releases && S.releases[releaseIndex];
+  if (!release || !Array.isArray(release.milestoneIds)) return;
+  const id = release.milestoneIds[milestoneIndex];
+  const def = release.localMilestones && release.localMilestones[id];
+  if (!def) return;
+  if (field === 'label') {
+    const previous = def.label;
+    def.label = value;
+    if (!def.fullName || def.fullName === previous) def.fullName = value;
+  } else if (field === 'color') {
+    def.color = value;
+  }
+  const saved = await saveReleasesConfig();
+  showSaveMessage(saved);
+  if (field === 'color') renderReleasesList();
+}
+
+async function commitMilestoneDraft(type, releaseIndex) {
+  const prefix = milestoneDraftPrefix(type, releaseIndex);
+  const errEl = document.getElementById(prefix + '-err');
+  const id = (document.getElementById(prefix + '-id')?.value || '').trim();
+  const label = (document.getElementById(prefix + '-label')?.value || '').trim();
+  const fullName = (document.getElementById(prefix + '-full')?.value || '').trim();
+  const color = document.getElementById(prefix + '-color')?.value || '#185FA5';
+  const taken = milestoneIdTaken(id);
+  if (taken) {
+    if (errEl) errEl.textContent = taken;
+    return;
+  }
+  if (!label) {
+    if (errEl) errEl.textContent = 'Enter a short label.';
+    return;
+  }
+  const def = {
+    id,
+    label,
+    fullName: fullName || label,
+    color: (typeof ReleaseMilestones !== 'undefined') ? ReleaseMilestones.safeColor(color) : color,
+  };
+  if (type === 'master') {
+    getMilestones().push(def);
+  } else {
+    const release = S.releases && S.releases[releaseIndex];
+    if (!release || typeof ReleaseMilestones === 'undefined') return;
+    ReleaseMilestones.addMilestoneToRelease(release, id, getMilestones(), def);
+  }
+  _milestoneDraft = null;
+  const saved = await saveReleasesConfig();
+  showSaveMessage(saved);
+  renderMilestonesList();
+  renderReleasesList();
+}
+
+async function moveMasterMilestone(index, delta) {
+  const milestones = getMilestones();
+  if (typeof ReleaseMilestones === 'undefined') return;
+  const next = ReleaseMilestones.moveId(milestones, index, delta);
+  if (next === milestones) return;
+  S.milestones = next;
+  const saved = await saveReleasesConfig();
+  showSaveMessage(saved);
+  renderMilestonesList();
+}
+
+async function removeMasterMilestone(index) {
+  const milestones = getMilestones();
+  const def = milestones[index];
+  if (!def) return;
+  normalizeAllReleaseMilestones();
+  const usedBy = (S.releases || [])
+    .filter(release => Array.isArray(release.milestoneIds) && release.milestoneIds.includes(def.id))
+    .map(release => release.name || 'Untitled');
+  const message = usedBy.length
+    ? `Remove ${def.label} (${def.id}) from the default list? ${usedBy.join(', ')} still include it and will keep the current name and color.`
+    : `Remove ${def.label} (${def.id}) from the default list?`;
+  if (!confirm(message)) return;
+  if (typeof ReleaseMilestones !== 'undefined') ReleaseMilestones.rememberMilestoneDef(S.releases, def);
+  milestones.splice(index, 1);
+  const saved = await saveReleasesConfig();
+  showSaveMessage(saved);
+  renderMilestonesList();
+  renderReleasesList();
 }
 
 async function updateMilestoneColor(index, value) {
@@ -12670,16 +13050,20 @@ async function updateMilestoneId(index, value) {
   const milestones = getMilestones();
   if (!milestones[index]) return;
   const oldId = milestones[index].id;
-  milestones[index].id = value;
-  
-  // Update all releases to use new ID
-  if (S.releases) {
-    S.releases.forEach(release => {
-      if (release.milestones && release.milestones[oldId] !== undefined) {
-        release.milestones[value] = release.milestones[oldId];
-        delete release.milestones[oldId];
-      }
-    });
+  const next = String(value || '').trim();
+  if (!next || next === oldId) {
+    renderMilestonesList();
+    return;
+  }
+  const taken = milestoneIdTaken(next, { where: 'master', id: oldId });
+  if (taken) {
+    showSaveMessage(false, taken);
+    renderMilestonesList();
+    return;
+  }
+  milestones[index].id = next;
+  if (typeof ReleaseMilestones !== 'undefined') {
+    ReleaseMilestones.renameMilestoneId(S.releases, oldId, next);
   }
   
   const saved = await saveReleasesConfig();
@@ -12707,8 +13091,16 @@ async function updateMilestoneFullName(index, value) {
 }
 
 async function resetMilestones() {
-  if (!confirm('Reset milestones to default configuration? This will not affect your release dates.')) return;
+  if (!confirm('Reset the default milestones to the built-in list? Each release keeps its own milestone list. A milestone you drop from the default stays on any release that still uses it.')) return;
+  normalizeAllReleaseMilestones();
+  const nextIds = new Set(DEFAULT_MILESTONES.map(m => m.id));
+  if (typeof ReleaseMilestones !== 'undefined') {
+    getMilestones().forEach(def => {
+      if (!nextIds.has(def.id)) ReleaseMilestones.rememberMilestoneDef(S.releases, def);
+    });
+  }
   S.milestones = JSON.parse(JSON.stringify(DEFAULT_MILESTONES));
+  normalizeAllReleaseMilestones();
   const saved = await saveReleasesConfig();
   showSaveMessage(saved);
   renderMilestonesList();
@@ -12731,6 +13123,7 @@ async function initApp() {
   ]);
   if (!S.releases) S.releases = [];
   normalizeAllReleasePatches();
+  normalizeAllReleaseMilestones();
   normalizeAllProjectReleases();
   if (!storeLoaded && !_dashboardUser) {
     const error = document.getElementById('auth-gate-error');

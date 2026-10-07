@@ -2,19 +2,37 @@
   "releases": [
     {
       "name": "N2027.R1",
+      "milestoneIds": [
+        "DA",
+        "KO",
+        "SC2",
+        "SC",
+        "FF",
+        "DF",
+        "VR",
+        "VF",
+        "PF",
+        "GA",
+        "GE",
+        "GE2",
+        "GL",
+        "EOS"
+      ],
+      "localMilestones": {},
       "milestones": {
-        "DA": "2026-09-01",
-        "FF": "2027-03-08",
-        "GA": "2027-04-14",
+        "DA": "2026-09-15",
+        "FF": "2027-02-04",
+        "GA": "2027-04-15",
         "GE": "2027-04-19",
-        "GL": "2027-06-07",
-        "KO": "2026-10-06",
+        "GL": "2027-05-31",
+        "KO": "2026-09-29",
         "PF": "2027-04-01",
-        "SC": "2026-11-12",
-        "VR": "2027-03-19",
-        "EOS": "2028-01-10",
+        "SC": "2026-11-05",
+        "VR": "2027-03-04",
+        "EOS": "2027-11-15",
         "GE2": "2027-05-10",
-        "SC2": "2026-10-27"
+        "SC2": "2026-10-20",
+        "DF": "202702-02-05"
       },
       "patches": [
         "N2027.R1.01",
@@ -24,6 +42,21 @@
     },
     {
       "name": "N2026.R2",
+      "milestoneIds": [
+        "DA",
+        "KO",
+        "SC2",
+        "SC",
+        "FF",
+        "VR",
+        "PF",
+        "GA",
+        "GE",
+        "GE2",
+        "GL",
+        "EOS"
+      ],
+      "localMilestones": {},
       "milestones": {
         "DA": "2026-03-03",
         "FF": "2026-08-24",
@@ -79,10 +112,22 @@
       "fullName": "FEATURE FREEZE"
     },
     {
+      "id": "DF",
+      "label": "Dev Freeze",
+      "fullName": "DEV FREEZE",
+      "color": "#e0a040"
+    },
+    {
       "id": "VR",
       "color": "#c47a0f",
       "label": "Validation Results",
       "fullName": "VALIDATION RESULTS"
+    },
+    {
+      "id": "VF",
+      "label": "Validation Freeze",
+      "fullName": "VALIDATION FREEZE",
+      "color": "#c47a0f"
     },
     {
       "id": "PF",

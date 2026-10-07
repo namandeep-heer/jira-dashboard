@@ -166,6 +166,12 @@ app.get('/', (req, res) => {
   res.sendFile(path.join(ROOT, 'dashboard.html'));
 });
 
+app.get('/lib/release-milestones.js', (req, res) => {
+  res.setHeader('Cache-Control', 'no-store');
+  res.type('application/javascript');
+  res.sendFile(path.join(ROOT, 'lib', 'release-milestones.js'));
+});
+
 // ── Health check endpoint ─────────────────────────────────────────────────────
 app.get('/health', (req, res) => {
   res.status(200).json({ status: 'ok', message: 'Proxy is running' });
@@ -569,7 +575,7 @@ app.all('/jira-api', async (req, res) => {
 // ── SPA fallback — deep-linked client routes serve dashboard.html ─────────────
 app.get('*', (req, res, next) => {
   const p = req.path || '';
-  if (p.startsWith('/jira-api') || p.startsWith('/config') || p.startsWith('/api/') || p === '/health') {
+  if (p.startsWith('/jira-api') || p.startsWith('/config') || p.startsWith('/api/') || p.startsWith('/lib/') || p === '/health') {
     return next();
   }
   res.setHeader('Cache-Control', 'no-store');
