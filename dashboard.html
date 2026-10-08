@@ -245,14 +245,14 @@ html.sidebar-collapsed #log-badge { position: absolute; top: 3px; right: 3px; ma
 .jql-box { font-family: 'SFMono-Regular', Consolas, monospace; font-size: 11px; color: var(--text3); background: var(--bg2); border: 0.5px solid var(--border); border-radius: var(--radius); padding: 5px 10px; max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; cursor: pointer; display: block; }
 .jql-box.expanded { white-space: normal; word-break: break-all; }
 
-.stat-strip { display: grid; grid-template-columns: repeat(auto-fill, minmax(110px, 1fr)); gap: 10px; margin-bottom: 18px; align-items: start; }
+.stat-strip { display: flex; flex-wrap: wrap; gap: 10px; margin-bottom: 18px; align-items: stretch; }
 .stat-filter-note { font-size: 12px; color: var(--text3); margin: 0 0 10px; }
-.stat-card { background: var(--bg); border: 0.5px solid var(--border); border-radius: var(--radius); padding: 10px 14px; transition: border-color .12s, background .12s; user-select: none; }
+.stat-card { flex: 1 1 0; min-width: max-content; background: var(--bg); border: 0.5px solid var(--border); border-radius: var(--radius); padding: 10px 14px; transition: border-color .12s, background .12s; user-select: none; }
 .stat-card:hover { background: var(--bg2); border-color: var(--border2); }
 .stat-card.active { border-color: var(--blue); background: var(--blue-bg); }
 .stat-card.active .sl { color: var(--blue); }
 .stat-card.active .sv { color: var(--blue); }
-.stat-card .sl { font-size: 11px; color: var(--text3); margin-bottom: 3px; }
+.stat-card .sl { font-size: 11px; color: var(--text3); margin-bottom: 3px; white-space: nowrap; }
 .stat-card .sv { font-size: 22px; font-weight: 700; }
 .stat-card .so { font-size: 10px; color: var(--text3); margin-top: 2px; font-weight: 500; }
 
@@ -281,6 +281,55 @@ table.issues tr:last-child td { border-bottom: none; }
 table.issues tr:hover td { background: var(--bg2); }
 .key-link { color: var(--blue); font-family: monospace; font-size: 11px; font-weight: 600; text-decoration: none; }
 .key-link:hover { text-decoration: underline; }
+table.issues th.notes-col { width: 1%; position: sticky; left: 0; z-index: 3; background: var(--bg); box-shadow: 1px 0 0 var(--border); }
+table.issues th.notes-col .th-label { cursor: default; }
+table.issues td.notes-cell { max-width: none; width: 1%; text-align: left; overflow: visible; position: sticky; left: 0; z-index: 2; background: var(--bg); box-shadow: 1px 0 0 var(--border); }
+table.issues tr:hover td.notes-cell { background: var(--bg2); }
+#content:has(.proj-page.active) { overflow: hidden; display: flex; flex-direction: column; }
+.proj-page.page.active { display: flex; flex-direction: column; flex: 1; min-height: 0; overflow: hidden; }
+.proj-page-top { flex: 0 1 auto; max-height: 46%; overflow: auto; }
+.proj-issues { flex: 1; min-height: 0; display: flex; flex-direction: column; overflow: hidden; }
+.proj-issues .proj-table-tools { flex-shrink: 0; }
+.proj-issues .table-wrap { flex: 1; min-height: 0; max-height: none; overflow: auto; }
+.ticket-notes-btn { display: inline-flex; align-items: center; justify-content: center; gap: 4px; min-width: 28px; height: 24px; padding: 0 7px; border-radius: 999px; border: 0.5px solid var(--border2); background: var(--bg); color: var(--text3); cursor: pointer; font-family: inherit; }
+.ticket-notes-btn svg { width: 13px; height: 13px; }
+.ticket-notes-btn:hover { color: var(--text); background: var(--bg2); }
+.ticket-notes-btn:focus-visible { outline: 2px solid var(--blue); outline-offset: 1px; }
+.ticket-notes-btn.has-notes { color: var(--blue); background: var(--blue-bg); border-color: transparent; }
+.ticket-notes-count { font-size: 11px; font-weight: 600; font-variant-numeric: tabular-nums; }
+#ticket-notes-root { position: fixed; inset: 0; z-index: 800; }
+#ticket-notes-root[hidden] { display: none !important; }
+.ticket-notes-backdrop { position: absolute; inset: 0; background: rgba(0,0,0,.28); opacity: 0; transition: opacity .18s ease; }
+.ticket-notes-drawer { position: absolute; top: 0; right: 0; width: min(420px, 100vw); height: 100%; background: var(--bg); border-left: 0.5px solid var(--border); box-shadow: -12px 0 40px rgba(0,0,0,.12); display: flex; flex-direction: column; transform: translateX(16px); opacity: 0; transition: transform .22s cubic-bezier(.2,.8,.2,1), opacity .18s ease; }
+#ticket-notes-root.open .ticket-notes-backdrop { opacity: 1; }
+#ticket-notes-root.open .ticket-notes-drawer { transform: none; opacity: 1; }
+.ticket-notes-head { display: flex; align-items: flex-start; gap: 12px; padding: 18px 20px 14px; border-bottom: 0.5px solid var(--border); }
+.ticket-notes-head h2 { font-size: 15px; font-weight: 600; line-height: 1.35; margin-top: 4px; }
+.ticket-notes-kicker { font-size: 12px; color: var(--text3); line-height: 1.4; margin-top: 6px; }
+.ticket-notes-body { flex: 1; overflow: auto; padding: 18px 20px 28px; display: flex; flex-direction: column; gap: 22px; }
+.ticket-notes-section h3 { font-size: 12px; font-weight: 600; letter-spacing: .02em; }
+.ticket-notes-label { display: flex; align-items: baseline; justify-content: space-between; gap: 10px; margin-bottom: 8px; }
+.ticket-notes-status { font-size: 12px; color: var(--text3); }
+.ticket-notes-status.is-error { color: var(--red); }
+.ticket-notes-note, .ticket-notes-composer { width: 100%; padding: 10px 12px; border: 0.5px solid var(--border2); border-radius: var(--radius-lg); background: var(--bg2); color: var(--text); font: inherit; font-size: 13px; line-height: 1.45; resize: vertical; }
+.ticket-notes-note { min-height: 120px; }
+.ticket-notes-composer { min-height: 72px; }
+.ticket-notes-note:focus, .ticket-notes-composer:focus { outline: 2px solid var(--blue); outline-offset: -1px; background: var(--bg); }
+.ticket-notes-meta { margin-top: 8px; font-size: 12px; color: var(--text3); line-height: 1.4; }
+.ticket-notes-comments { display: flex; flex-direction: column; gap: 10px; margin-bottom: 12px; }
+.ticket-notes-empty { font-size: 13px; color: var(--text3); }
+.ticket-notes-comment { padding: 10px 12px; border-radius: var(--radius-lg); background: var(--bg2); }
+.ticket-notes-comment header { display: flex; align-items: baseline; justify-content: space-between; gap: 8px; margin-bottom: 4px; }
+.ticket-notes-comment .who { font-size: 12px; font-weight: 600; }
+.ticket-notes-comment .when { font-size: 11px; color: var(--text3); }
+.ticket-notes-comment p { font-size: 13px; line-height: 1.45; white-space: pre-wrap; word-break: break-word; }
+.ticket-notes-comment .ticket-notes-delete { margin-top: 8px; padding: 0; border: none; background: none; color: var(--text3); font: inherit; font-size: 12px; cursor: pointer; }
+.ticket-notes-comment .ticket-notes-delete:hover { color: var(--red); }
+.ticket-notes-compose { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin-top: 8px; }
+.ticket-notes-hint { font-size: 11px; color: var(--text3); }
+@media (prefers-reduced-motion: reduce) {
+  .ticket-notes-backdrop, .ticket-notes-drawer { transition: none; }
+}
 .badge { display: inline-flex; align-items: center; padding: 2px 8px; border-radius: 999px; font-size: 11px; font-weight: 500; white-space: nowrap; }
 .b-todo    { background: var(--bg3); color: var(--text3); }
 .b-ip      { background: var(--blue-bg); color: var(--blue); }
@@ -896,6 +945,42 @@ code { font-family: monospace; font-size: 12px; background: var(--bg3); padding:
         <div class="auto-sync-count" id="auto-sync-count">5</div>
         <button class="btn btn-sm" id="auto-sync-cancel-btn" onclick="cancelAutoSyncCountdown()">Cancel</button>
       </div>
+    </div>
+
+    <div id="ticket-notes-root" hidden>
+      <div class="ticket-notes-backdrop" onclick="closeTicketNotes()"></div>
+      <aside class="ticket-notes-drawer" role="dialog" aria-modal="true" aria-labelledby="ticket-notes-title">
+        <div class="ticket-notes-head">
+          <div style="flex:1;min-width:0">
+            <a id="ticket-notes-key" class="key-link" href="#" target="_blank" rel="noopener"></a>
+            <h2 id="ticket-notes-title">Ticket</h2>
+            <p class="ticket-notes-kicker">Saved on this dashboard in data/ticket-notes.json. Nothing here is posted to Jira.</p>
+          </div>
+          <button class="btn btn-sm" type="button" onclick="closeTicketNotes()">Close</button>
+        </div>
+        <div class="ticket-notes-body">
+          <section class="ticket-notes-section">
+            <div class="ticket-notes-label">
+              <h3>Note</h3>
+              <span class="ticket-notes-status" id="ticket-notes-note-status"></span>
+            </div>
+            <textarea id="ticket-notes-note" class="ticket-notes-note" maxlength="8000" placeholder="Shared note for this ticket" oninput="scheduleTicketNoteSave()"></textarea>
+            <p class="ticket-notes-meta" id="ticket-notes-note-meta"></p>
+          </section>
+          <section class="ticket-notes-section">
+            <div class="ticket-notes-label">
+              <h3>Comments</h3>
+              <span class="ticket-notes-status" id="ticket-notes-comment-status"></span>
+            </div>
+            <div class="ticket-notes-comments" id="ticket-notes-comments"></div>
+            <textarea id="ticket-notes-comment" class="ticket-notes-composer" maxlength="4000" placeholder="Add a comment" onkeydown="onTicketCommentKeydown(event)"></textarea>
+            <div class="ticket-notes-compose">
+              <span class="ticket-notes-hint">Ctrl+Enter to add</span>
+              <button class="btn btn-sm primary" type="button" onclick="addTicketComment()">Add comment</button>
+            </div>
+          </section>
+        </div>
+      </aside>
     </div>
 
     <div id="proj-col-filter-pop" class="proj-col-filter-pop" role="dialog" aria-label="Column filter">
@@ -1775,12 +1860,12 @@ code { font-family: monospace; font-size: 12px; background: var(--bg3); padding:
       </div>
 
       <!-- Project pages -->
-      <div class="page" id="page-p0"></div>
-      <div class="page" id="page-p1"></div>
-      <div class="page" id="page-p2"></div>
-      <div class="page" id="page-p3"></div>
-      <div class="page" id="page-p4"></div>
-      <div class="page" id="page-p5"></div>
+      <div class="page proj-page" id="page-p0"></div>
+      <div class="page proj-page" id="page-p1"></div>
+      <div class="page proj-page" id="page-p2"></div>
+      <div class="page proj-page" id="page-p3"></div>
+      <div class="page proj-page" id="page-p4"></div>
+      <div class="page proj-page" id="page-p5"></div>
 
     </div>
   </div>
@@ -4957,21 +5042,24 @@ function getViewSkipReason(proj) {
 
 function renderProject(proj) {
   const el = document.getElementById('page-' + proj.id);
+  if (el) el.classList.add('proj-page');
   const selectedReleases = getSelectedReleaseNames();
   const skipReason = selectedReleases.length ? getViewSkipReason(proj) : 'not-enabled';
   const effJql = skipReason && skipReason !== 'not-enabled' && skipReason !== 'no-versions'
     ? stripFixVersionFromJql(getProjectJql(proj))
     : getEffectiveProjectJql(proj);
   el.innerHTML = `
-    <div class="proj-header">
-      <div class="proj-title">
-        <span class="proj-dot" style="background:${proj.color};width:12px;height:12px"></span>
-        <h2>${esc(proj.name)}</h2>
+    <div class="proj-page-top">
+      <div class="proj-header">
+        <div class="proj-title">
+          <span class="proj-dot" style="background:${proj.color};width:12px;height:12px"></span>
+          <h2>${esc(proj.name)}</h2>
+        </div>
+        <div class="jql-box" title="Click to expand/collapse" onclick="this.classList.toggle('expanded')">${esc(effJql)}</div>
       </div>
-      <div class="jql-box" title="Click to expand/collapse" onclick="this.classList.toggle('expanded')">${esc(effJql)}</div>
+      <div id="stats-${proj.key}"></div>
     </div>
-    <div id="stats-${proj.key}"></div>
-    <div id="issues-${proj.key}"><div class="state-box"><span>Loading synced data…</span></div></div>`;
+    <div id="issues-${proj.key}" class="proj-issues"><div class="state-box"><span>Loading synced data…</span></div></div>`;
 
   const data = selectedReleases.length ? S.cache[proj.key] : null;
   const releaseLabel = formatSelectedReleasesLabel(selectedReleases);
@@ -5030,7 +5118,7 @@ function issueMatchesListingSearchAndCols(proj, issue) {
   const st = getProjectColFilters(proj && proj.key);
   const q = (st.q || '').trim().toLowerCase();
   if (q) {
-    const hay = vf.map(f => String(getCellValue(issue, f))).join(' ').toLowerCase();
+    const hay = (vf.map(f => String(getCellValue(issue, f))).join(' ') + ' ' + ticketNotesSearchText(issue.key)).toLowerCase();
     if (!hay.includes(q)) return false;
   }
   for (const [fieldId, selected] of Object.entries(st.cols || {})) {
@@ -5477,6 +5565,277 @@ function clearProjectColFilter() {
   if (!_routeNavigating) syncRoute();
 }
 
+let _ticketNotes = {};
+let _ticketNotesOpen = null;
+let _ticketNotesSaveTimer = null;
+let _ticketNoteSaveChain = Promise.resolve();
+
+function ticketNotesSearchText(key) {
+  const row = _ticketNotes[String(key || '').toUpperCase()];
+  if (!row) return '';
+  return [row.note || ''].concat((row.comments || []).map(comment => comment.body || '')).join(' ');
+}
+
+function ticketNotesButton(key, summary) {
+  const normalized = String(key || '').toUpperCase();
+  if (!normalized) return '';
+  const row = _ticketNotes[normalized];
+  const count = row && Array.isArray(row.comments) ? row.comments.length : 0;
+  const hasNote = !!(row && String(row.note || '').trim());
+  const marked = count || hasNote;
+  const snippet = hasNote ? String(row.note).trim().split('\n')[0].slice(0, 80) : '';
+  const title = snippet || (count ? (count + ' comment' + (count === 1 ? '' : 's')) : (hasNote ? 'Has a note' : 'Add a note or comment'));
+  const countLabel = count ? `<span class="ticket-notes-count">${count}</span>` : '';
+  return `<button type="button" class="ticket-notes-btn${marked ? ' has-notes' : ''}" data-key="${esc(normalized)}" data-summary="${esc(summary || '')}" title="${esc(title)}" aria-label="${esc(title + ' — ' + normalized)}" onclick="event.stopPropagation();openTicketNotes(this.dataset.key, this.dataset.summary)">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
+    ${countLabel}
+  </button>`;
+}
+
+function rememberTicketNotes(payload) {
+  if (!payload || !payload.key) return;
+  const key = String(payload.key).toUpperCase();
+  const next = {
+    note: payload.note || '',
+    noteUpdatedAt: payload.noteUpdatedAt || null,
+    noteUpdatedBy: payload.noteUpdatedBy || null,
+    comments: Array.isArray(payload.comments) ? payload.comments : [],
+  };
+  if (!String(next.note).trim() && !next.comments.length) delete _ticketNotes[key];
+  else _ticketNotes[key] = next;
+  paintTicketNoteButtons(key);
+  if (_ticketNotesOpen && _ticketNotesOpen.key === key) paintTicketNoteMeta();
+}
+
+function paintTicketNoteButtons(key) {
+  document.querySelectorAll('.ticket-notes-btn').forEach(btn => {
+    if (key && btn.dataset.key !== key) return;
+    btn.outerHTML = ticketNotesButton(btn.dataset.key, btn.dataset.summary || '');
+  });
+}
+
+async function loadTicketNotes() {
+  try {
+    const response = await authFetch('/api/ticket-notes');
+    if (!response.ok) return;
+    const data = await response.json();
+    _ticketNotes = data.tickets && typeof data.tickets === 'object' ? data.tickets : {};
+  } catch (err) {
+    console.warn('[ticket-notes]', err.message);
+  }
+}
+
+function formatTicketNoteTime(iso) {
+  if (!iso) return '';
+  const date = new Date(iso);
+  if (Number.isNaN(date.getTime())) return '';
+  return date.toLocaleString(undefined, { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' });
+}
+
+function currentUserEmail() {
+  return (_dashboardUser && _dashboardUser.email) || '';
+}
+
+function paintTicketNoteMeta() {
+  const meta = document.getElementById('ticket-notes-note-meta');
+  if (!meta || !_ticketNotesOpen) return;
+  const row = _ticketNotes[_ticketNotesOpen.key];
+  if (!row || !row.noteUpdatedAt) {
+    meta.textContent = 'A shared note for anyone signed in to this dashboard.';
+    return;
+  }
+  const who = row.noteUpdatedBy ? 'Updated by ' + row.noteUpdatedBy : 'Updated';
+  meta.textContent = who + (formatTicketNoteTime(row.noteUpdatedAt) ? ' · ' + formatTicketNoteTime(row.noteUpdatedAt) : '');
+}
+
+function renderTicketComments() {
+  const list = document.getElementById('ticket-notes-comments');
+  if (!list || !_ticketNotesOpen) return;
+  const row = _ticketNotes[_ticketNotesOpen.key];
+  const comments = row && Array.isArray(row.comments) ? row.comments : [];
+  if (!comments.length) {
+    list.innerHTML = '<p class="ticket-notes-empty">No comments yet.</p>';
+    return;
+  }
+  const me = currentUserEmail();
+  list.innerHTML = comments.map(comment => {
+    const canDelete = isAdmin() || (comment.author && comment.author === me);
+    const when = formatTicketNoteTime(comment.createdAt);
+    return `<article class="ticket-notes-comment">
+      <header>
+        <span class="who">${esc(comment.author || 'Unknown')}</span>
+        <span class="when">${esc(when)}</span>
+      </header>
+      <p>${esc(comment.body)}</p>
+      ${canDelete ? `<button type="button" class="ticket-notes-delete" onclick='deleteTicketComment(${JSON.stringify(comment.id)})'>Delete</button>` : ''}
+    </article>`;
+  }).join('');
+}
+
+function setTicketNoteStatus(message, isError) {
+  const status = document.getElementById('ticket-notes-note-status');
+  if (!status) return;
+  status.textContent = message || '';
+  status.classList.toggle('is-error', !!isError);
+}
+
+function setTicketCommentStatus(message, isError) {
+  const status = document.getElementById('ticket-notes-comment-status');
+  if (!status) return;
+  status.textContent = message || '';
+  status.classList.toggle('is-error', !!isError);
+}
+
+async function openTicketNotes(key, summary) {
+  const normalized = String(key || '').toUpperCase();
+  if (!normalized) return;
+  if (_ticketNotesOpen && _ticketNotesOpen.key !== normalized) await flushTicketNoteSave();
+  _ticketNotesOpen = { key: normalized, summary: summary || '' };
+  const root = document.getElementById('ticket-notes-root');
+  const title = document.getElementById('ticket-notes-title');
+  const keyLink = document.getElementById('ticket-notes-key');
+  const note = document.getElementById('ticket-notes-note');
+  const composer = document.getElementById('ticket-notes-comment');
+  if (title) title.textContent = summary || normalized;
+  if (keyLink) {
+    keyLink.textContent = normalized;
+    const base = (S.creds && S.creds.url) ? String(S.creds.url).replace(/\/+$/, '') : '';
+    keyLink.href = base ? base + '/browse/' + encodeURIComponent(normalized) : '#';
+  }
+  const row = _ticketNotes[normalized];
+  if (note) note.value = row && row.note ? row.note : '';
+  if (composer) composer.value = '';
+  setTicketNoteStatus('');
+  setTicketCommentStatus('');
+  paintTicketNoteMeta();
+  renderTicketComments();
+  if (!root) return;
+  root.hidden = false;
+  requestAnimationFrame(() => root.classList.add('open'));
+  if (note) note.focus();
+}
+
+async function closeTicketNotes() {
+  await flushTicketNoteSave();
+  const root = document.getElementById('ticket-notes-root');
+  const key = _ticketNotesOpen && _ticketNotesOpen.key;
+  _ticketNotesOpen = null;
+  if (!root) return;
+  root.classList.remove('open');
+  window.setTimeout(() => {
+    if (!_ticketNotesOpen) root.hidden = true;
+  }, 180);
+  if (key) {
+    const btn = document.querySelector('.ticket-notes-btn[data-key="' + (window.CSS && CSS.escape ? CSS.escape(key) : key) + '"]');
+    if (btn) btn.focus();
+  }
+}
+
+function scheduleTicketNoteSave() {
+  setTicketNoteStatus('Editing…');
+  clearTimeout(_ticketNotesSaveTimer);
+  _ticketNotesSaveTimer = setTimeout(() => {
+    _ticketNoteSaveChain = _ticketNoteSaveChain.then(() => saveTicketNote()).catch(err => {
+      setTicketNoteStatus(err.message || 'Could not save the note.', true);
+    });
+  }, 450);
+}
+
+async function flushTicketNoteSave() {
+  clearTimeout(_ticketNotesSaveTimer);
+  _ticketNoteSaveChain = _ticketNoteSaveChain.then(() => saveTicketNote()).catch(err => {
+    setTicketNoteStatus(err.message || 'Could not save the note.', true);
+  });
+  await _ticketNoteSaveChain;
+}
+
+async function saveTicketNote() {
+  if (!_ticketNotesOpen) return;
+  const key = _ticketNotesOpen.key;
+  const noteEl = document.getElementById('ticket-notes-note');
+  if (!noteEl) return;
+  const text = noteEl.value;
+  const stored = (_ticketNotes[key] && _ticketNotes[key].note) || '';
+  if (text.trim() === stored.trim()) {
+    if (document.getElementById('ticket-notes-note-status')?.textContent === 'Editing…') setTicketNoteStatus('');
+    return;
+  }
+  setTicketNoteStatus('Saving…');
+  const response = await authFetch('/api/ticket-notes/' + encodeURIComponent(key) + '/note', {
+    method: 'PUT',
+    body: JSON.stringify({ note: text }),
+  });
+  const result = await response.json().catch(() => ({}));
+  if (!response.ok) throw new Error(result.error || 'Could not save the note.');
+  if (!_ticketNotesOpen || _ticketNotesOpen.key !== key) {
+    rememberTicketNotes(result);
+    return;
+  }
+  if (noteEl.value.trim() !== text.trim()) return;
+  rememberTicketNotes(result);
+  setTicketNoteStatus('Saved');
+}
+
+async function addTicketComment() {
+  if (!_ticketNotesOpen) return;
+  const key = _ticketNotesOpen.key;
+  const composer = document.getElementById('ticket-notes-comment');
+  const body = composer ? composer.value.trim() : '';
+  if (!body) {
+    setTicketCommentStatus('Write a comment before saving.', true);
+    if (composer) composer.focus();
+    return;
+  }
+  setTicketCommentStatus('Saving…');
+  try {
+    const response = await authFetch('/api/ticket-notes/' + encodeURIComponent(key) + '/comments', {
+      method: 'POST',
+      body: JSON.stringify({ body }),
+    });
+    const result = await response.json().catch(() => ({}));
+    if (!response.ok) throw new Error(result.error || 'Could not save the comment.');
+    if (composer && _ticketNotesOpen && _ticketNotesOpen.key === key) composer.value = '';
+    rememberTicketNotes(result);
+    renderTicketComments();
+    setTicketCommentStatus('Saved');
+  } catch (err) {
+    setTicketCommentStatus(err.message || 'Could not save the comment.', true);
+  }
+}
+
+async function deleteTicketComment(commentId) {
+  if (!_ticketNotesOpen || !commentId) return;
+  if (!confirm('Delete this comment?')) return;
+  const key = _ticketNotesOpen.key;
+  setTicketCommentStatus('Deleting…');
+  try {
+    const response = await authFetch('/api/ticket-notes/' + encodeURIComponent(key) + '/comments/' + encodeURIComponent(commentId), {
+      method: 'DELETE',
+    });
+    const result = await response.json().catch(() => ({}));
+    if (!response.ok) throw new Error(result.error || 'Could not delete the comment.');
+    rememberTicketNotes(result);
+    renderTicketComments();
+    setTicketCommentStatus('');
+  } catch (err) {
+    setTicketCommentStatus(err.message || 'Could not delete the comment.', true);
+  }
+}
+
+function onTicketCommentKeydown(ev) {
+  if (ev.key === 'Enter' && (ev.ctrlKey || ev.metaKey)) {
+    ev.preventDefault();
+    addTicketComment();
+  }
+}
+
+document.addEventListener('keydown', (ev) => {
+  if (ev.key !== 'Escape' || !_ticketNotesOpen) return;
+  ev.preventDefault();
+  ev.stopImmediatePropagation();
+  closeTicketNotes();
+});
+
 function renderIssueTable(proj, issues, activeFilter) {
   proj = getAllProjects().find(p => p.key === proj.key) || proj;
   const issuesEl = document.getElementById('issues-' + proj.key);
@@ -5503,7 +5862,8 @@ function renderIssueTable(proj, issues, activeFilter) {
   const rows = sorted.map(issue => {
     const cells = vf.map(f => `<td title="${esc(String(getCellValue(issue,f)))}">${renderCell(f,issue)}</td>`).join('');
     const link = S.creds.url ? S.creds.url + '/browse/' + (issue.key||'') : '#';
-    return `<tr onclick="window.open('${link}','_blank')" style="cursor:pointer">${cells}</tr>`;
+    const summary = (issue.fields && issue.fields.summary) || '';
+    return `<tr onclick="window.open('${link}','_blank')" style="cursor:pointer"><td class="notes-cell">${ticketNotesButton(issue.key, summary)}</td>${cells}</tr>`;
   }).join('');
 
   const headers = vf.map(f => {
@@ -5521,9 +5881,10 @@ function renderIssueTable(proj, issues, activeFilter) {
       </div>
     </th>`;
   }).join('');
+  const headersWithNotes = `<th class="notes-col"><span class="th-label">Notes</span></th>` + headers;
 
   const emptyRow = !sorted.length
-    ? `<tr><td class="issues-empty" colspan="${Math.max(vf.length, 1)}">No issues match the current filters${phaseLabel && phaseLabel !== 'Total' ? ' for "'+esc(phaseLabel)+'"' : ''}.</td></tr>`
+    ? `<tr><td class="issues-empty" colspan="${Math.max(vf.length + 1, 1)}">No issues match the current filters${phaseLabel && phaseLabel !== 'Total' ? ' for "'+esc(phaseLabel)+'"' : ''}.</td></tr>`
     : '';
 
   const shown = sorted.length;
@@ -5549,9 +5910,9 @@ function renderIssueTable(proj, issues, activeFilter) {
       <button class="btn btn-sm" type="button" onclick="exportCSV()" title="Export the filtered table">Export HTML</button>
       <span class="proj-count">${countLabel}</span>
     </div>
-    <div class="table-wrap">
+    <div class="table-wrap proj-issue-table">
       <table class="issues" aria-label="${esc(proj.key)} issues">
-        <thead><tr>${headers}</tr></thead>
+        <thead><tr>${headersWithNotes}</tr></thead>
         <tbody>${rows}${emptyRow}</tbody>
       </table>
     </div>`;
@@ -12742,7 +13103,7 @@ function rebuildDynamicUI() {
       btn.innerHTML = `<span class="proj-dot" style="background:${esc(proj.color)}"></span><span class="nav-label">${esc(proj.name)}</span>`;
       projectsContainer.appendChild(btn);
       const page = document.createElement('div');
-      page.className = 'page ' + (isBuiltinProjectKey(proj.key) ? 'builtin-proj-page' : 'custom-proj-page');
+      page.className = 'page proj-page ' + (isBuiltinProjectKey(proj.key) ? 'builtin-proj-page' : 'custom-proj-page');
       page.id = 'page-' + proj.id; content.appendChild(page);
     });
   });
@@ -14189,6 +14550,7 @@ async function initApp() {
     updateAuthIndicator();
     return;
   }
+  if (storeLoaded) await loadTicketNotes();
   updateGlobalReleaseSelector();
   await loadDefaultProjects();
   renderConnectorPage();

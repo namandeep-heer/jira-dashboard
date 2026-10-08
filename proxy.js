@@ -28,6 +28,7 @@ const { analyzeRelease, mergeAiInsights, AI_RESPONSE_SCHEMA, adfToText } = requi
 const { buildReleaseReportPptx, sanitizeFilename } = require('./lib/release-report-pptx');
 const { buildReleaseReportHtml, buildTicketListHtml, htmlFilename, ticketListFilename, normalizeTicketGroupBy } = require('./lib/release-report-html');
 const { createLocalStore } = require('./lib/local-store');
+const { createTicketNotes } = require('./lib/ticket-notes');
 const { slimDashboardState, dashboardStateForClient } = require('./lib/slim-cache');
 const { createPageConfig } = require('./lib/page-config');
 const { ensureStatusPipelineFile, loadStatusPipeline } = require('./lib/status-pipeline');
@@ -55,6 +56,7 @@ const store = createLocalStore({
   encryptionKey: credentialEncryptionKey,
   adminEmail,
 });
+const ticketNotes = createTicketNotes({ filePath: path.join(DATA_DIR, 'ticket-notes.json') });
 const pageConfig = createPageConfig({ configDir: CONFIG_DIR });
 try { ensureStatusPipelineFile(CONFIG_DIR); } catch (err) {
   console.warn('[status-pipeline] Could not create config/status-pipeline.json:', err.message);
@@ -285,6 +287,65 @@ app.post('/api/dashboard/state', (req, res) => {
   try {
     persistDashboardState(req.body.state);
     res.json({ ok: true });
+  } catch (err) {
+    sendStoreError(res, err);
+  }
+});
+
+app.get('/api/ticket-notes', (req, res) => {
+  const user = requireUser(req, res);
+  if (!user) return;
+  try {
+    res.json(ticketNotes.list());
+  } catch (err) {
+    sendStoreError(res, err);
+  }
+});
+
+app.get('/api/ticket-notes/:key', (req, res) => {
+  const user = requireUser(req, res);
+  if (!user) return;
+  try {
+    res.json(ticketNotes.get(req.params.key));
+  } catch (err) {
+    sendStoreError(res, err);
+  }
+});
+
+app.put('/api/ticket-notes/:key/note', (req, res) => {
+  const user = requireUser(req, res);
+  if (!user) return;
+  try {
+    res.json(ticketNotes.setNote(req.params.key, {
+      note: req.body?.note,
+      author: user.email,
+    }));
+  } catch (err) {
+    sendStoreError(res, err);
+  }
+});
+
+app.post('/api/ticket-notes/:key/comments', (req, res) => {
+  const user = requireUser(req, res);
+  if (!user) return;
+  try {
+    res.json(ticketNotes.addComment(req.params.key, {
+      body: req.body?.body,
+      author: user.email,
+    }));
+  } catch (err) {
+    sendStoreError(res, err);
+  }
+});
+
+app.delete('/api/ticket-notes/:key/comments/:commentId', (req, res) => {
+  const user = requireUser(req, res);
+  if (!user) return;
+  try {
+    res.json(ticketNotes.deleteComment(req.params.key, req.params.commentId, {
+      author: user.email,
+      isAdmin: user.role === 'admin',
+    }));
   } catch (err) {
     sendStoreError(res, err);
   }
