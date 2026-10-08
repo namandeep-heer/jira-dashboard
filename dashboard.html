@@ -9,6 +9,7 @@
 <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'><rect x='3' y='3' width='7' height='7' rx='1.5' fill='%23185FA5'/><rect x='14' y='3' width='7' height='7' rx='1.5' fill='%23185FA5'/><rect x='3' y='14' width='7' height='7' rx='1.5' fill='%23185FA5'/><rect x='14' y='14' width='7' height='7' rx='1.5' fill='%23185FA5'/></svg>">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js"></script>
 <script src="/lib/release-milestones.js"></script>
+<script src="/lib/quality-history.js"></script>
 <style>
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 :root {
@@ -365,6 +366,36 @@ table.issues tr:hover td { background: var(--bg2); }
 .qi-block { margin-bottom:28px; }
 .qi-block > h2 { font-size:16px; font-weight:700; margin-bottom:4px; }
 .qi-block > .sub { font-size:13px; color:var(--text2); margin-bottom:14px; line-height:1.5; }
+.qi-history-head { display:flex; align-items:flex-start; justify-content:space-between; gap:16px; flex-wrap:wrap; margin-bottom:14px; }
+.qi-history-head h2 { font-size:16px; font-weight:700; margin-bottom:4px; }
+.qi-history-head .sub { font-size:13px; color:var(--text2); line-height:1.5; max-width:720px; }
+.qi-history-actions { display:flex; gap:8px; align-items:center; flex-shrink:0; }
+.qi-history-grid { display:grid; grid-template-columns:repeat(3, minmax(0, 1fr)); gap:16px; }
+.qi-history-card { min-width:0; }
+.qi-history-card-head { display:flex; align-items:flex-start; justify-content:space-between; gap:12px; margin-bottom:4px; }
+.qi-history-card-head h3 { margin:0; flex:1; min-width:0; font-size:15px; font-weight:600; display:block; }
+.qi-history-legend { display:flex; gap:14px; align-items:center; margin-bottom:8px; font-size:12px; flex-wrap:wrap; }
+.qi-history-legend label { display:inline-flex; align-items:center; gap:5px; cursor:pointer; font-size:12px; color:var(--text); }
+.qi-history-show { color:var(--text3); margin-right:2px; }
+.qi-history-plot { position:relative; width:100%; height:240px; }
+.qi-history-card.is-fullscreen {
+  position:fixed;
+  inset:0;
+  z-index:1000;
+  margin:0;
+  border-radius:0;
+  overflow:auto;
+  display:flex;
+  flex-direction:column;
+  width:100%;
+  height:100%;
+  max-width:none;
+  padding:20px 24px 16px;
+}
+.qi-history-card.is-fullscreen .qi-history-plot { flex:1; height:auto !important; min-height:320px; }
+body.qi-history-fs-active { overflow:hidden; }
+@media (max-width:1200px) { .qi-history-grid { grid-template-columns:1fr 1fr; } }
+@media (max-width:800px) { .qi-history-grid { grid-template-columns:1fr; } .qi-history-plot { height:260px; } }
 .rr-sev.medium { background:var(--amber-bg); color:var(--amber); }
 .rr-sev.low { background:var(--bg3); color:var(--text3); }
 .rr-ai-note { font-size:12px; color:var(--text3); }
@@ -8339,7 +8370,529 @@ function buildQualityInsightProjectFilterOptions(projects) {
   `).join('');
 }
 
+const QI_HISTORY_MENU = [
+  { id: 'grooming', label: 'Grooming History', hint: 'Bugs entering grooming, waiting there, and leaving it.' },
+  { id: 'developing', label: 'Developing History', hint: 'Bugs entering development, waiting there, and leaving it.' },
+  { id: 'testing', label: 'Testing History', hint: 'Bugs entering testing, waiting there, and leaving it.' },
+  { id: 'flow', label: 'Bug Work Incoming & Outgoing History', hint: 'Weekly moves into and out of grooming, development, and testing.' },
+  { id: 'open', label: 'Open Bugs', hint: 'Open bugs by issue type and by priority.' },
+];
+
+const QI_STAGE_SERIES = [
+  { key: 'totalWork', label: 'Total Bugs Work', color: '#185FA5', dash: [6, 4] },
+  { key: 'toCome', label: 'To Come', color: '#A32D2D', dash: [] },
+  { key: 'handled', label: 'Handled', color: '#c47a0f', dash: [4, 3] },
+  { key: 'open', label: 'Current Open Bugs', color: '#44403C', dash: [5, 4] },
+  { key: 'pendingActive', label: 'Pending / Active', color: '#533AB7', dash: [6, 4] },
+];
+
+const QI_FLOW_SERIES = [
+  { key: 'groomingIn', label: 'Grooming in', color: '#7C3AED', dash: [], axis: 'y' },
+  { key: 'groomingOut', label: 'Grooming out', color: '#7C3AED', dash: [5, 4], axis: 'y' },
+  { key: 'developingIn', label: 'Developing in', color: '#c47a0f', dash: [], axis: 'y' },
+  { key: 'developingOut', label: 'Developing out', color: '#c47a0f', dash: [5, 4], axis: 'y' },
+  { key: 'testingIn', label: 'Testing in', color: '#185FA5', dash: [], axis: 'y' },
+  { key: 'testingOut', label: 'Testing out', color: '#185FA5', dash: [5, 4], axis: 'y' },
+  { key: 'active', label: 'Active Grooming / Developing / Testing', color: '#A32D2D', dash: [], axis: 'y1' },
+  { key: 'open', label: 'Current Open Bugs', color: '#44403C', dash: [], axis: 'y1' },
+];
+
+const QI_TYPE_COLORS = {
+  'Bug': '#A32D2D',
+  'Bugs': '#A32D2D',
+  'Continuous Sanity Bug': '#c47a0f',
+  'Continuous Sanity Bugs': '#c47a0f',
+  'R&D Pre-GoLive Bug': '#533AB7',
+  'R&D Pre-GoLive Bugs': '#533AB7',
+  'R&D Post-GoLive Bug': '#185FA5',
+  'R&D Post-GoLive Bugs': '#185FA5',
+};
+
+const QI_PRIORITY_COLORS = {
+  Critical: '#A32D2D',
+  High: '#c47a0f',
+  Medium: '#533AB7',
+  Low: '#3B6D11',
+  None: '#888780',
+};
+
+const QI_HISTORY_EXTRA_COLORS = ['#0F6E56', '#993556', '#854F0B', '#0F6E56'];
+
+function qualityHistoryAxisColor() {
+  if (typeof getComputedStyle !== 'function') return '#5a5955';
+  return getComputedStyle(document.body).getPropertyValue('--text2').trim() || '#5a5955';
+}
+
+function qualityHistoryGridColor() {
+  if (typeof getComputedStyle !== 'function') return 'rgba(0,0,0,0.08)';
+  return getComputedStyle(document.body).getPropertyValue('--border').trim() || 'rgba(0,0,0,0.08)';
+}
+
+function ensureQualityHistoryVisible() {
+  const defaults = { grooming: true, developing: true, testing: true, flow: true, open: true };
+  S.qiHistoryVisible = { ...defaults, ...(S.qiHistoryVisible || {}) };
+  return S.qiHistoryVisible;
+}
+
+function qualityHistorySeriesOn(chartKey, seriesKey) {
+  const saved = S.qiHistorySeries && S.qiHistorySeries[chartKey];
+  if (saved && Object.prototype.hasOwnProperty.call(saved, seriesKey)) return !!saved[seriesKey];
+  return true;
+}
+
+function qualityHistoryHexAlpha(hex, alpha) {
+  const h = String(hex || '').replace('#', '');
+  if (h.length !== 6) return hex;
+  const r = parseInt(h.slice(0, 2), 16);
+  const g = parseInt(h.slice(2, 4), 16);
+  const b = parseInt(h.slice(4, 6), 16);
+  return `rgba(${r}, ${g}, ${b}, ${alpha})`;
+}
+
+function qualityHistoryMenuHtml() {
+  const visible = ensureQualityHistoryVisible();
+  const selected = QI_HISTORY_MENU.filter(item => visible[item.id] !== false).length;
+  const period = S.qiHistoryPeriod === 'month' ? 'month' : 'week';
+  return `
+    <div class="qi-history-actions">
+      <select id="qi-history-period" class="section-control" aria-label="History period" onchange="setQualityHistoryPeriod(this.value)">
+        <option value="week" ${period === 'week' ? 'selected' : ''}>By week</option>
+        <option value="month" ${period === 'month' ? 'selected' : ''}>By month</option>
+      </select>
+      <div class="ms-wrap">
+        <button class="ms-btn" id="qi-history-menu-btn" type="button" onclick="toggleQualityHistoryMenu()" aria-haspopup="true" aria-expanded="false">
+          <span>Charts</span>
+          <span class="ms-badge">${selected}</span>
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"/></svg>
+        </button>
+        <div class="ms-dropdown" id="qi-history-menu">
+          <div class="ms-options">
+            ${QI_HISTORY_MENU.map(item => `
+              <label class="ms-option" title="${esc(item.hint)}">
+                <input type="checkbox" ${visible[item.id] !== false ? 'checked' : ''} aria-label="${esc(item.label)}" onchange="toggleQualityHistoryChart('${item.id}', this.checked)">
+                <span class="ms-option-label">${esc(item.label)}</span>
+              </label>`).join('')}
+          </div>
+        </div>
+      </div>
+    </div>`;
+}
+
+function toggleQualityHistoryMenu() {
+  const menu = document.getElementById('qi-history-menu');
+  const btn = document.getElementById('qi-history-menu-btn');
+  if (!menu) return;
+  const open = menu.classList.toggle('open');
+  if (btn) btn.setAttribute('aria-expanded', open ? 'true' : 'false');
+}
+
+function setQualityHistoryPeriod(value) {
+  S.qiHistoryPeriod = value === 'month' ? 'month' : 'week';
+  renderQualityInsights();
+}
+
+function toggleQualityHistoryChart(id, checked) {
+  const visible = ensureQualityHistoryVisible();
+  visible[id] = !!checked;
+  renderQualityInsights();
+}
+
+function toggleQualityHistorySeries(chartKey, seriesKey, checked) {
+  if (!S.qiHistorySeries) S.qiHistorySeries = {};
+  if (!S.qiHistorySeries[chartKey]) S.qiHistorySeries[chartKey] = {};
+  S.qiHistorySeries[chartKey][seriesKey] = !!checked;
+  const chart = S.charts && S.charts[chartKey];
+  if (!chart) return;
+  const index = chart.data.datasets.findIndex(ds => ds.seriesKey === seriesKey);
+  if (index < 0) return;
+  chart.setDatasetVisibility(index, !!checked);
+  chart.update();
+}
+
+function destroyQualityHistoryCharts() {
+  [
+    ['qiHistGrooming', 'qi-hist-grooming'],
+    ['qiHistDeveloping', 'qi-hist-developing'],
+    ['qiHistTesting', 'qi-hist-testing'],
+    ['qiHistFlow', 'qi-hist-flow'],
+    ['qiHistType', 'qi-hist-type'],
+    ['qiHistPriority', 'qi-hist-priority'],
+  ].forEach(([name, canvasId]) => destroyManagedChart(name, document.getElementById(canvasId)));
+}
+
+function qualityHistoryLegend(chartKey, seriesList) {
+  return `<div class="qi-history-legend"><span class="qi-history-show">Show:</span>${seriesList.map(series => {
+    const on = qualityHistorySeriesOn(chartKey, series.key);
+    const color = series.color || '#44403C';
+    const dashed = !!(series.dash && series.dash.length);
+    return `<label>
+      <input type="checkbox" ${on ? 'checked' : ''} data-series="${esc(series.key)}" aria-label="${esc(series.label)}" onchange="toggleQualityHistorySeries('${chartKey}', this.dataset.series, this.checked)">
+      ${phaseSeriesSwatchHtml(color, dashed)}
+      <span>${esc(series.label)}</span>
+    </label>`;
+  }).join('')}</div>`;
+}
+
+const QI_HISTORY_CHART_BY_CANVAS = {
+  'qi-hist-grooming': 'qiHistGrooming',
+  'qi-hist-developing': 'qiHistDeveloping',
+  'qi-hist-testing': 'qiHistTesting',
+  'qi-hist-flow': 'qiHistFlow',
+  'qi-hist-type': 'qiHistType',
+  'qi-hist-priority': 'qiHistPriority',
+};
+
+function qualityHistoryMaxIcon(expanded) {
+  return expanded
+    ? '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M8 3v3a2 2 0 0 1-2 2H3m18 0h-3a2 2 0 0 1-2-2V3m0 18v-3a2 2 0 0 1 2-2h3M3 16h3a2 2 0 0 1 2 2v3"/></svg><span>Exit</span>'
+    : '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M8 3H5a2 2 0 0 0-2 2v3m18 0V5a2 2 0 0 0-2-2h-3m0 18h3a2 2 0 0 0 2-2v-3M3 16v3a2 2 0 0 0 2 2h3"/></svg><span>Full screen</span>';
+}
+
+function qualityHistoryCard(canvasId, title, subtitle, legendHtml) {
+  return `<article class="chart-card qi-history-card" id="${canvasId}-card">
+    <div class="qi-history-card-head">
+      <h3>${esc(title)}</h3>
+      <button class="btn btn-sm qi-history-max" type="button" onclick="toggleQualityHistoryMaximize('${canvasId}')" title="Full screen" aria-label="Full screen" aria-pressed="false">${qualityHistoryMaxIcon(false)}</button>
+    </div>
+    <div class="chart-sub">${subtitle}</div>
+    ${legendHtml}
+    <div class="qi-history-plot"><canvas id="${canvasId}" role="img" aria-label="${esc(title)}"></canvas></div>
+  </article>`;
+}
+
+function updateQualityHistoryMaxBtn(card, expanded) {
+  const btn = card && card.querySelector('.qi-history-max');
+  if (!btn) return;
+  const label = expanded ? 'Exit full screen' : 'Full screen';
+  btn.title = label;
+  btn.setAttribute('aria-label', label);
+  btn.setAttribute('aria-pressed', expanded ? 'true' : 'false');
+  btn.innerHTML = qualityHistoryMaxIcon(expanded);
+}
+
+function resizeQualityHistoryChart(chartKey) {
+  const chart = chartKey && S.charts && S.charts[chartKey];
+  if (!chart) return;
+  const draw = () => {
+    if (!S.charts || S.charts[chartKey] !== chart) return;
+    try {
+      chart.resize();
+      chart.update('none');
+    } catch (e) {}
+  };
+  requestAnimationFrame(() => {
+    draw();
+    requestAnimationFrame(draw);
+  });
+}
+
+function toggleQualityHistoryMaximize(canvasId, force) {
+  const card = document.getElementById(canvasId + '-card');
+  if (!card) return;
+  const next = typeof force === 'boolean' ? force : !card.classList.contains('is-fullscreen');
+  document.querySelectorAll('.qi-history-card.is-fullscreen').forEach(other => {
+    if (other === card) return;
+    other.classList.remove('is-fullscreen');
+    updateQualityHistoryMaxBtn(other, false);
+    const otherCanvas = other.querySelector('canvas');
+    if (otherCanvas) resizeQualityHistoryChart(QI_HISTORY_CHART_BY_CANVAS[otherCanvas.id]);
+  });
+  card.classList.toggle('is-fullscreen', next);
+  document.body.classList.toggle('qi-history-fs-active', !!document.querySelector('.qi-history-card.is-fullscreen'));
+  updateQualityHistoryMaxBtn(card, next);
+  resizeQualityHistoryChart(QI_HISTORY_CHART_BY_CANVAS[canvasId]);
+}
+
+function qualityHistoryLineDataset(series, data, hidden) {
+  const color = series.color || '#44403C';
+  const dashed = !!(series.dash && series.dash.length);
+  return {
+    label: series.label,
+    seriesKey: series.key,
+    hidden: !!hidden,
+    data,
+    borderColor: color,
+    backgroundColor: qualityHistoryHexAlpha(color, 0.08),
+    borderWidth: dashed ? 2 : 2.5,
+    borderDash: dashed ? series.dash : [],
+    fill: false,
+    tension: 0.3,
+    pointRadius: 0,
+    pointHoverRadius: dashed ? 6 : 7,
+    pointBackgroundColor: color,
+    pointBorderColor: '#fff',
+    pointBorderWidth: 2,
+    pointHoverBackgroundColor: color,
+    pointHoverBorderColor: '#fff',
+    yAxisID: series.axis || 'y',
+    spanGaps: false,
+  };
+}
+
+function qualityHistoryAreaDataset(label, data, color, hidden) {
+  return {
+    label,
+    seriesKey: label,
+    hidden: !!hidden,
+    data,
+    borderColor: color,
+    backgroundColor: qualityHistoryHexAlpha(color, 0.55),
+    borderWidth: 2,
+    borderDash: [],
+    fill: true,
+    tension: 0,
+    pointRadius: 0,
+    pointHoverRadius: 6,
+    pointBackgroundColor: color,
+    pointBorderColor: '#fff',
+    pointBorderWidth: 2,
+    spanGaps: false,
+  };
+}
+
+function mountQualityHistoryChart(chartKey, canvasId, datasets, labels, markers, stacked, dualAxis) {
+  const canvas = document.getElementById(canvasId);
+  if (!canvas || typeof Chart === 'undefined') return;
+  destroyManagedChart(chartKey, canvas);
+  const axisColor = qualityHistoryAxisColor();
+  const gridColor = qualityHistoryGridColor();
+  const drawn = datasets.slice();
+  if (!stacked && markers && markers.length) {
+    const milestoneMeta = {};
+    markers.forEach(marker => { milestoneMeta[marker.idx] = marker; });
+    drawn.push({
+      label: 'Milestones',
+      data: labels.map(() => null),
+      milestoneMeta,
+      hidden: true,
+      borderWidth: 0,
+      pointRadius: 0,
+      pointHoverRadius: 0,
+    });
+  }
+  const scales = {
+    x: {
+      stacked: !!stacked,
+      ticks: {
+        color: axisColor,
+        maxRotation: 50,
+        minRotation: 0,
+        autoSkip: true,
+        autoSkipPadding: 8,
+      },
+      grid: { color: gridColor },
+    },
+    y: {
+      stacked: !!stacked,
+      beginAtZero: true,
+      ticks: { precision: 0, color: axisColor },
+      grid: { color: gridColor },
+    },
+  };
+  if (dualAxis) {
+    scales.y1 = {
+      position: 'right',
+      beginAtZero: true,
+      ticks: { precision: 0, color: axisColor },
+      grid: { drawOnChartArea: false },
+    };
+  }
+  try {
+    if (!S.charts) S.charts = {};
+    S.charts[chartKey] = new Chart(canvas, {
+      type: 'line',
+      data: { labels, datasets: drawn },
+      plugins: (markers && markers.length) ? [phaseReleaseTimelinePlugin] : [],
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        animation: false,
+        interaction: { mode: 'index', intersect: false },
+        layout: { padding: { top: markers && markers.length ? 22 : 4, right: 8, bottom: 4 } },
+        scales,
+        plugins: {
+          legend: { display: false },
+          tooltip: {
+            usePointStyle: true,
+            padding: 12,
+            bodySpacing: 8,
+            boxPadding: 6,
+            titleMarginBottom: 8,
+            titleFont: { size: 13, weight: '600' },
+            bodyFont: { size: 12, weight: '500' },
+            backgroundColor: 'rgba(24, 24, 22, 0.94)',
+            titleColor: '#fff',
+            bodyColor: '#f4f4f0',
+            borderColor: 'rgba(255,255,255,0.14)',
+            borderWidth: 1,
+            filter: (item) => !!(item.dataset && item.dataset.seriesKey && item.parsed && item.parsed.y != null && item.parsed.y !== 0),
+            callbacks: {
+              label: (context) => ` ${context.dataset.label}: ${context.parsed.y}`,
+            },
+          },
+          ...((markers && markers.length) ? {
+            phaseReleaseTimeline: { markers },
+          } : {}),
+        },
+      },
+    });
+  } catch (err) {
+    console.warn('[quality-history]', chartKey, err);
+    const plot = canvas.parentElement;
+    if (plot) plot.insertAdjacentHTML('beforeend', `<div class="info-box">This history chart could not be drawn.</div>`);
+  }
+}
+
+function collectQualityHistoryIssues(projects) {
+  const issues = [];
+  (projects || []).forEach(proj => {
+    const filtered = filterIssuesToActiveRelease((S.cache[proj.key] && S.cache[proj.key].issues) || [], proj);
+    (filtered.issues || []).forEach(issue => {
+      if (!issueInSelectedJiraProjects(issue)) return;
+      if (!issueInSelectedQualityPriorities(issue)) return;
+      issues.push(issue);
+    });
+  });
+  return issues;
+}
+
+function drawQualityHistoryCharts(issues) {
+  const host = document.getElementById('qi-history-grid');
+  if (!host) return;
+  if (typeof QualityHistory === 'undefined' || !QualityHistory.buildQualityHistory) {
+    host.innerHTML = '<div class="info-box">History charts are unavailable. Restart the dashboard server so it can serve quality-history.js.</div>';
+    return;
+  }
+  if (typeof Chart === 'undefined') {
+    host.innerHTML = '<div class="info-box">History charts need Chart.js, which did not load.</div>';
+    return;
+  }
+  if (!issues.length) {
+    host.innerHTML = '<p style="font-size:13px;color:var(--text3)">No quality tickets in the current filters.</p>';
+    return;
+  }
+  const release = findReleaseByName(S.activeRelease);
+  const milestones = getDatedReleaseMilestones(release).map(marker => ({
+    id: marker.id,
+    label: marker.label,
+    color: marker.color,
+    date: marker.date,
+  }));
+  let model;
+  try {
+    model = QualityHistory.buildQualityHistory(issues, {
+      now: new Date(),
+      period: S.qiHistoryPeriod === 'month' ? 'month' : 'week',
+      milestones,
+    });
+  } catch (err) {
+    console.warn('[quality-history]', err);
+    host.innerHTML = '<div class="info-box">History charts could not be built from the synced tickets.</div>';
+    return;
+  }
+  const visible = ensureQualityHistoryVisible();
+  const periodWord = model.period === 'month' ? 'Monthly' : 'Weekly';
+  const cards = [];
+  const mounts = [];
+  function addStage(stageId, chartKey, canvasId, title) {
+    if (visible[stageId] === false) return;
+    const series = QI_STAGE_SERIES.map(item => ({ ...item }));
+    cards.push(qualityHistoryCard(
+      canvasId,
+      title,
+      'By issue counts. Total Bugs Work has entered this stage. To Come is still upstream. Handled has moved past it.',
+      qualityHistoryLegend(chartKey, series)
+    ));
+    mounts.push(() => {
+      const datasets = series.map(item => qualityHistoryLineDataset(
+        item,
+        model.stages[stageId][item.key],
+        !qualityHistorySeriesOn(chartKey, item.key)
+      ));
+      mountQualityHistoryChart(chartKey, canvasId, datasets, model.labels, model.markers, false, false);
+    });
+  }
+  addStage('grooming', 'qiHistGrooming', 'qi-hist-grooming', 'Grooming History: By Issue Counts');
+  addStage('developing', 'qiHistDeveloping', 'qi-hist-developing', 'Developing History: By Issue Counts');
+  if (visible.open !== false) {
+    const typeSeries = model.types.map((item, index) => ({
+      key: item.label,
+      label: item.label,
+      color: QI_TYPE_COLORS[item.label] || QI_HISTORY_EXTRA_COLORS[index % QI_HISTORY_EXTRA_COLORS.length],
+      dash: [],
+      data: item.data,
+    }));
+    if (typeSeries.length) {
+      cards.push(qualityHistoryCard(
+        'qi-hist-type',
+        'Open Bugs By Issue Type',
+        'Open tickets at the end of each period, stacked by issue type.',
+        qualityHistoryLegend('qiHistType', typeSeries)
+      ));
+      mounts.push(() => {
+        const datasets = typeSeries.map(item => qualityHistoryAreaDataset(
+          item.label,
+          item.data,
+          item.color,
+          !qualityHistorySeriesOn('qiHistType', item.key)
+        ));
+        mountQualityHistoryChart('qiHistType', 'qi-hist-type', datasets, model.labels, model.markers, true, false);
+      });
+    }
+  }
+  addStage('testing', 'qiHistTesting', 'qi-hist-testing', 'Testing History: By Issue Counts');
+  if (visible.flow !== false) {
+    const series = QI_FLOW_SERIES.map(item => ({ ...item }));
+    cards.push(qualityHistoryCard(
+      'qi-hist-flow',
+      'Bug Work Incoming & Outgoing History: By Issue Counts',
+      `${periodWord} moves into and out of each stage are on the left. Active work and current open bugs are on the right.`,
+      qualityHistoryLegend('qiHistFlow', series)
+    ));
+    mounts.push(() => {
+      const datasets = series.map(item => qualityHistoryLineDataset(
+        item,
+        model.flow[item.key],
+        !qualityHistorySeriesOn('qiHistFlow', item.key)
+      ));
+      mountQualityHistoryChart('qiHistFlow', 'qi-hist-flow', datasets, model.labels, model.markers, false, true);
+    });
+  }
+  if (visible.open !== false) {
+    const prioritySeries = model.priorities.map(item => ({
+      key: item.label,
+      label: item.label,
+      color: QI_PRIORITY_COLORS[item.label] || '#9b9a96',
+      dash: [],
+      data: item.data,
+    }));
+    if (prioritySeries.length) {
+      cards.push(qualityHistoryCard(
+        'qi-hist-priority',
+        'Open Bugs By Priority',
+        'Open tickets at the end of each period, stacked as Critical, High, Medium, and Low.',
+        qualityHistoryLegend('qiHistPriority', prioritySeries)
+      ));
+      mounts.push(() => {
+        const datasets = prioritySeries.map(item => qualityHistoryAreaDataset(
+          item.label,
+          item.data,
+          item.color,
+          !qualityHistorySeriesOn('qiHistPriority', item.key)
+        ));
+        mountQualityHistoryChart('qiHistPriority', 'qi-hist-priority', datasets, model.labels, model.markers, true, false);
+      });
+    }
+  }
+  const truncated = model.truncated
+    ? '<p style="font-size:12px;color:var(--text3);grid-column:1/-1">Showing the latest 180 periods.</p>'
+    : '';
+  host.innerHTML = truncated + (cards.join('') || '<p style="font-size:13px;color:var(--text3)">All history charts are hidden. Turn them back on from Charts.</p>');
+  mounts.forEach(mount => mount());
+}
+
 function renderQualityInsights() {
+  destroyQualityHistoryCharts();
   const body = document.getElementById('quality-insights-body');
   if (!body) return;
   const qualityProjects = getQualityProjects();
@@ -8434,6 +8987,9 @@ function renderQualityInsights() {
     risks.push({ sev: 'low', title: `${noisyModule.label} accounts for ${noisyModule.count} of the ${blockers.length ? 'blocker/critical' : 'open'} tickets`, detail: 'Module concentration — the noisy product area for this market/patch.' });
   }
 
+  const historyIssues = collectQualityHistoryIssues(projects);
+  const historyPeriodWord = S.qiHistoryPeriod === 'month' ? 'Monthly' : 'Weekly';
+
   const kpiHtml = [
     `<div class="rr-kpi"><div class="v">${rows.length}</div>${showOriginal ? `<div class="so">of ${unfilteredCount}</div>` : ''}<div class="l">Open tickets</div></div>`,
     `<div class="rr-kpi"><div class="v" style="color:var(--red)">${blockers.length}</div><div class="l">Blocker / critical</div></div>`,
@@ -8470,6 +9026,17 @@ function renderQualityInsights() {
         <p class="sub">Blockers first, then high + customer-impacting, then oldest</p>
         ${renderQualityTicketTable(mustFix, 'No must-fix tickets.')}
       </div>
+    </div>
+
+    <div class="qi-block">
+      <div class="qi-history-head">
+        <div>
+          <h2>History</h2>
+          <p class="sub">${historyPeriodWord} bug counts from status history for this market release. Colored vertical lines mark its milestones.</p>
+        </div>
+        ${qualityHistoryMenuHtml()}
+      </div>
+      <div class="qi-history-grid" id="qi-history-grid"></div>
     </div>
 
     <div class="qi-block">
@@ -8558,6 +9125,7 @@ function renderQualityInsights() {
         </div>
       </div>
     </div>`;
+  drawQualityHistoryCharts(historyIssues);
 }
 
 // ── Filtered HTML export (same ticket-list format as the release report) ─────
@@ -9428,7 +9996,14 @@ function togglePhaseChartFullscreen(force) {
 if (!S._phaseChartFsBound) {
   S._phaseChartFsBound = true;
   document.addEventListener('keydown', (e) => {
-    if (e.key === 'Escape' && S.phaseChartFullscreen) togglePhaseChartFullscreen(false);
+    if (e.key !== 'Escape') return;
+    const historyCard = document.querySelector('.qi-history-card.is-fullscreen');
+    if (historyCard) {
+      const canvas = historyCard.querySelector('canvas');
+      if (canvas) toggleQualityHistoryMaximize(canvas.id, false);
+      return;
+    }
+    if (S.phaseChartFullscreen) togglePhaseChartFullscreen(false);
   });
 }
 

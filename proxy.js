@@ -172,6 +172,12 @@ app.get('/lib/release-milestones.js', (req, res) => {
   res.sendFile(path.join(ROOT, 'lib', 'release-milestones.js'));
 });
 
+app.get('/lib/quality-history.js', (req, res) => {
+  res.setHeader('Cache-Control', 'no-store');
+  res.type('application/javascript');
+  res.sendFile(path.join(ROOT, 'lib', 'quality-history.js'));
+});
+
 // ── Health check endpoint ─────────────────────────────────────────────────────
 app.get('/health', (req, res) => {
   res.status(200).json({ status: 'ok', message: 'Proxy is running' });

@@ -49,6 +49,10 @@ function copyPackageFiles(outDir) {
     path.join(ROOT, 'lib', 'release-milestones.js'),
     path.join(outDir, 'lib', 'release-milestones.js')
   );
+  fs.copyFileSync(
+    path.join(ROOT, 'lib', 'quality-history.js'),
+    path.join(outDir, 'lib', 'quality-history.js')
+  );
 
   fs.copyFileSync(
     path.join(ROOT, 'README.md'),
