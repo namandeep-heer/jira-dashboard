@@ -15,6 +15,8 @@ const {
   ensureStatusPipelineFile,
   loadStatusPipeline,
   getStatusPipelineRank,
+  getStatusPipelineSnapshot,
+  getStatusPipelinePhase,
   getLogMovementDirection,
 } = require('../lib/status-pipeline');
 
@@ -37,8 +39,33 @@ assert.strictEqual(dir('Product', 'Developer Pending', 'Creating', 'Dev-Pending'
 assert.strictEqual(dir('QA', 'QA', 'EOA-Pending Deployment', 'PQA-Pending'), 'forward');
 assert.strictEqual(dir('QA', 'Developer Pending', 'PQA-Pending', 'Dev-Pending'), 'backward');
 assert.strictEqual(dir('Developer Pending', 'Developing', 'Dev-Pending', 'Dev-Grooming'), 'lateral');
+assert.strictEqual(dir('Developing', 'QA', 'Dev-Testing', 'QA'), 'forward');
 assert.strictEqual(getStatusPipelineRank('PQA/EOA-Creating', stages), 5);
 assert.strictEqual(getStatusPipelineRank('PQA-Pending', stages), 50);
+assert.strictEqual(getStatusPipelineSnapshot('PQA/EOA-Creating', stages), 'prodPending');
+assert.strictEqual(getStatusPipelineSnapshot('PQA-Pending', stages), 'qaPending');
+assert.strictEqual(getStatusPipelineSnapshot('EOA-Pending Deployment', stages), 'qaPending');
+assert.strictEqual(getStatusPipelineSnapshot('Prod Grooming', stages), 'prodPending');
+assert.strictEqual(getStatusPipelineSnapshot('Dev Grooming', stages), 'devPending');
+assert.strictEqual(getStatusPipelineRank('Dev-Testing', stages), 30);
+assert.strictEqual(getStatusPipelineSnapshot('Dev-Testing', stages), 'devPending');
+assert.strictEqual(getStatusPipelinePhase('COE/SEN-Pending', stages), 'External Team');
+assert.strictEqual(getStatusPipelinePhase('PS-Testing', stages), 'External Team');
+assert.strictEqual(getStatusPipelinePhase('L2Sup-NeedInfo', stages), 'External Team');
+assert.strictEqual(getStatusPipelineSnapshot('COE/SEN-Pending', stages), 'externalTeam');
+assert.strictEqual(getStatusPipelineSnapshot('PS-Testing', stages), 'externalTeam');
+assert.strictEqual(getStatusPipelineSnapshot('L2Sup-NeedInfo', stages), 'externalTeam');
+assert.strictEqual(getStatusPipelinePhase('PS-Testing - Followup', stages), null);
+assert.strictEqual(getStatusPipelineSnapshot('QA', stages), 'qaPending');
+assert.strictEqual(getStatusPipelineSnapshot('Rejected', stages), 'rejected');
+assert.strictEqual(getStatusPipelineSnapshot('Resolved', stages), 'closed');
+assert.strictEqual(getStatusPipelineSnapshot('Fixed', stages), 'closed');
+assert.strictEqual(getStatusPipelineSnapshot('All fixed', stages), 'closed');
+assert.strictEqual(getStatusPipelineSnapshot('All-Fixed', stages), 'closed');
+assert.strictEqual(dir('QA', 'Closed', 'QA', 'Fixed'), 'forward');
+assert.strictEqual(dir('QA', 'Closed', 'QA', 'All fixed'), 'forward');
+assert.strictEqual(getStatusPipelineSnapshot('On-Hold', stages), 'onHold');
+assert.strictEqual(getStatusPipelineSnapshot('Unrecognized Workflow Status', stages), null);
 
 const html = fs.readFileSync(path.join(__dirname, '..', 'dashboard.html'), 'utf8');
 assert.ok(html.includes('/config/status-pipeline'));
@@ -50,7 +77,7 @@ assert.ok(fs.existsSync(path.join(tmpDir, FILE_NAME)));
 const custom = path.join(tmpDir, FILE_NAME);
 fs.writeFileSync(custom, JSON.stringify({
   stages: [
-    { rank: 1, match: '^start' },
+    { rank: 1, match: '^start', snapshot: 'prodPending', phase: 'Product' },
     { rank: 9, match: '^end' },
   ],
 }, null, 2) + '\n');
@@ -59,6 +86,8 @@ assert.strictEqual(
   getLogMovementDirection('', '', 'Start', 'End', customLoaded.stages, []),
   'forward'
 );
+assert.strictEqual(getStatusPipelineSnapshot('Start', customLoaded.stages), 'prodPending');
+assert.strictEqual(getStatusPipelinePhase('Start', customLoaded.stages), 'Product');
 assert.strictEqual(compileStages([{ match: '[', rank: 1 }, { match: 'ok', rank: 2 }]).length, 1);
 fs.rmSync(tmpDir, { recursive: true, force: true });
 

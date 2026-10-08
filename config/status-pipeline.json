@@ -4,56 +4,74 @@
       "id": "creating",
       "rank": 5,
       "match": "creating",
+      "snapshot": "prodPending",
       "note": "Intake, including PQA/EOA-Creating. Not Product QA. Creating → Dev-Pending is forward."
     },
     {
       "id": "prod",
       "rank": 10,
-      "match": "^prod"
+      "match": "^prod",
+      "snapshot": "prodPending"
     },
     {
       "id": "dev-queue",
       "rank": 25,
       "match": "^dev[\\s-]*(pending|grooming|designing)",
+      "snapshot": "devPending",
       "note": "Dev prep / queue. Pending, Grooming, and Designing are peers (lateral)."
     },
     {
       "id": "dev-active",
       "rank": 30,
-      "match": "^dev[\\s-]*(developing|cr|merge|reopened)"
+      "match": "^dev[\\s-]*(developing|testing|test|cr|merge|reopened)",
+      "snapshot": "devPending"
+    },
+    {
+      "id": "external-team",
+      "rank": 30,
+      "match": "^(COE/SEN-Pending|PS-Testing|L2Sup-NeedInfo)$",
+      "snapshot": "externalTeam",
+      "phase": "External Team",
+      "note": "These Jira statuses belong to the External Team category."
     },
     {
       "id": "on-hold",
       "rank": 35,
-      "match": "^on[\\s-]*hold"
+      "match": "^on[\\s-]*hold",
+      "snapshot": "onHold"
     },
     {
       "id": "deploy-queue",
       "rank": 40,
       "match": "^(eoa[\\s-]*pending|pending[\\s-]*dep)",
+      "snapshot": "qaPending",
       "note": "Still pre–Product QA. EOA-Pending / Pending DEP → PQA-Pending is forward."
     },
     {
       "id": "pqa",
       "rank": 50,
       "match": "^pqa",
+      "snapshot": "qaPending",
       "note": "Product QA after deployment. Does not match PQA/EOA-Creating because creating is listed first."
     },
     {
       "id": "qa",
       "rank": 55,
-      "match": "^qa"
+      "match": "^qa",
+      "snapshot": "qaPending"
     },
     {
       "id": "feedback",
       "rank": 58,
       "match": "^(rejected|replied)",
+      "snapshot": "rejected",
       "note": "Rejected and Replied are the same stage (lateral)."
     },
     {
       "id": "closed",
       "rank": 70,
-      "match": "^(closed|done|resolved|cancelled|won't\\s*fix)"
+      "match": "^(closed|done|resolved|cancelled|fixed|all[\\s-]*fixed|won't\\s*fix)",
+      "snapshot": "closed"
     }
   ]
 }

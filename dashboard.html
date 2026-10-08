@@ -1299,7 +1299,7 @@ code { font-family: monospace; font-size: 12px; background: var(--bg3); padding:
           <div style="display:flex;align-items:flex-start;justify-content:space-between;margin-bottom:14px;gap:20px">
             <div style="flex:1">
               <h2 style="font-size:18px;font-weight:600;margin-bottom:3px">Quality Phase</h2>
-              <p style="font-size:13px;color:var(--text2)">Open quality queue over time: Product → Dev, bounces to Rejected/Replied, and rework back to Dev. Snapshots are the current open cohort (Open Bugs does not include QA or closed tickets).</p>
+              <p style="font-size:13px;color:var(--text2)">Quality tickets are grouped into Product, Dev, QA, Rejected, Closed, On-Hold, or Other so every ticket in the selected project query has a status category.</p>
             </div>
             <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;justify-content:flex-end">
               <div class="ms-wrap">
@@ -1565,7 +1565,7 @@ code { font-family: monospace; font-size: 12px; background: var(--bg3); padding:
           <div style="display:flex;align-items:flex-start;justify-content:space-between;margin-bottom:14px;gap:20px">
             <div style="flex:1">
               <h2 style="font-size:18px;font-weight:600;margin-bottom:3px">Project Phase Timeline</h2>
-              <p style="font-size:13px;color:var(--text2)">Track Prod→Dev, Dev→QA, and QA→Closed flows for market-release projects. Quality (bugs/support) is under Quality Insights. The Completion Trend chart uses the selected release’s milestone dates.</p>
+              <p style="font-size:13px;color:var(--text2)">Track Prod→Dev, Dev→QA, and QA→Closed flows for market-release projects. Status snapshots group every ticket into Product, Dev, QA, Rejected, Closed, On-Hold, or Other. Quality (bugs/support) is under Quality Insights.</p>
             </div>
             <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;justify-content:flex-end">
               <div class="ms-wrap">
@@ -1764,21 +1764,25 @@ let _authRegisterMode = false;
 const PHASES = [
   { label: 'Product',           re: /(creating|^prod)/i,                                             color: '#533AB7' },
   { label: 'Developer Pending', re: /^dev[\s-]*pending/i,                                            color: '#854F0B' },
-  { label: 'Developing',        re: /^dev[\s-]*(developing|designing|grooming|cr|merge|reopened)/i,  color: '#185FA5' },
+  { label: 'Developing',        re: /^dev[\s-]*(developing|testing|test|designing|grooming|cr|merge|reopened)/i, color: '#185FA5' },
 
   { label: 'QA',                re: /^(qa|pqa|pending[\s-]*dep|eoa[\s-]*pending)/i,                  color: '#0F6E56' },
   { label: 'Rejected / Replied', re: /^(rejected|replied)/i,                                          color: '#c47a0f' },
-  { label: 'Closed',            re: /^(closed|done|resolved|cancelled|won't\s*fix)/i,                 color: '#555555' },
+  { label: 'Closed',            re: /^(closed|done|resolved|cancelled|fixed|all[\s-]*fixed|won't\s*fix)/i, color: '#555555' },
 ];
 
 function getPhaseForStatus(statusName) {
+  const externalPhase = getConfiguredPhaseName(statusName);
+  if (externalPhase === 'External Team') {
+    return { label: externalPhase, re: /^external-team$/i, color: '#7C3AED' };
+  }
   return PHASES.find(p => p.re.test((statusName||'').trim())) || null;
 }
 
 // Dev still in progress — actual days not required yet (pre-QA workflow).
 const DEV_ACTIVE_STATUS_RES = [
   /^prod/i,
-  /^dev[\s-]*(pending|developing|designing|grooming|cr|merge|reopened)/i,
+  /^dev[\s-]*(pending|developing|testing|test|designing|grooming|cr|merge|reopened)/i,
   /^on[\s-]*hold/i,
 ];
 
@@ -1798,24 +1802,28 @@ function isDevWorkComplete(statusName) {
 
 const PENDING_STATUS = {
   prod: /(creating|^(prod[\s-]*(pending|grooming|groomed)))/i,
-  dev: /^dev[\s-]*(pending|reopened|developing|designing|grooming)/i,
-  qa: /^(pqa|pending[\s-]*dep|eoa[\s-]*pending)/i,
+  dev: /^dev[\s-]*(pending|reopened|developing|testing|test|designing|grooming)/i,
   onHold: /^on[\s-]*hold/i,
 };
 
-const PHASE_SNAPSHOT_KEYS = ['prodPending', 'devPending', 'qaPending', 'closed', 'onHold'];
-const QUALITY_PHASE_SNAPSHOT_KEYS = ['prodPending', 'devPending', 'rejected', 'onHold'];
+const PHASE_SNAPSHOT_KEYS = ['prodPending', 'devPending', 'qaPending', 'rejected', 'closed', 'onHold', 'externalTeam', 'other'];
+const QUALITY_PHASE_SNAPSHOT_KEYS = PHASE_SNAPSHOT_KEYS;
 const CLOSED_STATUS_RE = PHASES.find(p => p.label === 'Closed').re;
 
 function getPhaseSnapshotType(statusName) {
   const s = (statusName || '').trim();
+  const configuredSnapshot = getConfiguredPhaseSnapshotType(s);
+  if (PHASE_SNAPSHOT_KEYS.includes(configuredSnapshot)) return configuredSnapshot;
   if (PENDING_STATUS.onHold.test(s)) return 'onHold';
   if (/^(rejected|replied)/i.test(s)) return 'rejected';
   if (PENDING_STATUS.prod.test(s)) return 'prodPending';
   if (PENDING_STATUS.dev.test(s)) return 'devPending';
-  if (PENDING_STATUS.qa.test(s)) return 'qaPending';
-  if (CLOSED_STATUS_RE.test(s)) return 'closed';
-  return null;
+  const phase = getPhaseForStatus(s);
+  if (phase?.label === 'Product') return 'prodPending';
+  if (phase?.label === 'Developer Pending' || phase?.label === 'Developing') return 'devPending';
+  if (phase?.label === 'QA') return 'qaPending';
+  if (phase?.label === 'Closed' || CLOSED_STATUS_RE.test(s)) return 'closed';
+  return 'other';
 }
 
 function emptyPhaseByProjectEntry(name, color) {
@@ -1823,7 +1831,8 @@ function emptyPhaseByProjectEntry(name, color) {
     name,
     color,
     prodDev: 0, devQA: 0, qaClosed: 0, bounce: 0, rework: 0,
-    prodPending: 0, devPending: 0, qaPending: 0, closed: 0, onHold: 0, rejected: 0,
+    prodPending: 0, devPending: 0, qaPending: 0, closed: 0, onHold: 0, rejected: 0, other: 0,
+    externalTeam: 0,
   };
 }
 
@@ -1842,6 +1851,9 @@ function emptyPhasePeriodBucket(key, date) {
     closed: [],
     onHold: [],
     rejected: [],
+    externalTeam: [],
+    externalTeam: [],
+    other: [],
     byProject: {},
   };
 }
@@ -1980,7 +1992,8 @@ function applyPhaseSnapshots(periodMap, filteredIssues, periodType, now) {
 
     filteredIssues.forEach(({ proj, issue, developer, assignee }) => {
       const status = getIssueStatusAtDate(issue, atDate);
-      const snapshotType = status ? getPhaseSnapshotType(status) : null;
+      if (status === null) return;
+      const snapshotType = getPhaseSnapshotType(status);
       if (!snapshotType) return;
 
       p[snapshotType].push({
@@ -2008,7 +2021,7 @@ function applyPhaseSnapshots(periodMap, filteredIssues, periodType, now) {
 function countSnapshotAtDate(filteredIssues, snapshotType, atDate) {
   return filteredIssues.filter(({ issue }) => {
     const status = getIssueStatusAtDate(issue, atDate);
-    return status && getPhaseSnapshotType(status) === snapshotType;
+    return status !== null && getPhaseSnapshotType(status) === snapshotType;
   }).length;
 }
 
@@ -9008,9 +9021,22 @@ function clearLog() {
 
 const PHASE_TREND_DEFAULT_VISIBLE = {
   prodDev: true, devQA: true, qaClosed: true,
-  prodPending: true, devPending: true, qaPending: true,
-  closed: true, onHold: true,
+  prodPending: true, devPending: true, qaPending: true, rejected: true,
+  closed: true, onHold: true, other: true,
+  externalTeam: true,
   releaseBurndown: true,
+};
+
+const PHASE_OTHER_SERIES_META = {
+  label: 'Other / Unclassified', color: '#78716C', bg: 'rgba(120, 113, 108, 0.08)',
+  borderWidth: 2.5, borderDash: [], pointRadius: 5, pointHoverRadius: 7,
+  hoverColor: '#57534E', isTransition: false,
+};
+
+const PHASE_EXTERNAL_TEAM_SERIES_META = {
+  label: 'External Team', color: '#7C3AED', bg: 'rgba(124, 58, 237, 0.08)',
+  borderWidth: 2.5, borderDash: [], pointRadius: 5, pointHoverRadius: 7,
+  hoverColor: '#5B21B6', isTransition: false,
 };
 
 /** Chart series styles for aggregate and per-project drill-down lines.
@@ -9046,6 +9072,11 @@ const PHASE_SERIES_META = {
     borderWidth: 2.5, borderDash: [], pointRadius: 5, pointHoverRadius: 7,
     hoverColor: '#A16207', isTransition: false,
   },
+  rejected: {
+    label: 'Rejected / Replied', color: '#EA580C', bg: 'rgba(234, 88, 12, 0.08)',
+    borderWidth: 2.5, borderDash: [], pointRadius: 5, pointHoverRadius: 7,
+    hoverColor: '#C2410C', isTransition: false,
+  },
   closed: {
     label: 'Closed', color: '#44403C', bg: 'rgba(68, 64, 60, 0.08)',
     borderWidth: 2.5, borderDash: [], pointRadius: 5, pointHoverRadius: 7,
@@ -9056,13 +9087,15 @@ const PHASE_SERIES_META = {
     borderWidth: 2.5, borderDash: [], pointRadius: 5, pointHoverRadius: 7,
     hoverColor: '#BE123C', isTransition: false,
   },
+  externalTeam: PHASE_EXTERNAL_TEAM_SERIES_META,
+  other: PHASE_OTHER_SERIES_META,
 };
 
 const PHASE_SERIES_KEYS = Object.keys(PHASE_SERIES_META);
 
 const QUALITY_PHASE_TREND_DEFAULT_VISIBLE = {
   prodDev: true, bounce: true, rework: true,
-  prodPending: true, devPending: true, rejected: true, onHold: true,
+  prodPending: true, devPending: true, qaPending: true, rejected: true, closed: true, onHold: true, externalTeam: true, other: true,
 };
 
 const QUALITY_PHASE_SERIES_META = {
@@ -9083,16 +9116,18 @@ const QUALITY_PHASE_SERIES_META = {
   },
   prodPending: PHASE_SERIES_META.prodPending,
   devPending: PHASE_SERIES_META.devPending,
-  rejected: {
-    label: 'Rejected / Replied', color: '#EA580C', bg: 'rgba(234, 88, 12, 0.08)',
-    borderWidth: 2.5, borderDash: [], pointRadius: 5, pointHoverRadius: 7,
-    hoverColor: '#C2410C', isTransition: false,
-  },
+  qaPending: PHASE_SERIES_META.qaPending,
+  closed: PHASE_SERIES_META.closed,
+  rejected: PHASE_SERIES_META.rejected,
   onHold: PHASE_SERIES_META.onHold,
+  externalTeam: PHASE_EXTERNAL_TEAM_SERIES_META,
+  other: PHASE_OTHER_SERIES_META,
 };
 
 function phaseSeriesMeta() {
-  return isQualityInsightPage() ? QUALITY_PHASE_SERIES_META : PHASE_SERIES_META;
+  return isQualityInsightPage()
+    ? { ...QUALITY_PHASE_SERIES_META, other: QUALITY_PHASE_SERIES_META.other || PHASE_OTHER_SERIES_META }
+    : { ...PHASE_SERIES_META, other: PHASE_SERIES_META.other || PHASE_OTHER_SERIES_META };
 }
 
 function phaseSeriesKeys() {
@@ -9290,7 +9325,9 @@ function phaseTrendTooltipOptions() {
     },
     callbacks: {
       title: (items) => {
+        if (!items || !items.length) return '';
         const item = items[0];
+        if (!item || !item.dataset) return '';
         const milestone = item.dataset.milestoneMeta?.[item.dataIndex];
         if (milestone) return milestone.label;
         return item.label;
@@ -9688,15 +9725,18 @@ function renderPhaseTimeline() {
   const totalQAClosed = qualityMode ? reworkEvents.length : qaClosed.length;
   const totalProdPending = countSnapshotAtDate(filteredIssues, 'prodPending', now);
   const totalDevPending = countSnapshotAtDate(filteredIssues, 'devPending', now);
-  const totalQAPending = qualityMode ? countSnapshotAtDate(filteredIssues, 'rejected', now) : countSnapshotAtDate(filteredIssues, 'qaPending', now);
-  const totalClosed = qualityMode ? 0 : countSnapshotAtDate(filteredIssues, 'closed', now);
+  const totalQAPending = countSnapshotAtDate(filteredIssues, 'qaPending', now);
+  const totalRejected = countSnapshotAtDate(filteredIssues, 'rejected', now);
+  const totalClosed = countSnapshotAtDate(filteredIssues, 'closed', now);
   const totalOnHold = countSnapshotAtDate(filteredIssues, 'onHold', now);
+  const totalExternalTeam = countSnapshotAtDate(filteredIssues, 'externalTeam', now);
+  const totalOther = countSnapshotAtDate(filteredIssues, 'other', now);
 
   if (totalProdDev === 0 && totalDevQA === 0 && totalQAClosed === 0 &&
-      totalProdPending === 0 && totalDevPending === 0 && totalQAPending === 0 &&
-      totalClosed === 0 && totalOnHold === 0) {
+      totalProdPending === 0 && totalDevPending === 0 && totalQAPending === 0 && totalRejected === 0 &&
+      totalClosed === 0 && totalOnHold === 0 && totalExternalTeam === 0 && totalOther === 0) {
     clearPhaseChartSlot();
-    contentEl.innerHTML = '<div class="info-box">No phase transitions or matching open issues found in the selected time range.</div>';
+    contentEl.innerHTML = '<div class="info-box">No phase transitions or matching tickets found in the selected time range.</div>';
     return;
   }
 
@@ -9741,19 +9781,26 @@ function renderPhaseTimeline() {
     { key: 'prodDev', title: 'Product → Dev', color: seriesMeta.prodDev.color, snapshot: false },
     { key: 'bounce', title: 'Dev → Rejected', color: seriesMeta.bounce.color, snapshot: false },
     { key: 'rework', title: 'Rejected → Dev', color: seriesMeta.rework.color, snapshot: false },
-    { key: 'prodPending', title: 'Product (open)', color: seriesMeta.prodPending.color, snapshot: true },
-    { key: 'devPending', title: 'In development (open)', color: seriesMeta.devPending.color, snapshot: true },
-    { key: 'rejected', title: 'Rejected / Replied (open)', color: seriesMeta.rejected.color, snapshot: true },
-    { key: 'onHold', title: 'On-Hold (open)', color: seriesMeta.onHold.color, snapshot: true },
+    { key: 'prodPending', title: 'Product', color: seriesMeta.prodPending.color, snapshot: true },
+    { key: 'devPending', title: 'In development', color: seriesMeta.devPending.color, snapshot: true },
+    { key: 'qaPending', title: 'QA-Pending', color: seriesMeta.qaPending.color, snapshot: true },
+    { key: 'rejected', title: 'Rejected / Replied', color: seriesMeta.rejected.color, snapshot: true },
+    { key: 'closed', title: 'Closed', color: seriesMeta.closed.color, snapshot: true },
+    { key: 'onHold', title: 'On-Hold', color: seriesMeta.onHold.color, snapshot: true },
+    { key: 'externalTeam', title: 'External Team', color: seriesMeta.externalTeam.color, snapshot: true },
+    { key: 'other', title: 'Other / Unclassified', color: seriesMeta.other.color, snapshot: true },
   ] : [
     { key: 'prodDev', title: 'Prod → Dev', color: seriesMeta.prodDev.color, snapshot: false },
     { key: 'devQA', title: 'Dev → QA', color: seriesMeta.devQA.color, snapshot: false },
     { key: 'qaClosed', title: 'QA → Closed', color: seriesMeta.qaClosed.color, snapshot: false },
-    { key: 'prodPending', title: 'Prod-Pending (all open)', color: seriesMeta.prodPending.color, snapshot: true },
-    { key: 'devPending', title: 'Dev-Pending (all open)', color: seriesMeta.devPending.color, snapshot: true },
-    { key: 'qaPending', title: 'QA-Pending (all open)', color: seriesMeta.qaPending.color, snapshot: true },
-    { key: 'closed', title: 'Closed (all open)', color: seriesMeta.closed.color, snapshot: true },
+    { key: 'prodPending', title: 'Prod-Pending', color: seriesMeta.prodPending.color, snapshot: true },
+    { key: 'devPending', title: 'Dev-Pending', color: seriesMeta.devPending.color, snapshot: true },
+    { key: 'qaPending', title: 'QA-Pending', color: seriesMeta.qaPending.color, snapshot: true },
+    { key: 'closed', title: 'Closed', color: seriesMeta.closed.color, snapshot: true },
     { key: 'onHold', title: 'On-Hold (all open)', color: seriesMeta.onHold.color, snapshot: true },
+    { key: 'rejected', title: 'Rejected / Replied', color: seriesMeta.rejected.color, snapshot: true },
+    { key: 'externalTeam', title: 'External Team', color: seriesMeta.externalTeam.color, snapshot: true },
+    { key: 'other', title: 'Other / Unclassified', color: seriesMeta.other.color, snapshot: true },
   ];
 
   function renderPhaseItemsTable(items, options = {}) {
@@ -9917,28 +9964,33 @@ function renderPhaseTimeline() {
     const qaClosedCnt = qualityMode ? p.rework.length : p.qaClosed.length;
     const prodPendingCnt = p.prodPending.length;
     const devPendingCnt = p.devPending.length;
-    const qaPendingCnt = qualityMode ? p.rejected.length : p.qaPending.length;
-    const closedCnt = qualityMode ? 0 : p.closed.length;
+    const qaPendingCnt = p.qaPending.length;
+    const rejectedCnt = p.rejected.length;
+    const closedCnt = p.closed.length;
     const onHoldCnt = p.onHold.length;
+    const externalTeamCnt = p.externalTeam.length;
+    const otherCnt = p.other.length;
     const total = prodDevCnt + devQACnt + qaClosedCnt;
 
     const projectBreakdown = Object.entries(p.byProject)
       .map(([k, data]) => {
         const parts = [];
         if (data.prodDev > 0) parts.push(`${data.prodDev} prod→dev`);
+        if (data.qaPending > 0) parts.push(`${data.qaPending} qa pending`);
+        if (data.rejected > 0) parts.push(`${data.rejected} rejected`);
         if (qualityMode) {
           if (data.bounce > 0) parts.push(`${data.bounce} bounce`);
           if (data.rework > 0) parts.push(`${data.rework} rework`);
-          if (data.rejected > 0) parts.push(`${data.rejected} rejected`);
         } else {
           if (data.devQA > 0) parts.push(`${data.devQA} dev→qa`);
           if (data.qaClosed > 0) parts.push(`${data.qaClosed} qa closed`);
-          if (data.qaPending > 0) parts.push(`${data.qaPending} qa pending`);
-          if (data.closed > 0) parts.push(`${data.closed} closed`);
         }
         if (data.prodPending > 0) parts.push(`${data.prodPending} prod pending`);
         if (data.devPending > 0) parts.push(`${data.devPending} dev pending`);
+        if (data.closed > 0) parts.push(`${data.closed} closed`);
         if (data.onHold > 0) parts.push(`${data.onHold} on-hold`);
+        if (data.externalTeam > 0) parts.push(`${data.externalTeam} external team`);
+        if (data.other > 0) parts.push(`${data.other} other`);
         const txt = parts.join(', ') || '0';
         return `<span style="display:inline-flex;align-items:center;gap:4px;margin-right:8px"><span style="width:8px;height:8px;border-radius:50%;background:${data.color}"></span><span style="font-size:11px">${esc(data.name)}: ${txt}</span></span>`;
       })
@@ -9951,9 +10003,12 @@ function renderPhaseTimeline() {
       <td style="text-align:center;font-size:15px;font-weight:700;color:${qualityMode ? seriesMeta.rework.color : seriesMeta.qaClosed.color}">${qaClosedCnt}</td>
       <td style="text-align:center;font-size:14px;font-weight:700;color:${seriesMeta.prodPending.color}">${prodPendingCnt}</td>
       <td style="text-align:center;font-size:14px;font-weight:700;color:${seriesMeta.devPending.color}">${devPendingCnt}</td>
-      <td style="text-align:center;font-size:14px;font-weight:700;color:${qualityMode ? seriesMeta.rejected.color : seriesMeta.qaPending.color}">${qaPendingCnt}</td>
-      ${qualityMode ? '' : `<td style="text-align:center;font-size:14px;font-weight:700;color:${seriesMeta.closed.color}">${closedCnt}</td>`}
+      <td style="text-align:center;font-size:14px;font-weight:700;color:${seriesMeta.qaPending.color}">${qaPendingCnt}</td>
+      <td style="text-align:center;font-size:14px;font-weight:700;color:${seriesMeta.rejected.color}">${rejectedCnt}</td>
+      <td style="text-align:center;font-size:14px;font-weight:700;color:${seriesMeta.closed.color}">${closedCnt}</td>
       <td style="text-align:center;font-size:14px;font-weight:700;color:${seriesMeta.onHold.color}">${onHoldCnt}</td>
+      <td style="text-align:center;font-size:14px;font-weight:700;color:${seriesMeta.externalTeam.color}">${externalTeamCnt}</td>
+      <td style="text-align:center;font-size:14px;font-weight:700;color:${seriesMeta.other.color}">${otherCnt}</td>
       <td style="text-align:center;font-size:16px;font-weight:700;color:var(--blue)">${total}</td>
       <td style="font-size:12px">${projectBreakdown}</td>
       <td style="text-align:center">
@@ -9966,7 +10021,7 @@ function renderPhaseTimeline() {
     const detailsContent = renderPeriodDetailsContent(p);
 
     const detailRow = `<tr class="period-details period-details-${esc(p.key)} hidden">
-      <td colspan="12" style="padding:0;background:var(--bg3)">
+      <td colspan="15" style="padding:0;background:var(--bg3)">
         <div style="padding:12px 16px">
           ${detailsContent}
         </div>
@@ -10022,8 +10077,8 @@ function renderPhaseTimeline() {
         </button>
       </div>
       <p style="font-size:12px;color:var(--text3);margin-bottom:14px">${qualityMode
-        ? 'Dotted lines: Product → Dev, bounce to Rejected/Replied, and rework back to Dev. Solid lines: open quality tickets still in this query (Product, In development, Rejected, On-Hold). QA and closed are not in the Open Bugs set.'
-        : 'Dotted lines: transitions per period (Prod → Dev, Dev → QA, QA → Closed). Solid lines: cumulative count of all open issues at each period — Prod-Pending, Dev-Pending, QA-Pending (incl. Pending DEP), Closed, and On-Hold.'}${drillByProject ? ' <strong>Drill-down:</strong> each enabled series is split into one line per project (project color); toggle projects below.' : ''}${windowCaption}${releaseBurndown?.canBurndown ? ` Dashed line: ideal remaining-issue burndown from ${esc(releaseBurndown.scLabel)} to ${esc(releaseBurndown.ffLabel)} — ${releaseBurndown.startCount} issues at start, decreasing to 0 at the last selected milestone. Colored vertical lines mark selected release milestones.` : (resolvedMilestones.length ? ' Colored vertical lines mark selected release milestones.' : '')} Click a point to expand details below.</p>
+        ? 'Dotted lines: Product → Dev, bounce to Rejected/Replied, and rework back to Dev. Solid lines: tickets in the selected query, grouped by Product, Dev, QA, Rejected, Closed, On-Hold, or Other.'
+        : 'Dotted lines: transitions per period (Prod → Dev, Dev → QA, QA → Closed). Solid lines: tickets in the selected query, grouped by Product, Dev, QA, Rejected, Closed, On-Hold, or Other.'}${drillByProject ? ' <strong>Drill-down:</strong> each enabled series is split into one line per project (project color); toggle projects below.' : ''}${windowCaption}${releaseBurndown?.canBurndown ? ` Dashed line: ideal remaining-issue burndown from ${esc(releaseBurndown.scLabel)} to ${esc(releaseBurndown.ffLabel)} — ${releaseBurndown.startCount} issues at start, decreasing to 0 at the last selected milestone. Colored vertical lines mark selected release milestones.` : (resolvedMilestones.length ? ' Colored vertical lines mark selected release milestones.' : '')} Click a point to expand details below.</p>
       <div style="display:flex; gap:14px; align-items:center; margin-bottom:8px; font-size:12px; flex-wrap:wrap">
         <label style="display:inline-flex; align-items:center; gap:5px; cursor:pointer; font-weight:600; padding:3px 8px; border-radius:6px; background:${drillByProject ? 'var(--bg3)' : 'transparent'}; border:1px solid ${drillByProject ? 'var(--border)' : 'transparent'}">
           <input type="checkbox" ${drillByProject ? 'checked' : ''} onchange="togglePhaseDrillByProject(this.checked)">
@@ -10060,8 +10115,8 @@ function renderPhaseTimeline() {
     <div class="card">
       <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:12px;flex-wrap:wrap;margin-bottom:14px">
         <h3 style="font-size:15px;font-weight:600;margin:0">${qualityMode
-          ? `Quality movements (${totalProdDev} Product→Dev, ${totalDevQA} bounce, ${totalQAClosed} rework) · Open: ${totalProdPending} Product, ${totalDevPending} Dev, ${totalQAPending} Rejected, ${totalOnHold} On-Hold`
-          : `Phase Transitions (${totalProdDev} Prod→Dev, ${totalDevQA} Dev→QA, ${totalQAClosed} QA Closed) · Currently open: ${totalProdPending} Prod-Pend, ${totalDevPending} Dev-Pend, ${totalQAPending} QA-Pend, ${totalClosed} Closed, ${totalOnHold} On-Hold`}</h3>
+          ? `Quality movements (${totalProdDev} Product→Dev, ${totalDevQA} bounce, ${totalQAClosed} rework) · Tickets by status: ${totalProdPending} Product, ${totalDevPending} Dev, ${totalQAPending} QA-Pending, ${totalRejected} Rejected, ${totalClosed} Closed, ${totalOnHold} On-Hold, ${totalExternalTeam} External Team, ${totalOther} Other`
+          : `Phase Transitions (${totalProdDev} Prod→Dev, ${totalDevQA} Dev→QA, ${totalQAClosed} QA Closed) · Tickets by status: ${totalProdPending} Product, ${totalDevPending} Dev, ${totalQAPending} QA-Pend, ${totalRejected} Rejected, ${totalClosed} Closed, ${totalOnHold} On-Hold, ${totalExternalTeam} External Team, ${totalOther} Other`}</h3>
         <div class="phase-details-view-toggle" title="How expanded week/period rows nest phases and projects">
           <button type="button" class="${detailsView === 'phase' ? 'active' : ''}" onclick="setPhaseDetailsView('phase')">Phase → Project</button>
           <button type="button" class="${detailsView === 'project' ? 'active' : ''}" onclick="setPhaseDetailsView('project')">Project → Phase</button>
@@ -10077,9 +10132,12 @@ function renderPhaseTimeline() {
             <th style="width:80px;text-align:center">${qualityMode ? 'Rework' : 'QA Closed'}</th>
             <th style="width:72px;text-align:center">${qualityMode ? 'Product' : 'Prod-Pend'}</th>
             <th style="width:72px;text-align:center">${qualityMode ? 'In Dev' : 'Dev-Pend'}</th>
-            <th style="width:72px;text-align:center">${qualityMode ? 'Rejected' : 'QA-Pend'}</th>
-            ${qualityMode ? '' : '<th style="width:72px;text-align:center">Closed</th>'}
+            <th style="width:72px;text-align:center">QA-Pend</th>
+            <th style="width:72px;text-align:center">Rejected</th>
+            <th style="width:72px;text-align:center">Closed</th>
             <th style="width:72px;text-align:center">On-Hold</th>
+            <th style="width:90px;text-align:center">External Team</th>
+            <th style="width:72px;text-align:center">Other</th>
             <th style="width:60px;text-align:center">Total</th>
             <th>By Project</th>
             <th style="width:50px"></th>
@@ -10792,6 +10850,8 @@ function compileStatusPipelineStages(stages) {
         id: (stage && stage.id) || ('stage-' + index),
         rank,
         match,
+        snapshot: stage && stage.snapshot,
+        phase: stage && stage.phase,
         re: new RegExp(match, (stage && stage.flags) || 'i'),
       });
     } catch (err) {
@@ -10816,6 +10876,24 @@ function getStatusPipelineRank(statusName) {
   if (!s) return null;
   for (const stage of STATUS_PIPELINE_STAGES) {
     if (stage.re.test(s)) return stage.rank;
+  }
+  return null;
+}
+
+function getConfiguredPhaseSnapshotType(statusName) {
+  const s = (statusName || '').trim();
+  if (!s) return null;
+  for (const stage of STATUS_PIPELINE_STAGES) {
+    if (stage.re.test(s) && stage.snapshot) return stage.snapshot;
+  }
+  return null;
+}
+
+function getConfiguredPhaseName(statusName) {
+  const s = (statusName || '').trim();
+  if (!s) return null;
+  for (const stage of STATUS_PIPELINE_STAGES) {
+    if (stage.re.test(s) && stage.phase) return stage.phase;
   }
   return null;
 }

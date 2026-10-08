@@ -6,6 +6,8 @@
 'use strict';
 
 const assert = require('assert');
+const fs = require('fs');
+const path = require('path');
 
 function qualityAgeBand(days) {
   const n = Number(days) || 0;
@@ -244,5 +246,23 @@ assert.strictEqual(counted.total, 4);
 assert.strictEqual(counted.phaseCounts.QA, 2);
 assert.strictEqual(counted.phaseCounts.Developing, 1);
 assert.strictEqual(counted.phaseCounts.Product, 1);
+
+const dashboardHtml = fs.readFileSync(path.join(__dirname, '..', 'dashboard.html'), 'utf8');
+assert.match(dashboardHtml, /const PHASE_SNAPSHOT_KEYS = \['prodPending', 'devPending', 'qaPending', 'rejected', 'closed', 'onHold', 'externalTeam', 'other'\]/);
+assert.match(dashboardHtml, /const QUALITY_PHASE_SNAPSHOT_KEYS = PHASE_SNAPSHOT_KEYS/);
+assert.match(dashboardHtml, /prodPending: true, devPending: true, qaPending: true, rejected: true, closed: true, onHold: true, externalTeam: true, other: true/);
+assert.match(dashboardHtml, /\{ key: 'externalTeam', title: 'External Team', color: seriesMeta\.externalTeam\.color, snapshot: true \}/);
+assert.match(dashboardHtml, /\{ key: 'qaPending', title: 'QA-Pending', color: seriesMeta\.qaPending\.color, snapshot: true \}/);
+assert.match(dashboardHtml, /const PHASE_OTHER_SERIES_META = \{/);
+assert.match(dashboardHtml, /other: PHASE_OTHER_SERIES_META/);
+assert.match(dashboardHtml, /other: QUALITY_PHASE_SERIES_META\.other \|\| PHASE_OTHER_SERIES_META/);
+assert.match(dashboardHtml, /other: PHASE_SERIES_META\.other \|\| PHASE_OTHER_SERIES_META/);
+assert.match(dashboardHtml, /rejected: \{\s+label: 'Rejected \/ Replied'/);
+assert.match(dashboardHtml, /rejected: PHASE_SERIES_META\.rejected/);
+assert.match(dashboardHtml, /prodPending: true, devPending: true, qaPending: true, rejected: true/);
+assert.match(dashboardHtml, /function getConfiguredPhaseSnapshotType\(statusName\) \{[\s\S]*?\r?\n\}\r?\n\r?\nfunction getConfiguredPhaseName\(statusName\)/);
+assert.match(dashboardHtml, /title: \(items\) => \{\s+if \(!items \|\| !items\.length\) return '';\s+const item = items\[0\];\s+if \(!item \|\| !item\.dataset\) return '';/);
+assert.match(dashboardHtml, /return 'other';\s*\}/);
+assert.match(dashboardHtml, /if \(status === null\) return;/);
 
 console.log('quality-insights: ok');
