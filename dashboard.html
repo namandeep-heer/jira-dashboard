@@ -378,6 +378,15 @@ table.issues tr:hover td { background: var(--bg2); }
 .qi-history-legend label { display:inline-flex; align-items:center; gap:5px; cursor:pointer; font-size:12px; color:var(--text); }
 .qi-history-show { color:var(--text3); margin-right:2px; }
 .qi-history-plot { position:relative; width:100%; height:240px; }
+.qi-history-plot canvas { cursor:pointer; }
+.qi-history-list { margin-top:12px; }
+.qi-history-list[hidden] { display:none; }
+.qi-history-list-head { display:flex; align-items:center; gap:10px; margin-bottom:8px; font-size:12px; color:var(--text2); }
+.qi-history-list-head strong { font-size:13px; color:var(--text); font-weight:600; }
+.qi-history-list-head .btn { margin-left:auto; }
+.qi-history-list-scroll { max-height:240px; overflow:auto; }
+.qi-history-card.is-fullscreen .qi-history-list-scroll { max-height:32vh; }
+.qi-history-list-empty { font-size:12px; color:var(--text3); margin:0; }
 .qi-history-card.is-fullscreen {
   position:fixed;
   inset:0;
@@ -409,6 +418,7 @@ body.qi-history-fs-active { overflow:hidden; }
 .charts-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 16px; margin-bottom: 28px; }
 .chart-card { background: var(--bg); border: 0.5px solid var(--border); border-radius: var(--radius-lg); padding: 18px; }
 .chart-card h3 { font-size: 13px; font-weight: 600; display: flex; align-items: center; gap: 7px; margin-bottom: 2px; }
+.chart-card.qi-history-card .qi-history-card-head h3 { font-size: 15px; font-weight: 600; display: block; margin-bottom: 0; }
 .chart-sub { font-size: 11px; color: var(--text3); margin-bottom: 14px; }
 .legend { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 10px; }
 .legend span { font-size: 11px; color: var(--text2); display: flex; align-items: center; gap: 4px; }
@@ -1216,7 +1226,7 @@ code { font-family: monospace; font-size: 12px; background: var(--bg3); padding:
       <div class="page" id="page-analytics">
         <div class="analytics-head">
           <h2>Analytics</h2>
-          <p class="sub">Status, priority, and issue-type breakdowns for market-release projects. Quality (bugs/support) is under Quality Insights.</p>
+          <p class="sub">History and current breakdowns for market-release projects. Quality (bugs/support) is under Quality Insights.</p>
         </div>
         <div id="analytics-body"></div>
       </div>
@@ -5814,6 +5824,7 @@ function resetAnalyticsViews() {
 // ── Analytics ─────────────────────────────────────────────────────────────────
 function renderAnalytics() {
   ensureAnalyticsViews();
+  document.body.classList.remove('qi-history-fs-active');
   Object.values(S.charts).forEach(c=>{try{c.destroy();}catch(e){}});
   S.charts = {};
 
@@ -5846,6 +5857,16 @@ function renderAnalytics() {
     <div style="display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:12px;flex-wrap:wrap">
       <div class="stat-strip" style="margin-bottom:0;flex:1">${summaryCards}</div>
       <button class="btn btn-sm" onclick="resetAnalyticsViews()">Reset graph views</button>
+    </div>
+    <div class="qi-block">
+      <div class="qi-history-head">
+        <div>
+          <h2>History</h2>
+          <p class="sub">${S.anHistoryPeriod === 'month' ? 'Monthly' : 'Weekly'} delivery counts from status history for this market release. Colored vertical lines mark its milestones. Click a point to list the tickets in that count.</p>
+        </div>
+        ${analyticsHistoryMenuHtml()}
+      </div>
+      <div class="qi-history-grid" id="an-history-grid"></div>
     </div>
     <div class="section-h-row">
       <div class="section-h">Phase breakdown</div>
@@ -6375,6 +6396,7 @@ function renderAnalytics() {
 
   buildCharts('ch-priority', is=>{const m={};is.forEach(i=>{const s=i.fields?.priority?.name||'Unknown';m[s]=(m[s]||0)+1;});return{labels:Object.keys(m),counts:Object.values(m)};}, 'priority', S.analyticsViews.priority);
   buildCharts('ch-type',     is=>{const m={};is.forEach(i=>{const s=i.fields?.issuetype?.name||'Unknown';m[s]=(m[s]||0)+1;});return{labels:Object.keys(m),counts:Object.values(m)};}, 'type', S.analyticsViews.type);
+  drawAnalyticsHistoryCharts(loaded);
 }
 
 // ── Developer Velocity ───────────────────────────────────────────────────────
@@ -8540,6 +8562,13 @@ const QI_HISTORY_CHART_BY_CANVAS = {
   'qi-hist-flow': 'qiHistFlow',
   'qi-hist-type': 'qiHistType',
   'qi-hist-priority': 'qiHistPriority',
+  'an-hist-grooming': 'anHistGrooming',
+  'an-hist-developing': 'anHistDeveloping',
+  'an-hist-testing': 'anHistTesting',
+  'an-hist-flow': 'anHistFlow',
+  'an-hist-phase': 'anHistPhase',
+  'an-hist-project': 'anHistProject',
+  'an-hist-scope': 'anHistScope',
 };
 
 function qualityHistoryMaxIcon(expanded) {
@@ -8557,7 +8586,70 @@ function qualityHistoryCard(canvasId, title, subtitle, legendHtml) {
     <div class="chart-sub">${subtitle}</div>
     ${legendHtml}
     <div class="qi-history-plot"><canvas id="${canvasId}" role="img" aria-label="${esc(title)}"></canvas></div>
+    <div class="qi-history-list" id="${canvasId}-list" hidden></div>
   </article>`;
+}
+
+function resetHistoryMembers(prefix) {
+  if (!S.historyMembers) S.historyMembers = {};
+  Object.keys(QI_HISTORY_CHART_BY_CANVAS).forEach(canvasId => {
+    const key = QI_HISTORY_CHART_BY_CANVAS[canvasId];
+    if (key.indexOf(prefix) === 0) delete S.historyMembers[key];
+  });
+}
+
+function bindHistorySeriesTickets(chartKey, seriesKey, tickets, labels) {
+  if (!S.historyMembers) S.historyMembers = {};
+  if (!S.historyMembers[chartKey]) S.historyMembers[chartKey] = { labels: labels || [] };
+  S.historyMembers[chartKey].labels = labels || S.historyMembers[chartKey].labels;
+  S.historyMembers[chartKey][seriesKey] = tickets || [];
+}
+
+function historyPointListHtml(periodLabel, seriesLabel, rows) {
+  const list = Array.isArray(rows) ? rows.slice().sort((a, b) => String(a.key).localeCompare(String(b.key))) : [];
+  const hasMove = list.some(row => row.move);
+  const head = `<div class="qi-history-list-head"><strong>${esc(periodLabel)}</strong><span>${esc(seriesLabel)}</span><span>${list.length}</span><button type="button" class="btn btn-sm" onclick="clearHistoryPointList(this)">Close</button></div>`;
+  if (!list.length) return head + '<p class="qi-history-list-empty">No tickets in this count.</p>';
+  return head + `<div class="qi-history-list-scroll"><table class="qi-table"><thead><tr><th>Key</th><th>Summary</th><th>Project</th><th>Type</th><th>Priority</th><th>Status</th>${hasMove ? '<th>Move</th>' : ''}</tr></thead><tbody>${list.map(row => `
+    <tr>
+      <td>${qualityJiraLink(row.key)}</td>
+      <td>${esc(row.summary)}</td>
+      <td>${esc(row.project)}</td>
+      <td>${esc(row.type)}</td>
+      <td>${esc(row.priority)}</td>
+      <td>${esc(row.status)}</td>
+      ${hasMove ? `<td>${esc(row.move || '')}</td>` : ''}
+    </tr>`).join('')}</tbody></table></div>`;
+}
+
+function clearHistoryPointList(btn) {
+  const host = btn && btn.closest ? btn.closest('.qi-history-list') : null;
+  if (!host) return;
+  host.hidden = true;
+  host.innerHTML = '';
+  delete host.dataset.series;
+  delete host.dataset.index;
+}
+
+function showHistoryPointList(canvasId, seriesKey, index, seriesLabel) {
+  const chartKey = QI_HISTORY_CHART_BY_CANVAS[canvasId];
+  const pack = chartKey && S.historyMembers && S.historyMembers[chartKey];
+  const host = document.getElementById(canvasId + '-list');
+  if (!host) return;
+  if (host.dataset.series === seriesKey && host.dataset.index === String(index) && !host.hidden) {
+    host.hidden = true;
+    host.innerHTML = '';
+    delete host.dataset.series;
+    delete host.dataset.index;
+    return;
+  }
+  const series = pack && pack[seriesKey];
+  const rows = series ? series[index] : [];
+  const periodLabel = (pack && pack.labels && pack.labels[index]) || '';
+  host.hidden = false;
+  host.dataset.series = seriesKey;
+  host.dataset.index = String(index);
+  host.innerHTML = historyPointListHtml(periodLabel, seriesLabel, rows);
 }
 
 function updateQualityHistoryMaxBtn(card, expanded) {
@@ -8734,6 +8826,14 @@ function mountQualityHistoryChart(chartKey, canvasId, datasets, labels, markers,
             phaseReleaseTimeline: { markers },
           } : {}),
         },
+        onClick: (event, elements, chart) => {
+          const nearest = chart.getElementsAtEventForMode(event, 'nearest', { intersect: false }, true);
+          const hit = (nearest && nearest[0]) || (elements && elements[0]);
+          if (!hit) return;
+          const dataset = chart.data.datasets[hit.datasetIndex];
+          if (!dataset || !dataset.seriesKey || !hit.parsed || hit.parsed.y == null) return;
+          showHistoryPointList(chart.canvas.id, dataset.seriesKey, hit.index, dataset.label);
+        },
       },
     });
   } catch (err) {
@@ -8759,6 +8859,7 @@ function collectQualityHistoryIssues(projects) {
 function drawQualityHistoryCharts(issues) {
   const host = document.getElementById('qi-history-grid');
   if (!host) return;
+  resetHistoryMembers('qiHist');
   if (typeof QualityHistory === 'undefined' || !QualityHistory.buildQualityHistory) {
     host.innerHTML = '<div class="info-box">History charts are unavailable. Restart the dashboard server so it can serve quality-history.js.</div>';
     return;
@@ -8784,6 +8885,7 @@ function drawQualityHistoryCharts(issues) {
       now: new Date(),
       period: S.qiHistoryPeriod === 'month' ? 'month' : 'week',
       milestones,
+      includeMembers: true,
     });
   } catch (err) {
     console.warn('[quality-history]', err);
@@ -8796,7 +8898,9 @@ function drawQualityHistoryCharts(issues) {
   const mounts = [];
   function addStage(stageId, chartKey, canvasId, title) {
     if (visible[stageId] === false) return;
-    const series = QI_STAGE_SERIES.map(item => ({ ...item }));
+    const stageTickets = (model.members && model.members.stages && model.members.stages[stageId]) || {};
+    const series = QI_STAGE_SERIES.map(item => ({ ...item, tickets: stageTickets[item.key] }));
+    series.forEach(item => bindHistorySeriesTickets(chartKey, item.key, item.tickets, model.labels));
     cards.push(qualityHistoryCard(
       canvasId,
       title,
@@ -8821,7 +8925,9 @@ function drawQualityHistoryCharts(issues) {
       color: QI_TYPE_COLORS[item.label] || QI_HISTORY_EXTRA_COLORS[index % QI_HISTORY_EXTRA_COLORS.length],
       dash: [],
       data: item.data,
+      tickets: item.tickets,
     }));
+    typeSeries.forEach(item => bindHistorySeriesTickets('qiHistType', item.key, item.tickets, model.labels));
     if (typeSeries.length) {
       cards.push(qualityHistoryCard(
         'qi-hist-type',
@@ -8842,7 +8948,9 @@ function drawQualityHistoryCharts(issues) {
   }
   addStage('testing', 'qiHistTesting', 'qi-hist-testing', 'Testing History: By Issue Counts');
   if (visible.flow !== false) {
-    const series = QI_FLOW_SERIES.map(item => ({ ...item }));
+    const flowTickets = (model.members && model.members.flow) || {};
+    const series = QI_FLOW_SERIES.map(item => ({ ...item, tickets: flowTickets[item.key] }));
+    series.forEach(item => bindHistorySeriesTickets('qiHistFlow', item.key, item.tickets, model.labels));
     cards.push(qualityHistoryCard(
       'qi-hist-flow',
       'Bug Work Incoming & Outgoing History: By Issue Counts',
@@ -8865,7 +8973,9 @@ function drawQualityHistoryCharts(issues) {
       color: QI_PRIORITY_COLORS[item.label] || '#9b9a96',
       dash: [],
       data: item.data,
+      tickets: item.tickets,
     }));
+    prioritySeries.forEach(item => bindHistorySeriesTickets('qiHistPriority', item.key, item.tickets, model.labels));
     if (prioritySeries.length) {
       cards.push(qualityHistoryCard(
         'qi-hist-priority',
@@ -8891,8 +9001,300 @@ function drawQualityHistoryCharts(issues) {
   mounts.forEach(mount => mount());
 }
 
+const AN_HISTORY_MENU = [
+  { id: 'grooming', label: 'Grooming History', hint: 'Delivery work entering grooming, waiting there, and leaving it.' },
+  { id: 'developing', label: 'Developing History', hint: 'Delivery work entering development, waiting there, and leaving it.' },
+  { id: 'testing', label: 'Testing History', hint: 'Delivery work entering testing, waiting there, and leaving it.' },
+  { id: 'flow', label: 'Work Incoming & Outgoing', hint: 'Moves into and out of grooming, development, and testing.' },
+  { id: 'phase', label: 'Open Work By Phase', hint: 'Where open delivery work sat at the end of each period.' },
+  { id: 'project', label: 'Open Work By Project', hint: 'Open delivery work stacked by project.' },
+  { id: 'scope', label: 'Open Work By Scope', hint: 'Open work by each ticket’s current Scope Commitment At SC.' },
+];
+
+const AN_STAGE_SERIES = [
+  { key: 'totalWork', label: 'Total Work', color: '#185FA5', dash: [6, 4] },
+  { key: 'toCome', label: 'To Come', color: '#A32D2D', dash: [] },
+  { key: 'handled', label: 'Handled', color: '#c47a0f', dash: [4, 3] },
+  { key: 'open', label: 'Current Open', color: '#44403C', dash: [5, 4] },
+  { key: 'pendingActive', label: 'Pending / Active', color: '#533AB7', dash: [6, 4] },
+];
+
+const AN_FLOW_SERIES = [
+  { key: 'groomingIn', label: 'Grooming in', color: '#7C3AED', dash: [], axis: 'y' },
+  { key: 'groomingOut', label: 'Grooming out', color: '#7C3AED', dash: [5, 4], axis: 'y' },
+  { key: 'developingIn', label: 'Developing in', color: '#c47a0f', dash: [], axis: 'y' },
+  { key: 'developingOut', label: 'Developing out', color: '#c47a0f', dash: [5, 4], axis: 'y' },
+  { key: 'testingIn', label: 'Testing in', color: '#185FA5', dash: [], axis: 'y' },
+  { key: 'testingOut', label: 'Testing out', color: '#185FA5', dash: [5, 4], axis: 'y' },
+  { key: 'active', label: 'Active Grooming / Developing / Testing', color: '#A32D2D', dash: [], axis: 'y1' },
+  { key: 'open', label: 'Current Open', color: '#44403C', dash: [], axis: 'y1' },
+];
+
+const AN_PHASE_ORDER = ['Product', 'Developer Pending', 'Developing', 'QA', 'Rejected / Replied', 'On Hold', 'External Team', 'Other'];
+
+const AN_PHASE_COLORS = {
+  Product: '#533AB7',
+  'Developer Pending': '#854F0B',
+  Developing: '#185FA5',
+  QA: '#0F6E56',
+  'Rejected / Replied': '#c47a0f',
+  'On Hold': '#888780',
+  'External Team': '#7C3AED',
+  Other: '#44403C',
+};
+
+const AN_SCOPE_COLORS = ['#533AB7', '#185FA5', '#0F6E56', '#c47a0f', '#A32D2D', '#854F0B', '#993556', '#3B6D11'];
+
+function ensureAnalyticsHistoryVisible() {
+  const defaults = { grooming: true, developing: true, testing: true, flow: true, phase: true, project: true, scope: true };
+  S.anHistoryVisible = { ...defaults, ...(S.anHistoryVisible || {}) };
+  return S.anHistoryVisible;
+}
+
+function analyticsHistoryMenuHtml() {
+  const visible = ensureAnalyticsHistoryVisible();
+  const selected = AN_HISTORY_MENU.filter(item => visible[item.id] !== false).length;
+  const period = S.anHistoryPeriod === 'month' ? 'month' : 'week';
+  return `
+    <div class="qi-history-actions">
+      <select id="an-history-period" class="section-control" aria-label="Market release history period" onchange="setAnalyticsHistoryPeriod(this.value)">
+        <option value="week" ${period === 'week' ? 'selected' : ''}>By week</option>
+        <option value="month" ${period === 'month' ? 'selected' : ''}>By month</option>
+      </select>
+      <div class="ms-wrap">
+        <button class="ms-btn" id="an-history-menu-btn" type="button" onclick="toggleAnalyticsHistoryMenu()" aria-haspopup="true" aria-expanded="false">
+          <span>Charts</span>
+          <span class="ms-badge">${selected}</span>
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"/></svg>
+        </button>
+        <div class="ms-dropdown" id="an-history-menu">
+          <div class="ms-options">
+            ${AN_HISTORY_MENU.map(item => `
+              <label class="ms-option" title="${esc(item.hint)}">
+                <input type="checkbox" ${visible[item.id] !== false ? 'checked' : ''} aria-label="${esc(item.label)}" onchange="toggleAnalyticsHistoryChart('${item.id}', this.checked)">
+                <span class="ms-option-label">${esc(item.label)}</span>
+              </label>`).join('')}
+          </div>
+        </div>
+      </div>
+    </div>`;
+}
+
+function toggleAnalyticsHistoryMenu() {
+  const menu = document.getElementById('an-history-menu');
+  const btn = document.getElementById('an-history-menu-btn');
+  if (!menu) return;
+  const open = menu.classList.toggle('open');
+  if (btn) btn.setAttribute('aria-expanded', open ? 'true' : 'false');
+}
+
+function setAnalyticsHistoryPeriod(value) {
+  S.anHistoryPeriod = value === 'month' ? 'month' : 'week';
+  renderAnalytics();
+}
+
+function toggleAnalyticsHistoryChart(id, checked) {
+  const visible = ensureAnalyticsHistoryVisible();
+  visible[id] = !!checked;
+  renderAnalytics();
+}
+
+function analyticsHistoryPhaseLabel(statusName) {
+  const name = String(statusName || '').trim();
+  if (/^on[\s-]*hold\b/i.test(name)) return 'On Hold';
+  const phase = getPhaseForStatus(name);
+  if (phase && phase.label && phase.label !== 'Closed') return phase.label;
+  return 'Other';
+}
+
+function analyticsHistoryScopeLabel(issue) {
+  const scopeField = ALL_FIELDS.find(field => field.id === 'cf_scopesc');
+  if (!scopeField || !issue || !issue.fields) return 'Not Set';
+  const val = issue.fields[jiraId(scopeField)];
+  if (val && typeof val === 'object') return String(val.value || val.name || 'Not Set').trim() || 'Not Set';
+  const text = String(val == null ? '' : val).trim();
+  return text || 'Not Set';
+}
+
+function analyticsHistoryGroupAt(issue, statusName) {
+  return {
+    phase: analyticsHistoryPhaseLabel(statusName),
+    project: (issue && issue._releaseProject) || 'Unknown',
+    scope: analyticsHistoryScopeLabel(issue),
+  };
+}
+
+function analyticsHistoryGroupColor(groupId, label, index, projectColors) {
+  if (groupId === 'phase') return AN_PHASE_COLORS[label] || QI_HISTORY_EXTRA_COLORS[index % QI_HISTORY_EXTRA_COLORS.length];
+  if (groupId === 'project') return (projectColors && projectColors[label]) || QI_HISTORY_EXTRA_COLORS[index % QI_HISTORY_EXTRA_COLORS.length];
+  if (label === 'Not Set') return '#888780';
+  if (label === 'Other') return '#44403C';
+  return AN_SCOPE_COLORS[index % AN_SCOPE_COLORS.length];
+}
+
+function collectAnalyticsHistoryIssues(projects) {
+  const issues = [];
+  const projectColors = {};
+  (projects || []).forEach(proj => {
+    const name = proj.name || proj.key;
+    projectColors[name] = proj.color || '#185FA5';
+    const filtered = filterIssuesToActiveRelease((S.cache[proj.key] && S.cache[proj.key].issues) || [], proj);
+    (filtered.issues || []).forEach(issue => {
+      issues.push(Object.assign({ _releaseProject: name }, issue));
+    });
+  });
+  return { issues, projectColors };
+}
+
+function drawAnalyticsHistoryCharts(projects) {
+  const host = document.getElementById('an-history-grid');
+  if (!host) return;
+  resetHistoryMembers('anHist');
+  if (typeof QualityHistory === 'undefined' || !QualityHistory.buildQualityHistory) {
+    host.innerHTML = '<div class="info-box">History charts are unavailable. Restart the dashboard server so it can serve quality-history.js.</div>';
+    return;
+  }
+  if (typeof Chart === 'undefined') {
+    host.innerHTML = '<div class="info-box">History charts need Chart.js, which did not load.</div>';
+    return;
+  }
+  const collected = collectAnalyticsHistoryIssues(projects);
+  const issues = collected.issues;
+  if (!issues.length) {
+    host.innerHTML = '<p style="font-size:13px;color:var(--text3)">No delivery tickets in this market release.</p>';
+    return;
+  }
+  const release = findReleaseByName(S.activeRelease);
+  const milestones = getDatedReleaseMilestones(release).map(marker => ({
+    id: marker.id,
+    label: marker.label,
+    color: marker.color,
+    date: marker.date,
+  }));
+  let model;
+  try {
+    model = QualityHistory.buildQualityHistory(issues, {
+      now: new Date(),
+      period: S.anHistoryPeriod === 'month' ? 'month' : 'week',
+      milestones,
+      groupAt: analyticsHistoryGroupAt,
+      groupOrder: { phase: AN_PHASE_ORDER },
+      groupLimit: { scope: 8 },
+      includeMembers: true,
+    });
+  } catch (err) {
+    console.warn('[analytics-history]', err);
+    host.innerHTML = '<div class="info-box">History charts could not be built from the synced tickets.</div>';
+    return;
+  }
+  const visible = ensureAnalyticsHistoryVisible();
+  const periodWord = model.period === 'month' ? 'Monthly' : 'Weekly';
+  const cards = [];
+  const mounts = [];
+  function addStage(stageId, chartKey, canvasId, title) {
+    if (visible[stageId] === false) return;
+    const stageTickets = (model.members && model.members.stages && model.members.stages[stageId]) || {};
+    const series = AN_STAGE_SERIES.map(item => ({ ...item, tickets: stageTickets[item.key] }));
+    series.forEach(item => bindHistorySeriesTickets(chartKey, item.key, item.tickets, model.labels));
+    cards.push(qualityHistoryCard(
+      canvasId,
+      title,
+      'By issue counts. Total Work has entered this stage. To Come is still upstream. Handled has moved past it.',
+      qualityHistoryLegend(chartKey, series)
+    ));
+    mounts.push(() => {
+      const datasets = series.map(item => qualityHistoryLineDataset(
+        item,
+        model.stages[stageId][item.key],
+        !qualityHistorySeriesOn(chartKey, item.key)
+      ));
+      mountQualityHistoryChart(chartKey, canvasId, datasets, model.labels, model.markers, false, false);
+    });
+  }
+  function addGroup(menuId, chartKey, canvasId, title, subtitle, groupId) {
+    if (visible[menuId] === false) return;
+    const series = ((model.groups && model.groups[groupId]) || []).map((item, index) => ({
+      key: item.label,
+      label: item.label,
+      color: analyticsHistoryGroupColor(groupId, item.label, index, collected.projectColors),
+      dash: [],
+      data: item.data,
+      tickets: item.tickets,
+    }));
+    series.forEach(item => bindHistorySeriesTickets(chartKey, item.key, item.tickets, model.labels));
+    if (!series.length) return;
+    cards.push(qualityHistoryCard(
+      canvasId,
+      title,
+      subtitle,
+      qualityHistoryLegend(chartKey, series)
+    ));
+    mounts.push(() => {
+      const datasets = series.map(item => qualityHistoryAreaDataset(
+        item.label,
+        item.data,
+        item.color,
+        !qualityHistorySeriesOn(chartKey, item.key)
+      ));
+      mountQualityHistoryChart(chartKey, canvasId, datasets, model.labels, model.markers, true, false);
+    });
+  }
+  addStage('grooming', 'anHistGrooming', 'an-hist-grooming', 'Grooming History: By Issue Counts');
+  addStage('developing', 'anHistDeveloping', 'an-hist-developing', 'Developing History: By Issue Counts');
+  addGroup(
+    'phase',
+    'anHistPhase',
+    'an-hist-phase',
+    'Open Work By Phase',
+    'Open tickets at the end of each period, stacked by the pipeline phase of the status they held then.',
+    'phase'
+  );
+  addStage('testing', 'anHistTesting', 'an-hist-testing', 'Testing History: By Issue Counts');
+  if (visible.flow !== false) {
+    const flowTickets = (model.members && model.members.flow) || {};
+    const series = AN_FLOW_SERIES.map(item => ({ ...item, tickets: flowTickets[item.key] }));
+    series.forEach(item => bindHistorySeriesTickets('anHistFlow', item.key, item.tickets, model.labels));
+    cards.push(qualityHistoryCard(
+      'an-hist-flow',
+      'Work Incoming & Outgoing History: By Issue Counts',
+      `${periodWord} moves into and out of each stage are on the left. Active work and current open issues are on the right.`,
+      qualityHistoryLegend('anHistFlow', series)
+    ));
+    mounts.push(() => {
+      const datasets = series.map(item => qualityHistoryLineDataset(
+        item,
+        model.flow[item.key],
+        !qualityHistorySeriesOn('anHistFlow', item.key)
+      ));
+      mountQualityHistoryChart('anHistFlow', 'an-hist-flow', datasets, model.labels, model.markers, false, true);
+    });
+  }
+  addGroup(
+    'project',
+    'anHistProject',
+    'an-hist-project',
+    'Open Work By Project',
+    'Open tickets at the end of each period, stacked by project.',
+    'project'
+  );
+  addGroup(
+    'scope',
+    'anHistScope',
+    'an-hist-scope',
+    'Open Work By Scope',
+    'Open tickets at the end of each period, stacked by the current Scope Commitment At SC. Earlier scope changes are not in the changelog, so each week uses the scope on the ticket now.',
+    'scope'
+  );
+  const truncated = model.truncated
+    ? '<p style="font-size:12px;color:var(--text3);grid-column:1/-1">Showing the latest 180 periods.</p>'
+    : '';
+  host.innerHTML = truncated + (cards.join('') || '<p style="font-size:13px;color:var(--text3)">All history charts are hidden. Turn them back on from Charts.</p>');
+  mounts.forEach(mount => mount());
+}
+
 function renderQualityInsights() {
   destroyQualityHistoryCharts();
+  document.body.classList.remove('qi-history-fs-active');
   const body = document.getElementById('quality-insights-body');
   if (!body) return;
   const qualityProjects = getQualityProjects();
@@ -9032,7 +9434,7 @@ function renderQualityInsights() {
       <div class="qi-history-head">
         <div>
           <h2>History</h2>
-          <p class="sub">${historyPeriodWord} bug counts from status history for this market release. Colored vertical lines mark its milestones.</p>
+          <p class="sub">${historyPeriodWord} bug counts from status history for this market release. Colored vertical lines mark its milestones. Click a point to list the tickets in that count.</p>
         </div>
         ${qualityHistoryMenuHtml()}
       </div>

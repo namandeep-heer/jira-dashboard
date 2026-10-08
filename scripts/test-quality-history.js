@@ -144,6 +144,118 @@ const da = history.markers.find(marker => marker.id.indexOf('DA') !== -1);
 const ga = history.markers.find(marker => marker.id.indexOf('GA') !== -1);
 assert.ok(da && da.idx === jan10);
 assert.ok(ga && ga.idx === feb21);
+assert.deepStrictEqual(history.groups, {});
+assert.strictEqual(history.members, null);
+
+function deliveryCopy(source, project, scope) {
+  const copy = JSON.parse(JSON.stringify(source));
+  copy._releaseProject = project;
+  copy.fields.customfield_10201 = { value: scope };
+  return copy;
+}
+
+function deliveryGroupAt(issue, status) {
+  let phase = 'Other';
+  if (/closed|done|fixed/i.test(status)) phase = 'Closed';
+  else if (/pqa|qa/i.test(status)) phase = 'QA';
+  else if (/develop/i.test(status)) phase = 'Developing';
+  else if (/groom|creating/i.test(status)) phase = 'Product';
+  return {
+    phase,
+    project: issue._releaseProject,
+    scope: (issue.fields.customfield_10201 && issue.fields.customfield_10201.value) || 'Not Set',
+  };
+}
+
+const grouped = buildQualityHistory([
+  deliveryCopy(walked, 'Lease Accounting 6.x', 'Committed'),
+  deliveryCopy(stayed, 'General Ledger', 'Not Set'),
+], {
+  now: new Date(2026, 2, 1, 12, 0, 0, 0),
+  period: 'week',
+  groupAt: deliveryGroupAt,
+  groupOrder: { phase: ['Product', 'Developing', 'QA', 'Other'] },
+});
+const gJan10 = grouped.labels.indexOf('Jan 10');
+const gFeb21 = grouped.labels.indexOf('Feb 21');
+const product = grouped.groups.phase.find(item => item.label === 'Product');
+const developingPhase = grouped.groups.phase.find(item => item.label === 'Developing');
+const qaPhase = grouped.groups.phase.find(item => item.label === 'QA');
+assert.strictEqual(product.data[gJan10], 1);
+assert.strictEqual(developingPhase.data[gJan10], 1);
+assert.strictEqual(qaPhase.data[gJan10], 0);
+assert.strictEqual(product.data[gFeb21], 0);
+assert.strictEqual(developingPhase.data[gFeb21], 1);
+assert.ok(!grouped.groups.phase.some(item => item.label === 'Closed'));
+assert.ok(grouped.groups.phase.findIndex(item => item.label === 'Product') < grouped.groups.phase.findIndex(item => item.label === 'Developing'));
+assert.strictEqual(grouped.groups.project.find(item => item.label === 'Lease Accounting 6.x').data[gJan10], 1);
+assert.strictEqual(grouped.groups.project.find(item => item.label === 'Lease Accounting 6.x').data[gFeb21], 0);
+assert.strictEqual(grouped.groups.project.find(item => item.label === 'General Ledger').data[gFeb21], 1);
+assert.strictEqual(grouped.groups.scope.find(item => item.label === 'Committed').data[gFeb21], 0);
+assert.strictEqual(grouped.groups.scope.find(item => item.label === 'Not Set').data[gFeb21], 1);
+
+const limited = buildQualityHistory([
+  deliveryCopy(walked, 'Lease Accounting 6.x', 'Committed'),
+  deliveryCopy(stayed, 'General Ledger', 'Not Set'),
+], {
+  now: new Date(2026, 2, 1, 12, 0, 0, 0),
+  period: 'week',
+  groupAt: deliveryGroupAt,
+  groupLimit: { scope: 1 },
+  includeMembers: true,
+});
+assert.strictEqual(limited.groups.scope.length, 1);
+assert.strictEqual(limited.groups.scope[0].label, 'Other');
+assert.strictEqual(limited.groups.scope[0].data[limited.labels.indexOf('Jan 10')], 2);
+assert.strictEqual(limited.groups.scope[0].tickets[limited.labels.indexOf('Jan 10')].length, 2);
+
+const walkedListed = JSON.parse(JSON.stringify(walked));
+walkedListed.fields.summary = 'Walk to close';
+const stayedListed = JSON.parse(JSON.stringify(stayed));
+stayedListed.key = 'GL-9';
+stayedListed.fields.summary = 'Stay in dev';
+const listed = buildQualityHistory([walkedListed, stayedListed], {
+  now: new Date(2026, 2, 1, 12, 0, 0, 0),
+  period: 'week',
+  includeMembers: true,
+});
+function keysAt(rows, index) {
+  return (rows[index] || []).map(row => row.key).sort();
+}
+const listJan10 = listed.labels.indexOf('Jan 10');
+const listJan24 = listed.labels.indexOf('Jan 24');
+const listFeb21 = listed.labels.indexOf('Feb 21');
+assert.deepStrictEqual(keysAt(listed.members.stages.grooming.pendingActive, listJan10), ['NFS-1']);
+assert.strictEqual(listed.members.stages.grooming.pendingActive[listJan10][0].summary, 'Walk to close');
+assert.strictEqual(listed.members.stages.grooming.pendingActive[listJan10][0].status, 'Creating');
+assert.deepStrictEqual(keysAt(listed.members.stages.grooming.pendingActive, listJan24), []);
+assert.deepStrictEqual(keysAt(listed.members.stages.developing.pendingActive, listJan24), ['GL-9', 'NFS-1']);
+assert.deepStrictEqual(keysAt(listed.members.flow.groomingOut, listJan24), ['NFS-1']);
+assert.ok(listed.members.flow.groomingOut[listJan24][0].move.indexOf('Dev-Grooming → Dev-Pending') !== -1);
+assert.deepStrictEqual(keysAt(listed.members.flow.open, listFeb21), ['GL-9']);
+assert.strictEqual(listed.members.stages.grooming.pendingActive[listJan10].length, listed.stages.grooming.pendingActive[listJan10]);
+const listedBug = listed.types.find(item => item.label === 'Bug');
+assert.deepStrictEqual(keysAt(listedBug.tickets, listJan10), ['NFS-1']);
+
+const futureGrouped = buildQualityHistory([
+  deliveryCopy(stayed, 'General Ledger', 'Not Set'),
+], {
+  now: new Date(2026, 0, 10, 12, 0, 0, 0),
+  period: 'week',
+  milestones: [{ id: 'GA', label: 'GA', date: '2026-03-01', color: '#2d6a10' }],
+  groupAt: deliveryGroupAt,
+});
+assert.strictEqual(futureGrouped.groups.phase[0].data[futureGrouped.labels.length - 1], null);
+assert.ok(futureGrouped.groups.phase[0].data.some(value => value === 1));
+
+const longRange = buildQualityHistory([issue('2022-04-27T12:00:00', 'Dev-Developing', [])], {
+  now: new Date(2026, 9, 8, 12, 0, 0, 0),
+  period: 'week',
+});
+assert.strictEqual(longRange.truncated, true);
+assert.strictEqual(longRange.labels.length, 180);
+assert.strictEqual(longRange.labels[longRange.labels.length - 1], 'Oct 10');
+assert.strictEqual(longRange.flow.open[longRange.labels.length - 1], 1);
 
 const future = buildQualityHistory([stayed], {
   now: new Date(2026, 0, 10, 12, 0, 0, 0),
@@ -170,5 +282,16 @@ assert.match(dashboard, /\.qi-history-card\.is-fullscreen/);
 assert.match(dashboard, /qi-history-max/);
 assert.match(dashboard, /phaseSeriesSwatchHtml\(color, dashed\)/);
 assert.match(dashboard, /class="chart-card qi-history-card"/);
+assert.match(dashboard, /id="an-history-grid"/);
+assert.match(dashboard, /Open Work By Phase/);
+assert.match(dashboard, /Open Work By Project/);
+assert.match(dashboard, /Open Work By Scope/);
+assert.match(dashboard, /Work Incoming &amp; Outgoing History|Work Incoming & Outgoing History/);
+assert.match(dashboard, /Earlier scope changes are not in the changelog/);
+assert.match(dashboard, /function drawAnalyticsHistoryCharts\(projects\)/);
+assert.match(dashboard, /Click a point to list the tickets in that count/);
+assert.match(dashboard, /function showHistoryPointList\(canvasId, seriesKey, index, seriesLabel\)/);
+assert.match(dashboard, /class="qi-history-list"/);
+assert.match(dashboard, /includeMembers: true/);
 
 console.log('quality-history: ok');
