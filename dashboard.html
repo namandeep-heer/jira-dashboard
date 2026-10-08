@@ -274,6 +274,66 @@ table.issues td { padding: 7px 10px; border-bottom: 0.5px solid var(--border); v
 .proj-search { padding: 6px 10px; border: 0.5px solid var(--border2); border-radius: var(--radius); background: var(--bg); color: var(--text); font-size: 13px; font-family: inherit; width: 240px; }
 .proj-search:focus { outline: 2px solid var(--blue); outline-offset: -1px; }
 .proj-count { font-size: 12px; color: var(--text3); }
+.proj-sort-btn.is-on { color: var(--text); border-color: var(--border2); }
+.proj-sort-status { font-size: 12px; color: var(--text3); }
+.proj-sort-status.is-error { color: var(--red); }
+.sort-rank { display: inline-flex; align-items: center; justify-content: center; min-width: 14px; height: 14px; margin-right: 3px; padding: 0 3px; border-radius: 999px; background: var(--blue-bg); color: var(--blue); font-size: 10px; font-weight: 600; font-variant-numeric: tabular-nums; }
+#proj-sort-root { position: fixed; inset: 0; z-index: 820; }
+#proj-sort-root[hidden] { display: none !important; }
+.proj-sort-backdrop { position: absolute; inset: 0; background: rgba(0,0,0,.28); opacity: 0; transition: opacity .18s ease; }
+.proj-sort-panel { position: absolute; top: 50%; left: 50%; width: min(760px, calc(100vw - 32px)); height: min(540px, calc(100vh - 48px)); display: flex; flex-direction: column; background: var(--bg); border: 0.5px solid var(--border); border-radius: 18px; box-shadow: 0 24px 60px rgba(0,0,0,.16); transform: translate(-50%, calc(-50% + 8px)) scale(0.98); opacity: 0; transition: transform .28s cubic-bezier(.2,.85,.2,1), opacity .18s ease; }
+#proj-sort-root.open .proj-sort-backdrop { opacity: 1; }
+#proj-sort-root.open .proj-sort-panel { transform: translate(-50%, -50%) scale(1); opacity: 1; }
+.proj-sort-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 16px; padding: 20px 20px 0; }
+.proj-sort-head h2 { font-size: 17px; font-weight: 600; letter-spacing: -0.02em; }
+.proj-sort-kicker { max-width: 40ch; margin-top: 4px; font-size: 12px; line-height: 1.45; color: var(--text3); }
+.proj-sort-body { flex: 1; min-height: 0; display: grid; grid-template-columns: 232px minmax(0, 1fr); }
+.proj-sort-nav { min-height: 0; display: flex; flex-direction: column; gap: 8px; padding: 12px 10px; border-right: 0.5px solid var(--border); }
+.proj-sort-levels { flex: 1; min-height: 0; display: flex; flex-direction: column; gap: 2px; overflow: auto; }
+.proj-sort-nav-row { display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: center; border-radius: 10px; }
+.proj-sort-nav-row:hover, .proj-sort-nav-row.is-on { background: var(--bg2); }
+.proj-sort-nav-item { display: flex; flex-direction: column; align-items: flex-start; gap: 2px; width: 100%; min-width: 0; padding: 8px 2px 8px 10px; border: none; border-radius: 10px; background: transparent; color: var(--text); font: inherit; text-align: left; cursor: pointer; }
+.proj-sort-nav-item:focus-visible { outline: 2px solid var(--blue); outline-offset: 1px; }
+.proj-sort-nav-moves { display: flex; flex-direction: column; padding-right: 4px; }
+.proj-sort-nav-name { font-size: 13px; font-weight: 600; }
+.proj-sort-nav-detail { max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 12px; color: var(--text3); }
+.proj-sort-add { align-self: flex-start; }
+.proj-sort-editor { min-height: 0; overflow: auto; display: flex; flex-direction: column; gap: 10px; padding: 16px 20px 12px; }
+.proj-sort-editor-empty { margin: auto; font-size: 13px; color: var(--text3); }
+.proj-sort-level-top { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; }
+.proj-sort-level-label { font-size: 11px; font-weight: 600; letter-spacing: .06em; text-transform: uppercase; color: var(--text3); }
+.proj-sort-level-actions, .proj-sort-value-moves, .proj-sort-order-tools { display: flex; align-items: center; gap: 12px; }
+.proj-sort-editor select { width: 100%; height: 38px; padding: 0 12px; border: 0.5px solid var(--border2); border-radius: 12px; background: var(--bg); color: var(--text); font: inherit; font-size: 14px; }
+.proj-sort-editor select:focus { outline: 2px solid var(--blue); outline-offset: -1px; }
+.proj-sort-text-btn, .proj-sort-icon-btn { border: none; background: none; padding: 0; font: inherit; font-size: 12px; font-weight: 600; color: var(--text3); cursor: pointer; }
+.proj-sort-icon-btn { width: 22px; height: 22px; border-radius: 6px; font-size: 13px; line-height: 1; transition: transform .12s cubic-bezier(.2,.8,.2,1), color .12s ease; }
+.proj-sort-text-btn:hover:not(:disabled), .proj-sort-icon-btn:hover:not(:disabled) { color: var(--text); }
+.proj-sort-text-btn.remove:hover:not(:disabled), .proj-sort-icon-btn.remove:hover:not(:disabled) { color: var(--red); }
+.proj-sort-icon-btn:active:not(:disabled) { transform: scale(0.96); }
+.proj-sort-text-btn:focus-visible, .proj-sort-icon-btn:focus-visible, .proj-sort-head .btn:focus-visible { outline: 2px solid var(--blue); outline-offset: 2px; border-radius: 4px; }
+.proj-sort-text-btn:disabled, .proj-sort-icon-btn:disabled { opacity: .3; cursor: default; }
+.proj-sort-values { flex: 1; min-height: 0; display: flex; flex-direction: column; margin: 2px 0 0; padding: 0; list-style: none; overflow: auto; }
+.proj-sort-value-row { display: grid; grid-template-columns: 22px minmax(0, 1fr) auto; align-items: center; gap: 8px; min-height: 36px; padding: 0 2px; border-top: 0.5px solid var(--border); }
+.proj-sort-value-row:last-child { border-bottom: 0.5px solid var(--border); }
+.proj-sort-value-row[draggable="true"] { cursor: grab; }
+.proj-sort-value-row.is-drop { background: var(--blue-bg); }
+@media (hover: hover) and (pointer: fine) {
+  .proj-sort-value-moves { opacity: 0; }
+  .proj-sort-value-row:hover .proj-sort-value-moves, .proj-sort-value-row:focus-within .proj-sort-value-moves { opacity: 1; }
+}
+.proj-sort-value-index { font-size: 12px; font-weight: 600; font-variant-numeric: tabular-nums; color: var(--text3); }
+.proj-sort-value-name { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 14px; }
+.proj-sort-foot { display: flex; align-items: center; justify-content: flex-end; gap: 10px; padding: 12px 20px 16px; border-top: 0.5px solid var(--border); }
+.proj-sort-foot-actions { display: flex; gap: 8px; }
+@media (max-width: 720px) {
+  .proj-sort-panel { height: min(640px, calc(100vh - 24px)); }
+  .proj-sort-body { grid-template-columns: 1fr; grid-template-rows: auto minmax(0, 1fr); }
+  .proj-sort-nav { border-right: none; border-bottom: 0.5px solid var(--border); max-height: 180px; }
+  .proj-sort-value-moves { opacity: 1; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .proj-sort-backdrop, .proj-sort-panel, .proj-sort-icon-btn { transition: none; }
+}
 .issues-empty { text-align: center; color: var(--text3); padding: 28px 10px !important; max-width: none !important; white-space: normal !important; }
 .proj-col-filter-pop { position: fixed; z-index: 400; min-width: 220px; max-width: 300px; background: var(--bg); border: 0.5px solid var(--border2); border-radius: var(--radius-lg); box-shadow: 0 8px 24px rgba(0,0,0,.18); display: none; overflow: hidden; }
 .proj-col-filter-pop.open { display: block; }
@@ -981,6 +1041,30 @@ code { font-family: monospace; font-size: 12px; background: var(--bg3); padding:
           </section>
         </div>
       </aside>
+    </div>
+
+    <div id="proj-sort-root" hidden>
+      <div class="proj-sort-backdrop" onclick="closeProjectSortDialog()"></div>
+      <div class="proj-sort-panel" role="dialog" aria-modal="true" aria-labelledby="proj-sort-title">
+        <div class="proj-sort-head">
+          <div>
+            <h2 id="proj-sort-title">Sort</h2>
+            <p class="proj-sort-kicker">Pick a level on the left. The issue list updates as you edit it. Apply saves the sort.</p>
+          </div>
+          <button class="btn btn-sm" type="button" onclick="closeProjectSortDialog()">Close</button>
+        </div>
+        <div class="proj-sort-body">
+          <div class="proj-sort-nav">
+            <div class="proj-sort-levels" id="proj-sort-levels" role="tablist" aria-label="Sort levels"></div>
+            <button class="btn btn-sm proj-sort-add" id="proj-sort-add" type="button" onclick="addProjectSortLevel()">Add level</button>
+          </div>
+          <div class="proj-sort-editor" id="proj-sort-editor"></div>
+        </div>
+        <div class="proj-sort-foot">
+          <button class="btn btn-sm" type="button" onclick="clearProjectSortDialog()">Clear sort</button>
+          <button class="btn btn-sm primary" type="button" onclick="applyProjectSortDialog()">Apply</button>
+        </div>
+      </div>
     </div>
 
     <div id="proj-col-filter-pop" class="proj-col-filter-pop" role="dialog" aria-label="Column filter">
@@ -3967,17 +4051,12 @@ function applyPendingRouteState(page) {
 
   if (isProjectPageId(page)) {
     const filter = params.get('filter');
-    const sort = params.get('sort');
-    const dir = params.get('dir');
     const proj = getAllProjects().find(p => p.id === page);
     if (proj && filter) {
       if (!S.activeFilter) S.activeFilter = {};
       S.activeFilter[proj.key] = filter;
     }
-    if (proj && sort) {
-      if (!S._projSort) S._projSort = {};
-      S._projSort[proj.key] = { col: sort, dir: dir === 'desc' ? -1 : 1 };
-    }
+    if (proj) applyRouteProjectSort(proj, params);
     if (proj) {
       if (!S._projColFilter) S._projColFilter = {};
       const st = { q: params.get('q') || '', cols: {} };
@@ -4016,10 +4095,12 @@ function collectRouteParams() {
     const proj = getAllProjects().find(p => p.id === page);
     const f = proj && S.activeFilter?.[proj.key];
     if (f) params.set('filter', f);
-    const sort = proj && S._projSort?.[proj.key];
-    if (sort && sort.col) {
-      params.set('sort', sort.col);
-      params.set('dir', sort.dir < 0 ? 'desc' : 'asc');
+    const sortLevels = proj ? getProjectSortLevels(proj.key) : [];
+    if (sortLevels.length === 1 && !(sortLevels[0].order && sortLevels[0].order.length)) {
+      params.set('sort', sortLevels[0].col);
+      params.set('dir', sortLevels[0].dir < 0 ? 'desc' : 'asc');
+    } else if (sortLevels.length) {
+      params.set('sorts', sortLevels.map(formatSortLevelParam).join(','));
     }
     const colSt = proj && S._projColFilter?.[proj.key];
     if (colSt && colSt.q) params.set('q', colSt.q);
@@ -5406,28 +5487,660 @@ function compareProjectSortValues(a, b, dir) {
   return String(a).localeCompare(String(b), undefined, { numeric: true, sensitivity: 'base' }) * dir;
 }
 
-function sortProjectIssues(projKey, issues, fields) {
+const MAX_PROJECT_SORT_LEVELS = 8;
+let _userPrefs = { projectSorts: {} };
+let _projSortHoldSave = {};
+let _projSortSaveTimers = {};
+let _projSortStatus = {};
+let _projSortDialogKey = null;
+let _projSortDraft = [];
+
+function normalizeClientSortOrder(order) {
+  if (!Array.isArray(order)) return [];
+  const seen = new Set();
+  const next = [];
+  order.forEach(value => {
+    const text = String(value == null ? '' : value).trim();
+    if (!text || text.length > 120 || seen.has(text)) return;
+    seen.add(text);
+    next.push(text);
+  });
+  return next.slice(0, 24);
+}
+
+function normalizeClientSortLevels(levels) {
+  if (!Array.isArray(levels)) return [];
+  const seen = new Set();
+  const next = [];
+  levels.forEach(level => {
+    if (!level) return;
+    const col = String(level.col || '').trim();
+    if (!/^[A-Za-z][A-Za-z0-9_]{0,63}$/.test(col) || seen.has(col)) return;
+    seen.add(col);
+    const row = { col, dir: level.dir < 0 ? -1 : 1 };
+    const order = normalizeClientSortOrder(level.order);
+    if (order.length) row.order = order;
+    next.push(row);
+  });
+  return next.slice(0, MAX_PROJECT_SORT_LEVELS);
+}
+
+function sortLevelsKey(levels) {
+  return normalizeClientSortLevels(levels).map(level => level.col + ':' + level.dir + (level.order ? '=' + level.order.join('\u001f') : '')).join(',');
+}
+
+function formatSortLevelParam(level) {
+  const col = encodeURIComponent(level.col);
+  if (level.order && level.order.length) {
+    return col + ':list:' + level.order.map(value => encodeURIComponent(value)).join('|');
+  }
+  return col + ':' + (level.dir < 0 ? 'desc' : 'asc');
+}
+
+function parseSortLevelParam(part) {
+  const bits = String(part || '').split(':');
+  let col = bits[0] || '';
+  try { col = decodeURIComponent(col); } catch (err) { /* keep raw */ }
+  col = col.trim();
+  if (!col) return null;
+  const mode = bits[1] || 'asc';
+  if (mode === 'list') {
+    const order = bits.slice(2).join(':').split('|').map(value => {
+      try { return decodeURIComponent(value); } catch (err) { return value; }
+    });
+    return { col, dir: 1, order };
+  }
+  return { col, dir: mode === 'desc' ? -1 : 1 };
+}
+
+function getProjectSortLevels(projKey) {
   const sort = S._projSort && S._projSort[projKey];
-  if (!sort || !sort.col) return issues;
-  const field = (fields || []).find(f => f.id === sort.col) || listingFieldById(sort.col);
-  if (!field) return issues;
-  const dir = sort.dir || 1;
+  if (!sort) return [];
+  if (Array.isArray(sort.levels)) return normalizeClientSortLevels(sort.levels);
+  if (sort.col) return normalizeClientSortLevels([{ col: sort.col, dir: sort.dir }]);
+  return [];
+}
+
+function savedProjectSortLevels(projKey) {
+  const saved = _userPrefs.projectSorts && _userPrefs.projectSorts[projKey];
+  return normalizeClientSortLevels(saved);
+}
+
+function parseRouteSortLevels(params) {
+  if (!params) return null;
+  const sorts = params.get('sorts');
+  if (sorts) {
+    const levels = sorts.split(',').map(parseSortLevelParam).filter(Boolean);
+    return levels.length ? levels : null;
+  }
+  const sort = params.get('sort');
+  if (!sort) return null;
+  return [{ col: sort, dir: params.get('dir') === 'desc' ? -1 : 1 }];
+}
+
+function applyRouteProjectSort(proj, params) {
+  if (!proj) return;
+  if (!S._projSort) S._projSort = {};
+  const routed = parseRouteSortLevels(params);
+  if (!routed) {
+    const saved = savedProjectSortLevels(proj.key);
+    if (saved.length) S._projSort[proj.key] = { levels: saved };
+    else delete S._projSort[proj.key];
+    delete _projSortHoldSave[proj.key];
+    return;
+  }
+  const levels = mergeRouteSortWithSaved(normalizeClientSortLevels(routed), savedProjectSortLevels(proj.key));
+  if (levels.length) S._projSort[proj.key] = { levels };
+  else delete S._projSort[proj.key];
+  if (sortLevelsKey(levels) === sortLevelsKey(savedProjectSortLevels(proj.key))) delete _projSortHoldSave[proj.key];
+  else _projSortHoldSave[proj.key] = true;
+}
+
+function rememberUserPreferences(data) {
+  const projectSorts = data && data.projectSorts && typeof data.projectSorts === 'object' ? data.projectSorts : {};
+  _userPrefs = { projectSorts };
+  if (!S._projSort) S._projSort = {};
+  Object.entries(projectSorts).forEach(([key, levels]) => {
+    const clean = normalizeClientSortLevels(levels);
+    if (clean.length) S._projSort[key] = { levels: clean };
+  });
+}
+
+async function loadUserPreferences() {
+  try {
+    const response = await authFetch('/api/user-preferences');
+    if (!response.ok) return;
+    rememberUserPreferences(await response.json());
+  } catch (err) {
+    console.warn('[user-preferences]', err.message);
+  }
+}
+
+function mergeRouteSortWithSaved(routed, saved) {
+  const savedByCol = new Map((saved || []).map(level => [level.col, level]));
+  return routed.map(level => {
+    if (level.order && level.order.length) return level;
+    const prev = savedByCol.get(level.col);
+    if (prev && prev.order && prev.order.length && prev.dir === level.dir) {
+      return { col: level.col, dir: level.dir, order: prev.order.slice() };
+    }
+    return level;
+  });
+}
+
+function cloneSortLevel(level) {
+  const row = { col: level.col, dir: level.dir < 0 ? -1 : 1 };
+  if (level.order && level.order.length) row.order = level.order.slice();
+  return row;
+}
+
+function scheduleSaveProjectSort(projKey) {
+  clearTimeout(_projSortSaveTimers[projKey]);
+  _projSortSaveTimers[projKey] = setTimeout(() => {
+    saveProjectSort(projKey);
+  }, 250);
+}
+
+async function saveProjectSort(projKey) {
+  if (_projSortHoldSave[projKey]) return;
+  const levels = getProjectSortLevels(projKey);
+  if (!_userPrefs.projectSorts) _userPrefs.projectSorts = {};
+  if (levels.length) _userPrefs.projectSorts[projKey] = levels.map(cloneSortLevel);
+  else delete _userPrefs.projectSorts[projKey];
+  try {
+    const response = await authFetch('/api/user-preferences/project-sorts/' + encodeURIComponent(projKey), {
+      method: 'PUT',
+      body: JSON.stringify({ levels }),
+    });
+    const result = await response.json().catch(() => ({}));
+    if (!response.ok) throw new Error(result.error || 'Could not save the sort.');
+    if (Array.isArray(result.levels)) {
+      if (result.levels.length) _userPrefs.projectSorts[projKey] = result.levels;
+      else delete _userPrefs.projectSorts[projKey];
+    }
+    if (_projSortStatus[projKey]) {
+      delete _projSortStatus[projKey];
+      if (S.page && getAllProjects().some(p => p.key === projKey && p.id === S.page)) refreshProjectListing(projKey);
+    }
+  } catch (err) {
+    _projSortStatus[projKey] = { message: err.message || 'Could not save the sort.', error: true };
+    if (S.page && getAllProjects().some(p => p.key === projKey && p.id === S.page)) refreshProjectListing(projKey);
+  }
+}
+
+function commitProjectSort(projKey, levels, opts = {}) {
+  _projSortSnapshot = null;
+  if (!S._projSort) S._projSort = {};
+  const clean = normalizeClientSortLevels(levels);
+  if (clean.length) S._projSort[projKey] = { levels: clean };
+  else delete S._projSort[projKey];
+  delete _projSortHoldSave[projKey];
+  if (opts.persist !== false) {
+    if (!_userPrefs.projectSorts) _userPrefs.projectSorts = {};
+    if (clean.length) _userPrefs.projectSorts[projKey] = clean.map(cloneSortLevel);
+    else delete _userPrefs.projectSorts[projKey];
+  }
+  closeProjectSortDialog();
+  const filter = S.activeFilter && S.activeFilter[projKey];
+  renderIssueTable({ key: projKey }, getFilteredProjectIssues(projKey), filter);
+  if (!_routeNavigating) syncRoute();
+  if (opts.persist !== false) scheduleSaveProjectSort(projKey);
+}
+
+function compareProjectIssueField(ia, ib, field, level) {
+  const dir = level.dir < 0 ? -1 : 1;
+  const order = Array.isArray(level.order) ? level.order : [];
+  const aText = String(getCellValue(ia, field) ?? '').trim();
+  const bText = String(getCellValue(ib, field) ?? '').trim();
+  if (order.length && aText && bText) {
+    const ai = order.indexOf(aText);
+    const bi = order.indexOf(bText);
+    if (ai >= 0 || bi >= 0) {
+      if (ai < 0) return 1;
+      if (bi < 0) return -1;
+      if (ai !== bi) return (ai - bi) * dir;
+      return 0;
+    }
+  }
+  return compareProjectSortValues(projectSortValue(ia, field), projectSortValue(ib, field), dir);
+}
+
+function sortProjectIssues(projKey, issues, fields) {
+  const levels = getProjectSortLevels(projKey).map(level => {
+    const field = (fields || []).find(f => f.id === level.col) || listingFieldById(level.col);
+    return field ? { field, dir: level.dir < 0 ? -1 : 1, order: level.order } : null;
+  }).filter(Boolean);
+  if (!levels.length) return issues;
   return issues.slice().sort((ia, ib) => {
-    const primary = compareProjectSortValues(projectSortValue(ia, field), projectSortValue(ib, field), dir);
-    if (primary !== 0) return primary;
+    for (const level of levels) {
+      const cmp = compareProjectIssueField(ia, ib, level.field, level);
+      if (cmp !== 0) return cmp;
+    }
     return String(ia.key || '').localeCompare(String(ib.key || ''), undefined, { numeric: true });
   });
 }
 
-function projectSort(projKey, fieldId) {
+function projectSort(ev, projKey, fieldId) {
+  if (ev && ev.preventDefault) ev.preventDefault();
+  const additive = !!(ev && ev.shiftKey);
+  let levels = getProjectSortLevels(projKey).map(cloneSortLevel);
+  const idx = levels.findIndex(level => level.col === fieldId);
+  if (!additive) {
+    if (levels.length === 1 && idx === 0) levels[0].dir *= -1;
+    else levels = [{ col: fieldId, dir: 1 }];
+  } else if (idx >= 0) {
+    levels[idx].dir *= -1;
+  } else if (levels.length < MAX_PROJECT_SORT_LEVELS) {
+    levels.push({ col: fieldId, dir: 1 });
+  }
+  commitProjectSort(projKey, levels);
+}
+
+function projectSortFields(proj) {
+  return qualityListingFields(proj, S.enabled.map(id => ALL_FIELDS.find(f => f.id === id)).filter(Boolean));
+}
+
+const SORT_VALUE_FIELDS = new Set(['priority', 'status', 'issuetype', 'cf_scope', 'cf_scopesc', 'cf_clarity', 'jiraProject', 'fixVersions', 'cf_custcom']);
+
+function projectSortScalar(fieldId, raw) {
+  if (raw === '' || raw == null) return null;
+  if (fieldId === 'priority') {
+    const rank = PRIORITY_RANK[String(raw).toLowerCase()];
+    return rank != null ? rank : 50;
+  }
+  if (fieldId === 'status') {
+    const name = String(raw).trim();
+    const idx = PHASES.findIndex(p => p.re.test(name));
+    return String(idx >= 0 ? idx : PHASES.length).padStart(2, '0') + ':' + name.toLowerCase();
+  }
+  const text = String(raw).trim();
+  if (/^-?\d+(\.\d+)?$/.test(text)) return Number(text);
+  return text.toLowerCase();
+}
+
+function projectSortDistinctValues(projKey, fieldId) {
+  const field = listingFieldById(fieldId);
+  const issues = (S._projData && S._projData[projKey] && S._projData[projKey].issues) || [];
+  if (!field || !issues.length) return [];
+  const seen = new Set();
+  issues.forEach(issue => {
+    const text = String(getCellValue(issue, field) ?? '').trim();
+    if (text) seen.add(text);
+  });
+  return [...seen].sort((a, b) => {
+    const cmp = compareProjectSortValues(projectSortScalar(fieldId, a), projectSortScalar(fieldId, b), 1);
+    if (cmp !== 0) return cmp;
+    return a.localeCompare(b, undefined, { numeric: true, sensitivity: 'base' });
+  });
+}
+
+function formatSortValueOrder(values) {
+  const full = values.join(' → ');
+  if (full.length <= 96) return { label: full, title: full };
+  const shown = [];
+  let used = 0;
+  for (const value of values) {
+    const nextLen = (shown.length ? 3 : 0) + value.length;
+    if (shown.length && used + nextLen > 72) break;
+    shown.push(value);
+    used += nextLen;
+  }
+  const hidden = values.length - shown.length;
+  return { label: shown.join(' → ') + (hidden ? ' → +' + hidden : ''), title: full };
+}
+
+function projectSortGenericOrder(fieldId) {
+  if (fieldId === 'priority') return [{ dir: 1, label: 'Highest first', title: 'Highest priority first' }, { dir: -1, label: 'Lowest first', title: 'Lowest priority first' }];
+  if (fieldId === 'status') return [{ dir: 1, label: 'Pipeline order', title: 'Pipeline order' }, { dir: -1, label: 'Reverse pipeline', title: 'Reverse pipeline order' }];
+  if (fieldId === 'cf_devact' || fieldId === 'cf_devest') return [{ dir: 1, label: 'Smallest to largest', title: 'Smallest to largest' }, { dir: -1, label: 'Largest to smallest', title: 'Largest to smallest' }];
+  return [{ dir: 1, label: 'A to Z', title: 'A to Z' }, { dir: -1, label: 'Z to A', title: 'Z to A' }];
+}
+
+function projectSortOrderChoices(projKey, fieldId) {
+  const values = projectSortDistinctValues(projKey, fieldId);
+  const listValues = SORT_VALUE_FIELDS.has(fieldId) ? values.length > 0 && values.length <= 24 : values.length >= 2 && values.length <= 8;
+  if (!listValues) return projectSortGenericOrder(fieldId);
+  const forward = formatSortValueOrder(values);
+  const backward = formatSortValueOrder(values.slice().reverse());
+  return [
+    { dir: 1, label: forward.label, title: forward.title },
+    { dir: -1, label: backward.label, title: backward.title },
+  ];
+}
+
+function projectSortButtonLabel(levels) {
+  if (!levels.length) return 'Sort';
+  if (levels.length === 1) {
+    const field = listingFieldById(levels[0].col);
+    return 'Sort · ' + (field ? field.label : levels[0].col);
+  }
+  return 'Sort · ' + levels.length + ' levels';
+}
+
+function projectSortSummary(levels) {
+  if (!levels.length) return '';
+  return levels.map(level => {
+    const field = listingFieldById(level.col);
+    const name = field ? field.label : level.col;
+    if (level.order && level.order.length) {
+      const preview = level.order.slice(0, 3).join(' → ');
+      return name + ' (' + preview + (level.order.length > 3 ? ' → …' : '') + ')';
+    }
+    return name + (level.dir < 0 ? ' ↓' : ' ↑');
+  }).join(' then ');
+}
+
+function projectSortUsesValueEditor(projKey, fieldId) {
+  const values = projectSortDistinctValues(projKey, fieldId);
+  if (!values.length) return false;
+  if (SORT_VALUE_FIELDS.has(fieldId)) return values.length <= 24;
+  return values.length >= 2 && values.length <= 8;
+}
+
+function materializeSortLevel(projKey, level) {
+  const row = cloneSortLevel(level);
+  if (!projectSortUsesValueEditor(projKey, row.col)) {
+    delete row.order;
+    return row;
+  }
+  const natural = projectSortDistinctValues(projKey, row.col);
+  const order = row.order && row.order.length ? row.order.slice() : natural.slice();
+  if (row.dir < 0) order.reverse();
+  const seen = new Set(order);
+  natural.forEach(value => {
+    if (!seen.has(value)) {
+      order.push(value);
+      seen.add(value);
+    }
+  });
+  row.order = order;
+  row.dir = 1;
+  return row;
+}
+
+let _projSortDrag = null;
+let _projSortFocus = null;
+let _projSortActive = 0;
+let _projSortSnapshot = null;
+
+function projectSortLevelPreview(level) {
+  const field = listingFieldById(level.col);
+  const name = field ? field.label : level.col;
+  if (level.order && level.order.length) {
+    const shown = level.order.slice(0, 2).join(', ');
+    return { name, detail: shown + (level.order.length > 2 ? '…' : '') };
+  }
+  return { name, detail: level.dir < 0 ? 'Z to A' : 'A to Z' };
+}
+
+function selectProjectSortLevel(index) {
+  _projSortActive = index;
+  renderProjectSortDialog();
+}
+
+function renderProjectSortDialog() {
+  const host = document.getElementById('proj-sort-levels');
+  const editor = document.getElementById('proj-sort-editor');
+  const addBtn = document.getElementById('proj-sort-add');
+  if (!host || !editor) return;
+  const proj = getAllProjects().find(p => p.key === _projSortDialogKey);
+  const fields = projectSortFields(proj);
+  const known = new Map(fields.map(field => [field.id, field]));
+  _projSortDraft.forEach(level => {
+    if (!known.has(level.col)) {
+      const field = listingFieldById(level.col);
+      if (field) known.set(field.id, field);
+    }
+  });
+  const options = [...known.values()];
+  if (_projSortActive >= _projSortDraft.length) _projSortActive = _projSortDraft.length - 1;
+  if (_projSortActive < 0) _projSortActive = 0;
+  host.innerHTML = _projSortDraft.map((level, index) => {
+    const preview = projectSortLevelPreview(level);
+    const on = index === _projSortActive;
+    return `<div class="proj-sort-nav-row${on ? ' is-on' : ''}" data-level="${index}">
+      <button type="button" class="proj-sort-nav-item" role="tab" aria-selected="${on ? 'true' : 'false'}" onclick="selectProjectSortLevel(${index})">
+        <span class="proj-sort-nav-name">${index + 1}  ${esc(preview.name)}</span>
+        <span class="proj-sort-nav-detail">${esc(preview.detail)}</span>
+      </button>
+      <span class="proj-sort-nav-moves">
+        <button type="button" class="proj-sort-icon-btn" data-level-move="up" aria-label="${esc('Move ' + preview.name + ' up')}" title="Move up"${index === 0 ? ' disabled' : ''} onclick="moveProjectSortLevel(${index}, -1, 'nav')">↑</button>
+        <button type="button" class="proj-sort-icon-btn" data-level-move="down" aria-label="${esc('Move ' + preview.name + ' down')}" title="Move down"${index === _projSortDraft.length - 1 ? ' disabled' : ''} onclick="moveProjectSortLevel(${index}, 1, 'nav')">↓</button>
+      </span>
+    </div>`;
+  }).join('') || `<p class="proj-sort-kicker">No levels yet.</p>`;
+  const level = _projSortDraft[_projSortActive];
+  if (!level) {
+    editor.innerHTML = `<p class="proj-sort-editor-empty">Add a level to start a sort.</p>`;
+  } else {
+    const index = _projSortActive;
+    const used = new Set(_projSortDraft.filter((_, i) => i !== index).map(row => row.col));
+    const columnOptions = options.filter(field => field.id === level.col || !used.has(field.id)).map(field =>
+      `<option value="${esc(field.id)}"${field.id === level.col ? ' selected' : ''}>${esc(field.label)}</option>`
+    ).join('');
+    const usesValues = projectSortUsesValueEditor(_projSortDialogKey, level.col);
+    const orderChoices = usesValues ? [] : projectSortOrderChoices(_projSortDialogKey, level.col);
+    const selectedOrder = orderChoices.find(choice => choice.dir === level.dir) || orderChoices[0];
+    const orderOptions = orderChoices.map(choice =>
+      `<option value="${choice.dir}" title="${esc(choice.title || choice.label)}"${choice.dir === level.dir ? ' selected' : ''}>${esc(choice.label)}</option>`
+    ).join('');
+    const valueRows = usesValues ? (level.order || []).map((value, valueIndex) => `<li class="proj-sort-value-row" draggable="true" data-level="${index}" data-value="${valueIndex}" ondragstart="projectSortValueDragStart(event, ${index}, ${valueIndex})" ondragover="projectSortValueDragOver(event)" ondragleave="projectSortValueDragLeave(event)" ondrop="projectSortValueDrop(event, ${index}, ${valueIndex})">
+        <span class="proj-sort-value-index">${valueIndex + 1}</span>
+        <span class="proj-sort-value-name" title="${esc(value)}">${esc(value)}</span>
+        <span class="proj-sort-value-moves">
+          <button type="button" class="proj-sort-icon-btn" data-move="up" aria-label="${esc('Move ' + value + ' up')}" title="Move up"${valueIndex === 0 ? ' disabled' : ''} onclick="moveProjectSortValue(${index}, ${valueIndex}, ${valueIndex - 1})">↑</button>
+          <button type="button" class="proj-sort-icon-btn" data-move="down" aria-label="${esc('Move ' + value + ' down')}" title="Move down"${valueIndex === level.order.length - 1 ? ' disabled' : ''} onclick="moveProjectSortValue(${index}, ${valueIndex}, ${valueIndex + 1})">↓</button>
+        </span>
+      </li>`).join('') : '';
+    const label = index === 0 ? 'Sort by' : 'Then by';
+    const orderControl = usesValues
+      ? `<ol class="proj-sort-values">${valueRows}</ol>
+        <div class="proj-sort-order-tools">
+          <button class="proj-sort-text-btn" type="button" onclick="resetProjectSortValueOrder(${index}, 1)">Default</button>
+          <button class="proj-sort-text-btn" type="button" onclick="resetProjectSortValueOrder(${index}, -1)">Reverse</button>
+        </div>`
+      : `<select aria-label="${label} order" title="${esc(selectedOrder && (selectedOrder.title || selectedOrder.label) || '')}" onchange='setProjectSortLevelDir(${index}, Number(this.value), this)'>${orderOptions}</select>`;
+    editor.innerHTML = `<div class="proj-sort-level-top">
+        <span class="proj-sort-level-label">${label}</span>
+        <span class="proj-sort-level-actions">
+          <button type="button" class="proj-sort-text-btn" data-level-move="up" aria-label="Move level up"${index === 0 ? ' disabled' : ''} onclick="moveProjectSortLevel(${index}, -1, 'editor')">Up</button>
+          <button type="button" class="proj-sort-text-btn" data-level-move="down" aria-label="Move level down"${index === _projSortDraft.length - 1 ? ' disabled' : ''} onclick="moveProjectSortLevel(${index}, 1, 'editor')">Down</button>
+          <button type="button" class="proj-sort-text-btn remove" aria-label="Remove level" onclick="removeProjectSortLevel(${index})">Remove</button>
+        </span>
+      </div>
+      <select aria-label="${label} column" onchange='setProjectSortLevelColumn(${index}, this.value)'>${columnOptions}</select>
+      ${orderControl}`;
+  }
+  if (_projSortFocus) {
+    const focus = _projSortFocus;
+    _projSortFocus = null;
+    let button = null;
+    if (focus.kind === 'level') {
+      const scope = focus.source === 'editor'
+        ? editor
+        : host.querySelector('.proj-sort-nav-row[data-level="' + focus.index + '"]');
+      if (scope) {
+        button = scope.querySelector('[data-level-move="' + focus.move + '"]');
+        if (button && button.disabled) {
+          const other = focus.move === 'up' ? 'down' : 'up';
+          const fallback = scope.querySelector('[data-level-move="' + other + '"]:not(:disabled)');
+          if (fallback) button = fallback;
+        }
+      }
+    } else {
+      button = editor.querySelector('.proj-sort-value-row[data-level="' + focus.level + '"][data-value="' + focus.value + '"] [data-move="' + focus.move + '"]');
+    }
+    if (button && !button.disabled) button.focus();
+  }
+  if (addBtn) {
+    const unused = options.some(field => !_projSortDraft.some(level => level.col === field.id));
+    addBtn.disabled = _projSortDraft.length >= MAX_PROJECT_SORT_LEVELS || !unused;
+  }
+  previewDraftProjectSort();
+}
+
+function previewDraftProjectSort() {
+  const projKey = _projSortDialogKey;
+  if (!projKey) return;
   if (!S._projSort) S._projSort = {};
-  const cur = S._projSort[projKey] || { col: null, dir: 1 };
-  if (cur.col === fieldId) cur.dir *= -1;
-  else { cur.col = fieldId; cur.dir = 1; }
-  S._projSort[projKey] = cur;
+  const clean = normalizeClientSortLevels(_projSortDraft);
+  if (clean.length) S._projSort[projKey] = { levels: clean };
+  else delete S._projSort[projKey];
   const filter = S.activeFilter && S.activeFilter[projKey];
   renderIssueTable({ key: projKey }, getFilteredProjectIssues(projKey), filter);
-  if (!_routeNavigating) syncRoute();
+}
+
+function restoreProjectSortSnapshot() {
+  const projKey = _projSortDialogKey;
+  const snapshot = _projSortSnapshot;
+  if (!projKey || !snapshot) return;
+  if (!S._projSort) S._projSort = {};
+  const clean = normalizeClientSortLevels(snapshot);
+  if (clean.length) S._projSort[projKey] = { levels: clean };
+  else delete S._projSort[projKey];
+  const filter = S.activeFilter && S.activeFilter[projKey];
+  renderIssueTable({ key: projKey }, getFilteredProjectIssues(projKey), filter);
+}
+
+function openProjectSortDialog(projKey) {
+  closeProjectColFilter();
+  const proj = getAllProjects().find(p => p.key === projKey);
+  _projSortDialogKey = projKey;
+  _projSortActive = 0;
+  _projSortSnapshot = getProjectSortLevels(projKey).map(cloneSortLevel);
+  _projSortDraft = getProjectSortLevels(projKey).map(level => materializeSortLevel(projKey, level));
+  if (!_projSortDraft.length) {
+    const first = projectSortFields(proj)[0];
+    if (first) _projSortDraft.push(materializeSortLevel(projKey, { col: first.id, dir: 1 }));
+  }
+  const root = document.getElementById('proj-sort-root');
+  const title = document.getElementById('proj-sort-title');
+  if (title) title.textContent = proj ? 'Sort ' + proj.name : 'Sort';
+  renderProjectSortDialog();
+  if (!root) return;
+  root.hidden = false;
+  requestAnimationFrame(() => root.classList.add('open'));
+  const first = root.querySelector('select');
+  if (first) first.focus();
+}
+
+function closeProjectSortDialog() {
+  const root = document.getElementById('proj-sort-root');
+  restoreProjectSortSnapshot();
+  _projSortDialogKey = null;
+  _projSortDraft = [];
+  _projSortSnapshot = null;
+  if (!root) return;
+  root.classList.remove('open');
+  window.setTimeout(() => {
+    if (!_projSortDialogKey) root.hidden = true;
+  }, 180);
+}
+
+function setProjectSortLevelColumn(index, col) {
+  if (!_projSortDraft[index]) return;
+  if (_projSortDraft.some((level, i) => i !== index && level.col === col)) return;
+  _projSortDraft[index] = materializeSortLevel(_projSortDialogKey, { col, dir: 1 });
+  renderProjectSortDialog();
+}
+
+function setProjectSortLevelDir(index, dir, el) {
+  if (!_projSortDraft[index]) return;
+  _projSortDraft[index].dir = dir < 0 ? -1 : 1;
+  const choice = projectSortOrderChoices(_projSortDialogKey, _projSortDraft[index].col).find(row => row.dir === _projSortDraft[index].dir);
+  if (el && choice) el.title = choice.title || choice.label;
+}
+
+function moveProjectSortLevel(index, delta, source) {
+  const next = index + delta;
+  if (next < 0 || next >= _projSortDraft.length) return;
+  const [row] = _projSortDraft.splice(index, 1);
+  _projSortDraft.splice(next, 0, row);
+  _projSortActive = next;
+  _projSortFocus = { kind: 'level', index: next, move: delta < 0 ? 'up' : 'down', source: source === 'editor' ? 'editor' : 'nav' };
+  renderProjectSortDialog();
+}
+
+function removeProjectSortLevel(index) {
+  _projSortDraft.splice(index, 1);
+  if (_projSortActive > index) _projSortActive -= 1;
+  if (_projSortActive >= _projSortDraft.length) _projSortActive = _projSortDraft.length - 1;
+  renderProjectSortDialog();
+}
+
+function addProjectSortLevel() {
+  const proj = getAllProjects().find(p => p.key === _projSortDialogKey);
+  const used = new Set(_projSortDraft.map(level => level.col));
+  const next = projectSortFields(proj).find(field => !used.has(field.id));
+  if (!next || _projSortDraft.length >= MAX_PROJECT_SORT_LEVELS) return;
+  _projSortDraft.push(materializeSortLevel(_projSortDialogKey, { col: next.id, dir: 1 }));
+  _projSortActive = _projSortDraft.length - 1;
+  renderProjectSortDialog();
+}
+
+function resetProjectSortValueOrder(index, dir) {
+  const level = _projSortDraft[index];
+  if (!level) return;
+  const natural = projectSortDistinctValues(_projSortDialogKey, level.col);
+  level.order = dir < 0 ? natural.slice().reverse() : natural.slice();
+  level.dir = 1;
+  renderProjectSortDialog();
+}
+
+function moveProjectSortValue(levelIndex, fromIndex, toIndex) {
+  const order = _projSortDraft[levelIndex] && _projSortDraft[levelIndex].order;
+  if (!order || toIndex < 0 || toIndex >= order.length || fromIndex === toIndex) return;
+  const [value] = order.splice(fromIndex, 1);
+  order.splice(toIndex, 0, value);
+  _projSortFocus = { level: levelIndex, value: toIndex, move: toIndex < fromIndex ? 'up' : 'down' };
+  renderProjectSortDialog();
+}
+
+function projectSortValueDragStart(ev, levelIndex, valueIndex) {
+  if (ev.target && ev.target.closest && ev.target.closest('button')) {
+    ev.preventDefault();
+    return;
+  }
+  _projSortDrag = { levelIndex, valueIndex };
+  if (ev.dataTransfer) {
+    ev.dataTransfer.effectAllowed = 'move';
+    try { ev.dataTransfer.setData('text/plain', levelIndex + ':' + valueIndex); } catch (err) { /* ignore */ }
+  }
+}
+
+function projectSortValueDragOver(ev) {
+  ev.preventDefault();
+  if (ev.currentTarget) ev.currentTarget.classList.add('is-drop');
+}
+
+function projectSortValueDragLeave(ev) {
+  if (ev.currentTarget) ev.currentTarget.classList.remove('is-drop');
+}
+
+function projectSortValueDrop(ev, levelIndex, valueIndex) {
+  ev.preventDefault();
+  if (ev.currentTarget) ev.currentTarget.classList.remove('is-drop');
+  let fromLevel = _projSortDrag && _projSortDrag.levelIndex;
+  let fromIndex = _projSortDrag && _projSortDrag.valueIndex;
+  const raw = ev.dataTransfer && ev.dataTransfer.getData('text/plain');
+  if (raw && raw.indexOf(':') >= 0) {
+    const bits = raw.split(':');
+    fromLevel = Number(bits[0]);
+    fromIndex = Number(bits[1]);
+  }
+  _projSortDrag = null;
+  if (fromLevel !== levelIndex || !Number.isInteger(fromIndex)) return;
+  moveProjectSortValue(levelIndex, fromIndex, valueIndex);
+}
+
+function applyProjectSortDialog() {
+  if (!_projSortDialogKey) return;
+  commitProjectSort(_projSortDialogKey, _projSortDraft);
+}
+
+function clearProjectSortDialog() {
+  if (!_projSortDialogKey) return;
+  commitProjectSort(_projSortDialogKey, []);
 }
 
 function onProjectSearchInput(projKey, value) {
@@ -5830,10 +6543,18 @@ function onTicketCommentKeydown(ev) {
 }
 
 document.addEventListener('keydown', (ev) => {
-  if (ev.key !== 'Escape' || !_ticketNotesOpen) return;
-  ev.preventDefault();
-  ev.stopImmediatePropagation();
-  closeTicketNotes();
+  if (ev.key !== 'Escape') return;
+  if (_ticketNotesOpen) {
+    ev.preventDefault();
+    ev.stopImmediatePropagation();
+    closeTicketNotes();
+    return;
+  }
+  if (_projSortDialogKey) {
+    ev.preventDefault();
+    ev.stopImmediatePropagation();
+    closeProjectSortDialog();
+  }
 });
 
 function renderIssueTable(proj, issues, activeFilter) {
@@ -5852,11 +6573,14 @@ function renderIssueTable(proj, issues, activeFilter) {
   const existingSearch = document.getElementById('proj-search-' + proj.key);
   const hadFocus = document.activeElement === existingSearch;
   const caret = existingSearch ? existingSearch.selectionStart : null;
+  const existingWrap = issuesEl.querySelector('.proj-issue-table');
+  const scrollTop = existingWrap ? existingWrap.scrollTop : 0;
+  const scrollLeft = existingWrap ? existingWrap.scrollLeft : 0;
 
   const vf = qualityListingFields(proj, S.enabled.map(id => ALL_FIELDS.find(f=>f.id===id)).filter(Boolean));
   const filtered = d ? getFilteredProjectIssues(proj.key) : source;
   const sorted = sortProjectIssues(proj.key, filtered, vf);
-  const sort = (S._projSort && S._projSort[proj.key]) || { col: null, dir: 1 };
+  const sortLevels = getProjectSortLevels(proj.key);
   const colSt = getProjectColFilters(proj.key);
   const phaseLabel = (S.activeFilter && S.activeFilter[proj.key]) || activeFilter;
   const rows = sorted.map(issue => {
@@ -5867,14 +6591,17 @@ function renderIssueTable(proj, issues, activeFilter) {
   }).join('');
 
   const headers = vf.map(f => {
-    const active = sort.col === f.id;
+    const levelIdx = sortLevels.findIndex(level => level.col === f.id);
+    const active = levelIdx >= 0;
     const hasFilter = !!(colSt.cols[f.id] && colSt.cols[f.id].size);
-    const icon = active ? (sort.dir === 1 ? '▲' : '▼') : '▲';
-    const aria = active ? (sort.dir === 1 ? 'ascending' : 'descending') : 'none';
+    const dir = active ? sortLevels[levelIdx].dir : 1;
+    const icon = active ? (dir === 1 ? '▲' : '▼') : '▲';
+    const rank = active && sortLevels.length > 1 ? `<span class="sort-rank">${levelIdx + 1}</span>` : '';
+    const aria = active ? (dir === 1 ? 'ascending' : 'descending') : 'none';
     const open = S._openColFilter && S._openColFilter.projKey === proj.key && S._openColFilter.fieldId === f.id;
     return `<th class="${active ? 'sorted' : ''} ${hasFilter ? 'filtered' : ''}">
       <div class="th-inner">
-        <span class="th-label" onclick='projectSort(${JSON.stringify(proj.key)},${JSON.stringify(f.id)})' aria-sort="${aria}" title="Sort by ${esc(f.label)}">${esc(f.label)} <span class="sort-icon">${icon}</span></span>
+        <span class="th-label" onclick='projectSort(event,${JSON.stringify(proj.key)},${JSON.stringify(f.id)})' aria-sort="${aria}" title="Sort by ${esc(f.label)}. Shift-click to add a level.">${rank}${esc(f.label)} <span class="sort-icon">${icon}</span></span>
         <button type="button" class="th-filter ${hasFilter ? 'has-filter' : ''} ${open ? 'active' : ''}" data-field="${esc(f.id)}" title="Filter ${esc(f.label)}" aria-label="Filter ${esc(f.label)}" onclick='toggleProjectColFilter(event,${JSON.stringify(proj.key)},${JSON.stringify(f.id)})'>
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"><polygon points="4 5 20 5 14 13 14 19 10 21 10 13 4 5"/></svg>
         </button>
@@ -5899,7 +6626,7 @@ function renderIssueTable(proj, issues, activeFilter) {
     kicker: `${S.activeRelease || 'Release'} · filtered ticket list`,
     tickets: sorted.map(issue => exportTicketFromIssue(issue, proj)),
     filename: `${proj.key}-tickets.html`,
-    toolbarMeta: [S.activeRelease, colSt.q && ('search: ' + colSt.q)].filter(Boolean).join(' · '),
+    toolbarMeta: [S.activeRelease, colSt.q && ('search: ' + colSt.q), projectSortSummary(sortLevels) && ('sort: ' + projectSortSummary(sortLevels))].filter(Boolean).join(' · '),
     emptyMessage: 'No matching issues to export.',
   });
   issuesEl.innerHTML = `
@@ -5907,6 +6634,8 @@ function renderIssueTable(proj, issues, activeFilter) {
       ${jiraFilterHtml}
       <input id="proj-search-${proj.key}" class="proj-search" type="search" placeholder="Search issues…" value="${esc(colSt.q || '')}" oninput='onProjectSearchInput(${JSON.stringify(proj.key)},this.value)' />
       ${hasProjectColFilters(proj.key) ? `<button class="btn btn-sm" onclick='clearProjectFilters(${JSON.stringify(proj.key)})'>Clear filters</button>` : ''}
+      <button class="btn btn-sm proj-sort-btn${sortLevels.length ? ' is-on' : ''}" type="button" onclick='openProjectSortDialog(${JSON.stringify(proj.key)})' title="${esc(sortLevels.length ? projectSortSummary(sortLevels) : 'Define a nested sort')}">${esc(projectSortButtonLabel(sortLevels))}</button>
+      ${_projSortStatus[proj.key] ? `<span class="proj-sort-status${_projSortStatus[proj.key].error ? ' is-error' : ''}">${esc(_projSortStatus[proj.key].message)}</span>` : ''}
       <button class="btn btn-sm" type="button" onclick="exportCSV()" title="Export the filtered table">Export HTML</button>
       <span class="proj-count">${countLabel}</span>
     </div>
@@ -5918,6 +6647,12 @@ function renderIssueTable(proj, issues, activeFilter) {
     </div>`;
 
   if (isQualityDashboardProject(proj)) buildJiraProjectFilterOptions(jiraPrefix, getQualityProjects());
+
+  const wrap = issuesEl.querySelector('.proj-issue-table');
+  if (wrap && (scrollTop || scrollLeft)) {
+    wrap.scrollTop = scrollTop;
+    wrap.scrollLeft = scrollLeft;
+  }
 
   const search = document.getElementById('proj-search-' + proj.key);
   if (search && hadFocus) {
@@ -14550,7 +15285,10 @@ async function initApp() {
     updateAuthIndicator();
     return;
   }
-  if (storeLoaded) await loadTicketNotes();
+  if (storeLoaded) {
+    await loadTicketNotes();
+    await loadUserPreferences();
+  }
   updateGlobalReleaseSelector();
   await loadDefaultProjects();
   renderConnectorPage();

@@ -29,6 +29,7 @@ const { buildReleaseReportPptx, sanitizeFilename } = require('./lib/release-repo
 const { buildReleaseReportHtml, buildTicketListHtml, htmlFilename, ticketListFilename, normalizeTicketGroupBy } = require('./lib/release-report-html');
 const { createLocalStore } = require('./lib/local-store');
 const { createTicketNotes } = require('./lib/ticket-notes');
+const { createUserPreferences } = require('./lib/user-preferences');
 const { slimDashboardState, dashboardStateForClient } = require('./lib/slim-cache');
 const { createPageConfig } = require('./lib/page-config');
 const { ensureStatusPipelineFile, loadStatusPipeline } = require('./lib/status-pipeline');
@@ -57,6 +58,7 @@ const store = createLocalStore({
   adminEmail,
 });
 const ticketNotes = createTicketNotes({ filePath: path.join(DATA_DIR, 'ticket-notes.json') });
+const userPreferences = createUserPreferences({ filePath: path.join(DATA_DIR, 'user-preferences.json') });
 const pageConfig = createPageConfig({ configDir: CONFIG_DIR });
 try { ensureStatusPipelineFile(CONFIG_DIR); } catch (err) {
   console.warn('[status-pipeline] Could not create config/status-pipeline.json:', err.message);
@@ -346,6 +348,26 @@ app.delete('/api/ticket-notes/:key/comments/:commentId', (req, res) => {
       author: user.email,
       isAdmin: user.role === 'admin',
     }));
+  } catch (err) {
+    sendStoreError(res, err);
+  }
+});
+
+app.get('/api/user-preferences', (req, res) => {
+  const user = requireUser(req, res);
+  if (!user) return;
+  try {
+    res.json(userPreferences.get(user.id));
+  } catch (err) {
+    sendStoreError(res, err);
+  }
+});
+
+app.put('/api/user-preferences/project-sorts/:projectKey', (req, res) => {
+  const user = requireUser(req, res);
+  if (!user) return;
+  try {
+    res.json(userPreferences.setProjectSort(user.id, req.params.projectKey, req.body?.levels));
   } catch (err) {
     sendStoreError(res, err);
   }
