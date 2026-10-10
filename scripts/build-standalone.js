@@ -53,6 +53,10 @@ function copyPackageFiles(outDir) {
     path.join(ROOT, 'lib', 'quality-history.js'),
     path.join(outDir, 'lib', 'quality-history.js')
   );
+  fs.copyFileSync(
+    path.join(ROOT, 'lib', 'epic-groups.js'),
+    path.join(outDir, 'lib', 'epic-groups.js')
+  );
 
   fs.copyFileSync(
     path.join(ROOT, 'README.md'),

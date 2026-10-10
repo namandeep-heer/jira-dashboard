@@ -10,6 +10,7 @@
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js"></script>
 <script src="/lib/release-milestones.js"></script>
 <script src="/lib/quality-history.js"></script>
+<script src="/lib/epic-groups.js"></script>
 <style>
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 :root {
@@ -274,6 +275,27 @@ table.issues td { padding: 7px 10px; border-bottom: 0.5px solid var(--border); v
 .proj-search { padding: 6px 10px; border: 0.5px solid var(--border2); border-radius: var(--radius); background: var(--bg); color: var(--text); font-size: 13px; font-family: inherit; width: 240px; }
 .proj-search:focus { outline: 2px solid var(--blue); outline-offset: -1px; }
 .proj-count { font-size: 12px; color: var(--text3); }
+.epic-layout-toggle { display: inline-flex; align-items: center; gap: 2px; padding: 2px; border: 0.5px solid var(--border2); border-radius: 12px; background: var(--bg2); }
+.epic-layout-toggle button { display: inline-flex; align-items: center; gap: 6px; min-height: 28px; padding: 4px 10px; border: none; border-radius: 10px; background: transparent; color: var(--text3); font: inherit; font-size: 12px; font-weight: 600; cursor: pointer; }
+.epic-layout-toggle button svg { width: 14px; height: 14px; flex-shrink: 0; }
+.epic-layout-toggle button:hover { color: var(--text); }
+.epic-layout-toggle button[aria-pressed="true"] { background: var(--bg); color: var(--text); box-shadow: 0 1px 2px rgba(0,0,0,.08); }
+.epic-layout-toggle button:focus-visible { outline: 2px solid var(--blue); outline-offset: 1px; }
+.notes-cell-inner { display: inline-flex; align-items: center; gap: 4px; }
+.epic-gutter { display: inline-flex; align-items: center; justify-content: flex-end; gap: 1px; min-width: 40px; }
+.epic-toggle, .epic-toggle-spacer { width: 22px; height: 22px; flex-shrink: 0; }
+.epic-toggle { display: inline-flex; align-items: center; justify-content: center; padding: 0; border: none; border-radius: 8px; background: transparent; color: var(--text3); cursor: pointer; }
+.epic-toggle:hover { background: var(--bg3); color: var(--text); }
+.epic-toggle:focus-visible { outline: 2px solid var(--blue); outline-offset: 1px; }
+.epic-toggle svg { width: 12px; height: 12px; transition: transform .28s cubic-bezier(.2,.8,.2,1); }
+.epic-toggle[aria-expanded="true"] svg { transform: rotate(90deg); }
+.epic-count { min-width: 1.25em; text-align: right; font-size: 11px; font-weight: 600; font-variant-numeric: tabular-nums; color: var(--text3); }
+.epic-count.is-empty { visibility: hidden; }
+table.issues tr.epic-parent td.epic-parent-label { font-weight: 600; }
+table.issues td.epic-indent { padding-left: 22px; box-shadow: inset 2px 0 0 var(--border); }
+@media (prefers-reduced-motion: reduce) {
+  .epic-toggle svg { transition: none; }
+}
 .proj-sort-btn.is-on { color: var(--text); border-color: var(--border2); }
 .proj-sort-status { font-size: 12px; color: var(--text3); }
 .proj-sort-status.is-error { color: var(--red); }
@@ -357,6 +379,20 @@ table.issues tr:hover td.notes-cell { background: var(--bg2); }
 .ticket-notes-btn:focus-visible { outline: 2px solid var(--blue); outline-offset: 1px; }
 .ticket-notes-btn.has-notes { color: var(--blue); background: var(--blue-bg); border-color: transparent; }
 .ticket-notes-count { font-size: 11px; font-weight: 600; font-variant-numeric: tabular-nums; }
+#ticket-notes-preview { position: fixed; z-index: 720; width: min(320px, calc(100vw - 16px)); max-height: min(340px, calc(100vh - 16px)); overflow: auto; padding: 12px 14px 14px; background: var(--bg); color: var(--text); border: 0.5px solid var(--border2); border-radius: var(--radius-lg); box-shadow: 0 16px 40px rgba(0,0,0,.16); opacity: 0; transform: translateY(6px) scale(0.98); transform-origin: left center; transition: opacity .18s cubic-bezier(.2,.8,.2,1), transform .22s cubic-bezier(.2,.8,.2,1); }
+#ticket-notes-preview.open { opacity: 1; transform: none; }
+#ticket-notes-preview[hidden] { display: none !important; }
+.ticket-notes-preview-key { font-family: monospace; font-size: 11px; font-weight: 600; color: var(--blue); margin-bottom: 8px; }
+.ticket-notes-preview-label { font-size: 11px; font-weight: 600; letter-spacing: .04em; text-transform: uppercase; color: var(--text3); margin-bottom: 4px; }
+.ticket-notes-preview-note { font-size: 13px; line-height: 1.45; white-space: pre-wrap; word-break: break-word; }
+.ticket-notes-preview-meta { margin-top: 6px; font-size: 11px; color: var(--text3); line-height: 1.4; }
+.ticket-notes-preview-block + .ticket-notes-preview-block { margin-top: 12px; padding-top: 12px; border-top: 0.5px solid var(--border); }
+.ticket-notes-preview-comment { margin-top: 8px; }
+.ticket-notes-preview-comment header { display: flex; align-items: baseline; justify-content: space-between; gap: 8px; margin-bottom: 2px; }
+.ticket-notes-preview-comment .who { font-size: 12px; font-weight: 600; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.ticket-notes-preview-comment .when { font-size: 11px; color: var(--text3); flex-shrink: 0; }
+.ticket-notes-preview-comment p { font-size: 13px; line-height: 1.45; white-space: pre-wrap; word-break: break-word; }
+.ticket-notes-preview-more { margin-top: 8px; font-size: 12px; color: var(--text3); }
 #ticket-notes-root { position: fixed; inset: 0; z-index: 800; }
 #ticket-notes-root[hidden] { display: none !important; }
 .ticket-notes-backdrop { position: absolute; inset: 0; background: rgba(0,0,0,.28); opacity: 0; transition: opacity .18s ease; }
@@ -383,12 +419,20 @@ table.issues tr:hover td.notes-cell { background: var(--bg2); }
 .ticket-notes-comment .who { font-size: 12px; font-weight: 600; }
 .ticket-notes-comment .when { font-size: 11px; color: var(--text3); }
 .ticket-notes-comment p { font-size: 13px; line-height: 1.45; white-space: pre-wrap; word-break: break-word; }
-.ticket-notes-comment .ticket-notes-delete { margin-top: 8px; padding: 0; border: none; background: none; color: var(--text3); font: inherit; font-size: 12px; cursor: pointer; }
+.ticket-notes-comment-actions { display: flex; align-items: center; gap: 12px; margin-top: 8px; }
+.ticket-notes-comment .ticket-notes-text { padding: 0; border: none; background: none; color: var(--text3); font: inherit; font-size: 12px; cursor: pointer; }
+.ticket-notes-comment .ticket-notes-text:hover { color: var(--text); }
+.ticket-notes-comment .ticket-notes-text:focus-visible { outline: 2px solid var(--blue); outline-offset: 2px; }
 .ticket-notes-comment .ticket-notes-delete:hover { color: var(--red); }
+.ticket-notes-comment-edit { width: 100%; min-height: 72px; margin-top: 6px; padding: 8px 10px; border: 0.5px solid var(--border2); border-radius: var(--radius-lg); background: var(--bg); color: var(--text); font: inherit; font-size: 13px; line-height: 1.45; resize: vertical; }
+.ticket-notes-comment-edit:focus { outline: 2px solid var(--blue); outline-offset: -1px; }
+.ticket-notes-comment .ticket-notes-compose { margin-top: 8px; }
+.ticket-notes-compose-actions { display: flex; align-items: center; gap: 8px; }
+.ticket-notes-comment .ticket-notes-compose .btn { min-height: 28px; }
 .ticket-notes-compose { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin-top: 8px; }
 .ticket-notes-hint { font-size: 11px; color: var(--text3); }
 @media (prefers-reduced-motion: reduce) {
-  .ticket-notes-backdrop, .ticket-notes-drawer { transition: none; }
+  .ticket-notes-backdrop, .ticket-notes-drawer, #ticket-notes-preview { transition: none; }
 }
 .badge { display: inline-flex; align-items: center; padding: 2px 8px; border-radius: 999px; font-size: 11px; font-weight: 500; white-space: nowrap; }
 .b-todo    { background: var(--bg3); color: var(--text3); }
@@ -1007,6 +1051,7 @@ code { font-family: monospace; font-size: 12px; background: var(--bg3); padding:
       </div>
     </div>
 
+    <div id="ticket-notes-preview" role="tooltip" hidden></div>
     <div id="ticket-notes-root" hidden>
       <div class="ticket-notes-backdrop" onclick="closeTicketNotes()"></div>
       <aside class="ticket-notes-drawer" role="dialog" aria-modal="true" aria-labelledby="ticket-notes-title">
@@ -5488,7 +5533,9 @@ function compareProjectSortValues(a, b, dir) {
 }
 
 const MAX_PROJECT_SORT_LEVELS = 8;
-let _userPrefs = { projectSorts: {} };
+let _userPrefs = { projectSorts: {}, groupByEpic: true };
+let _epicCollapsed = {};
+let _epicGroupStatus = {};
 let _projSortHoldSave = {};
 let _projSortSaveTimers = {};
 let _projSortStatus = {};
@@ -5598,7 +5645,10 @@ function applyRouteProjectSort(proj, params) {
 
 function rememberUserPreferences(data) {
   const projectSorts = data && data.projectSorts && typeof data.projectSorts === 'object' ? data.projectSorts : {};
-  _userPrefs = { projectSorts };
+  _userPrefs = {
+    projectSorts,
+    groupByEpic: !data || data.groupByEpic !== false,
+  };
   if (!S._projSort) S._projSort = {};
   Object.entries(projectSorts).forEach(([key, levels]) => {
     const clean = normalizeClientSortLevels(levels);
@@ -6282,6 +6332,7 @@ let _ticketNotes = {};
 let _ticketNotesOpen = null;
 let _ticketNotesSaveTimer = null;
 let _ticketNoteSaveChain = Promise.resolve();
+let _editingCommentId = null;
 
 function ticketNotesSearchText(key) {
   const row = _ticketNotes[String(key || '').toUpperCase()];
@@ -6296,10 +6347,13 @@ function ticketNotesButton(key, summary) {
   const count = row && Array.isArray(row.comments) ? row.comments.length : 0;
   const hasNote = !!(row && String(row.note || '').trim());
   const marked = count || hasNote;
-  const snippet = hasNote ? String(row.note).trim().split('\n')[0].slice(0, 80) : '';
-  const title = snippet || (count ? (count + ' comment' + (count === 1 ? '' : 's')) : (hasNote ? 'Has a note' : 'Add a note or comment'));
+  const parts = [];
+  if (hasNote) parts.push('has a note');
+  if (count) parts.push(count + ' comment' + (count === 1 ? '' : 's'));
+  const label = marked ? (normalized + ', ' + parts.join(', ')) : ('Add a note or comment — ' + normalized);
   const countLabel = count ? `<span class="ticket-notes-count">${count}</span>` : '';
-  return `<button type="button" class="ticket-notes-btn${marked ? ' has-notes' : ''}" data-key="${esc(normalized)}" data-summary="${esc(summary || '')}" title="${esc(title)}" aria-label="${esc(title + ' — ' + normalized)}" onclick="event.stopPropagation();openTicketNotes(this.dataset.key, this.dataset.summary)">
+  const titleAttr = marked ? '' : ` title="${esc(label)}"`;
+  return `<button type="button" class="ticket-notes-btn${marked ? ' has-notes' : ''}" data-key="${esc(normalized)}" data-summary="${esc(summary || '')}"${titleAttr} aria-label="${esc(label)}" onclick="event.stopPropagation();openTicketNotes(this.dataset.key, this.dataset.summary)">
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
     ${countLabel}
   </button>`;
@@ -6325,7 +6379,185 @@ function paintTicketNoteButtons(key) {
     if (key && btn.dataset.key !== key) return;
     btn.outerHTML = ticketNotesButton(btn.dataset.key, btn.dataset.summary || '');
   });
+  if (_ticketNotesPreviewKey && (!key || _ticketNotesPreviewKey === key)) {
+    const active = document.activeElement;
+    const focused = active && active.classList && active.classList.contains('ticket-notes-btn') && active.classList.contains('has-notes') ? active : null;
+    const hovered = document.querySelector('.ticket-notes-btn.has-notes:hover');
+    if (hovered || focused) showTicketNotesPreview(hovered || focused);
+    else hideTicketNotesPreview(true);
+  }
 }
+
+let _ticketNotesPreviewKey = null;
+let _ticketNotesPreviewTimer = null;
+let _ticketNotesPreviewHideTimer = null;
+
+function clipTicketNotesPreview(text, max) {
+  const value = String(text || '').trim();
+  if (value.length <= max) return value;
+  return value.slice(0, max).trimEnd() + '…';
+}
+
+function ticketNotesPreviewHtml(key) {
+  const row = _ticketNotes[key];
+  if (!row) return '';
+  const note = String(row.note || '').trim();
+  const comments = Array.isArray(row.comments) ? row.comments : [];
+  if (!note && !comments.length) return '';
+  const blocks = [`<p class="ticket-notes-preview-key">${esc(key)}</p>`];
+  if (note) {
+    const who = row.noteUpdatedBy ? 'Updated by ' + row.noteUpdatedBy : '';
+    const when = formatTicketNoteTime(row.noteUpdatedAt);
+    const meta = [who, when].filter(Boolean).join(' · ');
+    blocks.push(`<div class="ticket-notes-preview-block">
+      <div class="ticket-notes-preview-label">Note</div>
+      <p class="ticket-notes-preview-note">${esc(clipTicketNotesPreview(note, 480))}</p>
+      ${meta ? `<p class="ticket-notes-preview-meta">${esc(meta)}</p>` : ''}
+    </div>`);
+  }
+  if (comments.length) {
+    const shown = comments.slice(-4);
+    const earlier = comments.length - shown.length;
+    const items = shown.map(comment => {
+      const when = formatTicketNoteTime(comment.createdAt);
+      const edited = comment.updatedAt ? ' · Edited' : '';
+      return `<article class="ticket-notes-preview-comment">
+        <header>
+          <span class="who">${esc(comment.author || 'Unknown')}</span>
+          <span class="when">${esc(when + edited)}</span>
+        </header>
+        <p>${esc(clipTicketNotesPreview(comment.body, 280))}</p>
+      </article>`;
+    }).join('');
+    blocks.push(`<div class="ticket-notes-preview-block">
+      <div class="ticket-notes-preview-label">Comments</div>
+      ${earlier ? `<p class="ticket-notes-preview-more">${earlier} earlier comment${earlier === 1 ? '' : 's'}</p>` : ''}
+      ${items}
+    </div>`);
+  }
+  return blocks.join('');
+}
+
+function hideTicketNotesPreview(force) {
+  clearTimeout(_ticketNotesPreviewTimer);
+  clearTimeout(_ticketNotesPreviewHideTimer);
+  _ticketNotesPreviewTimer = null;
+  _ticketNotesPreviewHideTimer = null;
+  const preview = document.getElementById('ticket-notes-preview');
+  if (!force && !_ticketNotesOpen) {
+    if (preview && preview.matches(':hover')) return;
+    const hovered = document.querySelector('.ticket-notes-btn.has-notes:hover');
+    if (hovered && hovered.dataset.key !== _ticketNotesPreviewKey) {
+      showTicketNotesPreview(hovered);
+      return;
+    }
+    if (hovered && hovered.dataset.key === _ticketNotesPreviewKey) return;
+  }
+  _ticketNotesPreviewKey = null;
+  if (!preview) return;
+  preview.classList.remove('open');
+  preview.hidden = true;
+}
+
+function placeTicketNotesPreview(btn) {
+  const preview = document.getElementById('ticket-notes-preview');
+  if (!preview || !btn) return;
+  preview.style.left = '-9999px';
+  preview.style.top = '0px';
+  preview.hidden = false;
+  const margin = 8;
+  const gap = 8;
+  const rect = btn.getBoundingClientRect();
+  const width = preview.offsetWidth;
+  const height = preview.offsetHeight;
+  let left = rect.right + gap;
+  let origin = 'left center';
+  if (left + width > window.innerWidth - margin) {
+    left = rect.left - width - gap;
+    origin = 'right center';
+  }
+  if (left < margin) left = margin;
+  let top = rect.top + (rect.height / 2) - (height / 2);
+  if (top + height > window.innerHeight - margin) top = window.innerHeight - margin - height;
+  if (top < margin) top = margin;
+  preview.style.transformOrigin = origin;
+  preview.style.left = Math.round(left) + 'px';
+  preview.style.top = Math.round(top) + 'px';
+}
+
+function showTicketNotesPreview(btn) {
+  clearTimeout(_ticketNotesPreviewTimer);
+  clearTimeout(_ticketNotesPreviewHideTimer);
+  if (_ticketNotesOpen || !btn || !btn.classList.contains('has-notes')) {
+    hideTicketNotesPreview(true);
+    return;
+  }
+  const key = btn.dataset.key;
+  const html = ticketNotesPreviewHtml(key);
+  const preview = document.getElementById('ticket-notes-preview');
+  if (preview && preview.parentElement !== document.body) document.body.appendChild(preview);
+  if (!html || !preview) {
+    hideTicketNotesPreview(true);
+    return;
+  }
+  const same = _ticketNotesPreviewKey === key && preview.classList.contains('open');
+  _ticketNotesPreviewKey = key;
+  preview.innerHTML = html;
+  placeTicketNotesPreview(btn);
+  if (same) preview.classList.add('open');
+  else requestAnimationFrame(() => {
+    if (_ticketNotesPreviewKey === key) preview.classList.add('open');
+  });
+}
+
+function scheduleTicketNotesPreview(btn) {
+  if (!btn || !btn.classList.contains('has-notes')) return;
+  if (_ticketNotesOpen) return;
+  clearTimeout(_ticketNotesPreviewHideTimer);
+  if (_ticketNotesPreviewKey === btn.dataset.key) return;
+  clearTimeout(_ticketNotesPreviewTimer);
+  _ticketNotesPreviewTimer = setTimeout(() => showTicketNotesPreview(btn), 140);
+}
+
+function scheduleHideTicketNotesPreview() {
+  clearTimeout(_ticketNotesPreviewTimer);
+  clearTimeout(_ticketNotesPreviewHideTimer);
+  _ticketNotesPreviewHideTimer = setTimeout(hideTicketNotesPreview, 120);
+}
+
+document.addEventListener('mouseover', (ev) => {
+  const btn = ev.target.closest && ev.target.closest('.ticket-notes-btn');
+  if (btn) scheduleTicketNotesPreview(btn);
+});
+document.addEventListener('mouseout', (ev) => {
+  const btn = ev.target.closest && ev.target.closest('.ticket-notes-btn');
+  if (!btn) return;
+  const next = ev.relatedTarget;
+  if (next && (btn.contains(next) || (next.closest && next.closest('#ticket-notes-preview')))) return;
+  if (!_ticketNotesPreviewKey && !_ticketNotesPreviewTimer) return;
+  scheduleHideTicketNotesPreview();
+});
+document.addEventListener('focusin', (ev) => {
+  const btn = ev.target.closest && ev.target.closest('.ticket-notes-btn');
+  if (btn) scheduleTicketNotesPreview(btn);
+});
+document.addEventListener('focusout', (ev) => {
+  const btn = ev.target.closest && ev.target.closest('.ticket-notes-btn');
+  if (!btn) return;
+  scheduleHideTicketNotesPreview();
+});
+const ticketNotesPreviewEl = document.getElementById('ticket-notes-preview');
+if (ticketNotesPreviewEl) {
+  ticketNotesPreviewEl.addEventListener('mouseenter', () => clearTimeout(_ticketNotesPreviewHideTimer));
+  ticketNotesPreviewEl.addEventListener('mouseleave', () => scheduleHideTicketNotesPreview());
+}
+document.addEventListener('scroll', (ev) => {
+  if (ev.target && ev.target.id === 'ticket-notes-preview') return;
+  if (_ticketNotesPreviewKey || _ticketNotesPreviewTimer) hideTicketNotesPreview(true);
+}, true);
+window.addEventListener('resize', () => {
+  if (_ticketNotesPreviewKey) hideTicketNotesPreview(true);
+});
 
 async function loadTicketNotes() {
   try {
@@ -6372,17 +6604,42 @@ function renderTicketComments() {
   }
   const me = currentUserEmail();
   list.innerHTML = comments.map(comment => {
-    const canDelete = isAdmin() || (comment.author && comment.author === me);
+    const canChange = isAdmin() || (comment.author && comment.author === me);
     const when = formatTicketNoteTime(comment.createdAt);
+    const editedAt = comment.updatedAt ? formatTicketNoteTime(comment.updatedAt) : '';
+    const whenLabel = editedAt ? when + ' · Edited ' + editedAt : when;
+    const idArg = JSON.stringify(comment.id);
+    const editing = canChange && _editingCommentId === comment.id;
+    const body = editing
+      ? `<textarea id="ticket-comment-edit" class="ticket-notes-comment-edit" maxlength="4000" onkeydown="onTicketCommentEditKeydown(event)">${esc(comment.body)}</textarea>
+        <div class="ticket-notes-compose">
+          <span class="ticket-notes-hint">Ctrl+Enter to save</span>
+          <span class="ticket-notes-compose-actions">
+            <button class="btn btn-sm" type="button" onclick="cancelTicketCommentEdit()">Cancel</button>
+            <button class="btn btn-sm primary" type="button" onclick="saveTicketCommentEdit()">Save</button>
+          </span>
+        </div>`
+      : `<p>${esc(comment.body)}</p>
+        ${canChange ? `<div class="ticket-notes-comment-actions">
+          <button type="button" class="ticket-notes-text" onclick='beginTicketCommentEdit(${idArg})'>Edit</button>
+          <button type="button" class="ticket-notes-delete ticket-notes-text" onclick='deleteTicketComment(${idArg})'>Delete</button>
+        </div>` : ''}`;
     return `<article class="ticket-notes-comment">
       <header>
         <span class="who">${esc(comment.author || 'Unknown')}</span>
-        <span class="when">${esc(when)}</span>
+        <span class="when">${esc(whenLabel)}</span>
       </header>
-      <p>${esc(comment.body)}</p>
-      ${canDelete ? `<button type="button" class="ticket-notes-delete" onclick='deleteTicketComment(${JSON.stringify(comment.id)})'>Delete</button>` : ''}
+      ${body}
     </article>`;
   }).join('');
+  if (_editingCommentId) {
+    const editor = document.getElementById('ticket-comment-edit');
+    if (editor) {
+      editor.focus();
+      const end = editor.value.length;
+      editor.setSelectionRange(end, end);
+    }
+  }
 }
 
 function setTicketNoteStatus(message, isError) {
@@ -6403,6 +6660,7 @@ async function openTicketNotes(key, summary) {
   const normalized = String(key || '').toUpperCase();
   if (!normalized) return;
   if (_ticketNotesOpen && _ticketNotesOpen.key !== normalized) await flushTicketNoteSave();
+  _editingCommentId = null;
   _ticketNotesOpen = { key: normalized, summary: summary || '' };
   const root = document.getElementById('ticket-notes-root');
   const title = document.getElementById('ticket-notes-title');
@@ -6422,6 +6680,7 @@ async function openTicketNotes(key, summary) {
   setTicketCommentStatus('');
   paintTicketNoteMeta();
   renderTicketComments();
+  hideTicketNotesPreview(true);
   if (!root) return;
   root.hidden = false;
   requestAnimationFrame(() => root.classList.add('open'));
@@ -6516,6 +6775,64 @@ async function addTicketComment() {
   }
 }
 
+function beginTicketCommentEdit(commentId) {
+  if (!_ticketNotesOpen || !commentId) return;
+  _editingCommentId = commentId;
+  setTicketCommentStatus('');
+  renderTicketComments();
+}
+
+function cancelTicketCommentEdit() {
+  _editingCommentId = null;
+  setTicketCommentStatus('');
+  renderTicketComments();
+}
+
+function onTicketCommentEditKeydown(ev) {
+  if (ev.key === 'Enter' && (ev.ctrlKey || ev.metaKey)) {
+    ev.preventDefault();
+    saveTicketCommentEdit();
+  } else if (ev.key === 'Escape') {
+    ev.preventDefault();
+    ev.stopPropagation();
+    cancelTicketCommentEdit();
+  }
+}
+
+async function saveTicketCommentEdit() {
+  if (!_ticketNotesOpen || !_editingCommentId) return;
+  const key = _ticketNotesOpen.key;
+  const commentId = _editingCommentId;
+  const editor = document.getElementById('ticket-comment-edit');
+  const body = editor ? editor.value.trim() : '';
+  if (!body) {
+    setTicketCommentStatus('Write a comment before saving.', true);
+    if (editor) editor.focus();
+    return;
+  }
+  const row = _ticketNotes[key];
+  const current = row && Array.isArray(row.comments) ? row.comments.find(comment => comment.id === commentId) : null;
+  if (current && String(current.body || '').trim() === body) {
+    cancelTicketCommentEdit();
+    return;
+  }
+  setTicketCommentStatus('Saving…');
+  try {
+    const response = await authFetch('/api/ticket-notes/' + encodeURIComponent(key) + '/comments/' + encodeURIComponent(commentId), {
+      method: 'PUT',
+      body: JSON.stringify({ body }),
+    });
+    const result = await response.json().catch(() => ({}));
+    if (!response.ok) throw new Error(result.error || 'Could not save the comment.');
+    if (_editingCommentId === commentId) _editingCommentId = null;
+    rememberTicketNotes(result);
+    renderTicketComments();
+    setTicketCommentStatus('Saved');
+  } catch (err) {
+    setTicketCommentStatus(err.message || 'Could not save the comment.', true);
+  }
+}
+
 async function deleteTicketComment(commentId) {
   if (!_ticketNotesOpen || !commentId) return;
   if (!confirm('Delete this comment?')) return;
@@ -6527,6 +6844,7 @@ async function deleteTicketComment(commentId) {
     });
     const result = await response.json().catch(() => ({}));
     if (!response.ok) throw new Error(result.error || 'Could not delete the comment.');
+    if (_editingCommentId === commentId) _editingCommentId = null;
     rememberTicketNotes(result);
     renderTicketComments();
     setTicketCommentStatus('');
@@ -6544,6 +6862,12 @@ function onTicketCommentKeydown(ev) {
 
 document.addEventListener('keydown', (ev) => {
   if (ev.key !== 'Escape') return;
+  if (_ticketNotesOpen && _editingCommentId) {
+    ev.preventDefault();
+    ev.stopImmediatePropagation();
+    cancelTicketCommentEdit();
+    return;
+  }
   if (_ticketNotesOpen) {
     ev.preventDefault();
     ev.stopImmediatePropagation();
@@ -6556,6 +6880,76 @@ document.addEventListener('keydown', (ev) => {
     closeProjectSortDialog();
   }
 });
+
+function epicCollapseId(projKey, epicKey) {
+  return String(projKey || '') + '\n' + String(epicKey || '');
+}
+
+function groupByEpicOn() {
+  return _userPrefs.groupByEpic !== false && typeof EpicGroups !== 'undefined';
+}
+
+function epicToggleLabel(epicKey, summary, count, open) {
+  const noun = count === 1 ? 'enhancement' : 'enhancements';
+  const name = summary ? (epicKey + ', ' + summary) : epicKey;
+  return (open ? 'Collapse ' : 'Expand ') + count + ' ' + noun + ' under ' + name;
+}
+
+function epicGutterHtml(toggleHtml, count) {
+  const countHtml = count == null
+    ? '<span class="epic-count is-empty" aria-hidden="true">0</span>'
+    : `<span class="epic-count" aria-hidden="true">${count}</span>`;
+  return `<span class="epic-gutter">${toggleHtml}${countHtml}</span>`;
+}
+
+function applyEpicGroupVisibility(projKey, epicKey) {
+  const root = document.getElementById('issues-' + projKey);
+  if (!root) return;
+  const open = !_epicCollapsed[epicCollapseId(projKey, epicKey)];
+  root.querySelectorAll('tr[data-epic-parent]').forEach(row => {
+    if (row.getAttribute('data-epic-parent') !== epicKey) return;
+    row.hidden = !open;
+  });
+  root.querySelectorAll('tr.epic-parent').forEach(row => {
+    if (row.getAttribute('data-epic-key') !== epicKey) return;
+    const btn = row.querySelector('.epic-toggle');
+    if (!btn) return;
+    btn.setAttribute('aria-expanded', open ? 'true' : 'false');
+    const count = Number(btn.getAttribute('data-count')) || 0;
+    btn.setAttribute('aria-label', epicToggleLabel(epicKey, btn.getAttribute('data-summary') || '', count, open));
+  });
+}
+
+function toggleEpicGroup(event, projKey, epicKey) {
+  if (event) {
+    event.preventDefault();
+    event.stopPropagation();
+  }
+  const id = epicCollapseId(projKey, epicKey);
+  if (_epicCollapsed[id]) delete _epicCollapsed[id];
+  else _epicCollapsed[id] = true;
+  applyEpicGroupVisibility(projKey, epicKey);
+}
+
+async function setEpicGrouping(projKey, enabled) {
+  const next = !!enabled;
+  if (next === groupByEpicOn()) return;
+  _userPrefs.groupByEpic = next;
+  delete _epicGroupStatus[projKey];
+  refreshProjectListing(projKey);
+  try {
+    const response = await authFetch('/api/user-preferences/group-by-epic', {
+      method: 'PUT',
+      body: JSON.stringify({ enabled: next }),
+    });
+    const result = await response.json().catch(() => ({}));
+    if (!response.ok) throw new Error(result.error || 'Could not save the epic grouping.');
+    _userPrefs.groupByEpic = result.groupByEpic !== false;
+  } catch (err) {
+    _epicGroupStatus[projKey] = err.message || 'Could not save the epic grouping.';
+    if (S.page && getAllProjects().some(p => p.key === projKey && p.id === S.page)) refreshProjectListing(projKey);
+  }
+}
 
 function renderIssueTable(proj, issues, activeFilter) {
   proj = getAllProjects().find(p => p.key === proj.key) || proj;
@@ -6583,11 +6977,53 @@ function renderIssueTable(proj, issues, activeFilter) {
   const sortLevels = getProjectSortLevels(proj.key);
   const colSt = getProjectColFilters(proj.key);
   const phaseLabel = (S.activeFilter && S.activeFilter[proj.key]) || activeFilter;
-  const rows = sorted.map(issue => {
-    const cells = vf.map(f => `<td title="${esc(String(getCellValue(issue,f)))}">${renderCell(f,issue)}</td>`).join('');
-    const link = S.creds.url ? S.creds.url + '/browse/' + (issue.key||'') : '#';
+  const canGroup = groupByEpicOn() && !isQualityDashboardProject(proj);
+  const groupedModel = canGroup ? EpicGroups.groupIssuesUnderEpics(sorted) : sorted.map(issue => ({ kind: 'issue', issue }));
+  const showEpicGutter = canGroup && groupedModel.some(row => row.kind === 'epic');
+  const labelField = vf.some(f => f.id === 'summary') ? 'summary' : (vf.some(f => f.id === 'key') ? 'key' : (vf[0] && vf[0].id));
+  const indentField = vf.some(f => f.id === 'summary') ? 'summary' : (vf.some(f => f.id === 'key') ? 'key' : '');
+
+  function issueRowCells(issue, opts) {
+    return vf.map(f => {
+      const classes = [];
+      if (opts.indent && f.id === indentField) classes.push('epic-indent');
+      if (opts.parentLabel && f.id === labelField) classes.push('epic-parent-label');
+      return `<td${classes.length ? ` class="${classes.join(' ')}"` : ''} title="${esc(String(getCellValue(issue, f)))}">${renderCell(f, issue)}</td>`;
+    }).join('');
+  }
+
+  function issueRow(issue, opts) {
+    const link = S.creds.url ? S.creds.url + '/browse/' + (issue.key || '') : '#';
     const summary = (issue.fields && issue.fields.summary) || '';
-    return `<tr onclick="window.open('${link}','_blank')" style="cursor:pointer"><td class="notes-cell">${ticketNotesButton(issue.key, summary)}</td>${cells}</tr>`;
+    const gutter = showEpicGutter
+      ? epicGutterHtml(opts.toggle || '<span class="epic-toggle-spacer" aria-hidden="true"></span>', opts.count)
+      : '';
+    const cls = opts.rowClass ? ` class="${opts.rowClass}"` : '';
+    const hidden = opts.hidden ? ' hidden' : '';
+    const parentAttr = opts.parentKey ? ` data-epic-parent="${esc(opts.parentKey)}"` : '';
+    const epicAttr = opts.epicKey ? ` data-epic-key="${esc(opts.epicKey)}"` : '';
+    return `<tr${cls}${hidden}${parentAttr}${epicAttr} onclick="window.open('${link}','_blank')" style="cursor:pointer"><td class="notes-cell"><span class="notes-cell-inner">${gutter}${ticketNotesButton(issue.key, summary)}</span></td>${issueRowCells(issue, opts)}</tr>`;
+  }
+
+  const rows = groupedModel.map(row => {
+    if (row.kind !== 'epic') return issueRow(row.issue, {});
+    const open = !_epicCollapsed[epicCollapseId(proj.key, row.epicKey)];
+    const summary = (row.issue.fields && row.issue.fields.summary) || '';
+    const toggle = `<button type="button" class="epic-toggle" aria-expanded="${open ? 'true' : 'false'}" data-count="${row.children.length}" data-summary="${esc(summary)}" aria-label="${esc(epicToggleLabel(row.epicKey, summary, row.children.length, open))}" onclick='toggleEpicGroup(event,${JSON.stringify(proj.key)},${JSON.stringify(row.epicKey)})'><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="9 6 15 12 9 18"/></svg></button>`;
+    const parentRow = issueRow(row.issue, {
+      rowClass: 'epic-parent',
+      toggle,
+      count: row.children.length,
+      epicKey: row.epicKey,
+      parentLabel: true,
+    });
+    const childRows = row.children.map(child => issueRow(child, {
+      rowClass: 'epic-child',
+      parentKey: row.epicKey,
+      indent: true,
+      hidden: !open,
+    })).join('');
+    return parentRow + childRows;
   }).join('');
 
   const headers = vf.map(f => {
@@ -6636,6 +7072,17 @@ function renderIssueTable(proj, issues, activeFilter) {
       ${hasProjectColFilters(proj.key) ? `<button class="btn btn-sm" onclick='clearProjectFilters(${JSON.stringify(proj.key)})'>Clear filters</button>` : ''}
       <button class="btn btn-sm proj-sort-btn${sortLevels.length ? ' is-on' : ''}" type="button" onclick='openProjectSortDialog(${JSON.stringify(proj.key)})' title="${esc(sortLevels.length ? projectSortSummary(sortLevels) : 'Define a nested sort')}">${esc(projectSortButtonLabel(sortLevels))}</button>
       ${_projSortStatus[proj.key] ? `<span class="proj-sort-status${_projSortStatus[proj.key].error ? ' is-error' : ''}">${esc(_projSortStatus[proj.key].message)}</span>` : ''}
+      ${isQualityDashboardProject(proj) ? '' : `<div class="epic-layout-toggle" role="group" aria-label="How issues are listed">
+        <button type="button" aria-pressed="${groupByEpicOn() ? 'true' : 'false'}" title="List each enhancement under its epic" onclick='setEpicGrouping(${JSON.stringify(proj.key)}, true)'>
+          <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" aria-hidden="true"><path d="M2.5 3.5h11"/><path d="M6 8h7.5"/><path d="M6 12.5h7.5"/><path d="M2.5 3.5v9"/><path d="M2.5 8h3.5"/><path d="M2.5 12.5h3.5"/></svg>
+          Under epic
+        </button>
+        <button type="button" aria-pressed="${groupByEpicOn() ? 'false' : 'true'}" title="List every issue on its own row" onclick='setEpicGrouping(${JSON.stringify(proj.key)}, false)'>
+          <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" aria-hidden="true"><path d="M2.5 3.5h11"/><path d="M2.5 8h11"/><path d="M2.5 12.5h11"/></svg>
+          Flat
+        </button>
+      </div>`}
+      ${_epicGroupStatus[proj.key] ? `<span class="proj-sort-status is-error">${esc(_epicGroupStatus[proj.key])}</span>` : ''}
       <button class="btn btn-sm" type="button" onclick="exportCSV()" title="Export the filtered table">Export HTML</button>
       <span class="proj-count">${countLabel}</span>
     </div>

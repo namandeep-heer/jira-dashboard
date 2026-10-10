@@ -15,7 +15,7 @@ const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'jira-dashboard-prefs-'));
 const filePath = path.join(tmpDir, 'user-preferences.json');
 const prefs = createUserPreferences({ filePath });
 
-assert.deepStrictEqual(prefs.get('user-a'), { version: 1, projectSorts: {} });
+assert.deepStrictEqual(prefs.get('user-a'), { version: 1, projectSorts: {}, groupByEpic: true });
 
 const saved = prefs.setProjectSort('user-a', 'NFS', [
   { col: 'priority', dir: 'asc' },
@@ -79,5 +79,19 @@ fs.writeFileSync(dirtyPath, JSON.stringify({
 }), 'utf8');
 const dirty = createUserPreferences({ filePath: dirtyPath });
 assert.deepStrictEqual(dirty.get('user-a').projectSorts, { NFS: [{ col: 'key', dir: 1 }] });
+assert.strictEqual(dirty.get('user-a').groupByEpic, true);
+
+const groupedOff = prefs.setGroupByEpic('user-a', false);
+assert.deepStrictEqual(groupedOff, { version: 1, groupByEpic: false });
+assert.strictEqual(prefs.get('user-a').groupByEpic, false);
+prefs.setProjectSort('user-a', 'NFS', [{ col: 'key', dir: 1 }]);
+prefs.setProjectSort('user-a', 'NFS', []);
+assert.strictEqual(prefs.get('user-a').groupByEpic, false);
+assert.deepStrictEqual(prefs.get('user-a').projectSorts, {});
+assert.deepStrictEqual(createUserPreferences({ filePath }).get('user-a').groupByEpic, false);
+
+prefs.setGroupByEpic('user-a', true);
+assert.deepStrictEqual(prefs.get('user-a'), { version: 1, projectSorts: {}, groupByEpic: true });
+assert.throws(() => prefs.setGroupByEpic('user-a', 'no'), /on or off/);
 
 console.log('user preferences ok');

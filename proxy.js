@@ -182,6 +182,12 @@ app.get('/lib/quality-history.js', (req, res) => {
   res.sendFile(path.join(ROOT, 'lib', 'quality-history.js'));
 });
 
+app.get('/lib/epic-groups.js', (req, res) => {
+  res.setHeader('Cache-Control', 'no-store');
+  res.type('application/javascript');
+  res.sendFile(path.join(ROOT, 'lib', 'epic-groups.js'));
+});
+
 // ── Health check endpoint ─────────────────────────────────────────────────────
 app.get('/health', (req, res) => {
   res.status(200).json({ status: 'ok', message: 'Proxy is running' });
@@ -340,6 +346,20 @@ app.post('/api/ticket-notes/:key/comments', (req, res) => {
   }
 });
 
+app.put('/api/ticket-notes/:key/comments/:commentId', (req, res) => {
+  const user = requireUser(req, res);
+  if (!user) return;
+  try {
+    res.json(ticketNotes.updateComment(req.params.key, req.params.commentId, {
+      body: req.body?.body,
+      author: user.email,
+      isAdmin: user.role === 'admin',
+    }));
+  } catch (err) {
+    sendStoreError(res, err);
+  }
+});
+
 app.delete('/api/ticket-notes/:key/comments/:commentId', (req, res) => {
   const user = requireUser(req, res);
   if (!user) return;
@@ -368,6 +388,16 @@ app.put('/api/user-preferences/project-sorts/:projectKey', (req, res) => {
   if (!user) return;
   try {
     res.json(userPreferences.setProjectSort(user.id, req.params.projectKey, req.body?.levels));
+  } catch (err) {
+    sendStoreError(res, err);
+  }
+});
+
+app.put('/api/user-preferences/group-by-epic', (req, res) => {
+  const user = requireUser(req, res);
+  if (!user) return;
+  try {
+    res.json(userPreferences.setGroupByEpic(user.id, req.body?.enabled));
   } catch (err) {
     sendStoreError(res, err);
   }
