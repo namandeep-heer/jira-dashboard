@@ -33,6 +33,7 @@ const { createUserPreferences } = require('./lib/user-preferences');
 const { slimDashboardState, dashboardStateForClient } = require('./lib/slim-cache');
 const { createPageConfig } = require('./lib/page-config');
 const { ensureStatusPipelineFile, loadStatusPipeline } = require('./lib/status-pipeline');
+const { createJiraWriteApi } = require('./lib/jira-write');
 if (!fs.existsSync(CONFIG_DIR)) {
   fs.mkdirSync(CONFIG_DIR, { recursive: true });
 }
@@ -186,6 +187,12 @@ app.get('/lib/epic-groups.js', (req, res) => {
   res.setHeader('Cache-Control', 'no-store');
   res.type('application/javascript');
   res.sendFile(path.join(ROOT, 'lib', 'epic-groups.js'));
+});
+
+app.get('/lib/jira-write-ui.js', (req, res) => {
+  res.setHeader('Cache-Control', 'no-store');
+  res.type('application/javascript');
+  res.sendFile(path.join(ROOT, 'lib', 'jira-write-ui.js'));
 });
 
 // ── Health check endpoint ─────────────────────────────────────────────────────
@@ -401,6 +408,96 @@ app.put('/api/user-preferences/group-by-epic', (req, res) => {
   } catch (err) {
     sendStoreError(res, err);
   }
+});
+
+async function jiraFetchForUser(creds, method, apiPath, body) {
+  if (!jiraBaseUrl) {
+    const err = new Error('JIRA_URL is not configured');
+    err.status = 503;
+    throw err;
+  }
+  let upstream;
+  try {
+    upstream = await fetch(jiraBaseUrl + apiPath, {
+      method,
+      headers: {
+        Accept: 'application/json',
+        'Content-Type': 'application/json',
+        Authorization: 'Basic ' + Buffer.from(`${creds.jiraEmail}:${creds.token}`).toString('base64'),
+      },
+      body: body == null ? undefined : JSON.stringify(body),
+    });
+  } catch (err) {
+    const wrapped = new Error('Could not reach Jira. ' + (err.message || ''));
+    wrapped.status = 502;
+    throw wrapped;
+  }
+  const text = await upstream.text();
+  let json = null;
+  if (text) {
+    try { json = JSON.parse(text); } catch { json = null; }
+  }
+  return { ok: upstream.ok, status: upstream.status, json, text };
+}
+
+const jiraWrite = createJiraWriteApi({
+  jiraFetch: jiraFetchForUser,
+  loadState: loadDashboardState,
+  saveState: state => persistDashboardState(state, { pages: false }),
+});
+
+function credentialsForWrite(user, res) {
+  const credentials = store.getCredentials(user.id, { decrypt: true });
+  if (!credentials || !credentials.token || !credentials.jiraEmail) {
+    res.status(400).json({ error: 'Save a Jira API token before editing tickets.' });
+    return null;
+  }
+  return credentials;
+}
+
+async function handleJiraWrite(req, res, fn) {
+  const user = requireUser(req, res);
+  if (!user) return;
+  const credentials = credentialsForWrite(user, res);
+  if (!credentials) return;
+  try {
+    res.json(await fn(credentials));
+  } catch (err) {
+    const status = err.status || 502;
+    res.status(status).json({
+      error: err.message || 'Jira request failed',
+      updated: err.updated,
+      wrote: !!err.wrote,
+    });
+  }
+}
+
+app.get('/api/jira/issue/:key', (req, res) => {
+  handleJiraWrite(req, res, creds => jiraWrite.issueBrief(creds, req.params.key));
+});
+
+app.get('/api/jira/issue/:key/transitions', (req, res) => {
+  handleJiraWrite(req, res, creds => jiraWrite.transitions(creds, req.params.key));
+});
+
+app.get('/api/jira/issue/:key/meta', (req, res) => {
+  handleJiraWrite(req, res, creds => jiraWrite.fieldMeta(creds, req.params.key, req.query.field));
+});
+
+app.get('/api/jira/issue/:key/versions', (req, res) => {
+  handleJiraWrite(req, res, creds => jiraWrite.versions(creds, req.params.key));
+});
+
+app.get('/api/jira/users', (req, res) => {
+  handleJiraWrite(req, res, creds => jiraWrite.users(creds, {
+    query: req.query.query,
+    issueKey: req.query.issueKey,
+    fieldId: req.query.fieldId,
+  }));
+});
+
+app.post('/api/jira/issue/:key', (req, res) => {
+  handleJiraWrite(req, res, creds => jiraWrite.applyChange(creds, req.params.key, req.body));
 });
 
 app.put('/api/credentials', (req, res) => {

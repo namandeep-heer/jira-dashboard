@@ -2,66 +2,60 @@
   "customProjects": [],
   "projectSettings": {
     "GL": {
-      "jql": "project in (GL) AND issuetype in (Enhancement, Epic) AND fixVersion in (Blank, UnPlanned, N2027.R1, N2026.R2) ORDER BY \"Scope Commitment At SC\", status desc, Priority DESC",
+      "jql": "project in (GL) AND issuetype in (Enhancement, Epic) AND fixVersion in (Blank, UnPlanned, N2027.R1) ORDER BY \"Scope Commitment At SC\", status desc, Priority DESC",
       "releases": [
         "Blank",
         "UnPlanned",
-        "N2027.R1",
-        "N2026.R2"
+        "N2027.R1"
       ],
       "enabled": true,
       "releaseMode": "market"
     },
     "FAA": {
-      "jql": "project in (FAA) AND issuetype in (Enhancement, Epic) AND fixVersion in (Blank, UnPlanned, N2027.R1, N2026.R2) ORDER BY \"Scope Commitment At SC\" asc, status desc, Priority DESC",
+      "jql": "project in (FAA) AND issuetype in (Enhancement, Epic) AND fixVersion in (Blank, UnPlanned, N2027.R1) ORDER BY \"Scope Commitment At SC\" asc, status desc, Priority DESC",
       "releases": [
         "Blank",
         "UnPlanned",
-        "N2027.R1",
-        "N2026.R2"
+        "N2027.R1"
       ],
       "enabled": true,
       "releaseMode": "market"
     },
     "FCO": {
-      "jql": "project in (FCO) AND issuetype in (Enhancement, Epic) AND fixVersion in (Blank, UnPlanned, N2027.R1, N2026.R2) ORDER BY \"Scope Commitment At SC\", status DESC, Priority DESC",
+      "jql": "project in (FCO) AND issuetype in (Enhancement, Epic) AND fixVersion in (Blank, UnPlanned, N2027.R1) ORDER BY \"Scope Commitment At SC\", status DESC, Priority DESC",
       "releases": [
         "Blank",
         "UnPlanned",
-        "N2027.R1",
-        "N2026.R2"
+        "N2027.R1"
       ],
       "enabled": true,
       "releaseMode": "market"
     },
     "INC": {
-      "jql": "project in (INC) AND issuetype in (Enhancement, Epic) AND fixVersion in (Blank, UnPlanned, N2027.R1, N2026.R2) ORDER BY \"Scope Commitment At SC\", status DESC, Priority DESC",
+      "jql": "project in (INC) AND issuetype in (Enhancement, Epic) AND fixVersion in (Blank, UnPlanned, N2027.R1) ORDER BY \"Scope Commitment At SC\", status DESC, Priority DESC",
       "releases": [
         "Blank",
         "UnPlanned",
-        "N2027.R1",
-        "N2026.R2"
+        "N2027.R1"
       ],
       "enabled": true,
       "releaseMode": "market"
     },
     "NFS": {
-      "jql": "project in (NFS) AND issuetype in (Enhancement, Epic) AND fixVersion in (Blank, UnPlanned, N2027.R1, N2026.R2) ORDER BY \"Scope Commitment At SC\", status DESC, Priority DESC",
+      "jql": "project in (NFS) AND issuetype in (Enhancement, Epic) AND fixVersion in (Blank, UnPlanned, N2027.R1) ORDER BY \"Scope Commitment At SC\", status DESC, Priority DESC",
       "releases": [
         "Blank",
         "UnPlanned",
-        "N2027.R1",
-        "N2026.R2"
+        "N2027.R1"
       ],
       "releaseMode": "market"
     },
     "P2P": {
-      "jql": "project in (P2P) AND issuetype in (Enhancement) AND fixVersion in (Blank, UnPlanned, N2027.R1, N2026.R2) ORDER BY \"Scope Commitment At SC\", status desc, Priority DESC",
+      "jql": "project in (P2P) AND issuetype in (Enhancement) AND fixVersion in (Blank, UnPlanned, N2027.R1) ORDER BY \"Scope Commitment At SC\", status desc, Priority DESC",
       "releases": [
         "Blank",
         "UnPlanned",
-        "N2027.R1",
-        "N2026.R2"
+        "N2027.R1"
       ],
       "enabled": true,
       "releaseMode": "market"

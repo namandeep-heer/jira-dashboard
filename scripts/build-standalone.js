@@ -57,6 +57,10 @@ function copyPackageFiles(outDir) {
     path.join(ROOT, 'lib', 'epic-groups.js'),
     path.join(outDir, 'lib', 'epic-groups.js')
   );
+  fs.copyFileSync(
+    path.join(ROOT, 'lib', 'jira-write-ui.js'),
+    path.join(outDir, 'lib', 'jira-write-ui.js')
+  );
 
   fs.copyFileSync(
     path.join(ROOT, 'README.md'),
