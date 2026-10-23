@@ -244,6 +244,7 @@ html.sidebar-collapsed #log-badge { position: absolute; top: 3px; right: 3px; ma
 .proj-header { margin-bottom: 18px; }
 .proj-title { display: flex; align-items: center; gap: 10px; margin-bottom: 6px; }
 .proj-title h2 { font-size: 18px; font-weight: 600; }
+.proj-title .proj-new-ticket { margin-left: auto; }
 .jql-box { font-family: 'SFMono-Regular', Consolas, monospace; font-size: 11px; color: var(--text3); background: var(--bg2); border: 0.5px solid var(--border); border-radius: var(--radius); padding: 5px 10px; max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; cursor: pointer; display: block; }
 .jql-box.expanded { white-space: normal; word-break: break-all; }
 
@@ -392,6 +393,7 @@ table.issues tr:hover td.notes-cell { background: var(--bg2); }
 #jira-write-root[hidden] { display: none !important; }
 .jw-backdrop { position: absolute; inset: 0; background: rgba(0,0,0,.28); }
 .jw-panel { position: absolute; top: 50%; left: 50%; width: min(440px, calc(100vw - 24px)); max-height: min(640px, calc(100vh - 32px)); display: flex; flex-direction: column; background: var(--bg); color: var(--text); border: 0.5px solid var(--border); border-radius: 18px; box-shadow: 0 24px 60px rgba(0,0,0,.16); transform: translate(-50%, -50%); outline: none; }
+.jw-panel.is-create { width: min(520px, calc(100vw - 24px)); max-height: min(760px, calc(100vh - 32px)); }
 .jw-head, .jw-foot { display: flex; align-items: center; gap: 10px; padding: 14px 16px; }
 .jw-head { justify-content: space-between; border-bottom: 0.5px solid var(--border); }
 .jw-head h2 { margin: 0; font-size: 16px; font-weight: 600; letter-spacing: -0.01em; }
@@ -5345,6 +5347,7 @@ function renderProject(proj) {
         <div class="proj-title">
           <span class="proj-dot" style="background:${proj.color};width:12px;height:12px"></span>
           <h2>${esc(proj.name)}</h2>
+          <button class="btn btn-sm primary proj-new-ticket" type="button" onclick='JiraWrite.openCreate(${JSON.stringify(proj.key)})'>New ticket</button>
         </div>
         <div class="jql-box" title="Click to expand/collapse" onclick="this.classList.toggle('expanded')">${esc(effJql)}</div>
       </div>

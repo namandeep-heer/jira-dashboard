@@ -496,6 +496,14 @@ app.get('/api/jira/users', (req, res) => {
   }));
 });
 
+app.get('/api/jira/create-meta', (req, res) => {
+  handleJiraWrite(req, res, creds => jiraWrite.createMeta(creds, req.query.projectKey, req.query.issueTypeId));
+});
+
+app.post('/api/jira/issues', (req, res) => {
+  handleJiraWrite(req, res, creds => jiraWrite.createIssue(creds, req.body));
+});
+
 app.post('/api/jira/issue/:key', (req, res) => {
   handleJiraWrite(req, res, creds => jiraWrite.applyChange(creds, req.params.key, req.body));
 });

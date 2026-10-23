@@ -11,9 +11,13 @@ const path = require('path');
 const {
   createJiraWriteApi,
   normalizeChange,
+  planCreate,
   replaceIssueInState,
+  insertIssueIntoState,
   trimTransitions,
   trimFieldMeta,
+  trimIssueTypes,
+  trimCreateFields,
   trimUsers,
   jiraErrorMessage,
 } = require('../lib/jira-write');
@@ -98,6 +102,50 @@ const updated = {
 assert.strictEqual(replaceIssueInState(state, updated), 2);
 assert.strictEqual(state.cache.NFS.issues[0].fields.summary, 'New');
 assert.strictEqual(state.releaseCache['2026.R2'].NFS.issues[0].fields.status.name, 'Closed');
+
+const created = planCreate({
+  projectKey: 'nfs',
+  issueTypeId: '10001',
+  summary: '  Add the export  ',
+  description: 'Line one',
+  parentKey: 'nfs-10',
+  fixVersionId: '42',
+  priorityId: '3',
+  fields: { customfield_13116: { id: '10020' } },
+  places: [{ release: 'N2027.R1', dashboardKey: 'NFS' }],
+});
+assert.strictEqual(created.fields.project.key, 'NFS');
+assert.strictEqual(created.fields.issuetype.id, '10001');
+assert.strictEqual(created.fields.summary, 'Add the export');
+assert.strictEqual(created.fields.description.type, 'doc');
+assert.strictEqual(created.fields.parent.key, 'NFS-10');
+assert.deepStrictEqual(created.fields.fixVersions, [{ id: '42' }]);
+assert.deepStrictEqual(created.fields.customfield_13116, { id: '10020' });
+assert.strictEqual(created.places[0].dashboardKey, 'NFS');
+throws(() => planCreate({ projectKey: 'NFS', issueTypeId: '1', summary: '' }), /Summary/);
+throws(() => planCreate({ projectKey: 'x', issueTypeId: '1', summary: 'A' }), /Jira project/);
+
+const createdIssue = { key: 'NFS-9', fields: { summary: 'Add the export' } };
+const shared = [{ key: 'NFS-1', fields: { summary: 'Stay' } }];
+const createState = { releaseCache: { 'N2027.R1': { NFS: { issues: shared } } } };
+assert.strictEqual(insertIssueIntoState(createState, createdIssue, [
+  { release: 'N2027.R1', dashboardKey: 'NFS' },
+  { release: 'N2027.R1', dashboardKey: 'NFS' },
+]), 1);
+assert.strictEqual(createState.releaseCache['N2027.R1'].NFS.issues[0].key, 'NFS-9');
+assert.strictEqual(createState.releaseCache['N2027.R1'].NFS.issues[1].key, 'NFS-1');
+assert.strictEqual(insertIssueIntoState({ releaseCache: {} }, createdIssue, [{ release: 'N2026.R2', dashboardKey: 'BUGS' }]), 1);
+
+assert.strictEqual(trimIssueTypes([{ id: 1, name: 'Bug', subtask: false }, { id: 2, name: 'Sub-task', subtask: true }]).length, 1);
+const createFields = trimCreateFields([
+  { fieldId: 'summary', required: true },
+  { fieldId: 'description', required: true },
+  { fieldId: 'priority', required: true, name: 'Priority', schema: { type: 'priority' }, allowedValues: [{ id: 3, name: 'High' }] },
+  { fieldId: 'customfield_1', required: true, name: 'Secret', schema: { type: 'any' } },
+]);
+assert.strictEqual(createFields.descriptionRequired, true);
+assert.strictEqual(createFields.fields[0].fieldId, 'priority');
+assert.deepStrictEqual(createFields.unsupported, ['Secret']);
 
 async function runApply() {
 const calls = [];
@@ -218,7 +266,53 @@ assert.ok(writeUi.includes('jw-summary'));
 assert.ok(writeUi.includes("action === 'retry'"));
 assert.ok(dashboard.includes('textarea.jw-summary'));
 assert.ok(proxy.includes("app.post('/api/jira/issue/:key'"));
+assert.ok(proxy.includes("app.post('/api/jira/issues'"));
+assert.ok(proxy.includes("app.get('/api/jira/create-meta'"));
 assert.ok(proxy.includes('/lib/jira-write-ui.js'));
+assert.ok(dashboard.includes('JiraWrite.openCreate'));
+assert.ok(dashboard.includes('proj-new-ticket'));
+assert.ok(writeUi.includes('openCreate'));
+assert.ok(writeUi.includes('/api/jira/issues'));
+assert.ok(writeUi.includes('/api/jira/create-meta'));
+
+const createCalls = [];
+let createdSaved = null;
+const createApi = createJiraWriteApi({
+  async jiraFetch(_creds, method, apiPath, body) {
+    createCalls.push({ method, apiPath, body });
+    if (method === 'POST' && apiPath === '/rest/api/3/issue') return { ok: true, status: 201, json: { key: 'NFS-9' } };
+    if (apiPath.includes('/changelog')) return { ok: true, status: 200, json: { isLast: true, total: 0, values: [] } };
+    if (apiPath.includes('/issuetypes/10001')) {
+      return { ok: true, status: 200, json: { isLast: true, total: 1, fields: [{ fieldId: 'summary', required: true }] } };
+    }
+    if (apiPath.includes('/issuetypes')) {
+      return { ok: true, status: 200, json: { isLast: true, total: 1, issueTypes: [{ id: '10001', name: 'Enhancement', subtask: false, hierarchyLevel: 0 }] } };
+    }
+    if (apiPath.includes('/versions')) return { ok: true, status: 200, json: [{ id: '42', name: 'N2027.R1' }] };
+    if (method === 'GET') {
+      return { ok: true, status: 200, json: { id: '90', key: 'NFS-9', fields: { summary: 'Add the export', updated: '2026-04-01T00:00:00.000+0000' } } };
+    }
+    return { ok: false, status: 500, json: null, text: '' };
+  },
+  loadState() { return { releaseCache: { 'N2027.R1': { NFS: { issues: [{ key: 'NFS-1', fields: { summary: 'Stay' } }] } } } }; },
+  saveState(next) { createdSaved = next; },
+});
+const meta = await createApi.createMeta({}, 'NFS');
+assert.strictEqual(meta.issueTypes[0].name, 'Enhancement');
+assert.strictEqual(meta.versions[0].name, 'N2027.R1');
+const fieldMeta = await createApi.createMeta({}, 'NFS', '10001');
+assert.strictEqual(fieldMeta.fields.length, 0);
+const made = await createApi.createIssue({}, {
+  projectKey: 'NFS',
+  issueTypeId: '10001',
+  summary: 'Add the export',
+  places: [{ release: 'N2027.R1', dashboardKey: 'NFS' }],
+});
+assert.strictEqual(made.issue.key, 'NFS-9');
+assert.strictEqual(made.updatedCache, 1);
+assert.strictEqual(createdSaved.releaseCache['N2027.R1'].NFS.issues[0].key, 'NFS-9');
+assert.strictEqual(createdSaved.releaseCache['N2027.R1'].NFS.issues[1].key, 'NFS-1');
+assert.strictEqual(createCalls.find(call => call.method === 'POST').body.fields.summary, 'Add the export');
 }
 
 runApply().then(() => {
