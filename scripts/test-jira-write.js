@@ -179,6 +179,31 @@ await assert.rejects(
 );
 assert.strictEqual(conflictCalls.length, 1);
 
+const briefCalls = [];
+const briefApi = createJiraWriteApi({
+  async jiraFetch(_creds, _method, apiPath) {
+    briefCalls.push(apiPath);
+    return {
+      ok: true,
+      status: 200,
+      json: {
+        fields: {
+          summary: 'Full summary',
+          issuetype: { name: 'Story' },
+          status: { name: 'Open' },
+          updated: '2026-03-03T00:00:00.000+0000',
+        },
+      },
+    };
+  },
+  loadState() { return {}; },
+  saveState() {},
+});
+const brief = await briefApi.issueBrief({}, 'FCO-683');
+assert.strictEqual(brief.summary, 'Full summary');
+assert.strictEqual(brief.updated, '2026-03-03T00:00:00.000+0000');
+assert.ok(briefCalls[0].includes('updated'));
+
 const root = path.join(__dirname, '..');
 const dashboard = fs.readFileSync(path.join(root, 'dashboard.html'), 'utf8');
 const proxy = fs.readFileSync(path.join(root, 'proxy.js'), 'utf8');
@@ -186,7 +211,12 @@ assert.ok(dashboard.includes('/lib/jira-write-ui.js'));
 assert.ok(dashboard.includes('JiraWrite.wrap'));
 assert.ok(dashboard.includes("gapEdit(ticket.key, 'cf_devest'"));
 assert.ok(dashboard.includes("gapEdit(ticket.key, 'cf_devact'"));
-assert.ok(dashboard.includes('JiraWrite.daysField') || fs.readFileSync(path.join(root, 'lib', 'jira-write-ui.js'), 'utf8').includes('function daysField'));
+const writeUi = fs.readFileSync(path.join(root, 'lib', 'jira-write-ui.js'), 'utf8');
+assert.ok(dashboard.includes('JiraWrite.daysField') || writeUi.includes('function daysField'));
+assert.ok(writeUi.includes('summaryBaseline'));
+assert.ok(writeUi.includes('jw-summary'));
+assert.ok(writeUi.includes("action === 'retry'"));
+assert.ok(dashboard.includes('textarea.jw-summary'));
 assert.ok(proxy.includes("app.post('/api/jira/issue/:key'"));
 assert.ok(proxy.includes('/lib/jira-write-ui.js'));
 }
