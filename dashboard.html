@@ -244,7 +244,8 @@ html.sidebar-collapsed #log-badge { position: absolute; top: 3px; right: 3px; ma
 .proj-header { margin-bottom: 18px; }
 .proj-title { display: flex; align-items: center; gap: 10px; margin-bottom: 6px; }
 .proj-title h2 { font-size: 18px; font-weight: 600; }
-.proj-title .proj-new-ticket { margin-left: auto; }
+.proj-title-actions { margin-left: auto; display: flex; align-items: center; gap: 8px; flex-shrink: 0; }
+.proj-sync-status { font-size: 12px; color: var(--text3); }
 .jql-box { font-family: 'SFMono-Regular', Consolas, monospace; font-size: 11px; color: var(--text3); background: var(--bg2); border: 0.5px solid var(--border); border-radius: var(--radius); padding: 5px 10px; max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; cursor: pointer; display: block; }
 .jql-box.expanded { white-space: normal; word-break: break-all; }
 
@@ -3699,6 +3700,28 @@ async function runConnectorSyncBatch(releases, projectKeys, mode = 'manual') {
   return { synced, skipped: tally.skipped.length, failed: tally.failed.length };
 }
 
+function setProjectSyncStatus(projectKey, message) {
+  const el = document.getElementById('proj-sync-status-' + projectKey);
+  if (el) el.textContent = message || '';
+}
+
+async function syncProjectPage(projectKey) {
+  const proj = getAllProjects().find(project => project.key === projectKey);
+  if (!proj) return;
+  if (_connectorSyncing) return;
+  if (!S.creds.url) {
+    setProjectSyncStatus(projectKey, 'Configure Jira credentials first.');
+    return;
+  }
+  const releases = getSelectedReleaseNames();
+  if (!releases.length) {
+    setProjectSyncStatus(projectKey, 'Select a release in the top bar first.');
+    return;
+  }
+  setProjectSyncStatus(projectKey, 'Syncing…');
+  await runConnectorSyncBatch(releases, [proj.key]);
+}
+
 async function runConnectorManualSync() {
   const state = getConnectorState();
   const status = document.getElementById('connector-manual-status');
@@ -5347,7 +5370,11 @@ function renderProject(proj) {
         <div class="proj-title">
           <span class="proj-dot" style="background:${proj.color};width:12px;height:12px"></span>
           <h2>${esc(proj.name)}</h2>
-          <button class="btn btn-sm primary proj-new-ticket" type="button" onclick='JiraWrite.openCreate(${JSON.stringify(proj.key)})'>New ticket</button>
+          <span class="proj-title-actions">
+            <span class="proj-sync-status" id="proj-sync-status-${proj.key}"></span>
+            <button class="btn btn-sm" type="button" onclick='syncProjectPage(${JSON.stringify(proj.key)})' title="Sync this project for the releases selected in the top bar">Sync</button>
+            <button class="btn btn-sm primary proj-new-ticket" type="button" onclick='JiraWrite.openCreate(${JSON.stringify(proj.key)})'>New ticket</button>
+          </span>
         </div>
         <div class="jql-box" title="Click to expand/collapse" onclick="this.classList.toggle('expanded')">${esc(effJql)}</div>
       </div>
@@ -5370,7 +5397,7 @@ function renderProject(proj) {
     issuesEl.innerHTML = `<div class="info-box">This project is set to patch releases only, and <strong>${esc(releaseLabel)}</strong> has no patch names. Add patches in <button class="btn btn-sm" onclick="nav('releases-config')">Releases</button>, or change the include mode in Projects.</div>`;
     return;
   }
-  if (!data) { issuesEl.innerHTML = `<div class="info-box">No synced data for ${esc(releaseLabel)}. Open <button class="btn btn-sm" onclick="nav('connector')">Jira Connector</button> to sync it.</div>`; return; }
+  if (!data) { issuesEl.innerHTML = `<div class="info-box">No synced data for ${esc(releaseLabel)}. Use <strong>Sync</strong> above to load this project.</div>`; return; }
   if (data.err === 'not_configured') { issuesEl.innerHTML = `<div class="err-box">No synced data is available. Open <button class="btn btn-sm" onclick="nav('connector')">Jira Connector</button> to sync it.</div>`; return; }
   if (data.err) { issuesEl.innerHTML = `<div class="err-box">Error: ${esc(data.err)}</div>`; return; }
 
