@@ -400,6 +400,16 @@ app.put('/api/user-preferences/project-sorts/:projectKey', (req, res) => {
   }
 });
 
+app.put('/api/user-preferences/column-widths/:projectKey', (req, res) => {
+  const user = requireUser(req, res);
+  if (!user) return;
+  try {
+    res.json(userPreferences.setColumnWidths(user.id, req.params.projectKey, req.body?.widths));
+  } catch (err) {
+    sendStoreError(res, err);
+  }
+});
+
 app.put('/api/user-preferences/group-by-epic', (req, res) => {
   const user = requireUser(req, res);
   if (!user) return;

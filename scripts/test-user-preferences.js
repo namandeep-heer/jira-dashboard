@@ -15,7 +15,7 @@ const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'jira-dashboard-prefs-'));
 const filePath = path.join(tmpDir, 'user-preferences.json');
 const prefs = createUserPreferences({ filePath });
 
-assert.deepStrictEqual(prefs.get('user-a'), { version: 1, projectSorts: {}, groupByEpic: true });
+assert.deepStrictEqual(prefs.get('user-a'), { version: 1, projectSorts: {}, groupByEpic: true, columnWidths: {} });
 
 const saved = prefs.setProjectSort('user-a', 'NFS', [
   { col: 'priority', dir: 'asc' },
@@ -91,7 +91,16 @@ assert.deepStrictEqual(prefs.get('user-a').projectSorts, {});
 assert.deepStrictEqual(createUserPreferences({ filePath }).get('user-a').groupByEpic, false);
 
 prefs.setGroupByEpic('user-a', true);
-assert.deepStrictEqual(prefs.get('user-a'), { version: 1, projectSorts: {}, groupByEpic: true });
+assert.deepStrictEqual(prefs.get('user-a'), { version: 1, projectSorts: {}, groupByEpic: true, columnWidths: {} });
 assert.throws(() => prefs.setGroupByEpic('user-a', 'no'), /on or off/);
+
+const widths = prefs.setColumnWidths('user-a', 'NFS', { summary: 280.4, notes: 88, 'nope field': 100 });
+assert.deepStrictEqual(widths.widths, { summary: 280, notes: 88 });
+assert.deepStrictEqual(prefs.get('user-a').columnWidths.NFS, { summary: 280, notes: 88 });
+assert.deepStrictEqual(createUserPreferences({ filePath }).get('user-a').columnWidths.NFS, { summary: 280, notes: 88 });
+assert.throws(() => prefs.setColumnWidths('user-a', 'NFS', { summary: 10 }), /between/);
+assert.throws(() => prefs.setColumnWidths('user-a', 'NFS', []), /object/);
+assert.deepStrictEqual(prefs.setColumnWidths('user-a', 'NFS', {}).widths, {});
+assert.deepStrictEqual(prefs.get('user-a').columnWidths, {});
 
 console.log('user preferences ok');

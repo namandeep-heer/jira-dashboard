@@ -269,8 +269,16 @@ table.issues th.sorted { color: var(--text); }
 table.issues th.sorted .sort-icon { opacity: 1; color: var(--blue); }
 table.issues th.filtered { color: var(--text); }
 table.issues td { padding: 7px 10px; border-bottom: 0.5px solid var(--border); vertical-align: middle; max-width: 200px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.th-inner { display: flex; align-items: center; gap: 4px; }
+.th-inner { display: flex; align-items: center; gap: 4px; min-width: 0; padding-right: 6px; }
 .th-label { flex: 1; cursor: pointer; min-width: 0; }
+.col-resizer { position: absolute; top: 0; right: 0; z-index: 2; width: 8px; height: 100%; padding: 0; border: none; background: transparent; cursor: col-resize; }
+.col-resizer::after { content: ''; position: absolute; top: 18%; bottom: 18%; left: 3px; width: 1px; background: transparent; }
+table.issues th:hover .col-resizer::after, .col-resizer:focus-visible::after, .col-resizer.is-active::after { background: var(--border2); }
+.col-resizer:focus-visible { outline: 2px solid var(--blue); outline-offset: -2px; }
+table.issues.is-col-sized { table-layout: fixed; width: max-content; min-width: 0; }
+table.issues.is-col-sized td, table.issues.is-col-sized th.notes-col, table.issues.is-col-sized td.notes-cell { max-width: none; width: auto; }
+table.issues.is-col-sized .th-label { overflow: hidden; text-overflow: ellipsis; }
+body.is-col-resize, body.is-col-resize * { cursor: col-resize !important; user-select: none !important; }
 .th-filter { display: inline-flex; align-items: center; justify-content: center; width: 18px; height: 18px; padding: 0; border: none; border-radius: 4px; background: none; color: inherit; cursor: pointer; opacity: .35; flex-shrink: 0; }
 .th-filter:hover, .th-filter.active, .th-filter.has-filter { opacity: 1; color: var(--blue); background: var(--blue-bg); }
 .th-filter svg { width: 11px; height: 11px; }
@@ -5740,7 +5748,8 @@ function compareProjectSortValues(a, b, dir) {
 }
 
 const MAX_PROJECT_SORT_LEVELS = 8;
-let _userPrefs = { projectSorts: {}, groupByEpic: true };
+let _userPrefs = { projectSorts: {}, groupByEpic: true, columnWidths: {} };
+let _columnWidthTimers = {};
 let _epicCollapsed = {};
 let _epicGroupStatus = {};
 let _projSortHoldSave = {};
@@ -5852,9 +5861,11 @@ function applyRouteProjectSort(proj, params) {
 
 function rememberUserPreferences(data) {
   const projectSorts = data && data.projectSorts && typeof data.projectSorts === 'object' ? data.projectSorts : {};
+  const columnWidths = data && data.columnWidths && typeof data.columnWidths === 'object' ? data.columnWidths : {};
   _userPrefs = {
     projectSorts,
     groupByEpic: !data || data.groupByEpic !== false,
+    columnWidths,
   };
   if (!S._projSort) S._projSort = {};
   Object.entries(projectSorts).forEach(([key, levels]) => {
@@ -7158,6 +7169,175 @@ async function setEpicGrouping(projKey, enabled) {
   }
 }
 
+const MIN_COLUMN_WIDTH = 64;
+const MAX_COLUMN_WIDTH = 720;
+
+function defaultColumnWidth(colId) {
+  if (colId === 'notes') return 88;
+  if (colId === 'key') return 112;
+  if (colId === 'summary') return 320;
+  if (colId === 'status') return 160;
+  if (colId === 'parent') return 120;
+  return 140;
+}
+
+function clampColumnWidth(value) {
+  const n = Math.round(Number(value));
+  if (!Number.isFinite(n)) return defaultColumnWidth('');
+  return Math.max(MIN_COLUMN_WIDTH, Math.min(MAX_COLUMN_WIDTH, n));
+}
+
+function getProjectColumnWidths(projKey) {
+  const all = _userPrefs.columnWidths;
+  const row = all && all[projKey];
+  if (!row || typeof row !== 'object') return {};
+  const next = {};
+  Object.keys(row).forEach(colId => {
+    const width = clampColumnWidth(row[colId]);
+    if (width) next[colId] = width;
+  });
+  return next;
+}
+
+function columnResizerHtml(colId, label) {
+  const name = 'Resize ' + (label || colId) + ' column';
+  return `<button type="button" class="col-resizer" data-col="${esc(colId)}" aria-label="${esc(name)}" title="Drag to resize. Double-click to reset."></button>`;
+}
+
+function columnGroupHtml(projKey, colIds) {
+  const widths = getProjectColumnWidths(projKey);
+  const sized = Object.keys(widths).length > 0;
+  let total = 0;
+  const html = `<colgroup>${colIds.map(colId => {
+    const width = sized ? (widths[colId] || defaultColumnWidth(colId)) : 0;
+    if (width) total += width;
+    return `<col data-col="${esc(colId)}"${width ? ` style="width:${width}px"` : ''}>`;
+  }).join('')}</colgroup>`;
+  return { sized, total, html };
+}
+
+function applyColumnWidths(table, widths) {
+  if (!table) return;
+  const cols = table.querySelectorAll('colgroup col');
+  let total = 0;
+  cols.forEach(col => {
+    const id = col.getAttribute('data-col');
+    const width = widths[id] || defaultColumnWidth(id);
+    col.style.width = width + 'px';
+    total += width;
+  });
+  table.classList.add('is-col-sized');
+  table.style.width = total + 'px';
+}
+
+function rememberColumnWidths(projKey, widths) {
+  if (!_userPrefs.columnWidths) _userPrefs.columnWidths = {};
+  const clean = {};
+  Object.keys(widths || {}).forEach(colId => {
+    if (!/^[A-Za-z][A-Za-z0-9_]{0,63}$/.test(colId)) return;
+    clean[colId] = clampColumnWidth(widths[colId]);
+  });
+  if (Object.keys(clean).length) _userPrefs.columnWidths[projKey] = clean;
+  else delete _userPrefs.columnWidths[projKey];
+  clearTimeout(_columnWidthTimers[projKey]);
+  _columnWidthTimers[projKey] = setTimeout(() => { saveColumnWidths(projKey); }, 300);
+}
+
+async function saveColumnWidths(projKey) {
+  const widths = getProjectColumnWidths(projKey);
+  try {
+    const response = await authFetch('/api/user-preferences/column-widths/' + encodeURIComponent(projKey), {
+      method: 'PUT',
+      body: JSON.stringify({ widths }),
+    });
+    const result = await response.json().catch(() => ({}));
+    if (!response.ok) throw new Error(result.error || 'Could not save column widths.');
+  } catch (err) {
+    console.warn('[column-widths]', err.message || err);
+  }
+}
+
+function measuredColumnWidths(table) {
+  const widths = {};
+  const headers = table.querySelectorAll('thead th');
+  table.querySelectorAll('colgroup col').forEach((col, index) => {
+    const id = col.getAttribute('data-col');
+    const header = headers[index];
+    const measured = header ? Math.round(header.getBoundingClientRect().width) : defaultColumnWidth(id);
+    widths[id] = clampColumnWidth(measured || defaultColumnWidth(id));
+  });
+  return widths;
+}
+
+function bindColumnResizers(projKey) {
+  const table = document.querySelector('#issues-' + CSS.escape(projKey) + ' table.issues');
+  if (!table) return;
+  table.querySelectorAll('.col-resizer').forEach(handle => {
+    handle.addEventListener('pointerdown', event => startColumnResize(event, projKey, table, handle));
+    handle.addEventListener('keydown', event => nudgeColumnWidth(event, projKey, table, handle));
+    handle.addEventListener('dblclick', event => {
+      event.preventDefault();
+      event.stopPropagation();
+      const widths = Object.keys(getProjectColumnWidths(projKey)).length
+        ? getProjectColumnWidths(projKey)
+        : measuredColumnWidths(table);
+      const colId = handle.getAttribute('data-col');
+      widths[colId] = defaultColumnWidth(colId);
+      applyColumnWidths(table, widths);
+      rememberColumnWidths(projKey, widths);
+    });
+  });
+}
+
+function startColumnResize(event, projKey, table, handle) {
+  if (event.button != null && event.button !== 0) return;
+  event.preventDefault();
+  event.stopPropagation();
+  const colId = handle.getAttribute('data-col');
+  const widths = Object.keys(getProjectColumnWidths(projKey)).length
+    ? getProjectColumnWidths(projKey)
+    : measuredColumnWidths(table);
+  if (!widths[colId]) widths[colId] = defaultColumnWidth(colId);
+  const startX = event.clientX;
+  const start = widths[colId];
+  applyColumnWidths(table, widths);
+  if (handle.setPointerCapture) handle.setPointerCapture(event.pointerId);
+  document.body.classList.add('is-col-resize');
+  handle.classList.add('is-active');
+  function move(nextEvent) {
+    widths[colId] = clampColumnWidth(start + (nextEvent.clientX - startX));
+    applyColumnWidths(table, widths);
+  }
+  function end() {
+    handle.removeEventListener('pointermove', move);
+    handle.removeEventListener('pointerup', end);
+    handle.removeEventListener('pointercancel', end);
+    document.body.classList.remove('is-col-resize');
+    handle.classList.remove('is-active');
+    rememberColumnWidths(projKey, widths);
+  }
+  handle.addEventListener('pointermove', move);
+  handle.addEventListener('pointerup', end);
+  handle.addEventListener('pointercancel', end);
+}
+
+function nudgeColumnWidth(event, projKey, table, handle) {
+  const step = event.shiftKey ? 48 : 16;
+  let delta = 0;
+  if (event.key === 'ArrowRight') delta = step;
+  else if (event.key === 'ArrowLeft') delta = -step;
+  else return;
+  event.preventDefault();
+  event.stopPropagation();
+  const colId = handle.getAttribute('data-col');
+  const widths = Object.keys(getProjectColumnWidths(projKey)).length
+    ? getProjectColumnWidths(projKey)
+    : measuredColumnWidths(table);
+  widths[colId] = clampColumnWidth((widths[colId] || defaultColumnWidth(colId)) + delta);
+  applyColumnWidths(table, widths);
+  rememberColumnWidths(projKey, widths);
+}
+
 function renderIssueTable(proj, issues, activeFilter) {
   proj = getAllProjects().find(p => p.key === proj.key) || proj;
   const issuesEl = document.getElementById('issues-' + proj.key);
@@ -7249,9 +7429,11 @@ function renderIssueTable(proj, issues, activeFilter) {
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"><polygon points="4 5 20 5 14 13 14 19 10 21 10 13 4 5"/></svg>
         </button>
       </div>
+      ${columnResizerHtml(f.id, f.label)}
     </th>`;
   }).join('');
-  const headersWithNotes = `<th class="notes-col"><span class="th-label">Notes</span></th>` + headers;
+  const headersWithNotes = `<th class="notes-col"><span class="th-label">Notes</span>${columnResizerHtml('notes', 'Notes')}</th>` + headers;
+  const columns = columnGroupHtml(proj.key, ['notes'].concat(vf.map(field => field.id)));
 
   const emptyRow = !sorted.length
     ? `<tr><td class="issues-empty" colspan="${Math.max(vf.length + 1, 1)}">No issues match the current filters${phaseLabel && phaseLabel !== 'Total' ? ' for "'+esc(phaseLabel)+'"' : ''}.</td></tr>`
@@ -7294,7 +7476,8 @@ function renderIssueTable(proj, issues, activeFilter) {
       <span class="proj-count">${countLabel}</span>
     </div>
     <div class="table-wrap proj-issue-table">
-      <table class="issues" aria-label="${esc(proj.key)} issues">
+      <table class="issues${columns.sized ? ' is-col-sized' : ''}" aria-label="${esc(proj.key)} issues"${columns.sized ? ` style="width:${columns.total}px"` : ''}>
+        ${columns.html}
         <thead><tr>${headersWithNotes}</tr></thead>
         <tbody>${rows}${emptyRow}</tbody>
       </table>
@@ -7323,6 +7506,7 @@ function renderIssueTable(proj, issues, activeFilter) {
       positionProjectColFilter(btn);
     }
   }
+  bindColumnResizers(proj.key);
 }
 
 // Field IDs that are Jira user-picker type — always extract displayName
