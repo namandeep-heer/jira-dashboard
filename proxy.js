@@ -467,13 +467,14 @@ async function handleJiraWrite(req, res, fn) {
     res.status(status).json({
       error: err.message || 'Jira request failed',
       updated: err.updated,
+      live: err.live,
       wrote: !!err.wrote,
     });
   }
 }
 
 app.get('/api/jira/issue/:key', (req, res) => {
-  handleJiraWrite(req, res, creds => jiraWrite.issueBrief(creds, req.params.key));
+  handleJiraWrite(req, res, creds => jiraWrite.issueBrief(creds, req.params.key, req.query.field));
 });
 
 app.get('/api/jira/issue/:key/transitions', (req, res) => {

@@ -51,7 +51,7 @@
       "releaseMode": "market"
     },
     "P2P": {
-      "jql": "project in (P2P) AND issuetype in (Enhancement) AND fixVersion in (Blank, UnPlanned, N2027.R1) ORDER BY \"Scope Commitment At SC\", status desc, Priority DESC",
+      "jql": "project in (P2P) AND issuetype in (Epic, Enhancement) AND fixVersion in (Blank, UnPlanned, N2027.R1) ORDER BY \"Scope Commitment At SC\", status desc, Priority DESC",
       "releases": [
         "Blank",
         "UnPlanned",

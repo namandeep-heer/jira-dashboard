@@ -227,6 +227,55 @@ await assert.rejects(
 );
 assert.strictEqual(conflictCalls.length, 1);
 
+const staleCalls = [];
+const stale = createJiraWriteApi({
+  async jiraFetch(_creds, method, apiPath) {
+    staleCalls.push({ method, apiPath });
+    if (String(apiPath).includes('fields=')) {
+      return { ok: true, status: 200, json: { fields: { updated: '2026-05-02T00:00:00.000+0000', customfield_17017: { id: '11', value: 'Committed' } } } };
+    }
+    if (method === 'PUT') return { ok: true, status: 204, json: null, text: '' };
+    if (String(apiPath).includes('/changelog')) return { ok: true, status: 200, json: { isLast: true, total: 0, values: [] } };
+    if (method === 'GET') {
+      return { ok: true, status: 200, json: { id: '19525', key: 'NFS-19525', fields: { summary: 'Scope', updated: '2026-05-02T00:00:00.000+0000', customfield_17017: { id: '11', value: 'Committed' } } } };
+    }
+    return { ok: false, status: 500, json: null, text: '' };
+  },
+  loadState() {
+    return {
+      releaseCache: {
+        'N2027.R1': {
+          NFS: { issues: [{ key: 'NFS-19525', fields: { updated: '2026-05-01T00:00:00.000+0000', customfield_17017: { id: '11', value: 'Committed', self: 'https://jira.example/11' } } }] },
+        },
+      },
+    };
+  },
+  saveState() {},
+});
+const staleWrote = await stale.applyChange({}, 'NFS-19525', {
+  updated: '2026-05-01T00:00:00.000+0000',
+  change: { type: 'option', fieldId: 'customfield_17017', optionId: '12' },
+});
+assert.strictEqual(staleWrote.issue.key, 'NFS-19525');
+assert.ok(staleCalls.some(call => call.method === 'PUT'));
+
+const moved = createJiraWriteApi({
+  async jiraFetch() {
+    return { ok: true, status: 200, json: { fields: { updated: '2026-05-02T00:00:00.000+0000', customfield_17017: { id: '9', value: 'Stretch' } } } };
+  },
+  loadState() {
+    return { releaseCache: { R: { NFS: { issues: [{ key: 'NFS-19525', fields: { updated: '2026-05-01T00:00:00.000+0000', customfield_17017: { id: '11', value: 'Committed' } } }] } } } };
+  },
+  saveState() { throw new Error('should not save'); },
+});
+await assert.rejects(
+  () => moved.applyChange({}, 'NFS-19525', {
+    updated: '2026-05-01T00:00:00.000+0000',
+    change: { type: 'option', fieldId: 'customfield_17017', optionId: '12' },
+  }),
+  err => err.status === 409 && err.updated === '2026-05-02T00:00:00.000+0000' && err.live.customfield_17017.id === '9'
+);
+
 const briefCalls = [];
 const briefApi = createJiraWriteApi({
   async jiraFetch(_creds, _method, apiPath) {
@@ -251,6 +300,11 @@ const brief = await briefApi.issueBrief({}, 'FCO-683');
 assert.strictEqual(brief.summary, 'Full summary');
 assert.strictEqual(brief.updated, '2026-03-03T00:00:00.000+0000');
 assert.ok(briefCalls[0].includes('updated'));
+assert.strictEqual(brief.field, undefined);
+
+const fieldBrief = await briefApi.issueBrief({}, 'FCO-683', 'customfield_17017');
+assert.ok(briefCalls[1].includes('customfield_17017'));
+assert.strictEqual(fieldBrief.field, null);
 
 const root = path.join(__dirname, '..');
 const dashboard = fs.readFileSync(path.join(root, 'dashboard.html'), 'utf8');
@@ -264,6 +318,11 @@ assert.ok(dashboard.includes('JiraWrite.daysField') || writeUi.includes('functio
 assert.ok(writeUi.includes('summaryBaseline'));
 assert.ok(writeUi.includes('jw-summary'));
 assert.ok(writeUi.includes("action === 'retry'"));
+assert.ok(writeUi.includes('function recoverConflict'));
+assert.ok(writeUi.includes('fieldBaseline'));
+assert.ok(writeUi.includes('Save again to replace it'));
+assert.ok(writeUi.includes('recoverDays'));
+assert.ok(!writeUi.includes('Refresh and try again'));
 assert.ok(dashboard.includes('textarea.jw-summary'));
 assert.ok(proxy.includes("app.post('/api/jira/issue/:key'"));
 assert.ok(proxy.includes("app.post('/api/jira/issues'"));
@@ -272,6 +331,13 @@ assert.ok(proxy.includes('/lib/jira-write-ui.js'));
 assert.ok(dashboard.includes('JiraWrite.openCreate'));
 assert.ok(dashboard.includes('proj-new-ticket'));
 assert.ok(writeUi.includes('openCreate'));
+assert.ok(writeUi.includes('function showCreatedPopup'));
+assert.ok(writeUi.includes('function revealCreatedIssue'));
+assert.ok(writeUi.includes('jw-created-key'));
+assert.ok(writeUi.includes('jw-created-name'));
+assert.ok(dashboard.includes('data-issue-key'));
+assert.ok(dashboard.includes('jw-created-link'));
+assert.ok(!writeUi.includes('It is not part of this list'));
 assert.ok(writeUi.includes('/api/jira/issues'));
 assert.ok(writeUi.includes('/api/jira/create-meta'));
 
