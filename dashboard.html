@@ -246,6 +246,17 @@ html.sidebar-collapsed #log-badge { position: absolute; top: 3px; right: 3px; ma
 .proj-title h2 { font-size: 18px; font-weight: 600; }
 .proj-title-actions { margin-left: auto; display: flex; align-items: center; gap: 8px; flex-shrink: 0; }
 .proj-sync-status { font-size: 12px; color: var(--text3); }
+.proj-sync-btn { display: inline-flex; align-items: center; gap: 6px; }
+.proj-sync-btn.is-syncing { color: var(--text2); }
+.proj-sync-ring { width: 14px; height: 14px; flex-shrink: 0; }
+.proj-sync-ring circle { fill: none; stroke-width: 2; }
+.proj-sync-track { stroke: var(--border2); }
+.proj-sync-arc { stroke: currentColor; stroke-linecap: round; transform: rotate(-90deg); transform-origin: 10px 10px; stroke-dasharray: 43.98; stroke-dashoffset: 43.98; transition: stroke-dashoffset .28s cubic-bezier(.2,.8,.2,1); }
+.proj-sync-notice { position: fixed; z-index: 960; right: 16px; bottom: 20px; display: flex; flex-direction: column; gap: 2px; width: min(320px, calc(100vw - 24px)); padding: 12px 14px; background: var(--bg); color: var(--text); border: 0.5px solid var(--border2); border-radius: 16px; box-shadow: 0 16px 40px rgba(0,0,0,.16); transform: translateY(10px); opacity: 0; transition: opacity .22s cubic-bezier(.2,.8,.2,1), transform .28s cubic-bezier(.2,.8,.2,1); }
+.proj-sync-notice.is-in { opacity: 1; transform: translateY(0); }
+.proj-sync-notice[hidden] { display: none !important; }
+.proj-sync-notice-title { font-size: 13px; font-weight: 600; }
+.proj-sync-notice-detail { font-size: 13px; line-height: 1.4; color: var(--text2); }
 .jql-box { font-family: 'SFMono-Regular', Consolas, monospace; font-size: 11px; color: var(--text3); background: var(--bg2); border: 0.5px solid var(--border); border-radius: var(--radius); padding: 5px 10px; max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; cursor: pointer; display: block; }
 .jql-box.expanded { white-space: normal; word-break: break-all; }
 
@@ -437,7 +448,7 @@ textarea.jw-summary { display: block; min-height: 96px; resize: vertical; line-h
 .jw-created-close:hover { background: var(--bg2); color: var(--text); }
 table.issues tr.is-just-created td { background: var(--bg2); }
 @media (prefers-reduced-motion: reduce) {
-  .jw-edit, .jw-created { transition: none; }
+  .jw-edit, .jw-created, .proj-sync-arc, .proj-sync-notice { transition: none; }
 }
 #content:has(.proj-page.active) { overflow: hidden; display: flex; flex-direction: column; }
 .proj-page.page.active { display: flex; flex-direction: column; flex: 1; min-height: 0; overflow: hidden; }
@@ -3627,11 +3638,13 @@ function refreshSkipDetail(reason) {
   return formatProjectSyncSkipReason(reason).replace(/^Skipped — /, '');
 }
 
-async function runConnectorSyncBatch(releases, projectKeys, mode = 'manual') {
-  if (_connectorSyncing) return { synced: 0, skipped: 0 };
+async function runConnectorSyncBatch(releases, projectKeys, mode = 'manual', options) {
+  const background = !!(options && options.background);
+  const onProgress = options && typeof options.onProgress === 'function' ? options.onProgress : null;
+  if (_connectorSyncing) return { synced: 0, skipped: 0, failed: 0, issues: 0 };
   const projects = getConnectorProjects().filter(project => projectKeys.includes(project.key));
   const jobs = buildConnectorSyncJobs(releases, projects);
-  if (!jobs.length) return { synced: 0, skipped: 0 };
+  if (!jobs.length) return { synced: 0, skipped: 0, failed: 0, issues: 0 };
 
   const overlay = document.getElementById('refresh-overlay');
   const rowsEl = document.getElementById('refresh-rows');
@@ -3652,35 +3665,50 @@ async function runConnectorSyncBatch(releases, projectKeys, mode = 'manual') {
     });
   });
   const fetchJobs = jobs.filter(job => !job.skipReason);
+  function reportProgress() {
+    if (!onProgress) return;
+    onProgress({
+      done: tally.skipped.length + tally.synced.length + tally.failed.length,
+      total: tally.total,
+      synced: tally.synced.length,
+      skipped: tally.skipped.length,
+      failed: tally.failed.length,
+    });
+  }
   _connectorSyncing = true;
   window._refreshCancelled = false;
-  titleEl.textContent = mode === 'schedule' ? 'Scheduled sync in progress…' : 'Connector sync in progress…';
-  let lastRelease = null;
-  rowsEl.innerHTML = fetchJobs.length ? fetchJobs.map((job, index) => {
-    const head = job.release !== lastRelease ? `<div class="refresh-release-head">${esc(job.release)}</div>` : '';
-    lastRelease = job.release;
-    const modeLabel = projectIgnoresReleaseFilter(job.project) ? '' : formatReleaseModeLabel(getProjectReleaseMode(job.project.key, job.project));
-    const versions = formatConnectorFixVersionClause(getConnectorJobVersionNames(job.project, job.release), job.release);
-    const detail = [modeLabel, versions].filter(Boolean).join(' · ');
-    return `${head}<div class="refresh-proj-row" id="connector-row-${index}"><span style="width:8px;height:8px;border-radius:50%;background:${job.project.color};flex-shrink:0;margin-top:4px"></span><span class="refresh-proj-name"><span class="refresh-proj-title">${esc(job.project.name)}</span>${detail ? `<span class="refresh-proj-detail">${esc(detail)}</span>` : ''}</span><span class="refresh-status pending" id="connector-status-${index}">Waiting…</span></div>`;
-  }).join('') : '<div class="refresh-empty">Nothing to fetch. Hover Skipped to see why each pair was left out.</div>';
-  paintRefreshStats(summEl, tally);
-  setRefreshBar(barEl, tally.skipped.length, tally.total);
-  overlay.classList.remove('hidden');
-  btn.disabled = true;
-  cancelBtn.disabled = false;
-  cancelBtn.textContent = 'Cancel';
-  cancelBtn.style.display = 'inline-flex';
+  if (!background && titleEl) titleEl.textContent = mode === 'schedule' ? 'Scheduled sync in progress…' : 'Connector sync in progress…';
+  if (!background) {
+    let lastRelease = null;
+    rowsEl.innerHTML = fetchJobs.length ? fetchJobs.map((job, index) => {
+      const head = job.release !== lastRelease ? `<div class="refresh-release-head">${esc(job.release)}</div>` : '';
+      lastRelease = job.release;
+      const modeLabel = projectIgnoresReleaseFilter(job.project) ? '' : formatReleaseModeLabel(getProjectReleaseMode(job.project.key, job.project));
+      const versions = formatConnectorFixVersionClause(getConnectorJobVersionNames(job.project, job.release), job.release);
+      const detail = [modeLabel, versions].filter(Boolean).join(' · ');
+      return `${head}<div class="refresh-proj-row" id="connector-row-${index}"><span style="width:8px;height:8px;border-radius:50%;background:${job.project.color};flex-shrink:0;margin-top:4px"></span><span class="refresh-proj-name"><span class="refresh-proj-title">${esc(job.project.name)}</span>${detail ? `<span class="refresh-proj-detail">${esc(detail)}</span>` : ''}</span><span class="refresh-status pending" id="connector-status-${index}">Waiting…</span></div>`;
+    }).join('') : '<div class="refresh-empty">Nothing to fetch. Hover Skipped to see why each pair was left out.</div>';
+    paintRefreshStats(summEl, tally);
+    setRefreshBar(barEl, tally.skipped.length, tally.total);
+    overlay.classList.remove('hidden');
+    btn.disabled = true;
+    cancelBtn.disabled = false;
+    cancelBtn.textContent = 'Cancel';
+    cancelBtn.style.display = 'inline-flex';
+  }
+  reportProgress();
 
   try {
     for (let index = 0; index < fetchJobs.length; index++) {
       if (window._refreshCancelled) break;
       const job = fetchJobs[index];
-      const statusEl = document.getElementById('connector-status-' + index);
+      const statusEl = background ? null : document.getElementById('connector-status-' + index);
       const label = syncPairLabel(job.release, job.project);
-      statusEl.className = 'refresh-status loading';
-      statusEl.textContent = 'Loading…';
-      const rowEl = document.getElementById('connector-row-' + index);
+      if (statusEl) {
+        statusEl.className = 'refresh-status loading';
+        statusEl.textContent = 'Loading…';
+      }
+      const rowEl = background ? null : document.getElementById('connector-row-' + index);
       if (rowEl && rowEl.scrollIntoView) rowEl.scrollIntoView({ block: 'nearest' });
       const data = await fetchIssues(job.project, true, job.release);
       if (data && !data.err) {
@@ -3689,46 +3717,101 @@ async function runConnectorSyncBatch(releases, projectKeys, mode = 'manual') {
         S.lastSyncAt[job.release] = Date.now();
         synced++;
         const issueCount = (data.issues || []).length;
-        tally.synced.push({ label, detail: `${issueCount} issue${issueCount === 1 ? '' : 's'}` });
-        statusEl.className = 'refresh-status ok';
-        statusEl.textContent = `✓ ${issueCount} issues`;
+        tally.synced.push({ label, detail: `${issueCount} issue${issueCount === 1 ? '' : 's'}`, issues: issueCount });
+        if (statusEl) {
+          statusEl.className = 'refresh-status ok';
+          statusEl.textContent = `✓ ${issueCount} issues`;
+        }
       } else {
         const err = (data && data.err) || 'Failed';
         tally.failed.push({ label, detail: err });
-        statusEl.className = 'refresh-status err';
-        statusEl.textContent = '✗ ' + err.slice(0, 40);
+        if (statusEl) {
+          statusEl.className = 'refresh-status err';
+          statusEl.textContent = '✗ ' + err.slice(0, 40);
+        }
       }
-      paintRefreshStats(summEl, tally);
-      setRefreshBar(barEl, tally.skipped.length + tally.synced.length + tally.failed.length, tally.total);
+      if (!background) {
+        paintRefreshStats(summEl, tally);
+        setRefreshBar(barEl, tally.skipped.length + tally.synced.length + tally.failed.length, tally.total);
+      }
+      reportProgress();
     }
   } finally {
     S.activeRelease = originalRelease;
     bindCacheToActiveRelease();
-    titleEl.textContent = window._refreshCancelled ? 'Connector sync cancelled' : 'Connector sync complete';
-    paintRefreshStats(summEl, tally);
     persist();
     updateSyncStatus();
-    const current = getAllProjects().find(project => project.id === S.page);
-    if (current) renderProject(current);
-    await new Promise(resolve => setTimeout(resolve, 500));
-    overlay.classList.add('hidden');
-    btn.disabled = false;
-    cancelBtn.style.display = 'none';
+    if (!background) {
+      if (titleEl) titleEl.textContent = window._refreshCancelled ? 'Connector sync cancelled' : 'Connector sync complete';
+      paintRefreshStats(summEl, tally);
+      const current = getAllProjects().find(project => project.id === S.page);
+      if (current) renderProject(current);
+      await new Promise(resolve => setTimeout(resolve, 500));
+      if (overlay) overlay.classList.add('hidden');
+      if (btn) btn.disabled = false;
+      if (cancelBtn) cancelBtn.style.display = 'none';
+    }
+    const cancelled = !!window._refreshCancelled;
     window._refreshCancelled = false;
     _connectorSyncing = false;
+    tally.cancelled = cancelled;
   }
-  return { synced, skipped: tally.skipped.length, failed: tally.failed.length };
+  const issues = tally.synced.reduce((sum, row) => sum + (row.issues || 0), 0);
+  return { synced, skipped: tally.skipped.length, failed: tally.failed.length, issues, cancelled: !!tally.cancelled };
 }
+
+const PROJECT_SYNC_RING = 43.98;
+let _pageSync = null;
 
 function setProjectSyncStatus(projectKey, message) {
   const el = document.getElementById('proj-sync-status-' + projectKey);
   if (el) el.textContent = message || '';
 }
 
+function setProjectSyncRing(projectKey, done, total) {
+  const btn = document.getElementById('proj-sync-btn-' + projectKey);
+  if (!btn) return;
+  btn.classList.add('is-syncing');
+  btn.disabled = true;
+  const ring = btn.querySelector('.proj-sync-ring');
+  const arc = btn.querySelector('.proj-sync-arc');
+  if (ring) ring.hidden = false;
+  const ratio = total > 0 ? done / total : 0;
+  const shown = done === 0 ? 0.08 : ratio;
+  if (arc) arc.style.strokeDashoffset = String(PROJECT_SYNC_RING * (1 - Math.max(0, Math.min(1, shown))));
+  btn.title = total ? 'Syncing ' + Math.min(done, total) + ' of ' + total : 'Syncing';
+}
+
+function showProjectSyncNotice(title, detail) {
+  let pop = document.getElementById('proj-sync-notice');
+  if (!pop) {
+    pop = document.createElement('div');
+    pop.id = 'proj-sync-notice';
+    pop.className = 'proj-sync-notice';
+    pop.setAttribute('role', 'status');
+    pop.setAttribute('aria-live', 'polite');
+    pop.innerHTML = '<span class="proj-sync-notice-title"></span><span class="proj-sync-notice-detail"></span>';
+    document.body.appendChild(pop);
+  }
+  pop.querySelector('.proj-sync-notice-title').textContent = title;
+  pop.querySelector('.proj-sync-notice-detail').textContent = detail || '';
+  pop.hidden = false;
+  if (typeof requestAnimationFrame === 'function') requestAnimationFrame(function () { pop.classList.add('is-in'); });
+  else pop.classList.add('is-in');
+  clearTimeout(pop._timer);
+  pop._timer = setTimeout(function () {
+    pop.classList.remove('is-in');
+    pop.hidden = true;
+  }, 6500);
+}
+
 async function syncProjectPage(projectKey) {
   const proj = getAllProjects().find(project => project.key === projectKey);
   if (!proj) return;
-  if (_connectorSyncing) return;
+  if (_connectorSyncing) {
+    setProjectSyncStatus(projectKey, 'A sync is already running.');
+    return;
+  }
   if (!S.creds.url) {
     setProjectSyncStatus(projectKey, 'Configure Jira credentials first.');
     return;
@@ -3738,8 +3821,41 @@ async function syncProjectPage(projectKey) {
     setProjectSyncStatus(projectKey, 'Select a release in the top bar first.');
     return;
   }
-  setProjectSyncStatus(projectKey, 'Syncing…');
-  await runConnectorSyncBatch(releases, [proj.key]);
+  setProjectSyncStatus(projectKey, '');
+  _pageSync = { key: projectKey, done: 0, total: 1 };
+  setProjectSyncRing(projectKey, 0, 1);
+  let result;
+  try {
+    result = await runConnectorSyncBatch(releases, [proj.key], 'manual', {
+      background: true,
+      onProgress(info) {
+        _pageSync = { key: projectKey, done: info.done, total: info.total };
+        setProjectSyncRing(projectKey, info.done, info.total);
+      },
+    });
+  } catch (err) {
+    _pageSync = null;
+    showProjectSyncNotice(proj.name + ' sync failed', err.message || 'Could not reach Jira.');
+    return;
+  }
+  _pageSync = null;
+  const issues = result.issues || 0;
+  const failed = result.failed || 0;
+  const parts = [];
+  if (issues) parts.push(issues + ' issue' + (issues === 1 ? '' : 's'));
+  if (result.skipped) parts.push(result.skipped + ' skipped');
+  if (failed) parts.push(failed + ' failed');
+  const summary = parts.length ? parts.join(' · ') : 'Nothing new to fetch';
+  showProjectSyncNotice(
+    failed ? proj.name + ' sync finished with errors' : proj.name + ' synced',
+    summary + '. Refreshing this page…'
+  );
+  await new Promise(resolve => setTimeout(resolve, 1400));
+  const current = getAllProjects().find(project => project.id === S.page);
+  if (current && current.key === proj.key) renderProject(current);
+  const notice = document.getElementById('proj-sync-notice');
+  const detail = notice && notice.querySelector('.proj-sync-notice-detail');
+  if (detail && !notice.hidden) detail.textContent = summary + '. This page is up to date.';
 }
 
 async function runConnectorManualSync() {
@@ -5392,7 +5508,10 @@ function renderProject(proj) {
           <h2>${esc(proj.name)}</h2>
           <span class="proj-title-actions">
             <span class="proj-sync-status" id="proj-sync-status-${proj.key}"></span>
-            <button class="btn btn-sm" type="button" onclick='syncProjectPage(${JSON.stringify(proj.key)})' title="Sync this project for the releases selected in the top bar">Sync</button>
+            <button class="btn btn-sm proj-sync-btn" id="proj-sync-btn-${esc(proj.key)}" type="button" onclick='syncProjectPage(${JSON.stringify(proj.key)})' title="Sync this project for the releases selected in the top bar">
+              <svg class="proj-sync-ring" viewBox="0 0 20 20" aria-hidden="true" hidden><circle class="proj-sync-track" cx="10" cy="10" r="7"></circle><circle class="proj-sync-arc" cx="10" cy="10" r="7"></circle></svg>
+              Sync
+            </button>
             <button class="btn btn-sm primary proj-new-ticket" type="button" onclick='JiraWrite.openCreate(${JSON.stringify(proj.key)})'>New ticket</button>
           </span>
         </div>
@@ -5401,6 +5520,8 @@ function renderProject(proj) {
       <div id="stats-${proj.key}"></div>
     </div>
     <div id="issues-${proj.key}" class="proj-issues"><div class="state-box"><span>Loading synced data…</span></div></div>`;
+
+  if (_pageSync && _pageSync.key === proj.key) setProjectSyncRing(proj.key, _pageSync.done, _pageSync.total);
 
   const data = selectedReleases.length ? S.cache[proj.key] : null;
   const releaseLabel = formatSelectedReleasesLabel(selectedReleases);
@@ -7147,6 +7268,39 @@ function toggleEpicGroup(event, projKey, epicKey) {
   if (_epicCollapsed[id]) delete _epicCollapsed[id];
   else _epicCollapsed[id] = true;
   applyEpicGroupVisibility(projKey, epicKey);
+  syncEpicCollapseAllButton(projKey);
+}
+
+function projectEpicKeys(projKey) {
+  const root = document.getElementById('issues-' + projKey);
+  if (!root) return [];
+  return Array.from(root.querySelectorAll('tr.epic-parent[data-epic-key]')).map(row => row.getAttribute('data-epic-key')).filter(Boolean);
+}
+
+function projectEpicsAllCollapsed(projKey) {
+  const keys = projectEpicKeys(projKey);
+  return keys.length > 0 && keys.every(key => _epicCollapsed[epicCollapseId(projKey, key)]);
+}
+
+function syncEpicCollapseAllButton(projKey) {
+  const btn = document.getElementById('epic-collapse-all-' + projKey);
+  if (!btn) return;
+  const collapsed = projectEpicsAllCollapsed(projKey);
+  const label = collapsed ? 'Expand all epics' : 'Collapse all epics';
+  btn.setAttribute('aria-expanded', collapsed ? 'false' : 'true');
+  btn.setAttribute('aria-label', label);
+  btn.title = label;
+}
+
+function toggleAllEpicGroups(projKey) {
+  const collapse = !projectEpicsAllCollapsed(projKey);
+  projectEpicKeys(projKey).forEach(key => {
+    const id = epicCollapseId(projKey, key);
+    if (collapse) _epicCollapsed[id] = true;
+    else delete _epicCollapsed[id];
+    applyEpicGroupVisibility(projKey, key);
+  });
+  syncEpicCollapseAllButton(projKey);
 }
 
 async function setEpicGrouping(projKey, enabled) {
@@ -7366,6 +7520,8 @@ function renderIssueTable(proj, issues, activeFilter) {
   const phaseLabel = (S.activeFilter && S.activeFilter[proj.key]) || activeFilter;
   const canGroup = groupByEpicOn() && !isQualityDashboardProject(proj);
   const groupedModel = canGroup ? EpicGroups.groupIssuesUnderEpics(sorted) : sorted.map(issue => ({ kind: 'issue', issue }));
+  const pageEpicKeys = canGroup ? groupedModel.filter(row => row.kind === 'epic').map(row => row.epicKey) : [];
+  const epicsAllCollapsed = pageEpicKeys.length > 0 && pageEpicKeys.every(key => _epicCollapsed[epicCollapseId(proj.key, key)]);
   const showEpicGutter = canGroup && groupedModel.some(row => row.kind === 'epic');
   const labelField = vf.some(f => f.id === 'summary') ? 'summary' : (vf.some(f => f.id === 'key') ? 'key' : (vf[0] && vf[0].id));
   const indentField = vf.some(f => f.id === 'summary') ? 'summary' : (vf.some(f => f.id === 'key') ? 'key' : '');
@@ -7432,7 +7588,10 @@ function renderIssueTable(proj, issues, activeFilter) {
       ${columnResizerHtml(f.id, f.label)}
     </th>`;
   }).join('');
-  const headersWithNotes = `<th class="notes-col"><span class="th-label">Notes</span>${columnResizerHtml('notes', 'Notes')}</th>` + headers;
+  const collapseAll = showEpicGutter
+    ? `<button type="button" class="epic-toggle" id="epic-collapse-all-${esc(proj.key)}" aria-expanded="${epicsAllCollapsed ? 'false' : 'true'}" aria-label="${epicsAllCollapsed ? 'Expand all epics' : 'Collapse all epics'}" title="${epicsAllCollapsed ? 'Expand all epics' : 'Collapse all epics'}" onclick='event.stopPropagation();toggleAllEpicGroups(${JSON.stringify(proj.key)})'><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="9 6 15 12 9 18"/></svg></button>`
+    : '';
+  const headersWithNotes = `<th class="notes-col"><span class="notes-cell-inner">${collapseAll}<span class="th-label">Notes</span></span>${columnResizerHtml('notes', 'Notes')}</th>` + headers;
   const columns = columnGroupHtml(proj.key, ['notes'].concat(vf.map(field => field.id)));
 
   const emptyRow = !sorted.length
@@ -7472,7 +7631,6 @@ function renderIssueTable(proj, issues, activeFilter) {
         </button>
       </div>`}
       ${_epicGroupStatus[proj.key] ? `<span class="proj-sort-status is-error">${esc(_epicGroupStatus[proj.key])}</span>` : ''}
-      <button class="btn btn-sm" type="button" onclick="exportCSV()" title="Export the filtered table">Export HTML</button>
       <span class="proj-count">${countLabel}</span>
     </div>
     <div class="table-wrap proj-issue-table">
