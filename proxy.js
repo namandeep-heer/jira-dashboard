@@ -428,6 +428,16 @@ app.put('/api/user-preferences/column-freeze/:projectKey', (req, res) => {
   }
 });
 
+app.put('/api/user-preferences/column-views/:projectKey', (req, res) => {
+  const user = requireUser(req, res);
+  if (!user) return;
+  try {
+    res.json(userPreferences.setColumnViews(user.id, req.params.projectKey, req.body?.columnViews));
+  } catch (err) {
+    sendStoreError(res, err);
+  }
+});
+
 app.put('/api/user-preferences/group-by-epic', (req, res) => {
   const user = requireUser(req, res);
   if (!user) return;

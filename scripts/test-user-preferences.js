@@ -15,7 +15,7 @@ const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'jira-dashboard-prefs-'));
 const filePath = path.join(tmpDir, 'user-preferences.json');
 const prefs = createUserPreferences({ filePath });
 
-assert.deepStrictEqual(prefs.get('user-a'), { version: 1, projectSorts: {}, groupByEpic: true, columnWidths: {}, columnFreeze: {} });
+assert.deepStrictEqual(prefs.get('user-a'), { version: 1, projectSorts: {}, groupByEpic: true, columnWidths: {}, columnFreeze: {}, columnViews: {} });
 
 const saved = prefs.setProjectSort('user-a', 'NFS', [
   { col: 'priority', dir: 'asc' },
@@ -91,7 +91,7 @@ assert.deepStrictEqual(prefs.get('user-a').projectSorts, {});
 assert.deepStrictEqual(createUserPreferences({ filePath }).get('user-a').groupByEpic, false);
 
 prefs.setGroupByEpic('user-a', true);
-assert.deepStrictEqual(prefs.get('user-a'), { version: 1, projectSorts: {}, groupByEpic: true, columnWidths: {}, columnFreeze: {} });
+assert.deepStrictEqual(prefs.get('user-a'), { version: 1, projectSorts: {}, groupByEpic: true, columnWidths: {}, columnFreeze: {}, columnViews: {} });
 assert.throws(() => prefs.setGroupByEpic('user-a', 'no'), /on or off/);
 
 const widths = prefs.setColumnWidths('user-a', 'NFS', { summary: 280.4, notes: 88, 'nope field': 100 });
@@ -121,5 +121,29 @@ assert.deepStrictEqual(prefs.setColumnFreeze('user-a', 'NFS', { start: 'notes', 
 assert.throws(() => prefs.setColumnFreeze('user-a', 'NFS', 'has space'), /column to freeze/);
 assert.throws(() => prefs.setColumnFreeze('user-a', 'NFS', { start: 'key', end: 'bad col' }), /column to freeze/);
 assert.deepStrictEqual(createUserPreferences({ filePath }).get('user-a').columnFreeze, {});
+
+const triage = prefs.setColumnViews('user-a', 'NFS', {
+  active: 'triage',
+  order: ['summary', 'notes', 'key'],
+  views: [{ id: 'Triage', name: '  Triage  ', columns: ['key', 'key', 'summary', 'notes'] }],
+});
+assert.deepStrictEqual(triage.columnViews, {
+  active: 'triage',
+  order: ['summary', 'key'],
+  views: [{ id: 'triage', name: 'Triage', columns: ['key', 'summary'] }],
+});
+assert.deepStrictEqual(prefs.get('user-a').columnViews.NFS.views[0].columns, ['key', 'summary']);
+assert.deepStrictEqual(createUserPreferences({ filePath }).get('user-a').columnViews.NFS.views[0].name, 'Triage');
+assert.throws(() => prefs.setColumnViews('user-a', 'NFS', {
+  views: [
+    { id: 'a', name: 'One', columns: ['key'] },
+    { id: 'b', name: 'one', columns: ['summary'] },
+  ],
+}), /already uses that name/);
+assert.throws(() => prefs.setColumnViews('user-a', 'NFS', {
+  views: [{ id: 'empty', name: 'Empty', columns: ['notes'] }],
+}), /at least one column/);
+assert.deepStrictEqual(prefs.setColumnViews('user-a', 'NFS', null).columnViews, { active: 'default', order: [], views: [] });
+assert.deepStrictEqual(prefs.get('user-a').columnViews, {});
 
 console.log('user preferences ok');

@@ -319,16 +319,17 @@ table.issues td.epic-indent { padding-left: 22px; box-shadow: inset 2px 0 0 var(
 @media (prefers-reduced-motion: reduce) {
   .epic-toggle svg { transition: none; }
 }
-.proj-sort-btn.is-on { color: var(--text); border-color: var(--border2); }
+.proj-sort-btn.is-on, .proj-views-btn.is-on { color: var(--text); border-color: var(--border2); }
+.proj-views-btn { max-width: 180px; margin-left: auto; overflow: hidden; text-overflow: ellipsis; }
 .proj-sort-status { font-size: 12px; color: var(--text3); }
 .proj-sort-status.is-error { color: var(--red); }
 .sort-rank { display: inline-flex; align-items: center; justify-content: center; min-width: 14px; height: 14px; margin-right: 3px; padding: 0 3px; border-radius: 999px; background: var(--blue-bg); color: var(--blue); font-size: 10px; font-weight: 600; font-variant-numeric: tabular-nums; }
-#proj-sort-root { position: fixed; inset: 0; z-index: 820; }
-#proj-sort-root[hidden] { display: none !important; }
+#proj-sort-root, #proj-views-root { position: fixed; inset: 0; z-index: 820; }
+#proj-sort-root[hidden], #proj-views-root[hidden] { display: none !important; }
 .proj-sort-backdrop { position: absolute; inset: 0; background: rgba(0,0,0,.28); opacity: 0; transition: opacity .18s ease; }
 .proj-sort-panel { position: absolute; top: 50%; left: 50%; width: min(760px, calc(100vw - 32px)); height: min(540px, calc(100vh - 48px)); display: flex; flex-direction: column; background: var(--bg); border: 0.5px solid var(--border); border-radius: 18px; box-shadow: 0 24px 60px rgba(0,0,0,.16); transform: translate(-50%, calc(-50% + 8px)) scale(0.98); opacity: 0; transition: transform .28s cubic-bezier(.2,.85,.2,1), opacity .18s ease; }
-#proj-sort-root.open .proj-sort-backdrop { opacity: 1; }
-#proj-sort-root.open .proj-sort-panel { transform: translate(-50%, -50%) scale(1); opacity: 1; }
+#proj-sort-root.open .proj-sort-backdrop, #proj-views-root.open .proj-sort-backdrop { opacity: 1; }
+#proj-sort-root.open .proj-sort-panel, #proj-views-root.open .proj-sort-panel { transform: translate(-50%, -50%) scale(1); opacity: 1; }
 .proj-sort-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 16px; padding: 20px 20px 0; }
 .proj-sort-head h2 { font-size: 17px; font-weight: 600; letter-spacing: -0.02em; }
 .proj-sort-kicker { max-width: 40ch; margin-top: 4px; font-size: 12px; line-height: 1.45; color: var(--text3); }
@@ -369,6 +370,16 @@ table.issues td.epic-indent { padding-left: 22px; box-shadow: inset 2px 0 0 var(
 .proj-sort-value-index { font-size: 12px; font-weight: 600; font-variant-numeric: tabular-nums; color: var(--text3); }
 .proj-sort-value-name { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 14px; }
 .proj-sort-foot { display: flex; align-items: center; justify-content: flex-end; gap: 10px; padding: 12px 20px 16px; border-top: 0.5px solid var(--border); }
+.proj-sort-foot .proj-sort-status { margin-right: auto; }
+.proj-view-name { width: 100%; height: 38px; padding: 0 12px; border: 0.5px solid var(--border2); border-radius: 12px; background: var(--bg); color: var(--text); font: inherit; font-size: 14px; }
+.proj-view-name:focus { outline: 2px solid var(--blue); outline-offset: -1px; }
+.proj-view-check { width: 16px; height: 16px; margin: 0; accent-color: var(--blue); }
+.col-drag { display: inline-flex; align-items: center; justify-content: center; width: 14px; height: 16px; padding: 0; border: none; border-radius: 4px; background: none; color: inherit; cursor: grab; opacity: .4; flex-shrink: 0; touch-action: none; }
+.col-drag::before { content: ''; width: 8px; height: 8px; background-image: radial-gradient(currentColor 1.1px, transparent 1.2px); background-size: 4px 4px; background-position: 0 0; }
+.col-drag:hover, .col-drag:focus-visible, th.is-col-drop .col-drag { opacity: 1; color: var(--blue); }
+.col-drag:focus-visible { outline: 2px solid var(--blue); outline-offset: 1px; }
+th.is-col-dragging { opacity: .55; }
+th.is-col-drop { box-shadow: inset 2px 0 0 var(--blue); }
 .proj-sort-foot-actions { display: flex; gap: 8px; }
 @media (max-width: 720px) {
   .proj-sort-panel { height: min(640px, calc(100vh - 24px)); }
@@ -1348,6 +1359,31 @@ code { font-family: monospace; font-size: 12px; background: var(--bg3); padding:
         <div class="proj-sort-foot">
           <button class="btn btn-sm" type="button" onclick="clearProjectSortDialog()">Clear sort</button>
           <button class="btn btn-sm primary" type="button" onclick="applyProjectSortDialog()">Apply</button>
+        </div>
+      </div>
+    </div>
+
+    <div id="proj-views-root" hidden>
+      <div class="proj-sort-backdrop" onclick="closeColumnViewsDialog()"></div>
+      <div class="proj-sort-panel" role="dialog" aria-modal="true" aria-labelledby="proj-views-title">
+        <div class="proj-sort-head">
+          <div>
+            <h2 id="proj-views-title">Views</h2>
+            <p class="proj-sort-kicker">Each view keeps its own column order. Drag a row here, or the grip on a table header. Notes stays first.</p>
+          </div>
+          <button class="btn btn-sm" type="button" onclick="closeColumnViewsDialog()">Close</button>
+        </div>
+        <div class="proj-sort-body">
+          <div class="proj-sort-nav">
+            <div class="proj-sort-levels" id="proj-views-list" role="tablist" aria-label="Column views"></div>
+            <button class="btn btn-sm proj-sort-add" type="button" onclick="addColumnView()">Add view</button>
+          </div>
+          <div class="proj-sort-editor" id="proj-views-editor"></div>
+        </div>
+        <div class="proj-sort-foot">
+          <span id="proj-views-status" class="proj-sort-status"></span>
+          <button class="btn btn-sm" type="button" onclick="resetColumnViewOrder()">Reset order</button>
+          <button class="btn btn-sm primary" type="button" onclick="applyColumnViewsDialog()">Apply</button>
         </div>
       </div>
     </div>
@@ -5840,7 +5876,7 @@ function issuesForProjectStatCardsOriginal(projKey) {
 }
 
 function issueMatchesListingSearchAndCols(proj, issue) {
-  const vf = qualityListingFields(proj, S.enabled.map(id => ALL_FIELDS.find(f => f.id === id)).filter(Boolean));
+  const vf = listingFieldsForProject(proj);
   const st = getProjectColFilters(proj && proj.key);
   const q = (st.q || '').trim().toLowerCase();
   if (q) {
@@ -6074,6 +6110,57 @@ function qualityListingFields(proj, enabledFields) {
   return [{ id: 'jiraProject', label: 'Project' }, ...enabledFields];
 }
 
+function availableListingFields(proj) {
+  const enabled = (S.enabled || []).map(id => ALL_FIELDS.find(f => f.id === id)).filter(Boolean);
+  return qualityListingFields(proj, enabled);
+}
+
+function projectColumnViews(projKey) {
+  const row = _userPrefs.columnViews && _userPrefs.columnViews[projKey];
+  if (!row || typeof row !== 'object') return { active: 'default', order: [], views: [] };
+  return {
+    active: typeof row.active === 'string' && row.active ? row.active : 'default',
+    order: Array.isArray(row.order) ? row.order.slice() : [],
+    views: Array.isArray(row.views) ? row.views.map(view => ({
+      id: view.id,
+      name: view.name,
+      columns: Array.isArray(view.columns) ? view.columns.slice() : [],
+    })) : [],
+  };
+}
+
+function orderListingFields(base, order) {
+  if (!order || !order.length) return base.slice();
+  const byId = new Map(base.map(field => [field.id, field]));
+  const seen = new Set();
+  const ordered = [];
+  order.forEach(id => {
+    const field = byId.get(id);
+    if (!field || seen.has(id)) return;
+    seen.add(id);
+    ordered.push(field);
+  });
+  base.forEach(field => {
+    if (!seen.has(field.id)) ordered.push(field);
+  });
+  return ordered;
+}
+
+function listingFieldsForProject(proj) {
+  const base = availableListingFields(proj);
+  if (!proj) return base;
+  const pref = projectColumnViews(proj.key);
+  if (pref.active && pref.active !== 'default') {
+    const view = pref.views.find(item => item.id === pref.active);
+    if (view) {
+      const byId = new Map(base.map(field => [field.id, field]));
+      const picked = view.columns.map(id => byId.get(id)).filter(Boolean);
+      if (picked.length) return picked;
+    }
+  }
+  return orderListingFields(base, pref.order);
+}
+
 function getFilteredProjectIssues(projKey) {
   const proj = getAllProjects().find(p => p.key === projKey);
   const jiraSelected = (proj && isQualityDashboardProject(proj)) ? getSelectedJiraProjects() : new Set();
@@ -6133,7 +6220,7 @@ function compareProjectSortValues(a, b, dir) {
 }
 
 const MAX_PROJECT_SORT_LEVELS = 8;
-let _userPrefs = { projectSorts: {}, groupByEpic: true, columnWidths: {}, columnFreeze: {} };
+let _userPrefs = { projectSorts: {}, groupByEpic: true, columnWidths: {}, columnFreeze: {}, columnViews: {} };
 let _columnWidthTimers = {};
 let _epicCollapsed = {};
 let _epicGroupStatus = {};
@@ -6248,11 +6335,13 @@ function rememberUserPreferences(data) {
   const projectSorts = data && data.projectSorts && typeof data.projectSorts === 'object' ? data.projectSorts : {};
   const columnWidths = data && data.columnWidths && typeof data.columnWidths === 'object' ? data.columnWidths : {};
   const columnFreeze = data && data.columnFreeze && typeof data.columnFreeze === 'object' ? data.columnFreeze : {};
+  const columnViews = data && data.columnViews && typeof data.columnViews === 'object' ? data.columnViews : {};
   _userPrefs = {
     projectSorts,
     groupByEpic: !data || data.groupByEpic !== false,
     columnWidths,
     columnFreeze,
+    columnViews,
   };
   if (!S._projSort) S._projSort = {};
   Object.entries(projectSorts).forEach(([key, levels]) => {
@@ -6392,7 +6481,7 @@ function projectSort(ev, projKey, fieldId) {
 }
 
 function projectSortFields(proj) {
-  return qualityListingFields(proj, S.enabled.map(id => ALL_FIELDS.find(f => f.id === id)).filter(Boolean));
+  return listingFieldsForProject(proj);
 }
 
 const SORT_VALUE_FIELDS = new Set(['priority', 'status', 'issuetype', 'cf_scope', 'cf_scopesc', 'cf_clarity', 'jiraProject', 'fixVersions', 'cf_custcom']);
@@ -7479,6 +7568,12 @@ document.addEventListener('keydown', (ev) => {
     closeTicketNotes();
     return;
   }
+  if (_columnViewDialog) {
+    ev.preventDefault();
+    ev.stopImmediatePropagation();
+    closeColumnViewsDialog();
+    return;
+  }
   if (_projSortDialogKey) {
     ev.preventDefault();
     ev.stopImmediatePropagation();
@@ -7786,6 +7881,10 @@ function nudgeColumnWidth(event, projKey, table, handle) {
 const FREEZE_COLUMN_RE = /^[A-Za-z][A-Za-z0-9_]{0,63}$/;
 let _freezePick = {};
 let _freezeStatus = {};
+let _columnViewError = {};
+let _columnViewDialog = null;
+let _columnViewSnapshot = null;
+let _columnViewApplied = false;
 
 function projectColumnLabel(colId) {
   if (colId === 'notes') return 'Notes';
@@ -8011,6 +8110,433 @@ async function setProjectFreeze(projKey, freeze) {
   }
 }
 
+function columnViewButtonLabel(projKey) {
+  const pref = projectColumnViews(projKey);
+  if (pref.active !== 'default') {
+    const view = pref.views.find(item => item.id === pref.active);
+    if (view && view.name) return view.name;
+  }
+  return 'Views';
+}
+
+function columnViewButtonTitle(projKey) {
+  const pref = projectColumnViews(projKey);
+  if (pref.active !== 'default') {
+    const view = pref.views.find(item => item.id === pref.active);
+    if (view) return 'View: ' + view.name + '. Change the columns and their order.';
+  }
+  if (pref.order.length) return 'Columns are rearranged. Open views to save or reset that order.';
+  return 'Rearrange columns and save views. Notes stays first.';
+}
+
+function columnViewIsCustom(projKey) {
+  const pref = projectColumnViews(projKey);
+  return pref.active !== 'default' || pref.order.length > 0;
+}
+
+function blankColumnViews(spec) {
+  return !spec || spec.active === 'default' && (!spec.order || !spec.order.length) && (!spec.views || !spec.views.length);
+}
+
+function copyColumnViews(spec) {
+  const row = spec || { active: 'default', order: [], views: [] };
+  return {
+    active: row.active || 'default',
+    order: Array.isArray(row.order) ? row.order.slice() : [],
+    views: (row.views || []).map(view => ({
+      id: view.id,
+      name: view.name,
+      columns: (view.columns || []).slice(),
+    })),
+  };
+}
+
+function rememberColumnViews(projKey, spec) {
+  if (!_userPrefs.columnViews) _userPrefs.columnViews = {};
+  if (blankColumnViews(spec)) delete _userPrefs.columnViews[projKey];
+  else _userPrefs.columnViews[projKey] = copyColumnViews(spec);
+}
+
+function writeColumnViewOrder(spec, ids) {
+  if (!spec.active || spec.active === 'default') {
+    spec.active = 'default';
+    spec.order = ids.slice();
+    return;
+  }
+  const view = spec.views.find(item => item.id === spec.active);
+  if (!view) {
+    spec.active = 'default';
+    spec.order = ids.slice();
+    return;
+  }
+  view.columns = ids.slice();
+}
+
+function draftVisibleIds(spec, proj) {
+  const available = availableListingFields(proj).map(field => field.id);
+  if (spec.active && spec.active !== 'default') {
+    const view = spec.views.find(item => item.id === spec.active);
+    const columns = view ? view.columns.filter(id => available.includes(id)) : [];
+    return columns.length ? columns : available.slice(0, 1);
+  }
+  return orderListingFields(availableListingFields(proj), spec.order).map(field => field.id);
+}
+
+function newColumnViewId(spec) {
+  const used = new Set((spec.views || []).map(view => view.id));
+  let id = '';
+  do {
+    id = ('v' + Date.now().toString(36) + Math.random().toString(36).slice(2, 8)).toLowerCase().replace(/[^a-z0-9_-]/g, '').slice(0, 32);
+  } while (!id || id === 'default' || used.has(id));
+  return id;
+}
+
+function previewColumnViews(projKey, spec) {
+  rememberColumnViews(projKey, spec);
+  const filter = S.activeFilter && S.activeFilter[projKey];
+  renderIssueTable({ key: projKey }, getFilteredProjectIssues(projKey), filter);
+}
+
+async function commitColumnViews(projKey, spec) {
+  const before = projectColumnViews(projKey);
+  rememberColumnViews(projKey, spec);
+  delete _columnViewError[projKey];
+  const filter = S.activeFilter && S.activeFilter[projKey];
+  renderIssueTable({ key: projKey }, getFilteredProjectIssues(projKey), filter);
+  try {
+    const response = await authFetch('/api/user-preferences/column-views/' + encodeURIComponent(projKey), {
+      method: 'PUT',
+      body: JSON.stringify({ columnViews: spec }),
+    });
+    const result = await response.json().catch(() => ({}));
+    if (!response.ok) throw new Error(result.error || 'Could not save column views.');
+    rememberColumnViews(projKey, result.columnViews);
+    return result.columnViews;
+  } catch (err) {
+    rememberColumnViews(projKey, before);
+    _columnViewError[projKey] = err.message || 'Could not save column views.';
+    renderIssueTable({ key: projKey }, getFilteredProjectIssues(projKey), filter);
+    throw err;
+  }
+}
+
+function moveProjectColumn(projKey, fromId, toId) {
+  const dialog = _columnViewDialog && _columnViewDialog.projKey === projKey ? _columnViewDialog : null;
+  const proj = getAllProjects().find(item => item.key === projKey);
+  const spec = dialog ? dialog.draft : projectColumnViews(projKey);
+  const ids = draftVisibleIds(spec, proj);
+  const from = ids.indexOf(fromId);
+  const to = ids.indexOf(toId);
+  if (from < 0 || to < 0 || from === to) return;
+  const moved = ids.splice(from, 1)[0];
+  ids.splice(to, 0, moved);
+  writeColumnViewOrder(spec, ids);
+  if (dialog) {
+    renderColumnViewsDialog();
+    previewColumnViews(projKey, spec);
+    return;
+  }
+  commitColumnViews(projKey, spec);
+}
+
+function bindColumnDrags(projKey) {
+  const root = document.getElementById('issues-' + projKey);
+  if (!root) return;
+  root.querySelectorAll('.col-drag').forEach(handle => {
+    handle.addEventListener('pointerdown', event => {
+      if (event.button != null && event.button !== 0) return;
+      event.preventDefault();
+      event.stopPropagation();
+      const fromId = handle.getAttribute('data-col');
+      const startX = event.clientX;
+      const startY = event.clientY;
+      let moved = false;
+      const source = handle.closest('th');
+      if (source) source.classList.add('is-col-dragging');
+      if (handle.setPointerCapture) handle.setPointerCapture(event.pointerId);
+      function over(next) {
+        if (Math.abs(next.clientX - startX) > 4 || Math.abs(next.clientY - startY) > 4) moved = true;
+        const el = document.elementFromPoint(next.clientX, next.clientY);
+        const th = el && el.closest ? el.closest('thead th') : null;
+        root.querySelectorAll('th.is-col-drop').forEach(item => item.classList.remove('is-col-drop'));
+        if (th && th.querySelector('.col-drag')) th.classList.add('is-col-drop');
+      }
+      function up(next) {
+        handle.removeEventListener('pointermove', over);
+        handle.removeEventListener('pointerup', up);
+        handle.removeEventListener('pointercancel', up);
+        root.querySelectorAll('th.is-col-drop, th.is-col-dragging').forEach(item => item.classList.remove('is-col-drop', 'is-col-dragging'));
+        const el = document.elementFromPoint(next.clientX, next.clientY);
+        const th = el && el.closest ? el.closest('thead th') : null;
+        const target = th && th.querySelector('.col-drag');
+        const toId = target && target.getAttribute('data-col');
+        if (moved && toId && toId !== fromId) moveProjectColumn(projKey, fromId, toId);
+      }
+      handle.addEventListener('pointermove', over);
+      handle.addEventListener('pointerup', up);
+      handle.addEventListener('pointercancel', up);
+    });
+  });
+}
+
+function columnViewStatus(message, isError) {
+  const el = document.getElementById('proj-views-status');
+  if (!el) return;
+  el.textContent = message || '';
+  el.classList.toggle('is-error', !!isError);
+}
+
+function renderColumnViewsDialog() {
+  const dialog = _columnViewDialog;
+  if (!dialog) return;
+  const proj = getAllProjects().find(item => item.key === dialog.projKey);
+  const spec = dialog.draft;
+  const list = document.getElementById('proj-views-list');
+  const editor = document.getElementById('proj-views-editor');
+  if (!list || !editor) return;
+  const items = [{ id: 'default', name: 'Default', detail: spec.order.length ? 'Custom order' : 'Field settings' }]
+    .concat(spec.views.map(view => ({ id: view.id, name: view.name, detail: view.columns.length + ' columns' })));
+  list.innerHTML = items.map(item => {
+    const on = item.id === spec.active;
+    return '<div class="proj-sort-nav-row' + (on ? ' is-on' : '') + '">'
+      + '<button type="button" class="proj-sort-nav-item" role="tab" data-view="' + esc(item.id) + '" aria-selected="' + (on ? 'true' : 'false') + '" onclick=\'selectColumnView(' + JSON.stringify(item.id) + ')\'>'
+      + '<span class="proj-sort-nav-name">' + esc(item.name || 'Untitled') + '</span>'
+      + '<span class="proj-sort-nav-detail">' + esc(item.detail) + '</span></button></div>';
+  }).join('');
+  const available = availableListingFields(proj);
+  const labels = new Map(available.map(field => [field.id, field.label]));
+  const visible = draftVisibleIds(spec, proj);
+  const hidden = available.map(field => field.id).filter(id => visible.indexOf(id) < 0);
+  const named = spec.active !== 'default';
+  const view = named ? spec.views.find(item => item.id === spec.active) : null;
+  const rows = visible.map((id, index) => {
+    const name = labels.get(id) || id;
+    return '<li class="proj-sort-value-row" draggable="true" data-col="' + esc(id) + '" ondragstart="columnViewDragStart(event, this)" ondragover="columnViewDragOver(event)" ondragleave="columnViewDragLeave(event)" ondrop="columnViewDrop(event, this)">'
+      + (named ? '<input class="proj-view-check" type="checkbox" checked aria-label="Show ' + esc(name) + '" onchange=\'toggleColumnViewColumn(' + JSON.stringify(id) + ', this.checked)\'>' : '<span class="proj-sort-value-index">' + (index + 1) + '</span>')
+      + '<span class="proj-sort-value-name">' + esc(name) + '</span>'
+      + '<span class="proj-sort-value-moves"><button type="button" class="proj-sort-icon-btn" aria-label="Move ' + esc(name) + ' up" onclick=\'moveColumnViewColumn(' + index + ',-1)\' ' + (index === 0 ? 'disabled' : '') + '>↑</button>'
+      + '<button type="button" class="proj-sort-icon-btn" aria-label="Move ' + esc(name) + ' down" onclick=\'moveColumnViewColumn(' + index + ',1)\' ' + (index === visible.length - 1 ? 'disabled' : '') + '>↓</button></span></li>';
+  }).join('');
+  const hiddenRows = named ? hidden.map(id => {
+    const name = labels.get(id) || id;
+    return '<li class="proj-sort-value-row"><input class="proj-view-check" type="checkbox" aria-label="Show ' + esc(name) + '" onchange=\'toggleColumnViewColumn(' + JSON.stringify(id) + ', this.checked)\'><span class="proj-sort-value-name">' + esc(name) + '</span><span></span></li>';
+  }).join('') : '';
+  editor.innerHTML = (named && view
+    ? '<label class="proj-sort-level-label" for="proj-views-name">Name</label><input id="proj-views-name" class="proj-view-name" maxlength="40" value="' + esc(view.name) + '" oninput="setColumnViewName(this.value)">'
+    : '<p class="proj-sort-kicker">Default shows every enabled column. Add a view to keep a smaller set.</p>')
+    + (named ? '<div class="proj-sort-level-top"><span class="proj-sort-level-label">Columns</span><button type="button" class="proj-sort-text-btn remove" onclick="deleteColumnView()">Delete view</button></div>' : '<span class="proj-sort-level-label">Columns</span>')
+    + '<ul class="proj-sort-values">' + rows + hiddenRows + '</ul>';
+}
+
+function openColumnViewsDialog(projKey) {
+  if (_projSortDialogKey) closeProjectSortDialog();
+  closeProjectColFilter();
+  const proj = getAllProjects().find(item => item.key === projKey);
+  const draft = projectColumnViews(projKey);
+  _columnViewDialog = { projKey, draft };
+  _columnViewSnapshot = copyColumnViews(draft);
+  _columnViewApplied = false;
+  const title = document.getElementById('proj-views-title');
+  if (title) title.textContent = proj ? 'Views · ' + proj.name : 'Views';
+  columnViewStatus('');
+  renderColumnViewsDialog();
+  const root = document.getElementById('proj-views-root');
+  if (!root) return;
+  root.hidden = false;
+  requestAnimationFrame(() => root.classList.add('open'));
+}
+
+function closeColumnViewsDialog() {
+  const dialog = _columnViewDialog;
+  const root = document.getElementById('proj-views-root');
+  if (dialog && !_columnViewApplied && _columnViewSnapshot) {
+    rememberColumnViews(dialog.projKey, _columnViewSnapshot);
+    const filter = S.activeFilter && S.activeFilter[dialog.projKey];
+    renderIssueTable({ key: dialog.projKey }, getFilteredProjectIssues(dialog.projKey), filter);
+  }
+  _columnViewDialog = null;
+  _columnViewSnapshot = null;
+  _columnViewApplied = false;
+  if (!root) return;
+  root.classList.remove('open');
+  window.setTimeout(() => {
+    if (!_columnViewDialog) root.hidden = true;
+  }, 180);
+}
+
+function selectColumnView(id) {
+  if (!_columnViewDialog) return;
+  _columnViewDialog.draft.active = id;
+  columnViewStatus('');
+  renderColumnViewsDialog();
+  previewColumnViews(_columnViewDialog.projKey, _columnViewDialog.draft);
+}
+
+function addColumnView() {
+  const dialog = _columnViewDialog;
+  if (!dialog) return;
+  if (dialog.draft.views.length >= 12) {
+    columnViewStatus('Save up to 12 views.', true);
+    return;
+  }
+  const proj = getAllProjects().find(item => item.key === dialog.projKey);
+  const columns = draftVisibleIds(dialog.draft, proj);
+  const id = newColumnViewId(dialog.draft);
+  const used = new Set(dialog.draft.views.map(view => String(view.name || '').trim().toLowerCase()));
+  let name = 'View ' + (dialog.draft.views.length + 1);
+  let guard = 0;
+  while (used.has(name.toLowerCase()) && guard < 20) {
+    guard += 1;
+    name = 'View ' + (dialog.draft.views.length + 1 + guard);
+  }
+  dialog.draft.views.push({ id, name, columns: columns.slice() });
+  dialog.draft.active = id;
+  columnViewStatus('');
+  renderColumnViewsDialog();
+  previewColumnViews(dialog.projKey, dialog.draft);
+  const input = document.getElementById('proj-views-name');
+  if (input) {
+    input.focus();
+    input.select();
+  }
+}
+
+function setColumnViewName(value) {
+  const dialog = _columnViewDialog;
+  if (!dialog || dialog.draft.active === 'default') return;
+  const view = dialog.draft.views.find(item => item.id === dialog.draft.active);
+  if (!view) return;
+  view.name = String(value || '').replace(/\s+/g, ' ');
+  const button = document.querySelector('#proj-views-list [data-view="' + CSS.escape(view.id) + '"] .proj-sort-nav-name');
+  if (button) button.textContent = view.name.trim() || 'Untitled';
+}
+
+function deleteColumnView() {
+  const dialog = _columnViewDialog;
+  if (!dialog || dialog.draft.active === 'default') return;
+  const id = dialog.draft.active;
+  dialog.draft.views = dialog.draft.views.filter(view => view.id !== id);
+  dialog.draft.active = 'default';
+  columnViewStatus('');
+  renderColumnViewsDialog();
+  previewColumnViews(dialog.projKey, dialog.draft);
+}
+
+function moveColumnViewColumn(index, delta) {
+  const dialog = _columnViewDialog;
+  if (!dialog) return;
+  const proj = getAllProjects().find(item => item.key === dialog.projKey);
+  const ids = draftVisibleIds(dialog.draft, proj);
+  const next = index + delta;
+  if (index < 0 || next < 0 || next >= ids.length || index >= ids.length) return;
+  const moved = ids.splice(index, 1)[0];
+  ids.splice(next, 0, moved);
+  writeColumnViewOrder(dialog.draft, ids);
+  renderColumnViewsDialog();
+  previewColumnViews(dialog.projKey, dialog.draft);
+}
+
+function toggleColumnViewColumn(id, checked) {
+  const dialog = _columnViewDialog;
+  if (!dialog || dialog.draft.active === 'default') return;
+  const view = dialog.draft.views.find(item => item.id === dialog.draft.active);
+  if (!view) return;
+  if (checked) {
+    if (view.columns.indexOf(id) < 0) view.columns.push(id);
+  } else {
+    if (view.columns.length <= 1) {
+      columnViewStatus('A view needs at least one column.', true);
+      renderColumnViewsDialog();
+      return;
+    }
+    view.columns = view.columns.filter(column => column !== id);
+  }
+  columnViewStatus('');
+  renderColumnViewsDialog();
+  previewColumnViews(dialog.projKey, dialog.draft);
+}
+
+function resetColumnViewOrder() {
+  const dialog = _columnViewDialog;
+  if (!dialog) return;
+  const proj = getAllProjects().find(item => item.key === dialog.projKey);
+  const natural = availableListingFields(proj).map(field => field.id);
+  if (dialog.draft.active === 'default') dialog.draft.order = [];
+  else writeColumnViewOrder(dialog.draft, natural);
+  columnViewStatus('');
+  renderColumnViewsDialog();
+  previewColumnViews(dialog.projKey, dialog.draft);
+}
+
+let _columnViewDragId = null;
+
+function columnViewDragStart(event, row) {
+  _columnViewDragId = row.getAttribute('data-col');
+  if (event.dataTransfer) {
+    event.dataTransfer.effectAllowed = 'move';
+    event.dataTransfer.setData('text/plain', _columnViewDragId || '');
+  }
+}
+
+function columnViewDragOver(event) {
+  if (!_columnViewDragId) return;
+  event.preventDefault();
+  const row = event.currentTarget;
+  if (row && row.classList) row.classList.add('is-drop');
+}
+
+function columnViewDragLeave(event) {
+  const row = event.currentTarget;
+  if (row && row.classList) row.classList.remove('is-drop');
+}
+
+function columnViewDrop(event, row) {
+  event.preventDefault();
+  row.classList.remove('is-drop');
+  const toId = row.getAttribute('data-col');
+  const fromId = _columnViewDragId;
+  _columnViewDragId = null;
+  if (!_columnViewDialog || !fromId || !toId || fromId === toId) return;
+  const proj = getAllProjects().find(item => item.key === _columnViewDialog.projKey);
+  const ids = draftVisibleIds(_columnViewDialog.draft, proj);
+  moveColumnViewColumn(ids.indexOf(fromId), ids.indexOf(toId) - ids.indexOf(fromId));
+}
+
+async function applyColumnViewsDialog() {
+  const dialog = _columnViewDialog;
+  if (!dialog) return;
+  const spec = dialog.draft;
+  const names = new Set();
+  for (const view of spec.views) {
+    const name = String(view.name || '').trim();
+    if (!name) {
+      columnViewStatus('Name the view.', true);
+      return;
+    }
+    const key = name.toLowerCase();
+    if (names.has(key)) {
+      columnViewStatus('A view already uses that name.', true);
+      return;
+    }
+    names.add(key);
+    view.name = name;
+    if (!view.columns.length) {
+      columnViewStatus('A view needs at least one column.', true);
+      return;
+    }
+  }
+  columnViewStatus('Saving…');
+  try {
+    await commitColumnViews(dialog.projKey, spec);
+    _columnViewApplied = true;
+    closeColumnViewsDialog();
+  } catch (err) {
+    delete _columnViewError[dialog.projKey];
+    previewColumnViews(dialog.projKey, dialog.draft);
+    columnViewStatus(err.message || 'Could not save column views.', true);
+  }
+}
+
 function renderIssueTable(proj, issues, activeFilter) {
   proj = getAllProjects().find(p => p.key === proj.key) || proj;
   const issuesEl = document.getElementById('issues-' + proj.key);
@@ -8033,7 +8559,7 @@ function renderIssueTable(proj, issues, activeFilter) {
   const scrollLeft = existingScroll ? existingScroll.scrollLeft : 0;
   const frozenLeft = existingFrozen ? existingFrozen.scrollLeft : 0;
 
-  const vf = qualityListingFields(proj, S.enabled.map(id => ALL_FIELDS.find(f=>f.id===id)).filter(Boolean));
+  const vf = listingFieldsForProject(proj);
   const filtered = d ? getFilteredProjectIssues(proj.key) : source;
   const sorted = sortProjectIssues(proj.key, filtered, vf);
   const sortLevels = getProjectSortLevels(proj.key);
@@ -8081,6 +8607,7 @@ function renderIssueTable(proj, issues, activeFilter) {
     const open = S._openColFilter && S._openColFilter.projKey === proj.key && S._openColFilter.fieldId === f.id;
     return `<th class="${active ? 'sorted' : ''} ${hasFilter ? 'filtered' : ''}${mark}">
       <div class="th-inner">
+        <button type="button" class="col-drag" data-col="${esc(f.id)}" aria-label="Move ${esc(f.label)}" title="Drag to rearrange this column"></button>
         ${freezeButtonHtml(f.id, f.label)}
         <span class="th-label" onclick='projectSort(event,${JSON.stringify(proj.key)},${JSON.stringify(f.id)})' aria-sort="${aria}" title="Sort by ${esc(f.label)}. Shift-click to add a level.">${rank}${esc(f.label)} <span class="sort-icon">${icon}</span></span>
         <button type="button" class="th-filter ${hasFilter ? 'has-filter' : ''} ${open ? 'active' : ''}" data-field="${esc(f.id)}" title="Filter ${esc(f.label)}" aria-label="Filter ${esc(f.label)}" onclick='toggleProjectColFilter(event,${JSON.stringify(proj.key)},${JSON.stringify(f.id)})'>
@@ -8192,6 +8719,7 @@ function renderIssueTable(proj, issues, activeFilter) {
       <button class="btn btn-sm proj-sort-btn${sortLevels.length ? ' is-on' : ''}" type="button" onclick='openProjectSortDialog(${JSON.stringify(proj.key)})' title="${esc(sortLevels.length ? projectSortSummary(sortLevels) : 'Define a nested sort')}">${esc(projectSortButtonLabel(sortLevels))}</button>
       <span class="proj-freeze-hint"${_freezePick[proj.key] ? '' : ' hidden'}>${_freezePick[proj.key] ? `Click another column to freeze through ${esc(projectColumnLabel(_freezePick[proj.key]))}.` : ''}</span>
       ${_freezeStatus[proj.key] ? `<span class="proj-sort-status is-error">${esc(_freezeStatus[proj.key])}</span>` : ''}
+      ${_columnViewError[proj.key] ? `<span class="proj-sort-status is-error">${esc(_columnViewError[proj.key])}</span>` : ''}
       ${_projSortStatus[proj.key] ? `<span class="proj-sort-status${_projSortStatus[proj.key].error ? ' is-error' : ''}">${esc(_projSortStatus[proj.key].message)}</span>` : ''}
       ${isQualityDashboardProject(proj) ? '' : `<div class="epic-layout-toggle" role="group" aria-label="How issues are listed">
         <button type="button" aria-pressed="${groupByEpicOn() ? 'true' : 'false'}" title="List each enhancement under its epic" onclick='setEpicGrouping(${JSON.stringify(proj.key)}, true)'>
@@ -8205,6 +8733,7 @@ function renderIssueTable(proj, issues, activeFilter) {
       </div>`}
       ${_epicGroupStatus[proj.key] ? `<span class="proj-sort-status is-error">${esc(_epicGroupStatus[proj.key])}</span>` : ''}
       <span class="proj-count">${countLabel}</span>
+      <button class="btn btn-sm proj-views-btn${columnViewIsCustom(proj.key) ? ' is-on' : ''}" type="button" onclick='openColumnViewsDialog(${JSON.stringify(proj.key)})' title="${esc(columnViewButtonTitle(proj.key))}">${esc(columnViewButtonLabel(proj.key))}</button>
     </div>
     ${tableRegion}`;
 
@@ -8234,6 +8763,7 @@ function renderIssueTable(proj, issues, activeFilter) {
     }
   }
   bindColumnResizers(proj.key);
+  bindColumnDrags(proj.key);
   bindFreezeColumns(proj.key);
   bindIssueSplit(issuesEl);
   if (window.JiraWrite && JiraWrite.warmChoices) JiraWrite.warmChoices();
