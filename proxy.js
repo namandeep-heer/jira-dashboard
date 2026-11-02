@@ -189,6 +189,12 @@ app.get('/lib/epic-groups.js', (req, res) => {
   res.sendFile(path.join(ROOT, 'lib', 'epic-groups.js'));
 });
 
+app.get('/lib/release-plan.js', (req, res) => {
+  res.setHeader('Cache-Control', 'no-store');
+  res.type('application/javascript');
+  res.sendFile(path.join(ROOT, 'lib', 'release-plan.js'));
+});
+
 app.get('/lib/jira-write-ui.js', (req, res) => {
   res.setHeader('Cache-Control', 'no-store');
   res.type('application/javascript');
@@ -405,6 +411,16 @@ app.put('/api/user-preferences/column-widths/:projectKey', (req, res) => {
   if (!user) return;
   try {
     res.json(userPreferences.setColumnWidths(user.id, req.params.projectKey, req.body?.widths));
+  } catch (err) {
+    sendStoreError(res, err);
+  }
+});
+
+app.put('/api/user-preferences/column-freeze/:projectKey', (req, res) => {
+  const user = requireUser(req, res);
+  if (!user) return;
+  try {
+    res.json(userPreferences.setColumnFreeze(user.id, req.params.projectKey, req.body?.column));
   } catch (err) {
     sendStoreError(res, err);
   }

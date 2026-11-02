@@ -15,7 +15,7 @@ const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'jira-dashboard-prefs-'));
 const filePath = path.join(tmpDir, 'user-preferences.json');
 const prefs = createUserPreferences({ filePath });
 
-assert.deepStrictEqual(prefs.get('user-a'), { version: 1, projectSorts: {}, groupByEpic: true, columnWidths: {} });
+assert.deepStrictEqual(prefs.get('user-a'), { version: 1, projectSorts: {}, groupByEpic: true, columnWidths: {}, columnFreeze: {} });
 
 const saved = prefs.setProjectSort('user-a', 'NFS', [
   { col: 'priority', dir: 'asc' },
@@ -91,7 +91,7 @@ assert.deepStrictEqual(prefs.get('user-a').projectSorts, {});
 assert.deepStrictEqual(createUserPreferences({ filePath }).get('user-a').groupByEpic, false);
 
 prefs.setGroupByEpic('user-a', true);
-assert.deepStrictEqual(prefs.get('user-a'), { version: 1, projectSorts: {}, groupByEpic: true, columnWidths: {} });
+assert.deepStrictEqual(prefs.get('user-a'), { version: 1, projectSorts: {}, groupByEpic: true, columnWidths: {}, columnFreeze: {} });
 assert.throws(() => prefs.setGroupByEpic('user-a', 'no'), /on or off/);
 
 const widths = prefs.setColumnWidths('user-a', 'NFS', { summary: 280.4, notes: 88, 'nope field': 100 });
@@ -102,5 +102,15 @@ assert.throws(() => prefs.setColumnWidths('user-a', 'NFS', { summary: 10 }), /be
 assert.throws(() => prefs.setColumnWidths('user-a', 'NFS', []), /object/);
 assert.deepStrictEqual(prefs.setColumnWidths('user-a', 'NFS', {}).widths, {});
 assert.deepStrictEqual(prefs.get('user-a').columnWidths, {});
+
+assert.deepStrictEqual(prefs.setColumnFreeze('user-a', 'NFS', 'summary'), { version: 1, projectKey: 'NFS', column: 'summary' });
+assert.deepStrictEqual(prefs.get('user-a').columnFreeze, { NFS: 'summary' });
+assert.deepStrictEqual(prefs.setColumnFreeze('user-a', 'NFS', 'none'), { version: 1, projectKey: 'NFS', column: 'none' });
+assert.strictEqual(prefs.get('user-a').columnFreeze.NFS, 'none');
+assert.deepStrictEqual(prefs.setColumnFreeze('user-a', 'NFS', 'notes').column, 'notes');
+assert.deepStrictEqual(prefs.get('user-a').columnFreeze, {});
+assert.deepStrictEqual(prefs.setColumnFreeze('user-a', 'NFS', '').column, 'notes');
+assert.throws(() => prefs.setColumnFreeze('user-a', 'NFS', 'has space'), /column to freeze/);
+assert.deepStrictEqual(createUserPreferences({ filePath }).get('user-a').columnFreeze, {});
 
 console.log('user preferences ok');

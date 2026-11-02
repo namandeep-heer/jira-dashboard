@@ -12,6 +12,7 @@
 <script src="/lib/quality-history.js"></script>
 <script src="/lib/epic-groups.js"></script>
 <script src="/lib/jira-write-ui.js"></script>
+<script src="/lib/release-plan.js"></script>
 <style>
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 :root {
@@ -385,10 +386,44 @@ table.issues tr:last-child td { border-bottom: none; }
 table.issues tr:hover td { background: var(--bg2); }
 .key-link { color: var(--blue); font-family: monospace; font-size: 11px; font-weight: 600; text-decoration: none; }
 .key-link:hover { text-decoration: underline; }
-table.issues th.notes-col { width: 1%; position: sticky; left: 0; z-index: 3; background: var(--bg); box-shadow: 1px 0 0 var(--border); }
+table.issues th.notes-col { width: 1%; background: var(--bg); }
 table.issues th.notes-col .th-label { cursor: default; }
-table.issues td.notes-cell { max-width: none; width: 1%; text-align: left; overflow: visible; position: sticky; left: 0; z-index: 2; background: var(--bg); box-shadow: 1px 0 0 var(--border); }
+table.issues td.notes-cell { max-width: none; width: 1%; text-align: left; overflow: visible; background: var(--bg); }
 table.issues tr:hover td.notes-cell { background: var(--bg2); }
+.proj-issue-table table.issues.has-frozen-cols { border-collapse: separate; border-spacing: 0; }
+.proj-issue-table table.issues th.is-frozen,
+.proj-issue-table table.issues td.is-frozen { position: sticky; background: var(--bg); }
+.proj-issue-table table.issues th.is-frozen { z-index: 5; }
+.proj-issue-table table.issues td.is-frozen { z-index: 2; }
+.proj-issue-table table.issues th.is-frozen.is-frozen-end,
+.proj-issue-table table.issues td.is-frozen.is-frozen-end { box-shadow: 1px 0 0 var(--border); }
+.proj-issue-table table.issues tr:hover td.is-frozen { background: var(--bg2); }
+.proj-freeze-wrap { position: relative; }
+.proj-freeze-btn.is-on { color: var(--text); border-color: var(--border2); }
+.proj-freeze-pop { position: absolute; top: calc(100% + 6px); left: 0; z-index: 40; min-width: 220px; max-height: 320px; overflow: auto; padding: 6px; background: var(--bg); border: 0.5px solid var(--border); border-radius: 12px; box-shadow: 0 16px 40px rgba(0,0,0,.12); }
+.proj-freeze-pop[hidden] { display: none !important; }
+.proj-freeze-pop button { display: block; width: 100%; margin: 0; padding: 7px 8px; border: 0; border-radius: 8px; background: transparent; color: var(--text); font: inherit; font-size: 13px; text-align: left; cursor: pointer; }
+.proj-freeze-pop button:hover, .proj-freeze-pop button:focus-visible { background: var(--bg2); }
+.proj-freeze-pop button[aria-checked="true"] { font-weight: 600; }
+.proj-freeze-pop button:focus-visible, .proj-freeze-btn:focus-visible { outline: 2px solid var(--blue); outline-offset: 1px; }
+table.issues td.is-editing { z-index: 6; overflow: visible; background: var(--bg); }
+table.issues td.is-inline-edit { overflow: visible; }
+table.issues td.is-inline-edit .jw-days { width: 100%; max-width: 112px; }
+button.jw-inline { display: flex; align-items: center; gap: 4px; width: 100%; min-width: 0; margin: 0; padding: 2px 4px; border: 0; border-radius: 8px; background: transparent; color: inherit; font: inherit; text-align: left; cursor: text; }
+button.jw-inline:hover, button.jw-inline:focus-visible { background: var(--bg3); }
+button.jw-inline:focus-visible { outline: 2px solid var(--blue); outline-offset: 1px; }
+.jw-inline-host { min-width: 0; }
+.jw-inline-input { width: 100%; box-sizing: border-box; padding: 4px 8px; border: 0.5px solid var(--border2); border-radius: 8px; background: var(--bg); color: var(--text); font: inherit; font-size: 12px; }
+textarea.jw-inline-input { display: block; min-height: 64px; resize: vertical; line-height: 1.4; }
+.jw-inline-input:focus-visible { outline: 2px solid var(--blue); outline-offset: 1px; }
+.jw-inline-error { margin: 4px 0 0; font-size: 11px; line-height: 1.4; color: var(--red); }
+.jw-inline-host .jw-hint { margin-top: 4px; font-size: 11px; }
+table.issues td.is-choice { overflow: visible; }
+.jw-choice-wrap { display: block; min-width: 0; }
+select.jw-choice { width: 100%; max-width: 100%; margin: 0; padding: 3px 4px; border: 0.5px solid transparent; border-radius: 8px; background: transparent; color: inherit; font: inherit; font-size: 12px; cursor: pointer; }
+select.jw-choice:hover, select.jw-choice:focus { border-color: var(--border2); background: var(--bg); }
+select.jw-choice:focus-visible { outline: 2px solid var(--blue); outline-offset: 1px; }
+select.jw-choice.is-error { border-color: var(--red); background: var(--red-bg); }
 .jw-cell { display: flex; align-items: center; gap: 4px; min-width: 0; max-width: 100%; }
 .jw-value { min-width: 0; overflow: hidden; text-overflow: ellipsis; }
 .jw-edit, .jw-gap { font-family: inherit; }
@@ -414,6 +449,9 @@ table.issues tr:hover td.notes-cell { background: var(--bg2); }
 .jw-backdrop { position: absolute; inset: 0; background: rgba(0,0,0,.28); }
 .jw-panel { position: absolute; top: 50%; left: 50%; width: min(440px, calc(100vw - 24px)); max-height: min(640px, calc(100vh - 32px)); display: flex; flex-direction: column; background: var(--bg); color: var(--text); border: 0.5px solid var(--border); border-radius: 18px; box-shadow: 0 24px 60px rgba(0,0,0,.16); transform: translate(-50%, -50%); outline: none; }
 .jw-panel.is-create { width: min(520px, calc(100vw - 24px)); max-height: min(760px, calc(100vh - 32px)); }
+#jira-write-root.is-inline { background: transparent; pointer-events: none; }
+#jira-write-root.is-inline .jw-backdrop { background: transparent; pointer-events: none; }
+.jw-panel.is-inline { pointer-events: auto; top: 8px; left: 8px; width: min(380px, calc(100vw - 16px)); max-height: min(440px, calc(100vh - 16px)); transform: none; border-radius: 14px; }
 .jw-head, .jw-foot { display: flex; align-items: center; gap: 10px; padding: 14px 16px; }
 .jw-head { justify-content: space-between; border-bottom: 0.5px solid var(--border); }
 .jw-head h2 { margin: 0; font-size: 16px; font-weight: 600; letter-spacing: -0.01em; }
@@ -979,6 +1017,101 @@ body.phase-chart-fs-active { overflow: hidden; }
 .phase-legend-item { display:flex; align-items:center; gap:5px; font-size:12px; color:var(--text2); }
 .phase-legend-dot { width:10px; height:10px; border-radius:3px; flex-shrink:0; }
 
+/* ── Release plan ── */
+#content:has(#page-release-plan.active) { overflow: hidden; display: flex; flex-direction: column; padding: 0; }
+#page-release-plan.page.active { display: flex; flex-direction: column; flex: 1; min-height: 0; height: 100%; overflow: hidden; }
+body.plan-fs #sidebar, body.plan-fs #topbar { display: none; }
+body.plan-fs #main { width: 100%; }
+.plan-shell { display: flex; flex-direction: column; flex: 1; min-height: 0; background: var(--bg); }
+.plan-top { display: flex; flex-direction: column; gap: 8px; padding: 12px 14px 10px; border-bottom: 0.5px solid var(--border); background: var(--bg); }
+.plan-title-row, .plan-tools { display: flex; align-items: center; gap: 8px 10px; flex-wrap: wrap; }
+.plan-title-row h2 { font-size: 15px; font-weight: 600; letter-spacing: -0.01em; }
+#plan-title-release { color: var(--text2); font-size: 13px; }
+.plan-title-row .plan-grow { flex: 1; }
+.plan-count { font-size: 12px; color: var(--text3); font-variant-numeric: tabular-nums; }
+.plan-field { display: flex; align-items: center; gap: 6px; }
+.plan-k { font-size: 10px; font-weight: 600; letter-spacing: .08em; text-transform: uppercase; color: var(--text3); }
+.plan-seg { display: flex; background: var(--bg2); border-radius: 10px; padding: 2px; }
+.plan-seg button, .plan-menu-btn, .plan-text-btn { border: 0; background: transparent; color: var(--text2); font: inherit; font-size: 12px; font-weight: 600; padding: 5px 8px; border-radius: 8px; cursor: pointer; }
+.plan-seg button[aria-checked="true"], .plan-text-btn.is-on, .plan-menu-btn.is-on { background: var(--bg); color: var(--text); box-shadow: 0 0 0 0.5px var(--border); }
+.plan-seg button:focus-visible, .plan-menu-btn:focus-visible, .plan-text-btn:focus-visible, .plan-search:focus-visible { outline: 2px solid var(--blue); outline-offset: 1px; }
+#plan-fs { box-shadow: 0 0 0 0.5px var(--border); background: var(--bg); }
+.plan-search { width: 168px; border: 0.5px solid var(--border); background: var(--bg); color: var(--text); border-radius: 10px; padding: 6px 10px; font: inherit; font-size: 12px; }
+.plan-pop-wrap { position: relative; }
+.plan-pop { display: none; position: absolute; top: calc(100% + 6px); left: 0; z-index: 30; min-width: 220px; max-height: 320px; overflow: auto; background: var(--bg); border: 0.5px solid var(--border); border-radius: 12px; box-shadow: 0 16px 40px rgba(0,0,0,.12); padding: 8px; }
+.plan-pop.open { display: block; }
+.plan-pop label { display: flex; gap: 8px; align-items: center; padding: 6px 8px; border-radius: 8px; font-size: 13px; cursor: pointer; }
+.plan-pop label:hover { background: var(--bg2); }
+.plan-legend-copy { padding: 4px 8px 8px; color: var(--text2); font-size: 12px; line-height: 1.45; }
+.plan-legend-item { display: flex; align-items: center; gap: 8px; padding: 4px 8px; font-size: 12px; }
+.plan-legend-swatch { width: 18px; height: 8px; border-radius: 99px; flex-shrink: 0; }
+.plan-scroll { flex: 1; min-height: 0; overflow: auto; }
+.plan-canvas { position: relative; min-height: 100%; }
+.plan-shades { position: absolute; top: 0; bottom: 0; pointer-events: none; z-index: 0; }
+.plan-shade { position: absolute; top: 0; bottom: 0; }
+.plan-shade.is-weekend { background: rgba(0,0,0,.035); }
+.plan-shade.is-today { background: var(--blue-bg); }
+.plan-shade.is-milestone { box-shadow: inset -2px 0 0 var(--plan-mark, var(--blue)); }
+.plan-head { position: sticky; top: 0; z-index: 6; display: flex; background: var(--bg); }
+.plan-line { display: flex; position: relative; z-index: 1; }
+.plan-cell { box-sizing: border-box; display: flex; align-items: center; min-width: 0; flex: 0 0 auto; background: var(--bg); border-bottom: 0.5px solid var(--border); }
+.plan-cell.is-frozen { position: sticky; z-index: 4; }
+.plan-head .plan-cell.is-frozen { z-index: 8; }
+.plan-cell.is-frozen-end { box-shadow: 1px 0 0 var(--border); }
+.plan-group-cell { gap: 8px; padding-left: 12px; }
+.plan-h { align-items: flex-end; height: auto; padding: 0 8px 8px; font-size: 10px; font-weight: 600; letter-spacing: .06em; text-transform: uppercase; color: var(--text3); }
+.plan-h:first-child { padding-left: 12px; }
+.plan-timehead { display: flex; flex-direction: column; }
+.plan-months, .plan-dates { display: flex; }
+.plan-band, .plan-band-label { flex: 0 0 auto; box-sizing: border-box; height: 22px; display: flex; align-items: center; padding-left: 6px; font-size: 11px; font-weight: 600; color: var(--text2); border-bottom: 0.5px solid var(--border); overflow: hidden; white-space: nowrap; }
+.plan-band { border-left: 0.5px solid var(--border); }
+.plan-date { flex: 0 0 auto; box-sizing: border-box; height: 48px; display: flex; flex-direction: column; align-items: center; justify-content: flex-end; padding-bottom: 4px; border-bottom: 0.5px solid var(--border); color: var(--text3); }
+.plan-date.is-weekend { background: rgba(0,0,0,.03); }
+.plan-dow { font-size: 10px; line-height: 1; }
+.plan-num { font-size: 12px; font-weight: 600; color: var(--text); width: 22px; height: 20px; display: flex; align-items: center; justify-content: center; margin-top: 2px; }
+.plan-date.is-today .plan-num { background: var(--blue); color: #fff; border-radius: 6px; }
+.plan-ms { font-size: 9px; font-weight: 700; letter-spacing: .03em; height: 12px; line-height: 12px; }
+.plan-ms-spacer { visibility: hidden; }
+.plan-name-cell { display: flex; gap: 8px; min-width: 0; align-items: center; width: 100%; padding-left: 12px; }
+.plan-key { font-size: 12px; font-weight: 650; color: var(--text2); flex-shrink: 0; text-decoration: none; }
+.plan-key:hover { color: var(--blue); }
+.plan-sum { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 13px; color: var(--text); }
+.plan-days, .plan-est { display: flex; justify-content: center; width: 100%; font-variant-numeric: tabular-nums; font-size: 12px; color: var(--text); font-weight: 600; }
+.plan-track { position: relative; flex: 0 0 auto; z-index: 1; }
+.plan-line:hover .plan-cell { background: var(--bg2); }
+.plan-group .plan-cell, .plan-section .plan-cell { background: var(--bg2); }
+.plan-head .plan-cell { background: var(--bg); }
+.plan-edit { border: 0; background: transparent; color: inherit; font: inherit; cursor: pointer; min-width: 0; border-radius: 8px; }
+.plan-edit.plan-sum { flex: 1; text-align: left; padding: 4px 6px; }
+.plan-edit.plan-field-btn { width: 100%; text-align: left; padding: 0 8px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 12px; color: var(--text2); }
+.plan-edit.plan-who-btn { width: 100%; height: 100%; display: flex; align-items: center; justify-content: center; padding: 0; }
+.plan-edit:hover, .plan-edit:focus-visible { background: var(--bg3); }
+.plan-edit:focus-visible { outline: 2px solid var(--blue); outline-offset: 1px; }
+.plan-days-input { width: calc(100% - 10px); margin: 0 5px; padding: 3px 6px; font-size: 12px; }
+.plan-init-empty { background: var(--bg3); color: var(--text2); }
+.plan-section-label { font-size: 11px; font-weight: 600; letter-spacing: .08em; text-transform: uppercase; color: var(--text2); }
+.plan-person { font-size: 13px; font-weight: 600; }
+.plan-cap { display: inline-flex; align-items: center; padding: 2px 8px; border-radius: 999px; font-size: 11px; font-weight: 600; font-variant-numeric: tabular-nums; white-space: nowrap; }
+.plan-cap.is-ok { background: var(--green-bg); color: var(--green); }
+.plan-cap.is-over { background: var(--red-bg); color: var(--red); }
+.plan-cap.is-open { background: var(--bg3); color: var(--text2); }
+.plan-init { display: inline-flex; align-items: center; justify-content: center; min-width: 22px; height: 18px; padding: 0 4px; border-radius: 6px; font-size: 10px; font-weight: 700; letter-spacing: .02em; color: #1a1a18; }
+.plan-bar { position: absolute; top: 27%; height: 46%; border-radius: 5px; cursor: grab; touch-action: none; transition: transform .18s cubic-bezier(.2,.8,.2,1); }
+.plan-bar:hover { transform: scaleY(1.12); }
+.plan-bar:active, .plan-bar.is-dragging { cursor: grabbing; }
+.plan-bar.is-dragging { transition: none; }
+.plan-bar.is-pin { box-shadow: inset 3px 0 0 rgba(0,0,0,.35); }
+.plan-bar[data-lane="finishing"] { opacity: .75; }
+.plan-bar:focus-visible { outline: 2px solid var(--blue); outline-offset: 2px; }
+.plan-empty { padding: 48px 20px; color: var(--text2); font-size: 14px; }
+@media (prefers-color-scheme: dark) {
+  .plan-shade.is-weekend, .plan-date.is-weekend { background: rgba(255,255,255,.04); }
+}
+body.theme-dark .plan-shade.is-weekend, body.theme-dark .plan-date.is-weekend { background: rgba(255,255,255,.04); }
+@media (prefers-reduced-motion: reduce) {
+  .plan-bar { transition: none; }
+}
+
 /* ── Scrollbar ── */
 ::-webkit-scrollbar { width: 6px; height: 6px; }
 ::-webkit-scrollbar-track { background: transparent; }
@@ -1043,6 +1176,10 @@ code { font-family: monospace; font-size: 12px; background: var(--bg3); padding:
     <button class="nav-item" onclick="nav('team')" id="nav-team" title="Team View">
       <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
       <span class="nav-label">Team View</span>
+    </button>
+    <button class="nav-item" onclick="nav('release-plan')" id="nav-release-plan" title="Release plan">
+      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 5h16M4 12h10M4 19h7"/><path d="M15 10h5v4h-5z"/></svg>
+      <span class="nav-label">Release plan</span>
     </button>
     <button class="nav-item" onclick="nav('phase-timeline')" id="nav-phase-timeline" title="Project Phase">
       <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 3v18h18"/><path d="M18 17V9"/><path d="M13 17V5"/><path d="M8 17v-3"/></svg>
@@ -1915,6 +2052,87 @@ code { font-family: monospace; font-size: 12px; background: var(--bg3); padding:
           </div>
         </div>
         <div id="team-body"></div>
+      </div>
+
+      <!-- Release plan -->
+      <div class="page" id="page-release-plan">
+        <div class="plan-shell">
+          <div class="plan-top">
+            <div class="plan-title-row">
+              <h2>Release plan</h2>
+              <span id="plan-title-release"></span>
+              <span class="plan-grow"></span>
+              <span id="plan-count" class="plan-count"></span>
+              <button type="button" class="plan-text-btn" id="plan-fs" aria-pressed="false" onclick="togglePlanFullscreen()">Full screen</button>
+            </div>
+            <div class="plan-tools">
+              <div class="plan-field">
+                <span class="plan-k">Rows</span>
+                <div class="plan-seg" role="radiogroup" aria-label="Rows">
+                  <button type="button" role="radio" id="plan-rows-person" aria-checked="true" onclick="planSet('rows','person')">Person</button>
+                  <button type="button" role="radio" id="plan-rows-ticket" aria-checked="false" onclick="planSet('rows','ticket')">Ticket</button>
+                </div>
+              </div>
+              <div class="plan-field">
+                <span class="plan-k">Zoom</span>
+                <div class="plan-seg" role="radiogroup" aria-label="Zoom">
+                  <button type="button" role="radio" id="plan-zoom-day" aria-checked="true" onclick="planSet('zoom','day')">Day</button>
+                  <button type="button" role="radio" id="plan-zoom-week" aria-checked="false" onclick="planSet('zoom','week')">Wk</button>
+                  <button type="button" role="radio" id="plan-zoom-month" aria-checked="false" onclick="planSet('zoom','month')">Mth</button>
+                </div>
+              </div>
+              <div class="plan-field">
+                <span class="plan-k">Size</span>
+                <div class="plan-seg" role="radiogroup" aria-label="Size">
+                  <button type="button" role="radio" id="plan-size-S" aria-checked="false" onclick="planSet('size','S')">S</button>
+                  <button type="button" role="radio" id="plan-size-M" aria-checked="false" onclick="planSet('size','M')">M</button>
+                  <button type="button" role="radio" id="plan-size-L" aria-checked="true" onclick="planSet('size','L')">L</button>
+                  <button type="button" role="radio" id="plan-size-XL" aria-checked="false" onclick="planSet('size','XL')">XL</button>
+                </div>
+              </div>
+              <button type="button" class="plan-text-btn" onclick="planScrollToToday(true)">Today</button>
+              <div class="plan-pop-wrap">
+                <button type="button" class="plan-menu-btn" data-plan-pop="plan-phases" onclick="planTogglePop('plan-phases')">Phases</button>
+                <div class="plan-pop" id="plan-phases"></div>
+              </div>
+              <div class="plan-field">
+                <span class="plan-k">Colour</span>
+                <div class="plan-seg" role="radiogroup" aria-label="Colour">
+                  <button type="button" role="radio" id="plan-colour-commitment" aria-checked="true" onclick="planSet('colour','commitment')">Commitment</button>
+                  <button type="button" role="radio" id="plan-colour-status" aria-checked="false" onclick="planSet('colour','status')">Status</button>
+                </div>
+              </div>
+              <div class="plan-pop-wrap">
+                <button type="button" class="plan-menu-btn" data-plan-pop="plan-cols" onclick="planTogglePop('plan-cols')">Columns</button>
+                <div class="plan-pop" id="plan-cols">
+                  <label><input type="checkbox" data-col="prd" checked onchange="planToggleCol('prd', this.checked)"> PRD</label>
+                  <label><input type="checkbox" data-col="dev" checked onchange="planToggleCol('dev', this.checked)"> DEV</label>
+                  <label><input type="checkbox" data-col="qa" onchange="planToggleCol('qa', this.checked)"> QA</label>
+                  <label><input type="checkbox" data-col="est" checked onchange="planToggleCol('est', this.checked)"> Dev est</label>
+                  <label><input type="checkbox" data-col="developer" checked onchange="planToggleCol('developer', this.checked)"> Developer</label>
+                  <label><input type="checkbox" data-col="status" checked onchange="planToggleCol('status', this.checked)"> Status</label>
+                </div>
+              </div>
+              <div class="plan-pop-wrap">
+                <button type="button" class="plan-menu-btn" id="plan-freeze-btn" data-plan-pop="plan-freeze" aria-pressed="true" aria-haspopup="true" onclick="planTogglePop('plan-freeze')">Freeze</button>
+                <div class="plan-pop" id="plan-freeze" role="radiogroup" aria-label="Freeze columns"></div>
+              </div>
+              <button type="button" class="plan-text-btn" id="plan-hide" aria-pressed="false" onclick="planToggleHide()">Hide unused</button>
+              <div class="plan-pop-wrap">
+                <button type="button" class="plan-menu-btn" data-plan-pop="plan-legend" onclick="planTogglePop('plan-legend')">Legend</button>
+                <div class="plan-pop" id="plan-legend">
+                  <div id="plan-legend-swatches"></div>
+                  <p class="plan-legend-copy">Bars use working days from the dev estimate. In-development work sits across today. The rest packs in until feature freeze, then stays off the calendar as days to distribute. Drag a bar to pin its start. Double-click, or press Delete, to reset that pin. Summary, people, status, and the dev estimate save to Jira. Freeze keeps columns on the left while the calendar scrolls. QA is the assignee when they are not the developer.</p>
+                  <button type="button" class="plan-text-btn" onclick="planResetPins()">Reset pinned dates</button>
+                </div>
+              </div>
+              <input id="plan-search" class="plan-search" type="search" placeholder="Search tickets" aria-label="Search tickets" oninput="planSearchInput()" />
+            </div>
+          </div>
+          <div class="plan-scroll" id="plan-scroll" tabindex="0" role="region" aria-label="Release plan timeline">
+            <div id="plan-board"></div>
+          </div>
+        </div>
       </div>
 
       <!-- Project Phase -->
@@ -2902,7 +3120,7 @@ function getPageCategory() {
     if (isQualityDashboardProject(proj)) return 'Quality';
     return String(proj.category || '').trim() || 'Delivery';
   }
-  if (['team', 'velocity', 'analytics', 'phase-timeline', 'log', 'data-gaps', 'release-report'].includes(page)) {
+  if (['team', 'velocity', 'analytics', 'phase-timeline', 'log', 'data-gaps', 'release-report', 'release-plan'].includes(page)) {
     return 'Delivery';
   }
   return '';
@@ -4209,7 +4427,7 @@ async function checkProxy() {
 
 // ── Deep linking (History API) ───────────────────────────────────────────────
 const STATIC_PAGES = new Set([
-  'setup', 'velocity', 'data-gaps', 'analytics', 'release-report', 'quality-insights', 'quality-phase', 'quality-progress', 'team', 'phase-timeline', 'log',
+  'setup', 'velocity', 'data-gaps', 'analytics', 'release-report', 'quality-insights', 'quality-phase', 'quality-progress', 'team', 'release-plan', 'phase-timeline', 'log',
   'connector', 'projects-config', 'releases-config', 'milestones-config', 'fields'
 ]);
 
@@ -4273,6 +4491,33 @@ function applyPendingRouteState(page) {
       S._teamSort.col = sort;
       if (dir) S._teamSort.dir = dir === 'desc' ? -1 : 1;
     }
+  }
+
+  if (page === 'release-plan') {
+    const state = planState();
+    const rows = params.get('rows');
+    if (rows === 'ticket' || rows === 'person') state.rows = rows;
+    const zoom = params.get('zoom');
+    if (zoom === 'day' || zoom === 'week' || zoom === 'month') state.zoom = zoom;
+    const size = params.get('size');
+    if (size === 'S' || size === 'M' || size === 'L' || size === 'XL') state.size = size;
+    const colour = params.get('colour');
+    if (colour === 'status' || colour === 'commitment') state.colour = colour;
+    if (params.get('hide') === '1') state.hideUnused = true;
+    const planQuery = params.get('q');
+    if (planQuery) {
+      const search = document.getElementById('plan-search');
+      if (search) search.value = planQuery;
+    }
+    const phases = params.get('phases');
+    if (phases != null) state.phases = phases.split(',').map(item => item.trim()).filter(label => PLAN_PHASES.includes(label));
+    const cols = params.get('cols');
+    if (cols != null) {
+      const on = new Set(cols.split(',').map(item => item.trim()));
+      Object.keys(state.cols).forEach(id => { state.cols[id] = on.has(id); });
+    }
+    const freeze = params.get('freeze');
+    if (freeze && PLAN_FREEZE_LEVELS.some(item => item.id === freeze)) state.freeze = freeze;
   }
 
   if (page === 'velocity') {
@@ -4538,6 +4783,20 @@ function collectRouteParams() {
     }
     const priorities = csvParam(getSelectedQualityPriorities());
     if (priorities) params.set('priorities', priorities);
+  } else if (page === 'release-plan') {
+    const state = planState();
+    if (state.rows !== 'person') params.set('rows', state.rows);
+    if (state.zoom !== 'day') params.set('zoom', state.zoom);
+    if (state.size !== 'L') params.set('size', state.size);
+    if (state.colour !== 'commitment') params.set('colour', state.colour);
+    if (state.hideUnused) params.set('hide', '1');
+    const planQuery = document.getElementById('plan-search')?.value?.trim();
+    if (planQuery) params.set('q', planQuery);
+    const phaseCsv = state.phases.join(',');
+    if (phaseCsv !== PLAN_PHASES.filter(label => label !== 'Closed').join(',')) params.set('phases', phaseCsv);
+    const colCsv = Object.entries(state.cols).filter(([, on]) => on).map(([id]) => id).join(',');
+    if (colCsv !== 'prd,dev,est,developer,status') params.set('cols', colCsv);
+    if (state.freeze && state.freeze !== 'all') params.set('freeze', state.freeze);
   } else if (page === 'phase-timeline' || page === 'quality-phase') {
     const projects = csvParam(getSelectedPhaseProjects());
     const developers = csvParam(getSelectedPhaseDevelopers());
@@ -4661,6 +4920,7 @@ function initDeepLinking() {
 
 // ── Navigation ───────────────────────────────────────────────────────────────
 function nav(id, opts = {}) {
+  if (id !== 'release-plan') document.body.classList.remove('plan-fs');
   document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
   document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
   const page = document.getElementById('page-' + id);
@@ -4701,6 +4961,9 @@ function nav(id, opts = {}) {
   } else if (id === 'team') {
     document.getElementById('topbar-title').textContent = 'Team View';
     renderTeam();
+  } else if (id === 'release-plan') {
+    document.getElementById('topbar-title').textContent = 'Release plan';
+    renderReleasePlan({ toToday: true });
   } else if (id === 'phase-timeline') {
     document.getElementById('topbar-title').textContent = 'Project Phase Timeline';
     renderPhaseTimeline();
@@ -4958,6 +5221,7 @@ async function refreshAll() {
   else if (S.page === 'quality-phase') renderPhaseTimeline();
   else if (S.page === 'quality-progress') renderDailyProgress();
   else if (S.page === 'log') renderDailyProgress();
+  else if (S.page === 'release-plan') renderReleasePlan({ keepScroll: true });
 }
 
 function cancelRefresh() {
@@ -5869,7 +6133,7 @@ function compareProjectSortValues(a, b, dir) {
 }
 
 const MAX_PROJECT_SORT_LEVELS = 8;
-let _userPrefs = { projectSorts: {}, groupByEpic: true, columnWidths: {} };
+let _userPrefs = { projectSorts: {}, groupByEpic: true, columnWidths: {}, columnFreeze: {} };
 let _columnWidthTimers = {};
 let _epicCollapsed = {};
 let _epicGroupStatus = {};
@@ -5983,10 +6247,12 @@ function applyRouteProjectSort(proj, params) {
 function rememberUserPreferences(data) {
   const projectSorts = data && data.projectSorts && typeof data.projectSorts === 'object' ? data.projectSorts : {};
   const columnWidths = data && data.columnWidths && typeof data.columnWidths === 'object' ? data.columnWidths : {};
+  const columnFreeze = data && data.columnFreeze && typeof data.columnFreeze === 'object' ? data.columnFreeze : {};
   _userPrefs = {
     projectSorts,
     groupByEpic: !data || data.groupByEpic !== false,
     columnWidths,
+    columnFreeze,
   };
   if (!S._projSort) S._projSort = {};
   Object.entries(projectSorts).forEach(([key, levels]) => {
@@ -7439,6 +7705,7 @@ function bindColumnResizers(projKey) {
       widths[colId] = defaultColumnWidth(colId);
       applyColumnWidths(table, widths);
       rememberColumnWidths(projKey, widths);
+      syncProjectFreeze(projKey);
     });
   });
 }
@@ -7461,6 +7728,7 @@ function startColumnResize(event, projKey, table, handle) {
   function move(nextEvent) {
     widths[colId] = clampColumnWidth(start + (nextEvent.clientX - startX));
     applyColumnWidths(table, widths);
+    syncProjectFreeze(projKey);
   }
   function end() {
     handle.removeEventListener('pointermove', move);
@@ -7469,6 +7737,7 @@ function startColumnResize(event, projKey, table, handle) {
     document.body.classList.remove('is-col-resize');
     handle.classList.remove('is-active');
     rememberColumnWidths(projKey, widths);
+    syncProjectFreeze(projKey);
   }
   handle.addEventListener('pointermove', move);
   handle.addEventListener('pointerup', end);
@@ -7490,6 +7759,154 @@ function nudgeColumnWidth(event, projKey, table, handle) {
   widths[colId] = clampColumnWidth((widths[colId] || defaultColumnWidth(colId)) + delta);
   applyColumnWidths(table, widths);
   rememberColumnWidths(projKey, widths);
+  syncProjectFreeze(projKey);
+}
+
+function projectColumnIds(table) {
+  return [...table.querySelectorAll('colgroup col')].map(col => col.getAttribute('data-col'));
+}
+
+function getProjectFreeze(projKey) {
+  const value = _userPrefs.columnFreeze && _userPrefs.columnFreeze[projKey];
+  if (value === 'none') return 'none';
+  if (typeof value === 'string' && /^[A-Za-z][A-Za-z0-9_]{0,63}$/.test(value)) return value;
+  return 'notes';
+}
+
+function effectiveProjectFreeze(projKey, colIds) {
+  const saved = getProjectFreeze(projKey);
+  if (saved === 'none') return 'none';
+  if (colIds.includes(saved)) return saved;
+  if (colIds.includes('notes')) return 'notes';
+  return 'none';
+}
+
+function freezeChoiceLabel(colId, index) {
+  const field = ALL_FIELDS.find(item => item.id === colId);
+  const name = colId === 'notes' ? 'Notes' : (field && field.label) || colId;
+  return index === 0 ? name : 'Through ' + name;
+}
+
+function applyProjectFreeze(table, colIds, throughId) {
+  if (!table) return;
+  const headers = [...table.querySelectorAll('thead th')];
+  headers.forEach(th => {
+    th.classList.remove('is-frozen', 'is-frozen-end');
+    th.style.left = '';
+  });
+  table.querySelectorAll('tbody td').forEach(td => {
+    td.classList.remove('is-frozen', 'is-frozen-end');
+    td.style.left = '';
+  });
+  const cut = throughId === 'none' ? -1 : colIds.indexOf(throughId);
+  table.classList.toggle('has-frozen-cols', cut >= 1);
+  if (cut < 0) return;
+  const rows = [...table.querySelectorAll('tbody tr')];
+  let left = 0;
+  for (let i = 0; i <= cut; i += 1) {
+    const th = headers[i];
+    if (!th) break;
+    const col = table.querySelectorAll('colgroup col')[i];
+    const styled = col ? parseInt(col.style.width, 10) : 0;
+    const width = Math.round(th.getBoundingClientRect().width) || styled || defaultColumnWidth(colIds[i]);
+    const last = i === cut;
+    th.classList.add('is-frozen');
+    th.classList.toggle('is-frozen-end', last);
+    th.style.left = left + 'px';
+    rows.forEach(row => {
+      const td = row.children[i];
+      if (!td || td.hasAttribute('colspan')) return;
+      td.classList.add('is-frozen');
+      td.classList.toggle('is-frozen-end', last);
+      td.style.left = left + 'px';
+    });
+    left += width;
+  }
+}
+
+function syncProjectFreeze(projKey) {
+  const table = document.querySelector('#issues-' + CSS.escape(projKey) + ' table.issues');
+  if (!table) return;
+  const colIds = projectColumnIds(table);
+  const through = effectiveProjectFreeze(projKey, colIds);
+  applyProjectFreeze(table, colIds, through);
+  const btn = document.querySelector('#issues-' + CSS.escape(projKey) + ' .proj-freeze-btn');
+  if (!btn) return;
+  const on = through !== 'none';
+  btn.classList.toggle('is-on', on);
+  btn.setAttribute('aria-pressed', on ? 'true' : 'false');
+  const index = colIds.indexOf(through);
+  const label = through === 'none' ? "Don't freeze" : freezeChoiceLabel(through, Math.max(index, 0));
+  btn.title = 'Freeze columns: ' + label;
+}
+
+let _openFreezeKey = null;
+
+function closeProjectFreezeMenu() {
+  if (!_openFreezeKey) return;
+  const pop = document.getElementById('proj-freeze-' + _openFreezeKey);
+  const btn = document.querySelector('#issues-' + CSS.escape(_openFreezeKey) + ' .proj-freeze-btn');
+  if (pop) pop.hidden = true;
+  if (btn) btn.setAttribute('aria-expanded', 'false');
+  _openFreezeKey = null;
+}
+
+function toggleProjectFreezeMenu(event, projKey) {
+  event.preventDefault();
+  event.stopPropagation();
+  if (_openFreezeKey === projKey) {
+    closeProjectFreezeMenu();
+    return;
+  }
+  closeProjectFreezeMenu();
+  const pop = document.getElementById('proj-freeze-' + projKey);
+  const table = document.querySelector('#issues-' + CSS.escape(projKey) + ' table.issues');
+  if (!pop || !table) return;
+  const colIds = projectColumnIds(table);
+  const current = effectiveProjectFreeze(projKey, colIds);
+  const choices = [{ id: 'none', label: "Don't freeze" }].concat(colIds.map((id, index) => ({
+    id,
+    label: freezeChoiceLabel(id, index),
+  })));
+  pop.innerHTML = choices.map(choice => {
+    const on = choice.id === current;
+    return '<button type="button" role="radio" aria-checked="' + (on ? 'true' : 'false') + '" onclick=\'setProjectFreeze(event,'
+      + JSON.stringify(projKey) + ',' + JSON.stringify(choice.id) + ')\'>' + esc(choice.label) + '</button>';
+  }).join('');
+  pop.hidden = false;
+  _openFreezeKey = projKey;
+  event.currentTarget.setAttribute('aria-expanded', 'true');
+}
+
+async function setProjectFreeze(event, projKey, column) {
+  if (event) {
+    event.preventDefault();
+    event.stopPropagation();
+  }
+  closeProjectFreezeMenu();
+  if (!_userPrefs.columnFreeze) _userPrefs.columnFreeze = {};
+  if (!column || column === 'notes') delete _userPrefs.columnFreeze[projKey];
+  else _userPrefs.columnFreeze[projKey] = column;
+  syncProjectFreeze(projKey);
+  const tools = document.querySelector('#issues-' + CSS.escape(projKey) + ' .proj-table-tools');
+  const old = tools && tools.querySelector('.proj-freeze-status');
+  if (old) old.remove();
+  try {
+    const response = await authFetch('/api/user-preferences/column-freeze/' + encodeURIComponent(projKey), {
+      method: 'PUT',
+      body: JSON.stringify({ column: !column || column === 'notes' ? '' : column }),
+    });
+    const result = await response.json().catch(() => ({}));
+    if (!response.ok) throw new Error(result.error || 'Could not save frozen columns.');
+    if (result.column === 'notes' || !result.column) delete _userPrefs.columnFreeze[projKey];
+    else _userPrefs.columnFreeze[projKey] = result.column;
+  } catch (err) {
+    if (!tools) return;
+    const note = document.createElement('span');
+    note.className = 'proj-sort-status is-error proj-freeze-status';
+    note.textContent = err.message || 'Could not save frozen columns.';
+    tools.appendChild(note);
+  }
 }
 
 function renderIssueTable(proj, issues, activeFilter) {
@@ -7531,6 +7948,11 @@ function renderIssueTable(proj, issues, activeFilter) {
       const classes = [];
       if (opts.indent && f.id === indentField) classes.push('epic-indent');
       if (opts.parentLabel && f.id === labelField) classes.push('epic-parent-label');
+      if (window.JiraWrite && JiraWrite.fieldKind) {
+        const kind = JiraWrite.fieldKind(f.id);
+        if (kind === 'number') classes.push('is-inline-edit');
+        if (kind === 'option' || kind === 'priority' || kind === 'transition') classes.push('is-choice');
+      }
       return `<td${classes.length ? ` class="${classes.join(' ')}"` : ''} title="${esc(String(getCellValue(issue, f)))}">${renderCell(f, issue)}</td>`;
     }).join('');
   }
@@ -7619,6 +8041,10 @@ function renderIssueTable(proj, issues, activeFilter) {
       <input id="proj-search-${proj.key}" class="proj-search" type="search" placeholder="Search issues…" value="${esc(colSt.q || '')}" oninput='onProjectSearchInput(${JSON.stringify(proj.key)},this.value)' />
       ${hasProjectColFilters(proj.key) ? `<button class="btn btn-sm" onclick='clearProjectFilters(${JSON.stringify(proj.key)})'>Clear filters</button>` : ''}
       <button class="btn btn-sm proj-sort-btn${sortLevels.length ? ' is-on' : ''}" type="button" onclick='openProjectSortDialog(${JSON.stringify(proj.key)})' title="${esc(sortLevels.length ? projectSortSummary(sortLevels) : 'Define a nested sort')}">${esc(projectSortButtonLabel(sortLevels))}</button>
+      <div class="proj-freeze-wrap">
+        <button class="btn btn-sm proj-freeze-btn${effectiveProjectFreeze(proj.key, ['notes'].concat(vf.map(field => field.id))) !== 'none' ? ' is-on' : ''}" type="button" aria-haspopup="listbox" aria-expanded="false" aria-pressed="${effectiveProjectFreeze(proj.key, ['notes'].concat(vf.map(field => field.id))) !== 'none' ? 'true' : 'false'}" title="Freeze columns while the table scrolls" onclick='toggleProjectFreezeMenu(event, ${JSON.stringify(proj.key)})'>Freeze</button>
+        <div class="proj-freeze-pop" id="proj-freeze-${esc(proj.key)}" role="listbox" aria-label="Freeze columns" hidden></div>
+      </div>
       ${_projSortStatus[proj.key] ? `<span class="proj-sort-status${_projSortStatus[proj.key].error ? ' is-error' : ''}">${esc(_projSortStatus[proj.key].message)}</span>` : ''}
       ${isQualityDashboardProject(proj) ? '' : `<div class="epic-layout-toggle" role="group" aria-label="How issues are listed">
         <button type="button" aria-pressed="${groupByEpicOn() ? 'true' : 'false'}" title="List each enhancement under its epic" onclick='setEpicGrouping(${JSON.stringify(proj.key)}, true)'>
@@ -7665,6 +8091,8 @@ function renderIssueTable(proj, issues, activeFilter) {
     }
   }
   bindColumnResizers(proj.key);
+  syncProjectFreeze(proj.key);
+  if (window.JiraWrite && JiraWrite.warmChoices) JiraWrite.warmChoices();
 }
 
 // Field IDs that are Jira user-picker type — always extract displayName
@@ -7731,7 +8159,16 @@ function renderCell(f, issue) {
   } else if (f.id==='jiraProject') {
     html = `<span style="display:inline-flex;align-items:center;gap:6px"><span style="width:8px;height:8px;border-radius:50%;background:${jiraProjectColor(s)};display:inline-block"></span>${esc(s)}</span>`;
   } else html = esc(s);
-  if (window.JiraWrite && JiraWrite.canEdit(f.id)) return JiraWrite.wrap(issue.key, f.id, f.label, html);
+  if (window.JiraWrite && JiraWrite.canEdit(f.id)) {
+    const kind = JiraWrite.fieldKind(f.id);
+    if (kind === 'number') {
+      const raw = (issue.fields || {})[jiraId(f)];
+      const num = typeof raw === 'number' ? raw : (raw == null || raw === '' || !Number.isFinite(Number(raw)) ? '' : Number(raw));
+      return JiraWrite.daysField(issue.key, f.id, num);
+    }
+    if (kind === 'option' || kind === 'priority' || kind === 'transition') return JiraWrite.choiceField(issue.key, f.id);
+    return JiraWrite.wrap(issue.key, f.id, f.label, html);
+  }
   return html;
 }
 
@@ -11799,13 +12236,449 @@ document.addEventListener('click', e => {
   if (!e.target.closest('#proj-col-filter-pop') && !e.target.closest('.th-filter')) {
     closeProjectColFilter();
   }
+  if (!e.target.closest('.proj-freeze-wrap')) closeProjectFreezeMenu();
 });
 document.addEventListener('scroll', e => {
+  if (!(e.target && e.target.closest && e.target.closest('.proj-freeze-pop'))) closeProjectFreezeMenu();
   if (!S._openColFilter) return;
   if (e.target && e.target.closest && e.target.closest('#proj-col-filter-pop')) return;
   closeProjectColFilter();
 }, true);
 window.addEventListener('resize', () => { if (S._openColFilter) closeProjectColFilter(); });
+
+const PLAN_PHASES = ['Product', 'Developer Pending', 'Developing', 'QA', 'Rejected / Replied', 'On Hold', 'External Team', 'Other', 'Closed'];
+const PLAN_FREEZE_LEVELS = [
+  { id: 'none', label: "Don't freeze" },
+  { id: 'name', label: 'Ticket' },
+  { id: 'days', label: 'Ticket and days' },
+  { id: 'prd', label: 'Through PRD' },
+  { id: 'dev', label: 'Through DEV' },
+  { id: 'qa', label: 'Through QA' },
+  { id: 'est', label: 'Through dev est' },
+  { id: 'developer', label: 'Through developer' },
+  { id: 'status', label: 'Through status' },
+  { id: 'all', label: 'All columns' },
+];
+const PLAN_STORE_KEY = 'jira-dashboard.release-plan';
+
+function planState() {
+  if (!S._plan) {
+    S._plan = {
+      rows: 'person',
+      zoom: 'day',
+      size: 'L',
+      colour: 'commitment',
+      hideUnused: false,
+      phases: PLAN_PHASES.filter(label => label !== 'Closed'),
+      cols: { prd: true, dev: true, qa: false, est: true, developer: true, status: true },
+      freeze: 'all',
+    };
+  }
+  return S._plan;
+}
+
+function planToday() {
+  const now = new Date();
+  const month = String(now.getMonth() + 1).padStart(2, '0');
+  const day = String(now.getDate()).padStart(2, '0');
+  return now.getFullYear() + '-' + month + '-' + day;
+}
+
+function planOverrideMap() {
+  try {
+    const parsed = JSON.parse(localStorage.getItem(PLAN_STORE_KEY) || '{}');
+    return parsed && typeof parsed === 'object' ? parsed : {};
+  } catch (e) {
+    return {};
+  }
+}
+
+function planOverrideBucket() {
+  const names = getSelectedReleaseNames().filter(name => !isVirtualRelease(name));
+  return names.join('|') || 'all';
+}
+
+function planOverrides() {
+  const bucket = planOverrideMap()[planOverrideBucket()];
+  return bucket && typeof bucket === 'object' ? bucket : {};
+}
+
+function planWriteOverrides(next) {
+  const all = planOverrideMap();
+  all[planOverrideBucket()] = next;
+  try { localStorage.setItem(PLAN_STORE_KEY, JSON.stringify(all)); } catch (e) { /* ignore quota */ }
+}
+
+function planSaveOverride(key, iso) {
+  if (!key || !iso) return;
+  const next = Object.assign({}, planOverrides());
+  next[key] = iso;
+  planWriteOverrides(next);
+}
+
+function planClearOverride(key) {
+  const next = Object.assign({}, planOverrides());
+  delete next[key];
+  planWriteOverrides(next);
+}
+
+function planResetPins() {
+  planWriteOverrides({});
+  renderReleasePlan({ keepScroll: true });
+}
+
+function planPhaseLabel(status) {
+  const phase = getPhaseForStatus(status);
+  if (phase && phase.label) return phase.label;
+  if (/^on[\s-]*hold/i.test(status || '')) return 'On Hold';
+  return 'Other';
+}
+
+function planFieldUser(issue, fieldId) {
+  const field = ALL_FIELDS.find(item => item.id === fieldId);
+  if (!field) return '';
+  return extractUserName(issue.fields?.[jiraId(field)]) || '';
+}
+
+function collectPlanTickets() {
+  const tickets = [];
+  getDeliveryProjects().forEach(proj => {
+    const data = S.cache[proj.key];
+    if (!data || data.err) return;
+    (data.issues || []).forEach(issue => {
+      if (!issue || !issue.key) return;
+      const type = issue.fields?.issuetype?.name || '';
+      if (/^epic$/i.test(type)) return;
+      const status = issue.fields?.status?.name || '';
+      const timing = window.ReleasePlan ? ReleasePlan.devWindow(issue) : { devStarted: '', leftDev: '' };
+      const hasEst = hasIssueDays(issue, 'cf_devest', 'customfield_14042');
+      const hasAct = hasIssueDays(issue, 'cf_devact', 'customfield_16133');
+      let commitment = getScopeCommitment(issue) || '';
+      if (commitment && typeof commitment !== 'string') commitment = commitment.value || commitment.name || '';
+      tickets.push({
+        key: issue.key,
+        summary: issue.fields?.summary || '',
+        status,
+        phase: planPhaseLabel(status),
+        estimate: hasEst ? getIssueDays(issue, 'cf_devest', 'customfield_14042') : null,
+        actual: hasAct ? getIssueDays(issue, 'cf_devact', 'customfield_16133') : null,
+        developer: getDev(issue),
+        product: planFieldUser(issue, 'cf_product'),
+        assignee: issue.fields?.assignee?.displayName || '',
+        commitment: String(commitment || ''),
+        priority: issue.fields?.priority?.name || '',
+        devStarted: timing.devStarted || '',
+        leftDev: timing.leftDev || '',
+      });
+    });
+  });
+  return tickets;
+}
+
+function planHorizonDates() {
+  const names = getSelectedReleaseNames().filter(name => !isVirtualRelease(name));
+  const release = (S.releases || []).find(item => names.includes(item.name));
+  const dates = (release && release.milestones) || {};
+  const catalog = getMilestones();
+  const byId = new Map(catalog.map(item => [item.id, item]));
+  const ids = (release && release.milestoneIds) || Object.keys(dates);
+  const milestones = ids.map(id => {
+    const date = dates[id];
+    if (!date) return null;
+    const meta = byId.get(id) || {};
+    return { id, date, label: meta.label || id, color: meta.color || '#185FA5' };
+  }).filter(Boolean);
+  return {
+    capacityThrough: dates.FF || dates.DF || '',
+    viewThrough: dates.GA || '',
+    releaseName: names.join(', '),
+    milestones,
+  };
+}
+
+function planFreezeChoices(state) {
+  const visible = new Set(['none', 'name', 'days', 'all']);
+  Object.entries(state.cols || {}).forEach(([id, on]) => { if (on) visible.add(id); });
+  return PLAN_FREEZE_LEVELS.filter(item => visible.has(item.id));
+}
+
+function planEffectiveFreeze(state) {
+  const choices = planFreezeChoices(state);
+  const freeze = state.freeze || 'all';
+  if (choices.some(item => item.id === freeze)) return freeze;
+  const rank = PLAN_FREEZE_LEVELS.map(item => item.id);
+  const wanted = rank.indexOf(freeze);
+  if (wanted < 0) return 'all';
+  for (let i = wanted - 1; i >= 0; i -= 1) {
+    if (choices.some(item => item.id === rank[i])) return rank[i];
+  }
+  return 'none';
+}
+
+function planSyncControls(state) {
+  [['rows', ['person', 'ticket']], ['zoom', ['day', 'week', 'month']], ['size', ['S', 'M', 'L', 'XL']], ['colour', ['commitment', 'status']]].forEach(([key, values]) => {
+    values.forEach(value => {
+      const el = document.getElementById('plan-' + key + '-' + value);
+      if (el) el.setAttribute('aria-checked', state[key] === value ? 'true' : 'false');
+    });
+  });
+  document.querySelectorAll('#plan-cols input[data-col]').forEach(input => {
+    input.checked = !!state.cols[input.dataset.col];
+  });
+  const hide = document.getElementById('plan-hide');
+  if (hide) {
+    hide.setAttribute('aria-pressed', state.hideUnused ? 'true' : 'false');
+    hide.classList.toggle('is-on', !!state.hideUnused);
+  }
+  const freezeBtn = document.getElementById('plan-freeze-btn');
+  const freezeId = planEffectiveFreeze(state);
+  const freezeLevel = PLAN_FREEZE_LEVELS.find(item => item.id === freezeId);
+  const frozen = freezeId !== 'none';
+  if (freezeBtn) {
+    freezeBtn.setAttribute('aria-pressed', frozen ? 'true' : 'false');
+    freezeBtn.classList.toggle('is-on', frozen);
+    freezeBtn.title = freezeLevel ? freezeLevel.label : 'Freeze columns';
+  }
+  const fs = document.getElementById('plan-fs');
+  const full = document.body.classList.contains('plan-fs');
+  if (fs) {
+    fs.textContent = full ? 'Exit full screen' : 'Full screen';
+    fs.setAttribute('aria-pressed', full ? 'true' : 'false');
+  }
+}
+
+function planRenderMenus(state, model) {
+  const phases = document.getElementById('plan-phases');
+  if (phases) {
+    const selected = new Set(state.phases);
+    phases.innerHTML = PLAN_PHASES.map(label => {
+      return '<label><input type="checkbox" value="' + esc(label) + '"' + (selected.has(label) ? ' checked' : '') + ' onchange="planTogglePhase(this.value, this.checked)"> ' + esc(label) + '</label>';
+    }).join('');
+  }
+  const freezeMenu = document.getElementById('plan-freeze');
+  if (freezeMenu) {
+    const current = planEffectiveFreeze(state);
+    freezeMenu.innerHTML = planFreezeChoices(state).map(item => {
+      return '<label><input type="radio" name="plan-freeze-level" value="' + esc(item.id) + '"' + (item.id === current ? ' checked' : '') + ' onchange="planSetFreeze(this.value)"> ' + esc(item.label) + '</label>';
+    }).join('');
+  }
+  const swatches = document.getElementById('plan-legend-swatches');
+  if (swatches) {
+    const items = (model && model.legend) || [];
+    swatches.innerHTML = items.length
+      ? items.map(item => '<div class="plan-legend-item"><span class="plan-legend-swatch" style="background:' + esc(item.color) + '"></span>' + esc(item.label) + '</div>').join('')
+      : '<div class="plan-legend-item">No tickets in this view.</div>';
+  }
+}
+
+function planScrollToToday(smooth) {
+  const scroll = document.getElementById('plan-scroll');
+  const canvas = scroll && scroll.querySelector('.plan-canvas');
+  if (!scroll || !canvas) return;
+  const x = Number(canvas.dataset.todayX) || 0;
+  const left = Math.max(0, x - scroll.clientWidth * 0.32);
+  scroll.scrollTo({ left, behavior: smooth ? 'smooth' : 'auto' });
+}
+
+function renderReleasePlan(opts) {
+  const board = document.getElementById('plan-board');
+  if (!board) return;
+  bindReleasePlan();
+  if (!window.ReleasePlan) {
+    board.innerHTML = '<div class="plan-empty">Release plan is unavailable. Restart the dashboard server so it can serve release-plan.js.</div>';
+    return;
+  }
+  const state = planState();
+  const scroll = document.getElementById('plan-scroll');
+  const keepLeft = opts && opts.keepScroll && scroll ? scroll.scrollLeft : null;
+  const keepTop = opts && opts.keepScroll && scroll ? scroll.scrollTop : null;
+  const horizon = planHorizonDates();
+  const model = ReleasePlan.buildReleasePlan({
+    today: planToday(),
+    capacityThrough: horizon.capacityThrough,
+    viewThrough: horizon.viewThrough,
+    zoom: state.zoom,
+    size: state.size,
+    colour: state.colour,
+    rows: state.rows,
+    hideUnused: state.hideUnused,
+    phases: state.phases,
+    query: document.getElementById('plan-search')?.value || '',
+    overrides: planOverrides(),
+    tickets: collectPlanTickets(),
+    milestones: horizon.milestones,
+  });
+  board.innerHTML = ReleasePlan.renderReleasePlanBoard(model, {
+    columns: state.cols,
+    freezeThrough: planEffectiveFreeze(state),
+    linkBase: String((S.creds && S.creds.url) || _jiraBaseUrl || '').replace(/\/+$/, ''),
+  });
+  const releaseEl = document.getElementById('plan-title-release');
+  if (releaseEl) releaseEl.textContent = horizon.releaseName || 'No market release selected';
+  const countEl = document.getElementById('plan-count');
+  if (countEl) countEl.textContent = model.shown + ' of ' + model.total;
+  planSyncControls(state);
+  planRenderMenus(state, model);
+  if (keepLeft != null && scroll) {
+    scroll.scrollLeft = keepLeft;
+    scroll.scrollTop = keepTop;
+  } else if (scroll) {
+    requestAnimationFrame(() => planScrollToToday(false));
+  }
+}
+
+function planSet(key, value) {
+  const state = planState();
+  if (state[key] === value) return;
+  state[key] = value;
+  renderReleasePlan(key === 'zoom' ? { toToday: true } : { keepScroll: true });
+  if (!_routeNavigating) syncRoute();
+}
+
+function planTogglePhase(label, on) {
+  const state = planState();
+  const selected = new Set(state.phases);
+  if (on) selected.add(label);
+  else selected.delete(label);
+  state.phases = PLAN_PHASES.filter(item => selected.has(item));
+  renderReleasePlan({ keepScroll: true });
+  document.getElementById('plan-phases')?.classList.add('open');
+  if (!_routeNavigating) syncRoute();
+}
+
+function planSetFreeze(id) {
+  const allowed = PLAN_FREEZE_LEVELS.some(item => item.id === id);
+  if (!allowed) return;
+  planState().freeze = id;
+  renderReleasePlan({ keepScroll: true });
+  document.getElementById('plan-freeze')?.classList.add('open');
+  if (!_routeNavigating) syncRoute();
+}
+
+function planToggleCol(id, on) {
+  planState().cols[id] = !!on;
+  renderReleasePlan({ keepScroll: true });
+  document.getElementById('plan-cols')?.classList.add('open');
+  if (!_routeNavigating) syncRoute();
+}
+
+function planToggleHide() {
+  const state = planState();
+  state.hideUnused = !state.hideUnused;
+  renderReleasePlan({ keepScroll: true });
+  if (!_routeNavigating) syncRoute();
+}
+
+function planTogglePop(id) {
+  const el = document.getElementById(id);
+  if (!el) return;
+  const open = el.classList.contains('open');
+  document.querySelectorAll('.plan-pop.open').forEach(node => node.classList.remove('open'));
+  if (!open) el.classList.add('open');
+}
+
+function planSearchInput() {
+  renderReleasePlan({ keepScroll: true });
+  if (!_routeNavigating) syncRoute(true);
+}
+
+function togglePlanFullscreen(force) {
+  const next = typeof force === 'boolean' ? force : !document.body.classList.contains('plan-fs');
+  document.body.classList.toggle('plan-fs', next);
+  const btn = document.getElementById('plan-fs');
+  if (btn) {
+    btn.textContent = next ? 'Exit full screen' : 'Full screen';
+    btn.setAttribute('aria-pressed', next ? 'true' : 'false');
+  }
+  if (next) requestAnimationFrame(() => planScrollToToday(false));
+}
+
+function bindReleasePlan() {
+  if (S._planBound) return;
+  S._planBound = true;
+  const board = document.getElementById('plan-board');
+  board.addEventListener('click', planEditClick);
+  board.addEventListener('pointerdown', planPointerDown);
+  board.addEventListener('dblclick', planBarDblClick);
+  board.addEventListener('keydown', planBarKeydown);
+  document.addEventListener('click', event => {
+    const target = event.target;
+    if (target && target.closest && (target.closest('.plan-pop') || target.closest('[data-plan-pop]'))) return;
+    if (target && target.isConnected === false && target.tagName === 'INPUT') return;
+    document.querySelectorAll('.plan-pop.open').forEach(node => node.classList.remove('open'));
+  });
+}
+
+function planEditClick(event) {
+  const button = event.target.closest && event.target.closest('[data-plan-edit]');
+  if (!button || !window.JiraWrite) return;
+  JiraWrite.open({
+    preventDefault: function () { event.preventDefault(); },
+    stopPropagation: function () { event.stopPropagation(); },
+    currentTarget: button,
+  }, button.dataset.key, button.dataset.planEdit);
+}
+
+function planPointerDown(event) {
+  const bar = event.target.closest && event.target.closest('.plan-bar');
+  if (!bar || event.button !== 0 || !window.ReleasePlan) return;
+  event.preventDefault();
+  bar.focus();
+  const px = Number(bar.dataset.px) || 28;
+  const origin = bar.dataset.start;
+  const key = bar.dataset.key;
+  const x0 = event.clientX;
+  let delta = 0;
+  bar.classList.add('is-dragging');
+  try { bar.setPointerCapture(event.pointerId); } catch (e) { /* ignore */ }
+  function move(ev) {
+    delta = Math.round((ev.clientX - x0) / px);
+    bar.style.transform = 'translateX(' + (delta * px) + 'px)';
+  }
+  function up() {
+    bar.removeEventListener('pointermove', move);
+    bar.removeEventListener('pointerup', up);
+    bar.removeEventListener('pointercancel', up);
+    bar.classList.remove('is-dragging');
+    if (!delta) {
+      bar.style.transform = '';
+      return;
+    }
+    planSaveOverride(key, ReleasePlan.shiftISO(origin, delta));
+    renderReleasePlan({ keepScroll: true });
+    const next = document.querySelector('.plan-bar[data-key="' + (window.CSS && CSS.escape ? CSS.escape(key) : key) + '"]');
+    if (next) next.focus();
+  }
+  bar.addEventListener('pointermove', move);
+  bar.addEventListener('pointerup', up);
+  bar.addEventListener('pointercancel', up);
+}
+
+function planBarDblClick(event) {
+  const bar = event.target.closest && event.target.closest('.plan-bar');
+  if (!bar) return;
+  event.preventDefault();
+  planClearOverride(bar.dataset.key);
+  renderReleasePlan({ keepScroll: true });
+}
+
+function planBarKeydown(event) {
+  const bar = event.target.closest && event.target.closest('.plan-bar');
+  if (!bar || !window.ReleasePlan) return;
+  if (event.key === 'ArrowLeft' || event.key === 'ArrowRight') {
+    event.preventDefault();
+    const dir = event.key === 'ArrowLeft' ? -1 : 1;
+    const key = bar.dataset.key;
+    planSaveOverride(key, ReleasePlan.moveWorkingDays(bar.dataset.start, dir));
+    renderReleasePlan({ keepScroll: true });
+    const next = document.querySelector('.plan-bar[data-key="' + (window.CSS && CSS.escape ? CSS.escape(key) : key) + '"]');
+    if (next) next.focus();
+  } else if (event.key === 'Backspace' || event.key === 'Delete') {
+    event.preventDefault();
+    planClearOverride(bar.dataset.key);
+    renderReleasePlan({ keepScroll: true });
+  }
+}
 
 function renderTeam() {
   const body = document.getElementById('team-body');
@@ -12499,6 +13372,10 @@ if (!S._phaseChartFsBound) {
   document.addEventListener('keydown', (e) => {
     if (e.key !== 'Escape') return;
     const historyCard = document.querySelector('.qi-history-card.is-fullscreen');
+    if (document.body.classList.contains('plan-fs')) {
+      togglePlanFullscreen(false);
+      return;
+    }
     if (historyCard) {
       const canvas = historyCard.querySelector('canvas');
       if (canvas) toggleQualityHistoryMaximize(canvas.id, false);
