@@ -304,7 +304,50 @@ body.is-col-resize, body.is-col-resize * { cursor: col-resize !important; user-s
 .epic-layout-toggle button:hover { color: var(--text); }
 .epic-layout-toggle button[aria-pressed="true"] { background: var(--bg); color: var(--text); box-shadow: 0 1px 2px rgba(0,0,0,.08); }
 .epic-layout-toggle button:focus-visible { outline: 2px solid var(--blue); outline-offset: 1px; }
-.notes-cell-inner { display: inline-flex; align-items: center; gap: 4px; }
+.notes-cell-inner { display: inline-flex; align-items: center; gap: 4px; width: max-content; white-space: nowrap; }
+.bulk-check { width: 16px; height: 16px; margin: 0; flex-shrink: 0; accent-color: var(--blue); cursor: pointer; }
+.proj-bulk-status { font-size: 12px; color: var(--text3); }
+.proj-bulk-status.is-error { color: var(--red); }
+#bulk-edit-root { position: fixed; top: 72px; right: 20px; z-index: 830; width: min(420px, calc(100vw - 32px)); pointer-events: none; }
+#bulk-edit-root[hidden] { display: none !important; }
+.bulk-edit-panel { pointer-events: auto; display: flex; flex-direction: column; max-height: calc(100vh - 96px); background: var(--bg); border: 0.5px solid var(--border); border-radius: 18px; box-shadow: 0 24px 60px rgba(0,0,0,.18); }
+.bulk-edit-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; padding: 18px 18px 0; }
+.bulk-edit-head h2 { font-size: 17px; font-weight: 600; letter-spacing: -0.02em; }
+.bulk-edit-kicker { margin-top: 4px; font-size: 12px; line-height: 1.45; color: var(--text3); }
+.bulk-edit-picks { padding: 12px 18px 0; }
+.bulk-pick-meta { margin: 6px 0; font-size: 11px; color: var(--text3); }
+.bulk-pick-list { display: flex; flex-direction: column; gap: 2px; max-height: 180px; overflow: auto; }
+.bulk-pick-row { display: flex; align-items: center; gap: 8px; min-height: 32px; padding: 2px 2px 2px 8px; border-radius: 8px; }
+.bulk-pick-row:hover { background: var(--bg2); }
+.bulk-pick-key { flex-shrink: 0; font-family: ui-monospace, monospace; font-size: 11px; font-weight: 600; color: var(--blue); }
+.bulk-pick-summary { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 12px; color: var(--text2); }
+.bulk-pick-remove { flex-shrink: 0; width: 28px; height: 28px; padding: 0; border: none; border-radius: 8px; background: transparent; color: var(--text3); font-size: 16px; line-height: 1; cursor: pointer; }
+.bulk-pick-remove:hover { background: var(--bg3); color: var(--text); }
+.bulk-pick-remove:focus-visible { outline: 2px solid var(--blue); outline-offset: 1px; }
+.bulk-edit-empty { font-size: 12px; line-height: 1.45; color: var(--text3); }
+.bulk-edit-body { flex: 1; min-height: 0; margin-top: 12px; padding: 0 18px; overflow: auto; }
+.bulk-cols { display: flex; flex-direction: column; gap: 8px; }
+.bulk-col { padding: 10px 12px; border: 0.5px solid var(--border); border-radius: 12px; background: var(--bg); }
+.bulk-col.is-on { border-color: var(--border2); background: var(--bg2); }
+.bulk-col-label { display: flex; align-items: center; gap: 8px; font-size: 13px; font-weight: 600; cursor: pointer; }
+.bulk-col.is-on .bulk-value, .bulk-col.is-on select.bulk-value, .bulk-col.is-on input.bulk-value { width: 100%; max-width: none; margin-top: 8px; }
+.bulk-edit-panel select, .bulk-edit-panel input:not(.bulk-col-check) { width: 100%; height: 34px; padding: 0 10px; border: 0.5px solid var(--border2); border-radius: 8px; background: var(--bg); color: var(--text); font: inherit; font-size: 13px; }
+.bulk-edit-panel select:focus, .bulk-edit-panel input:not(.bulk-col-check):focus { outline: 2px solid var(--blue); outline-offset: -1px; }
+.bulk-edit-status { min-height: 1.2em; margin: 10px 18px 0; }
+.bulk-edit-foot { display: flex; align-items: center; justify-content: flex-end; gap: 8px; padding: 14px 18px 18px; }
+#bulk-report-root { position: fixed; inset: 0; z-index: 860; }
+#bulk-report-root[hidden] { display: none !important; }
+.bulk-report-backdrop { position: absolute; inset: 0; background: rgba(0,0,0,.28); }
+.bulk-report-panel { position: absolute; top: 50%; left: 50%; width: min(720px, calc(100vw - 32px)); max-height: min(640px, calc(100vh - 48px)); display: flex; flex-direction: column; background: var(--bg); border: 0.5px solid var(--border); border-radius: 18px; box-shadow: 0 24px 60px rgba(0,0,0,.16); transform: translate(-50%, -50%); }
+.bulk-report-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 16px; padding: 20px 20px 0; }
+.bulk-report-head h2 { font-size: 17px; font-weight: 600; letter-spacing: -0.02em; }
+.bulk-report-summary { margin: 8px 20px 0; font-size: 13px; color: var(--text2); }
+.bulk-report-body { min-height: 0; margin: 12px 0 0; padding: 0 20px 20px; overflow: auto; }
+.bulk-report-table { width: 100%; border-collapse: collapse; font-size: 13px; }
+.bulk-report-table th, .bulk-report-table td { padding: 8px 10px; border-bottom: 0.5px solid var(--border); text-align: left; vertical-align: top; }
+.bulk-report-table th { font-size: 11px; font-weight: 600; color: var(--text3); }
+.bulk-report-ok { color: var(--text); }
+.bulk-report-fail { color: var(--red); }
 .epic-gutter { display: inline-flex; align-items: center; justify-content: flex-end; gap: 1px; min-width: 40px; }
 .epic-toggle, .epic-toggle-spacer { width: 22px; height: 22px; flex-shrink: 0; }
 .epic-toggle { display: inline-flex; align-items: center; justify-content: center; padding: 0; border: none; border-radius: 8px; background: transparent; color: var(--text3); cursor: pointer; }
@@ -319,7 +362,8 @@ table.issues td.epic-indent { padding-left: 22px; box-shadow: inset 2px 0 0 var(
 @media (prefers-reduced-motion: reduce) {
   .epic-toggle svg { transition: none; }
 }
-.proj-sort-btn.is-on, .proj-views-btn.is-on { color: var(--text); border-color: var(--border2); }
+.proj-sort-btn.is-on, .proj-views-btn.is-on, .proj-bulk-btn.is-on { color: var(--text); border-color: var(--border2); }
+.proj-bulk-btn:disabled { opacity: .4; cursor: default; }
 .proj-views-btn { max-width: 180px; margin-left: auto; overflow: hidden; text-overflow: ellipsis; }
 .proj-sort-status { font-size: 12px; color: var(--text3); }
 .proj-sort-status.is-error { color: var(--red); }
@@ -397,9 +441,9 @@ table.issues tr:last-child td { border-bottom: none; }
 table.issues tr:hover td { background: var(--bg2); }
 .key-link { color: var(--blue); font-family: monospace; font-size: 11px; font-weight: 600; text-decoration: none; }
 .key-link:hover { text-decoration: underline; }
-table.issues th.notes-col { width: 1%; background: var(--bg); }
+table.issues th.notes-col { width: 1%; padding-left: 8px; padding-right: 8px; background: var(--bg); white-space: nowrap; }
 table.issues th.notes-col .th-label { cursor: default; }
-table.issues td.notes-cell { max-width: none; width: 1%; text-align: left; overflow: visible; background: var(--bg); }
+table.issues td.notes-cell { max-width: none; width: 1%; padding-left: 8px; padding-right: 8px; text-align: left; overflow: hidden; white-space: nowrap; background: var(--bg); }
 table.issues tr:hover td.notes-cell { background: var(--bg2); }
 .th-freeze { display: inline-flex; align-items: center; justify-content: center; width: 16px; height: 16px; padding: 0; border: none; border-radius: 4px; background: none; color: inherit; cursor: pointer; opacity: .45; flex-shrink: 0; }
 .th-freeze::before { content: ''; width: 8px; height: 2px; border-radius: 1px; background: currentColor; box-shadow: 0 -3px 0 currentColor, 0 3px 0 currentColor; }
@@ -415,8 +459,12 @@ table.issues th.is-freeze-preview { box-shadow: inset 0 -2px 0 var(--border2); }
 .proj-issue-split table.issues { width: max-content; min-width: 0; }
 .proj-issue-split th.notes-col,
 .proj-issue-split td.notes-cell { width: auto; }
-.proj-issue-split .proj-scroll-pane table.issues { min-width: 100%; }
+.proj-issue-split .proj-scroll-pane table.issues { min-width: 0; }
 .proj-issue-split tr.is-linked-hover td { background: var(--bg2); }
+table.issues tr.is-bulk-selected td,
+table.issues tr.is-bulk-selected:hover td,
+table.issues tr.is-bulk-selected:hover td.notes-cell,
+.proj-issue-split tr.is-bulk-selected.is-linked-hover td { background: var(--blue-bg); }
 table.issues td.is-editing { z-index: 6; overflow: visible; background: var(--bg); }
 table.issues td.is-inline-edit { overflow: visible; }
 table.issues td.is-inline-edit .jw-days { width: 100%; max-width: 112px; }
@@ -7704,7 +7752,7 @@ const MIN_COLUMN_WIDTH = 64;
 const MAX_COLUMN_WIDTH = 720;
 
 function defaultColumnWidth(colId) {
-  if (colId === 'notes') return 88;
+  if (colId === 'notes') return 112;
   if (colId === 'key') return 112;
   if (colId === 'summary') return 320;
   if (colId === 'status') return 160;
@@ -7735,12 +7783,152 @@ function columnResizerHtml(colId, label) {
   return `<button type="button" class="col-resizer" data-col="${esc(colId)}" aria-label="${esc(name)}" title="Drag to resize. Double-click to reset."></button>`;
 }
 
+function columnWidth(colId, widths) {
+  return (widths && widths[colId]) || defaultColumnWidth(colId);
+}
+
+let _textMeasure;
+
+function textWidth(text, font) {
+  if (!_textMeasure) _textMeasure = document.createElement('canvas').getContext('2d');
+  _textMeasure.font = font || '12px sans-serif';
+  return _textMeasure.measureText(text || '').width;
+}
+
+function columnContentCap(colId) {
+  if (colId === 'summary') return 520;
+  return 280;
+}
+
+function headerFitWidth(th, labelFont) {
+  if (!th || th.classList.contains('notes-col')) return 0;
+  const style = window.getComputedStyle(th);
+  const pad = (parseFloat(style.paddingLeft) || 0) + (parseFloat(style.paddingRight) || 0);
+  const label = th.querySelector('.th-label');
+  const text = label ? label.textContent.replace(/\s+/g, ' ').trim() : '';
+  let textW = textWidth(text, labelFont || style.font);
+  if (th.querySelector('.sort-icon')) textW += 3;
+  if (th.querySelector('.sort-rank')) textW += 16;
+  let controls = 6;
+  let pieces = label ? 1 : 0;
+  if (th.querySelector('.col-drag')) { controls += 14; pieces += 1; }
+  if (th.querySelector('.th-freeze')) { controls += 16; pieces += 1; }
+  if (th.querySelector('.th-filter')) { controls += 18; pieces += 1; }
+  const gap = 4 * Math.max(0, pieces - 1);
+  return Math.ceil(pad + controls + textW + gap + 6);
+}
+
+function pillMetric(td, pills) {
+  const pill = td.querySelector('.badge, .type-epic, .type-enh, .type-other');
+  if (!pill) return null;
+  const sel = pill.classList.contains('badge') ? '.badge'
+    : pill.classList.contains('type-epic') ? '.type-epic'
+    : pill.classList.contains('type-enh') ? '.type-enh'
+    : '.type-other';
+  return { node: pill, metric: pills[sel] };
+}
+
+function cellFitWidth(td, cellFont, pills) {
+  if (!td || td.classList.contains('issues-empty')) return 0;
+  const select = td.querySelector('select.jw-choice');
+  const days = td.querySelector('.jw-days');
+  let text = '';
+  let font = cellFont;
+  let extra = 0;
+  if (select) {
+    const selected = select.options[select.selectedIndex];
+    text = (select.getAttribute('data-label') || (selected && selected.textContent) || '').replace(/\s+/g, ' ').trim();
+    extra = 24;
+  } else if (days) {
+    text = days.value || days.getAttribute('placeholder') || '';
+    extra = 16;
+  } else {
+    const pill = pillMetric(td, pills);
+    const link = td.querySelector('.key-link');
+    const node = (pill && pill.node) || link;
+    if (pill && pill.metric) {
+      font = pill.metric.font || font;
+      extra += pill.metric.extra || 0;
+    } else if (link && pills['.key-link']) {
+      font = pills['.key-link'].font || font;
+      extra += pills['.key-link'].extra || 0;
+    }
+    text = (node || td).textContent.replace(/\s+/g, ' ').trim();
+    if (td.querySelector('.jw-inline')) extra += 8;
+    const dot = td.querySelector('span[style*="border-radius:50%"]');
+    if (dot) extra += 14;
+  }
+  let width = text ? textWidth(text, font) + extra : extra;
+  if (td.classList.contains('epic-indent')) width += 12;
+  return width;
+}
+
+function fitIssueColumns(root) {
+  if (!root) return;
+  root.querySelectorAll('table.issues').forEach(table => {
+    const cols = Array.from(table.querySelectorAll('colgroup col'));
+    if (!cols.length) return;
+    const label = table.querySelector('thead .th-label');
+    const sampleCell = table.querySelector('tbody td:not(.issues-empty)');
+    const labelStyle = label ? window.getComputedStyle(label) : null;
+    const cellStyle = sampleCell ? window.getComputedStyle(sampleCell) : null;
+    const labelFont = labelStyle ? labelStyle.font : '';
+    const cellFont = cellStyle ? cellStyle.font : '';
+    const cellPad = cellStyle ? (parseFloat(cellStyle.paddingLeft) || 0) + (parseFloat(cellStyle.paddingRight) || 0) : 20;
+    const pills = {};
+    ['.badge', '.type-epic', '.type-enh', '.type-other', '.key-link'].forEach(sel => {
+      const el = table.querySelector(sel);
+      if (!el) return;
+      const style = window.getComputedStyle(el);
+      pills[sel] = {
+        font: style.font,
+        extra: (parseFloat(style.paddingLeft) || 0) + (parseFloat(style.paddingRight) || 0),
+      };
+    });
+    const content = cols.map(() => 0);
+    const notesIdx = cols.findIndex(col => col.getAttribute('data-col') === 'notes');
+    table.querySelectorAll('tbody tr').forEach(row => {
+      const cells = row.children;
+      for (let i = 0; i < cols.length; i++) {
+        if (i === notesIdx) continue;
+        const width = cellFitWidth(cells[i], cellFont, pills);
+        if (width > content[i]) content[i] = width;
+      }
+    });
+    cols.forEach((col, index) => {
+      const id = col.getAttribute('data-col');
+      if (id === 'notes') return;
+      const th = table.tHead && table.tHead.rows[0] && table.tHead.rows[0].cells[index];
+      const headerW = headerFitWidth(th, labelFont);
+      const bodyW = content[index] ? Math.ceil(content[index] + cellPad) : 0;
+      const cap = Math.max(headerW, columnContentCap(id));
+      const width = Math.ceil(Math.max(headerW, bodyW ? Math.min(bodyW, cap) : 0));
+      col.style.width = (width || defaultColumnWidth(id)) + 'px';
+    });
+    if (notesIdx >= 0) {
+      const col = cols[notesIdx];
+      let notes = 0;
+      table.querySelectorAll('.notes-cell-inner').forEach(el => {
+        if (el.scrollWidth > notes) notes = el.scrollWidth;
+      });
+      const sample = table.querySelector('th.notes-col') || table.querySelector('td.notes-cell');
+      const style = sample ? window.getComputedStyle(sample) : null;
+      const pad = style ? (parseFloat(style.paddingLeft) || 0) + (parseFloat(style.paddingRight) || 0) : 16;
+      col.style.width = Math.ceil(Math.max(notes + pad, 1)) + 'px';
+    }
+    table.classList.add('is-col-sized');
+    let total = 0;
+    cols.forEach(col => { total += parseFloat(col.style.width) || 0; });
+    if (total) table.style.width = Math.ceil(total) + 'px';
+  });
+}
+
 function columnGroupHtml(projKey, colIds) {
   const widths = getProjectColumnWidths(projKey);
   const sized = Object.keys(widths).length > 0;
   let total = 0;
   const html = `<colgroup>${colIds.map(colId => {
-    const width = sized ? (widths[colId] || defaultColumnWidth(colId)) : 0;
+    const width = sized ? columnWidth(colId, widths) : 0;
     if (width) total += width;
     return `<col data-col="${esc(colId)}"${width ? ` style="width:${width}px"` : ''}>`;
   }).join('')}</colgroup>`;
@@ -7755,7 +7943,7 @@ function applyColumnWidths(table, widths) {
     let total = 0;
     cols.forEach(col => {
       const id = col.getAttribute('data-col');
-      const width = widths[id] || defaultColumnWidth(id);
+      const width = columnWidth(id, widths);
       col.style.width = width + 'px';
       total += width;
     });
@@ -7807,6 +7995,24 @@ function measuredColumnWidths(table) {
   return widths;
 }
 
+function liveColumnWidths(table) {
+  const widths = {};
+  const scope = (table && table.closest('.proj-issues')) || table;
+  if (!scope) return widths;
+  scope.querySelectorAll('table.issues colgroup col').forEach(col => {
+    const id = col.getAttribute('data-col');
+    const width = Math.round(parseFloat(col.style.width));
+    if (!id || !width) return;
+    widths[id] = width;
+  });
+  return widths;
+}
+
+function widthsForResize(table) {
+  const live = liveColumnWidths(table);
+  return Object.keys(live).length ? live : measuredColumnWidths(table);
+}
+
 function bindColumnResizers(projKey) {
   const root = document.getElementById('issues-' + projKey);
   if (!root) return;
@@ -7817,13 +8023,8 @@ function bindColumnResizers(projKey) {
       handle.addEventListener('dblclick', event => {
         event.preventDefault();
         event.stopPropagation();
-        const widths = Object.keys(getProjectColumnWidths(projKey)).length
-          ? getProjectColumnWidths(projKey)
-          : measuredColumnWidths(table);
-        const colId = handle.getAttribute('data-col');
-        widths[colId] = defaultColumnWidth(colId);
-        applyColumnWidths(table, widths);
-        rememberColumnWidths(projKey, widths);
+        fitIssueColumns(root);
+        rememberColumnWidths(projKey, liveColumnWidths(table));
       });
     });
   });
@@ -7834,9 +8035,7 @@ function startColumnResize(event, projKey, table, handle) {
   event.preventDefault();
   event.stopPropagation();
   const colId = handle.getAttribute('data-col');
-  const widths = Object.keys(getProjectColumnWidths(projKey)).length
-    ? getProjectColumnWidths(projKey)
-    : measuredColumnWidths(table);
+  const widths = widthsForResize(table);
   if (!widths[colId]) widths[colId] = defaultColumnWidth(colId);
   const startX = event.clientX;
   const start = widths[colId];
@@ -7870,9 +8069,7 @@ function nudgeColumnWidth(event, projKey, table, handle) {
   event.preventDefault();
   event.stopPropagation();
   const colId = handle.getAttribute('data-col');
-  const widths = Object.keys(getProjectColumnWidths(projKey)).length
-    ? getProjectColumnWidths(projKey)
-    : measuredColumnWidths(table);
+  const widths = widthsForResize(table);
   widths[colId] = clampColumnWidth((widths[colId] || defaultColumnWidth(colId)) + delta);
   applyColumnWidths(table, widths);
   rememberColumnWidths(projKey, widths);
@@ -7885,6 +8082,14 @@ let _columnViewError = {};
 let _columnViewDialog = null;
 let _columnViewSnapshot = null;
 let _columnViewApplied = false;
+let _bulkMode = {};
+let _bulkSelected = {};
+let _bulkAnchor = {};
+let _bulkOrder = {};
+let _bulkColumns = {};
+let _bulkBusy = {};
+let _bulkStatus = {};
+let _bulkReport = {};
 
 function projectColumnLabel(colId) {
   if (colId === 'notes') return 'Notes';
@@ -8013,23 +8218,42 @@ function bindFreezeColumns(projKey) {
 }
 
 function syncIssueSplit(root) {
-  if (!root || !root.querySelector) return;
+  if (!root || !root.querySelector || root._splitSyncing) return;
   const split = root.querySelector('.proj-issue-split');
   if (!split) return;
   const tables = [...split.querySelectorAll('table.issues')];
   if (tables.length < 2) return;
   const rowSets = tables.map(table => [...table.rows]);
   const count = Math.min.apply(null, rowSets.map(rows => rows.length));
-  for (let i = 0; i < count; i += 1) {
-    rowSets.forEach(rows => { rows[i].style.height = ''; });
-  }
-  for (let i = 0; i < count; i += 1) {
-    let max = 0;
-    rowSets.forEach(rows => {
-      max = Math.max(max, rows[i].getBoundingClientRect().height);
-    });
-    const height = Math.ceil(max) + 'px';
-    rowSets.forEach(rows => { rows[i].style.height = height; });
+  const observer = root._splitObserver;
+  if (observer) observer.disconnect();
+  root._splitSyncing = true;
+  try {
+    for (let i = 0; i < count; i += 1) {
+      rowSets.forEach(rows => { rows[i].style.height = ''; });
+    }
+    const heights = new Array(count);
+    for (let i = 0; i < count; i += 1) {
+      let max = 0;
+      rowSets.forEach(rows => {
+        if (rows[i].offsetHeight > max) max = rows[i].offsetHeight;
+      });
+      heights[i] = Math.ceil(max);
+    }
+    for (let i = 0; i < count; i += 1) {
+      const height = heights[i] + 'px';
+      rowSets.forEach(rows => {
+        if (rows[i].style.height !== height) rows[i].style.height = height;
+      });
+    }
+  } finally {
+    root._splitSyncing = false;
+    if (observer) {
+      const frozen = split.querySelector('.proj-frozen-pane');
+      const scroll = split.querySelector('.proj-scroll-pane');
+      if (frozen) observer.observe(frozen);
+      if (scroll) observer.observe(scroll);
+    }
   }
 }
 
@@ -8074,7 +8298,7 @@ function bindIssueSplit(root) {
     if (root._splitObserver) root._splitObserver.disconnect();
     let frame = 0;
     const observer = new ResizeObserver(() => {
-      if (frame) return;
+      if (root._splitSyncing || frame) return;
       frame = requestAnimationFrame(() => {
         frame = 0;
         syncIssueSplit(root);
@@ -8537,6 +8761,679 @@ async function applyColumnViewsDialog() {
   }
 }
 
+function bulkEditableFields(fields) {
+  if (!window.JiraWrite || !JiraWrite.fieldKind) return [];
+  return (fields || []).filter(field => {
+    if (field.id === 'summary' || field.id === 'status') return false;
+    const kind = JiraWrite.fieldKind(field.id);
+    return kind === 'number' || kind === 'option' || kind === 'priority' || kind === 'parent' || kind === 'user' || kind === 'versions';
+  });
+}
+
+function bulkHas(projKey, key) {
+  const set = _bulkSelected[projKey];
+  return !!(set && key && set.has(key));
+}
+
+function bulkOptionHtml(items, selected) {
+  return items.map(item => `<option value="${esc(item.id)}"${String(item.id) === String(selected) ? ' selected' : ''}>${esc(item.label)}</option>`).join('');
+}
+
+function bulkUserOptions(issues, field) {
+  const id = jiraId(field);
+  const map = new Map();
+  (issues || []).forEach(issue => {
+    const raw = issue && issue.fields && issue.fields[id];
+    const list = Array.isArray(raw) ? raw : (raw ? [raw] : []);
+    list.forEach(person => {
+      if (!person || person.accountId == null || person.accountId === '') return;
+      const accountId = String(person.accountId);
+      if (!map.has(accountId)) map.set(accountId, person.displayName || person.name || accountId);
+    });
+  });
+  return [...map.entries()]
+    .map(([accountId, label]) => ({ id: accountId, label }))
+    .sort((a, b) => a.label.localeCompare(b.label, undefined, { sensitivity: 'base' }));
+}
+
+function bulkVersionOptions(issues) {
+  const map = new Map();
+  (issues || []).forEach(issue => {
+    const versions = (issue && issue.fields && issue.fields.fixVersions) || [];
+    versions.forEach(version => {
+      if (!version || version.id == null || version.id === '') return;
+      const id = String(version.id);
+      if (!map.has(id)) map.set(id, version.name || id);
+    });
+  });
+  return [...map.entries()]
+    .map(([id, label]) => ({ id, label }))
+    .sort((a, b) => a.label.localeCompare(b.label, undefined, { numeric: true, sensitivity: 'base' }));
+}
+
+function bulkKeysFromModel(groupedModel) {
+  const keys = [];
+  (groupedModel || []).forEach(row => {
+    if (row.kind === 'epic') {
+      if (row.issue && row.issue.key) keys.push(row.issue.key);
+      (row.children || []).forEach(child => { if (child && child.key) keys.push(child.key); });
+    } else if (row.issue && row.issue.key) keys.push(row.issue.key);
+  });
+  return keys;
+}
+
+function pruneBulkSelection(projKey, keys) {
+  const keep = new Set(keys);
+  const set = _bulkSelected[projKey];
+  if (!set) return 0;
+  [...set].forEach(key => { if (!keep.has(key)) set.delete(key); });
+  if (!set.size) delete _bulkSelected[projKey];
+  return set.size || 0;
+}
+
+function setBulkStatus(projKey, message, isError) {
+  _bulkStatus[projKey] = message ? { message, error: !!isError } : null;
+  const root = document.getElementById('bulk-edit-root');
+  const el = document.getElementById('bulk-edit-status');
+  if (!el || !root || root.getAttribute('data-proj') !== projKey) return;
+  el.textContent = message || '';
+  el.classList.toggle('is-error', !!isError);
+}
+
+function captureBulkColumns(projKey) {
+  const root = document.getElementById('bulk-edit-root');
+  if (!root || root.getAttribute('data-proj') !== projKey) return;
+  const rows = root.querySelectorAll('.bulk-col');
+  if (!rows.length) return;
+  const prev = _bulkColumns[projKey] || [];
+  _bulkColumns[projKey] = [...rows].map(row => {
+    const fieldId = row.getAttribute('data-field') || '';
+    const valueEl = row.querySelector('.bulk-value');
+    const enabled = !!(row.querySelector('.bulk-col-check') && row.querySelector('.bulk-col-check').checked);
+    const old = prev.find(item => item.field === fieldId);
+    if (!valueEl || valueEl.getAttribute('data-load') === 'choices') {
+      return { field: fieldId, value: old ? old.value : '', enabled };
+    }
+    return { field: fieldId, value: valueEl.value, enabled };
+  });
+}
+
+function onBulkColumnToggle(projKey, fieldId, enabled) {
+  if (_bulkBusy[projKey]) return;
+  captureBulkColumns(projKey);
+  const cols = _bulkColumns[projKey] || [];
+  const existing = cols.find(col => col.field === fieldId);
+  if (existing) existing.enabled = !!enabled;
+  else cols.push({ field: fieldId, value: '', enabled: !!enabled });
+  _bulkColumns[projKey] = cols;
+  refreshProjectListing(projKey);
+}
+
+function onBulkColumnValue(projKey, fieldId, value) {
+  const cols = _bulkColumns[projKey] || [];
+  let col = cols.find(item => item.field === fieldId);
+  if (!col) {
+    col = { field: fieldId, value: '', enabled: true };
+    cols.push(col);
+    _bulkColumns[projKey] = cols;
+  }
+  col.value = value;
+}
+
+function applyBulkSelectionDom(projKey) {
+  const root = document.getElementById('issues-' + projKey);
+  const selected = _bulkSelected[projKey];
+  const keys = _bulkOrder[projKey] || [];
+  let count = 0;
+  if (selected) keys.forEach(key => { if (selected.has(key)) count += 1; });
+  if (root) {
+    root.querySelectorAll('tr[data-issue-key]').forEach(row => {
+      const key = row.getAttribute('data-issue-key');
+      const on = !!(selected && key && selected.has(key));
+      row.classList.toggle('is-bulk-selected', on);
+      const box = row.querySelector('.bulk-check');
+      if (box) box.checked = on;
+    });
+    const head = root.querySelector('th.notes-col .bulk-check');
+    if (head) {
+      head.checked = keys.length > 0 && count === keys.length;
+      head.indeterminate = count > 0 && count < keys.length;
+    }
+    const button = root.querySelector('.proj-bulk-btn');
+    if (button) {
+      const busy = !!_bulkBusy[projKey];
+      button.disabled = !count || busy;
+      button.classList.toggle('is-on', !!_bulkMode[projKey]);
+      button.title = count ? 'Edit the selected tickets' : 'Select tickets to bulk edit';
+    }
+  }
+  const dialog = document.getElementById('bulk-edit-root');
+  if (!dialog || dialog.hidden || dialog.getAttribute('data-proj') !== projKey) return;
+  paintBulkPickList(projKey);
+  const clearBtn = dialog.querySelector('.bulk-clear');
+  if (clearBtn) clearBtn.disabled = !count || !!_bulkBusy[projKey];
+}
+
+function finishBulkSelection(projKey) {
+  const selected = _bulkSelected[projKey];
+  if ((!selected || !selected.size) && _bulkMode[projKey]) {
+    closeBulkEdit(projKey);
+    return;
+  }
+  applyBulkSelectionDom(projKey);
+}
+
+function closeBulkEdit(projKey) {
+  if (_bulkBusy[projKey]) return;
+  captureBulkColumns(projKey);
+  _bulkMode[projKey] = false;
+  delete _bulkStatus[projKey];
+  const root = document.getElementById('bulk-edit-root');
+  if (root && root.getAttribute('data-proj') === projKey) {
+    root.hidden = true;
+    document.removeEventListener('keydown', onBulkEditKey);
+  }
+  applyBulkSelectionDom(projKey);
+}
+
+function openBulkEdit(projKey) {
+  if (_bulkBusy[projKey] || _bulkMode[projKey]) return;
+  const selected = _bulkSelected[projKey];
+  if (!selected || !selected.size) return;
+  _bulkMode[projKey] = true;
+  const proj = getAllProjects().find(item => item.key === projKey) || { key: projKey };
+  const fields = bulkEditableFields(listingFieldsForProject(proj));
+  const allowed = new Set(fields.map(field => field.id));
+  _bulkColumns[projKey] = (_bulkColumns[projKey] || []).filter(col => allowed.has(col.field));
+  const data = S._projData && S._projData[projKey];
+  syncBulkDialog(projKey, fields, _bulkColumns[projKey] || [], (data && data.issues) || [], selected.size, false);
+  applyBulkSelectionDom(projKey);
+}
+
+function toggleBulkRow(event, projKey, key) {
+  event.stopPropagation();
+  if (_bulkBusy[projKey]) {
+    event.preventDefault();
+    return;
+  }
+  captureBulkColumns(projKey);
+  delete _bulkStatus[projKey];
+  const set = _bulkSelected[projKey] || new Set();
+  _bulkSelected[projKey] = set;
+  const on = event.currentTarget.checked;
+  const keys = _bulkOrder[projKey] || [key];
+  const anchor = _bulkAnchor[projKey];
+  if (event.shiftKey && anchor) {
+    const start = keys.indexOf(anchor);
+    const end = keys.indexOf(key);
+    if (start >= 0 && end >= 0) {
+      const lo = Math.min(start, end);
+      const hi = Math.max(start, end);
+      for (let i = lo; i <= hi; i++) {
+        if (on) set.add(keys[i]);
+        else set.delete(keys[i]);
+      }
+    } else if (on) set.add(key);
+    else set.delete(key);
+  } else if (on) set.add(key);
+  else set.delete(key);
+  if (!set.size) delete _bulkSelected[projKey];
+  _bulkAnchor[projKey] = key;
+  finishBulkSelection(projKey);
+}
+
+function toggleBulkAll(event, projKey) {
+  event.stopPropagation();
+  if (_bulkBusy[projKey]) {
+    event.preventDefault();
+    return;
+  }
+  const keys = _bulkOrder[projKey] || [];
+  if (event.currentTarget.checked) _bulkSelected[projKey] = new Set(keys);
+  else delete _bulkSelected[projKey];
+  finishBulkSelection(projKey);
+}
+
+function clearBulkSelection(projKey) {
+  if (_bulkBusy[projKey]) return;
+  captureBulkColumns(projKey);
+  delete _bulkSelected[projKey];
+  delete _bulkAnchor[projKey];
+  delete _bulkStatus[projKey];
+  if (_bulkMode[projKey]) closeBulkEdit(projKey);
+  else applyBulkSelectionDom(projKey);
+}
+
+function bulkValueControl(projKey, field, value, issues) {
+  const kind = JiraWrite.fieldKind(field.id);
+  const keyArg = JSON.stringify(projKey);
+  const call = `onBulkColumnValue(${keyArg}, ${JSON.stringify(field.id)}, this.value)`;
+  if (kind === 'number') {
+    return `<input class="bulk-value" type="number" min="0" max="100000" step="0.01" inputmode="decimal" aria-label="Value for ${esc(field.label)}" value="${esc(value)}" oninput='${call}'>`;
+  }
+  if (kind === 'parent') {
+    return `<input class="bulk-value" type="text" maxlength="40" placeholder="Ticket key" aria-label="Parent for ${esc(field.label)}" value="${esc(value)}" oninput='${call}'>`;
+  }
+  if (kind === 'option' || kind === 'priority') {
+    return `<select class="bulk-value" data-load="choices" data-kind="${esc(kind)}" data-field="${esc(field.id)}" aria-label="Value for ${esc(field.label)}" onchange='${call}'><option value="">Loading…</option></select>`;
+  }
+  if (kind === 'user') {
+    const options = [{ id: '', label: 'None' }].concat(bulkUserOptions(issues, field));
+    return `<select class="bulk-value" aria-label="Person for ${esc(field.label)}" onchange='${call}'>${bulkOptionHtml(options, value)}</select>`;
+  }
+  if (kind === 'versions') {
+    const options = [{ id: '', label: 'None' }].concat(bulkVersionOptions(issues));
+    return `<select class="bulk-value" aria-label="Fix version" onchange='${call}'>${bulkOptionHtml(options, value)}</select>`;
+  }
+  return '';
+}
+
+function ensureBulkDialog() {
+  let root = document.getElementById('bulk-edit-root');
+  if (root) return root;
+  root = document.createElement('div');
+  root.id = 'bulk-edit-root';
+  root.hidden = true;
+  root.innerHTML = '<div class="bulk-edit-panel" role="dialog" aria-labelledby="bulk-edit-title">'
+    + '<div class="bulk-edit-head"><div><h2 id="bulk-edit-title">Bulk edit</h2><p class="bulk-edit-kicker">Choose the columns to change and set a value for each one.</p></div>'
+    + '<button type="button" class="btn btn-sm bulk-edit-close">Close</button></div>'
+    + '<div class="bulk-edit-picks"><input id="bulk-edit-search" type="search" placeholder="Search selected tickets" aria-label="Search selected tickets" oninput="onBulkPickSearch()"><p class="bulk-pick-meta" id="bulk-edit-pick-meta"></p><div class="bulk-pick-list" id="bulk-edit-pick-list"></div></div>'
+    + '<div class="bulk-edit-body"><div class="bulk-cols" id="bulk-edit-cols"></div></div>'
+    + '<p class="proj-bulk-status bulk-edit-status" id="bulk-edit-status"></p>'
+    + '<div class="bulk-edit-foot" id="bulk-edit-foot"></div></div>';
+  root.querySelector('.bulk-edit-close').addEventListener('click', () => {
+    const projKey = root.getAttribute('data-proj');
+    if (projKey) closeBulkEdit(projKey);
+  });
+  document.body.appendChild(root);
+  return root;
+}
+
+function onBulkEditKey(event) {
+  if (event.key !== 'Escape') return;
+  const report = document.getElementById('bulk-report-root');
+  if (report && !report.hidden) return;
+  if (event.target && /^(INPUT|SELECT|TEXTAREA)$/.test(event.target.tagName)) return;
+  const root = document.getElementById('bulk-edit-root');
+  if (!root || root.hidden) return;
+  event.preventDefault();
+  closeBulkEdit(root.getAttribute('data-proj'));
+}
+
+function bulkSelectedKeys(projKey) {
+  const selected = _bulkSelected[projKey];
+  if (!selected || !selected.size) return [];
+  const order = _bulkOrder[projKey] || [];
+  const keys = order.filter(key => selected.has(key));
+  selected.forEach(key => { if (keys.indexOf(key) < 0) keys.push(key); });
+  return keys;
+}
+
+function bulkSummaryByKey(projKey) {
+  const data = S._projData && S._projData[projKey];
+  const map = new Map();
+  ((data && data.issues) || []).forEach(issue => {
+    if (!issue || !issue.key) return;
+    map.set(issue.key, (issue.fields && issue.fields.summary) || '');
+  });
+  return map;
+}
+
+function onBulkPickSearch() {
+  const root = document.getElementById('bulk-edit-root');
+  const projKey = root && root.getAttribute('data-proj');
+  if (projKey) paintBulkPickList(projKey);
+}
+
+function removeBulkTicket(projKey, key) {
+  if (_bulkBusy[projKey]) return;
+  const selected = _bulkSelected[projKey];
+  if (selected) selected.delete(key);
+  if (selected && !selected.size) delete _bulkSelected[projKey];
+  finishBulkSelection(projKey);
+}
+
+function paintBulkPickList(projKey) {
+  const list = document.getElementById('bulk-edit-pick-list');
+  const meta = document.getElementById('bulk-edit-pick-meta');
+  if (!list) return;
+  const keys = bulkSelectedKeys(projKey);
+  const search = document.getElementById('bulk-edit-search');
+  const query = (search && search.value || '').trim().toLowerCase();
+  const terms = query ? query.split(/\s+/).filter(Boolean) : [];
+  const summaries = bulkSummaryByKey(projKey);
+  const shown = terms.length
+    ? keys.filter(key => {
+      const hay = (key + ' ' + (summaries.get(key) || '')).toLowerCase();
+      return terms.every(term => hay.indexOf(term) >= 0);
+    })
+    : keys;
+  if (meta) {
+    meta.textContent = terms.length
+      ? shown.length + ' of ' + keys.length + ' selected'
+      : keys.length + ' selected';
+  }
+  if (!shown.length) {
+    list.innerHTML = '<p class="bulk-edit-empty">' + (keys.length ? 'No selected tickets match.' : 'No tickets selected.') + '</p>';
+    return;
+  }
+  const busy = !!_bulkBusy[projKey];
+  list.innerHTML = shown.map(key => {
+    const summary = summaries.get(key) || '';
+    return `<div class="bulk-pick-row">
+      <span class="bulk-pick-key">${esc(key)}</span>
+      <span class="bulk-pick-summary" title="${esc(summary)}">${esc(summary)}</span>
+      <button type="button" class="bulk-pick-remove" aria-label="Remove ${esc(key)}" title="Remove ${esc(key)}" onclick='removeBulkTicket(${JSON.stringify(projKey)}, ${JSON.stringify(key)})' ${busy ? 'disabled' : ''}>×</button>
+    </div>`;
+  }).join('');
+}
+
+function syncBulkDialog(projKey, fields, columns, issues, count, busy) {
+  const root = ensureBulkDialog();
+  if (!_bulkMode[projKey]) {
+    if (root.getAttribute('data-proj') === projKey) {
+      root.hidden = true;
+      document.removeEventListener('keydown', onBulkEditKey);
+    }
+    return;
+  }
+  const opening = root.hidden || root.getAttribute('data-proj') !== projKey;
+  root.hidden = false;
+  root.setAttribute('data-proj', projKey);
+  if (opening) {
+    const search = document.getElementById('bulk-edit-search');
+    if (search) search.value = '';
+  }
+  paintBulkPickList(projKey);
+  const status = _bulkStatus[projKey];
+  const statusEl = document.getElementById('bulk-edit-status');
+  if (statusEl) {
+    statusEl.textContent = status ? status.message : '';
+    statusEl.classList.toggle('is-error', !!(status && status.error));
+  }
+  const keyArg = JSON.stringify(projKey);
+  const foot = document.getElementById('bulk-edit-foot');
+  if (foot) {
+    foot.innerHTML = ''
+      + (_bulkReport[projKey] ? `<button type="button" class="btn btn-sm" onclick='showBulkReport(${keyArg})'>Report</button>` : '')
+      + `<button type="button" class="btn btn-sm bulk-clear" onclick='clearBulkSelection(${keyArg})' ${busy || !count ? 'disabled' : ''}>Clear selection</button>`
+      + `<button type="button" class="btn btn-sm primary bulk-apply" onclick='applyBulkEdit(${keyArg})' ${busy ? 'disabled' : ''}>Process</button>`;
+  }
+  const stamp = fields.map(field => field.id).join(',') + '|' + columns.filter(col => col.enabled).map(col => col.field).join(',');
+  if (root.getAttribute('data-stamp') !== stamp) {
+    const byId = new Map(columns.map(col => [col.field, col]));
+    const cols = document.getElementById('bulk-edit-cols');
+    if (cols) {
+      cols.innerHTML = fields.length
+        ? fields.map(field => {
+          const col = byId.get(field.id) || { value: '', enabled: false };
+          return `<div class="bulk-col${col.enabled ? ' is-on' : ''}" data-field="${esc(field.id)}">
+            <label class="bulk-col-label"><input type="checkbox" class="bulk-col-check" aria-label="Edit ${esc(field.label)}"${col.enabled ? ' checked' : ''}${busy ? ' disabled' : ''} onchange='onBulkColumnToggle(${keyArg}, ${JSON.stringify(field.id)}, this.checked)'>${esc(field.label)}</label>
+            ${col.enabled ? bulkValueControl(projKey, field, col.value || '', issues) : ''}
+          </div>`;
+        }).join('')
+        : '<p class="bulk-edit-empty">This view has no columns that can be bulk edited.</p>';
+    }
+    root.setAttribute('data-stamp', stamp);
+    fillBulkChoices(projKey);
+  }
+  document.addEventListener('keydown', onBulkEditKey);
+  if (opening) {
+    const closeBtn = root.querySelector('.bulk-edit-close');
+    if (closeBtn) closeBtn.focus();
+  }
+}
+
+async function fillBulkChoices(projKey) {
+  const root = document.getElementById('bulk-edit-root');
+  if (!root || root.getAttribute('data-proj') !== projKey || !window.JiraWrite || !JiraWrite.ensureChoiceItems) return;
+  const selects = [...root.querySelectorAll('select.bulk-value[data-load="choices"]')];
+  if (!selects.length) return;
+  const picked = _bulkSelected[projKey];
+  const sample = (_bulkOrder[projKey] || []).find(key => picked && picked.has(key)) || (_bulkOrder[projKey] || [])[0];
+  const groups = {};
+  selects.forEach(select => {
+    const fieldId = select.getAttribute('data-field');
+    if (!groups[fieldId]) groups[fieldId] = [];
+    groups[fieldId].push(select);
+  });
+  await Promise.all(Object.keys(groups).map(async function (fieldId) {
+    const group = groups[fieldId];
+    try {
+      const items = await JiraWrite.ensureChoiceItems(fieldId, sample);
+      group.forEach(select => {
+        if (!select.isConnected || select.getAttribute('data-field') !== fieldId) return;
+        const saved = (_bulkColumns[projKey] || []).find(col => col.field === fieldId);
+        const draft = saved ? saved.value : '';
+        const blank = select.getAttribute('data-kind') === 'priority' ? { id: '', label: 'Choose…' } : { id: '', label: 'None' };
+        select.innerHTML = bulkOptionHtml([blank].concat(items.map(item => ({ id: item.id || item.label, label: item.label || item.id || item.label }))), draft);
+        select.removeAttribute('data-load');
+      });
+    } catch (err) {
+      group.forEach(select => {
+        if (!select.isConnected) return;
+        select.innerHTML = bulkOptionHtml([{ id: '', label: 'Could not load choices' }], '');
+      });
+      setBulkStatus(projKey, 'Could not load choices.', true);
+    }
+  }));
+}
+
+function closeBulkReport() {
+  const root = document.getElementById('bulk-report-root');
+  if (!root) return;
+  root.hidden = true;
+  root.classList.remove('open');
+  document.removeEventListener('keydown', onBulkReportKey);
+}
+
+function onBulkReportKey(event) {
+  if (event.key === 'Escape') closeBulkReport();
+}
+
+function showBulkReport(projKey) {
+  const report = _bulkReport[projKey];
+  if (!report) return;
+  let root = document.getElementById('bulk-report-root');
+  if (!root) {
+    root = document.createElement('div');
+    root.id = 'bulk-report-root';
+    root.hidden = true;
+    root.innerHTML = '<div class="bulk-report-backdrop" data-bulk-report-close="1"></div><div class="bulk-report-panel" role="dialog" aria-modal="true" aria-labelledby="bulk-report-title"><div class="bulk-report-head"><h2 id="bulk-report-title">Bulk edit report</h2><button type="button" class="btn btn-sm" data-bulk-report-close="1">Close</button></div><p class="bulk-report-summary" id="bulk-report-summary"></p><div class="bulk-report-body" id="bulk-report-body"></div></div>';
+    root.addEventListener('click', event => {
+      if (event.target && event.target.closest && event.target.closest('[data-bulk-report-close]')) closeBulkReport();
+    });
+    document.body.appendChild(root);
+  }
+  const summary = document.getElementById('bulk-report-summary');
+  const body = document.getElementById('bulk-report-body');
+  if (summary) summary.textContent = report.summary || '';
+  if (body) {
+    const lines = report.lines || [];
+    body.innerHTML = lines.length
+      ? `<table class="bulk-report-table"><thead><tr><th>Ticket</th><th>Column</th><th>Result</th></tr></thead><tbody>${lines.map(line => `<tr><td>${esc(line.key)}</td><td>${esc(line.column)}</td><td class="${line.ok ? 'bulk-report-ok' : 'bulk-report-fail'}">${esc(line.result)}</td></tr>`).join('')}</tbody></table>`
+      : '<p class="proj-bulk-status">No column changes were processed.</p>';
+  }
+  root.hidden = false;
+  document.addEventListener('keydown', onBulkReportKey);
+  const closeBtn = root.querySelector('[data-bulk-report-close].btn');
+  if (closeBtn) closeBtn.focus();
+}
+
+function bulkChange(field, value) {
+  const kind = JiraWrite.fieldKind(field.id);
+  const fieldId = field.id === 'assignee' ? 'assignee' : jiraId(field);
+  if (kind === 'number') {
+    const text = String(value == null ? '' : value).trim();
+    if (!text) return { type: 'number', fieldId, value: null };
+    const n = Number(text);
+    if (!Number.isFinite(n) || n < 0 || n > 100000) throw new Error('Enter a number from 0 to 100000.');
+    return { type: 'number', fieldId, value: n };
+  }
+  if (kind === 'option') return { type: 'option', fieldId, optionId: value || null };
+  if (kind === 'priority') {
+    if (!value) throw new Error('Choose a priority.');
+    return { type: 'priority', priorityId: value };
+  }
+  if (kind === 'parent') return { type: 'parent', parentKey: String(value || '').trim() };
+  if (kind === 'user') return { type: 'user', fieldId, accountId: value || null };
+  if (kind === 'versions') return { type: 'versions', versions: value ? [{ id: String(value) }] : [] };
+  throw new Error('That field cannot be bulk edited.');
+}
+
+function bulkIssue(projKey, key) {
+  const data = S._projData && S._projData[projKey];
+  const list = (data && data.issues) || [];
+  return list.find(issue => issue && issue.key === key) || null;
+}
+
+function bulkColumnLabel(valueEl, value) {
+  if (valueEl && valueEl.tagName === 'SELECT') {
+    const option = valueEl.options[valueEl.selectedIndex];
+    return (option && option.textContent) || value || 'None';
+  }
+  const text = String(value || '').trim();
+  return text || 'None';
+}
+
+async function applyBulkEdit(projKey) {
+  if (_bulkBusy[projKey]) return;
+  const keys = [...(_bulkSelected[projKey] || [])];
+  const root = document.getElementById('bulk-edit-root');
+  if (root && root.querySelector('.bulk-value[data-load="choices"]')) {
+    setBulkStatus(projKey, 'Choices are still loading.', true);
+    return;
+  }
+  captureBulkColumns(projKey);
+  const proj = getAllProjects().find(item => item.key === projKey) || { key: projKey };
+  const fields = bulkEditableFields(listingFieldsForProject(proj));
+  const stored = (_bulkColumns[projKey] || []).filter(col => col.enabled);
+  if (!stored.length) {
+    setBulkStatus(projKey, 'Select at least one column.', true);
+    return;
+  }
+  if (!keys.length) {
+    setBulkStatus(projKey, 'Select at least one ticket.', true);
+    return;
+  }
+  const rows = root ? [...root.querySelectorAll('.bulk-col')] : [];
+  let edits;
+  try {
+    edits = stored.map((col, index) => {
+      const field = fields.find(item => item.id === col.field);
+      if (!field) throw new Error('Choose a column.');
+      const row = rows.find(item => item.getAttribute('data-field') === col.field);
+      const valueEl = row && row.querySelector('.bulk-value');
+      const value = valueEl ? valueEl.value : (col.value || '');
+      return {
+        field,
+        value,
+        shown: bulkColumnLabel(valueEl, value),
+        change: bulkChange(field, value),
+      };
+    });
+  } catch (err) {
+    setBulkStatus(projKey, err.message || 'Choose a value.', true);
+    return;
+  }
+  const tickets = keys.length === 1 ? '1 ticket' : keys.length + ' tickets';
+  const lines = edits.map(edit => {
+    if (JiraWrite.fieldKind(edit.field.id) === 'versions' && edit.value) return `${edit.field.label}: ${edit.shown} (replaces fix versions)`;
+    if (!edit.value) return `${edit.field.label}: clear`;
+    return `${edit.field.label}: ${edit.shown}`;
+  });
+  let message = `Update ${tickets}?\n\n${lines.join('\n')}`;
+  if (edits.some(edit => JiraWrite.fieldKind(edit.field.id) === 'versions' && edit.value)) {
+    message += '\n\nReplace fix versions on the selected tickets. This replaces every fix version on those tickets.';
+  }
+  _bulkBusy[projKey] = true;
+  if (!window.confirm(message)) {
+    _bulkBusy[projKey] = false;
+    return;
+  }
+  const applyBtn = root && root.querySelector('.bulk-apply');
+  if (applyBtn) applyBtn.disabled = true;
+  const reportLines = [];
+  const failed = new Set();
+  let done = 0;
+  let okTickets = 0;
+  setBulkStatus(projKey, `Updating 0 of ${keys.length}…`, false);
+
+  async function writeOne(key) {
+    const issue = bulkIssue(projKey, key);
+    let updated = issue && issue.fields && issue.fields.updated;
+    let ticketOk = true;
+    if (!updated) {
+      edits.forEach((edit, index) => {
+        reportLines.push({ key, column: edit.field.label, ok: false, result: 'Failed. Refresh this release and try again.', order: index });
+      });
+      failed.add(key);
+      return;
+    }
+    for (let i = 0; i < edits.length; i++) {
+      const edit = edits[i];
+      try {
+        const res = await authFetch('/api/jira/issue/' + encodeURIComponent(key), {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ updated, change: edit.change }),
+        });
+        const json = await res.json().catch(() => ({}));
+        if (res.status === 409) {
+          ticketOk = false;
+          failed.add(key);
+          if (json.updated && window.JiraWrite && JiraWrite.rememberUpdated) JiraWrite.rememberUpdated(key, json.updated);
+          if (json.updated) updated = json.updated;
+          reportLines.push({ key, column: edit.field.label, ok: false, result: 'Failed. Changed in Jira.', order: i });
+          continue;
+        }
+        if (!res.ok || !json.issue) {
+          ticketOk = false;
+          failed.add(key);
+          reportLines.push({ key, column: edit.field.label, ok: false, result: 'Failed. ' + (json.error || 'Could not save to Jira.'), order: i });
+          continue;
+        }
+        if (window.JiraWrite && JiraWrite.rememberIssue) JiraWrite.rememberIssue(json.issue);
+        updated = (json.issue.fields && json.issue.fields.updated) || updated;
+        reportLines.push({ key, column: edit.field.label, ok: true, result: edit.value ? `Saved as ${edit.shown}` : 'Cleared', order: i });
+      } catch (err) {
+        ticketOk = false;
+        failed.add(key);
+        reportLines.push({ key, column: edit.field.label, ok: false, result: 'Failed. ' + (err.message || 'Could not save to Jira.'), order: i });
+      }
+    }
+    if (ticketOk) okTickets += 1;
+  }
+
+  let cursor = 0;
+  async function worker() {
+    while (cursor < keys.length) {
+      const key = keys[cursor++];
+      await writeOne(key);
+      done += 1;
+      setBulkStatus(projKey, `Updating ${done} of ${keys.length}…`, false);
+    }
+  }
+  try {
+    const workers = Math.min(4, keys.length);
+    await Promise.all(Array.from({ length: workers }, () => worker()));
+  } finally {
+    _bulkBusy[projKey] = false;
+  }
+  if (failed.size) _bulkSelected[projKey] = failed;
+  else delete _bulkSelected[projKey];
+  const failedCount = failed.size;
+  const summary = failedCount
+    ? `Updated ${okTickets} of ${keys.length} tickets. ${failedCount} still need attention.`
+    : `Updated ${okTickets} of ${keys.length} tickets.`;
+  const keyOrder = new Map(keys.map((key, index) => [key, index]));
+  reportLines.sort((a, b) => (keyOrder.get(a.key) - keyOrder.get(b.key)) || (a.order - b.order));
+  _bulkReport[projKey] = { summary, lines: reportLines };
+  setBulkStatus(projKey, summary, failedCount > 0);
+  refreshProjectListing(projKey);
+  showBulkReport(projKey);
+}
+
 function renderIssueTable(proj, issues, activeFilter) {
   proj = getAllProjects().find(p => p.key === proj.key) || proj;
   const issuesEl = document.getElementById('issues-' + proj.key);
@@ -8567,6 +9464,12 @@ function renderIssueTable(proj, issues, activeFilter) {
   const phaseLabel = (S.activeFilter && S.activeFilter[proj.key]) || activeFilter;
   const canGroup = groupByEpicOn() && !isQualityDashboardProject(proj);
   const groupedModel = canGroup ? EpicGroups.groupIssuesUnderEpics(sorted) : sorted.map(issue => ({ kind: 'issue', issue }));
+  const bulkKeys = bulkKeysFromModel(groupedModel);
+  _bulkOrder[proj.key] = bulkKeys;
+  const bulkCount = pruneBulkSelection(proj.key, bulkKeys);
+  if (!bulkCount) _bulkMode[proj.key] = false;
+  const bulkOn = !!_bulkMode[proj.key];
+  const bulkBusy = !!_bulkBusy[proj.key];
   const pageEpicKeys = canGroup ? groupedModel.filter(row => row.kind === 'epic').map(row => row.epicKey) : [];
   const epicsAllCollapsed = pageEpicKeys.length > 0 && pageEpicKeys.every(key => _epicCollapsed[epicCollapseId(proj.key, key)]);
   const showEpicGutter = canGroup && groupedModel.some(row => row.kind === 'epic');
@@ -8594,7 +9497,10 @@ function renderIssueTable(proj, issues, activeFilter) {
     const pending = _freezePick[proj.key] === colId;
     const mark = `${pending ? ' is-freeze-anchor' : ''}${frozenSet.has(colId) ? ' is-frozen' : ''}`;
     if (colId === 'notes') {
-      return `<th class="notes-col${mark}"><span class="notes-cell-inner">${collapseAll}${freezeButtonHtml('notes', 'Notes')}<span class="th-label">Notes</span></span>${columnResizerHtml('notes', 'Notes')}</th>`;
+      const bulkCheck = bulkKeys.length
+        ? `<input type="checkbox" class="bulk-check" aria-label="Select all tickets in this list"${bulkCount === bulkKeys.length ? ' checked' : ''}${bulkBusy ? ' disabled' : ''} onmousedown="event.stopPropagation()" onclick='event.stopPropagation();toggleBulkAll(event,${JSON.stringify(proj.key)})'>`
+        : '';
+      return `<th class="notes-col${mark}"><span class="notes-cell-inner">${bulkCheck}${collapseAll}${freezeButtonHtml('notes', 'Notes')}<span class="th-label">Notes</span></span>${columnResizerHtml('notes', 'Notes')}</th>`;
     }
     const f = vf.find(field => field.id === colId);
     const levelIdx = sortLevels.findIndex(level => level.col === f.id);
@@ -8623,8 +9529,9 @@ function renderIssueTable(proj, issues, activeFilter) {
     const gutter = showEpicGutter
       ? epicGutterHtml(opts.toggle || '<span class="epic-toggle-spacer" aria-hidden="true"></span>', opts.count)
       : '';
+    const bulkCheck = `<input type="checkbox" class="bulk-check" aria-label="Select ${esc(issue.key || 'ticket')}"${bulkHas(proj.key, issue.key) ? ' checked' : ''}${bulkBusy ? ' disabled' : ''} onmousedown="event.stopPropagation()" onclick='event.stopPropagation();toggleBulkRow(event,${JSON.stringify(proj.key)},${JSON.stringify(issue.key || '')})'>`;
     const cells = {
-      notes: `<td class="notes-cell"><span class="notes-cell-inner">${gutter}${ticketNotesButton(issue.key, summary)}</span></td>`,
+      notes: `<td class="notes-cell"><span class="notes-cell-inner">${bulkCheck}${gutter}${ticketNotesButton(issue.key, summary)}</span></td>`,
     };
     vf.forEach(f => {
       const classes = [];
@@ -8642,7 +9549,8 @@ function renderIssueTable(proj, issues, activeFilter) {
 
   function issueRow(issue, opts, ids) {
     const link = S.creds.url ? S.creds.url + '/browse/' + (issue.key || '') : '#';
-    const cls = opts.rowClass ? ` class="${opts.rowClass}"` : '';
+    const rowClass = [opts.rowClass, bulkHas(proj.key, issue.key) ? 'is-bulk-selected' : ''].filter(Boolean).join(' ');
+    const cls = rowClass ? ` class="${rowClass}"` : '';
     const hidden = opts.hidden ? ' hidden' : '';
     const parentAttr = opts.parentKey ? ` data-epic-parent="${esc(opts.parentKey)}"` : '';
     const epicAttr = opts.epicKey ? ` data-epic-key="${esc(opts.epicKey)}"` : '';
@@ -8711,6 +9619,14 @@ function renderIssueTable(proj, issues, activeFilter) {
     toolbarMeta: [S.activeRelease, colSt.q && ('search: ' + colSt.q), projectSortSummary(sortLevels) && ('sort: ' + projectSortSummary(sortLevels))].filter(Boolean).join(' · '),
     emptyMessage: 'No matching issues to export.',
   });
+  const bulkFields = bulkEditableFields(vf);
+  const bulkPool = (d && d.issues) || source;
+  let bulkColumns = _bulkColumns[proj.key] || [];
+  if (bulkOn) {
+    const allowed = new Set(bulkFields.map(field => field.id));
+    bulkColumns = bulkColumns.filter(col => allowed.has(col.field));
+    _bulkColumns[proj.key] = bulkColumns;
+  }
   issuesEl.innerHTML = `
     <div class="proj-table-tools">
       ${jiraFilterHtml}
@@ -8734,6 +9650,7 @@ function renderIssueTable(proj, issues, activeFilter) {
       ${_epicGroupStatus[proj.key] ? `<span class="proj-sort-status is-error">${esc(_epicGroupStatus[proj.key])}</span>` : ''}
       <span class="proj-count">${countLabel}</span>
       <button class="btn btn-sm proj-views-btn${columnViewIsCustom(proj.key) ? ' is-on' : ''}" type="button" onclick='openColumnViewsDialog(${JSON.stringify(proj.key)})' title="${esc(columnViewButtonTitle(proj.key))}">${esc(columnViewButtonLabel(proj.key))}</button>
+      <button class="btn btn-sm proj-bulk-btn${bulkOn ? ' is-on' : ''}" type="button" onclick='openBulkEdit(${JSON.stringify(proj.key)})' ${bulkCount && !bulkBusy ? '' : 'disabled'} title="${bulkCount ? 'Edit the selected tickets' : 'Select tickets to bulk edit'}">Bulk edit</button>
     </div>
     ${tableRegion}`;
 
@@ -8762,11 +9679,15 @@ function renderIssueTable(proj, issues, activeFilter) {
       positionProjectColFilter(btn);
     }
   }
+  fitIssueColumns(issuesEl);
   bindColumnResizers(proj.key);
   bindColumnDrags(proj.key);
   bindFreezeColumns(proj.key);
   bindIssueSplit(issuesEl);
+  const bulkHead = issuesEl.querySelector('th.notes-col .bulk-check');
+  if (bulkHead) bulkHead.indeterminate = bulkCount > 0 && bulkCount < bulkKeys.length;
   if (window.JiraWrite && JiraWrite.warmChoices) JiraWrite.warmChoices();
+  syncBulkDialog(proj.key, bulkOn ? bulkFields : [], bulkOn ? bulkColumns : [], bulkPool, bulkCount, bulkBusy);
 }
 
 // Field IDs that are Jira user-picker type — always extract displayName
