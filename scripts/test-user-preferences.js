@@ -103,14 +103,23 @@ assert.throws(() => prefs.setColumnWidths('user-a', 'NFS', []), /object/);
 assert.deepStrictEqual(prefs.setColumnWidths('user-a', 'NFS', {}).widths, {});
 assert.deepStrictEqual(prefs.get('user-a').columnWidths, {});
 
-assert.deepStrictEqual(prefs.setColumnFreeze('user-a', 'NFS', 'summary'), { version: 1, projectKey: 'NFS', column: 'summary' });
+assert.deepStrictEqual(prefs.setColumnFreeze('user-a', 'NFS', 'summary'), { version: 1, projectKey: 'NFS', freeze: 'summary' });
 assert.deepStrictEqual(prefs.get('user-a').columnFreeze, { NFS: 'summary' });
-assert.deepStrictEqual(prefs.setColumnFreeze('user-a', 'NFS', 'none'), { version: 1, projectKey: 'NFS', column: 'none' });
+assert.deepStrictEqual(prefs.setColumnFreeze('user-a', 'NFS', { start: 'key', end: 'status' }), {
+  version: 1,
+  projectKey: 'NFS',
+  freeze: { start: 'key', end: 'status' },
+});
+assert.deepStrictEqual(prefs.get('user-a').columnFreeze, { NFS: { start: 'key', end: 'status' } });
+assert.deepStrictEqual(createUserPreferences({ filePath }).get('user-a').columnFreeze, { NFS: { start: 'key', end: 'status' } });
+assert.deepStrictEqual(prefs.setColumnFreeze('user-a', 'NFS', 'none'), { version: 1, projectKey: 'NFS', freeze: 'none' });
 assert.strictEqual(prefs.get('user-a').columnFreeze.NFS, 'none');
-assert.deepStrictEqual(prefs.setColumnFreeze('user-a', 'NFS', 'notes').column, 'notes');
+assert.deepStrictEqual(prefs.setColumnFreeze('user-a', 'NFS', 'notes').freeze, 'notes');
 assert.deepStrictEqual(prefs.get('user-a').columnFreeze, {});
-assert.deepStrictEqual(prefs.setColumnFreeze('user-a', 'NFS', '').column, 'notes');
+assert.deepStrictEqual(prefs.setColumnFreeze('user-a', 'NFS', '').freeze, 'notes');
+assert.deepStrictEqual(prefs.setColumnFreeze('user-a', 'NFS', { start: 'notes', end: 'notes' }).freeze, 'notes');
 assert.throws(() => prefs.setColumnFreeze('user-a', 'NFS', 'has space'), /column to freeze/);
+assert.throws(() => prefs.setColumnFreeze('user-a', 'NFS', { start: 'key', end: 'bad col' }), /column to freeze/);
 assert.deepStrictEqual(createUserPreferences({ filePath }).get('user-a').columnFreeze, {});
 
 console.log('user preferences ok');

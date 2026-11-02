@@ -390,22 +390,22 @@ table.issues th.notes-col { width: 1%; background: var(--bg); }
 table.issues th.notes-col .th-label { cursor: default; }
 table.issues td.notes-cell { max-width: none; width: 1%; text-align: left; overflow: visible; background: var(--bg); }
 table.issues tr:hover td.notes-cell { background: var(--bg2); }
-.proj-issue-table table.issues.has-frozen-cols { border-collapse: separate; border-spacing: 0; }
-.proj-issue-table table.issues th.is-frozen,
-.proj-issue-table table.issues td.is-frozen { position: sticky; background: var(--bg); }
-.proj-issue-table table.issues th.is-frozen { z-index: 5; }
-.proj-issue-table table.issues td.is-frozen { z-index: 2; }
-.proj-issue-table table.issues th.is-frozen.is-frozen-end,
-.proj-issue-table table.issues td.is-frozen.is-frozen-end { box-shadow: 1px 0 0 var(--border); }
-.proj-issue-table table.issues tr:hover td.is-frozen { background: var(--bg2); }
-.proj-freeze-wrap { position: relative; }
-.proj-freeze-btn.is-on { color: var(--text); border-color: var(--border2); }
-.proj-freeze-pop { position: absolute; top: calc(100% + 6px); left: 0; z-index: 40; min-width: 220px; max-height: 320px; overflow: auto; padding: 6px; background: var(--bg); border: 0.5px solid var(--border); border-radius: 12px; box-shadow: 0 16px 40px rgba(0,0,0,.12); }
-.proj-freeze-pop[hidden] { display: none !important; }
-.proj-freeze-pop button { display: block; width: 100%; margin: 0; padding: 7px 8px; border: 0; border-radius: 8px; background: transparent; color: var(--text); font: inherit; font-size: 13px; text-align: left; cursor: pointer; }
-.proj-freeze-pop button:hover, .proj-freeze-pop button:focus-visible { background: var(--bg2); }
-.proj-freeze-pop button[aria-checked="true"] { font-weight: 600; }
-.proj-freeze-pop button:focus-visible, .proj-freeze-btn:focus-visible { outline: 2px solid var(--blue); outline-offset: 1px; }
+.th-freeze { display: inline-flex; align-items: center; justify-content: center; width: 16px; height: 16px; padding: 0; border: none; border-radius: 4px; background: none; color: inherit; cursor: pointer; opacity: .45; flex-shrink: 0; }
+.th-freeze::before { content: ''; width: 8px; height: 2px; border-radius: 1px; background: currentColor; box-shadow: 0 -3px 0 currentColor, 0 3px 0 currentColor; }
+.th-freeze:hover, .th-freeze:focus-visible, .th-freeze[aria-pressed="true"], .th-freeze.is-armed { opacity: 1; color: var(--blue); background: var(--blue-bg); }
+.th-freeze:focus-visible { outline: 2px solid var(--blue); outline-offset: 1px; }
+table.issues th.is-freeze-anchor { box-shadow: inset 0 -2px 0 var(--blue); }
+table.issues th.is-freeze-preview { box-shadow: inset 0 -2px 0 var(--border2); }
+.proj-freeze-hint { font-size: 12px; color: var(--text2); }
+.proj-issues .proj-issue-split { flex: 1; min-height: 0; display: flex; overflow: hidden; background: var(--bg); border: 0.5px solid var(--border); border-radius: var(--radius-lg); }
+.proj-frozen-pane, .proj-scroll-pane { min-width: 0; min-height: 0; }
+.proj-frozen-pane { flex: 0 0 auto; width: max-content; max-width: 50%; overflow-x: auto; overflow-y: hidden; border-right: 0.5px solid var(--border); }
+.proj-scroll-pane { flex: 1 1 auto; overflow: auto; }
+.proj-issue-split table.issues { width: max-content; min-width: 0; }
+.proj-issue-split th.notes-col,
+.proj-issue-split td.notes-cell { width: auto; }
+.proj-issue-split .proj-scroll-pane table.issues { min-width: 100%; }
+.proj-issue-split tr.is-linked-hover td { background: var(--bg2); }
 table.issues td.is-editing { z-index: 6; overflow: visible; background: var(--bg); }
 table.issues td.is-inline-edit { overflow: visible; }
 table.issues td.is-inline-edit .jw-days { width: 100%; max-width: 112px; }
@@ -7483,6 +7483,13 @@ document.addEventListener('keydown', (ev) => {
     ev.preventDefault();
     ev.stopImmediatePropagation();
     closeProjectSortDialog();
+    return;
+  }
+  const pendingFreeze = Object.keys(_freezePick).find(key => _freezePick[key]);
+  if (pendingFreeze) {
+    ev.preventDefault();
+    delete _freezePick[pendingFreeze];
+    paintFreezePick(pendingFreeze);
   }
 });
 
@@ -7523,6 +7530,7 @@ function applyEpicGroupVisibility(projKey, epicKey) {
     const count = Number(btn.getAttribute('data-count')) || 0;
     btn.setAttribute('aria-label', epicToggleLabel(epicKey, btn.getAttribute('data-summary') || '', count, open));
   });
+  syncIssueSplit(root);
 }
 
 function toggleEpicGroup(event, projKey, epicKey) {
@@ -7540,7 +7548,15 @@ function toggleEpicGroup(event, projKey, epicKey) {
 function projectEpicKeys(projKey) {
   const root = document.getElementById('issues-' + projKey);
   if (!root) return [];
-  return Array.from(root.querySelectorAll('tr.epic-parent[data-epic-key]')).map(row => row.getAttribute('data-epic-key')).filter(Boolean);
+  const keys = [];
+  const seen = new Set();
+  root.querySelectorAll('tr.epic-parent[data-epic-key]').forEach(row => {
+    const key = row.getAttribute('data-epic-key');
+    if (!key || seen.has(key)) return;
+    seen.add(key);
+    keys.push(key);
+  });
+  return keys;
 }
 
 function projectEpicsAllCollapsed(projKey) {
@@ -7638,16 +7654,20 @@ function columnGroupHtml(projKey, colIds) {
 
 function applyColumnWidths(table, widths) {
   if (!table) return;
-  const cols = table.querySelectorAll('colgroup col');
-  let total = 0;
-  cols.forEach(col => {
-    const id = col.getAttribute('data-col');
-    const width = widths[id] || defaultColumnWidth(id);
-    col.style.width = width + 'px';
-    total += width;
+  const root = table.closest('.proj-issues') || table;
+  root.querySelectorAll('table.issues').forEach(item => {
+    const cols = item.querySelectorAll('colgroup col');
+    let total = 0;
+    cols.forEach(col => {
+      const id = col.getAttribute('data-col');
+      const width = widths[id] || defaultColumnWidth(id);
+      col.style.width = width + 'px';
+      total += width;
+    });
+    item.classList.add('is-col-sized');
+    item.style.width = total + 'px';
   });
-  table.classList.add('is-col-sized');
-  table.style.width = total + 'px';
+  syncIssueSplit(root.classList && root.classList.contains('proj-issues') ? root : table.closest('.proj-issues'));
 }
 
 function rememberColumnWidths(projKey, widths) {
@@ -7679,33 +7699,37 @@ async function saveColumnWidths(projKey) {
 
 function measuredColumnWidths(table) {
   const widths = {};
-  const headers = table.querySelectorAll('thead th');
-  table.querySelectorAll('colgroup col').forEach((col, index) => {
-    const id = col.getAttribute('data-col');
-    const header = headers[index];
-    const measured = header ? Math.round(header.getBoundingClientRect().width) : defaultColumnWidth(id);
-    widths[id] = clampColumnWidth(measured || defaultColumnWidth(id));
+  const root = table.closest('.proj-issues') || table;
+  root.querySelectorAll('table.issues').forEach(item => {
+    const headers = item.querySelectorAll('thead th');
+    item.querySelectorAll('colgroup col').forEach((col, index) => {
+      const id = col.getAttribute('data-col');
+      const header = headers[index];
+      const measured = header ? Math.round(header.getBoundingClientRect().width) : defaultColumnWidth(id);
+      widths[id] = clampColumnWidth(measured || defaultColumnWidth(id));
+    });
   });
   return widths;
 }
 
 function bindColumnResizers(projKey) {
-  const table = document.querySelector('#issues-' + CSS.escape(projKey) + ' table.issues');
-  if (!table) return;
-  table.querySelectorAll('.col-resizer').forEach(handle => {
-    handle.addEventListener('pointerdown', event => startColumnResize(event, projKey, table, handle));
-    handle.addEventListener('keydown', event => nudgeColumnWidth(event, projKey, table, handle));
-    handle.addEventListener('dblclick', event => {
-      event.preventDefault();
-      event.stopPropagation();
-      const widths = Object.keys(getProjectColumnWidths(projKey)).length
-        ? getProjectColumnWidths(projKey)
-        : measuredColumnWidths(table);
-      const colId = handle.getAttribute('data-col');
-      widths[colId] = defaultColumnWidth(colId);
-      applyColumnWidths(table, widths);
-      rememberColumnWidths(projKey, widths);
-      syncProjectFreeze(projKey);
+  const root = document.getElementById('issues-' + projKey);
+  if (!root) return;
+  root.querySelectorAll('table.issues').forEach(table => {
+    table.querySelectorAll('.col-resizer').forEach(handle => {
+      handle.addEventListener('pointerdown', event => startColumnResize(event, projKey, table, handle));
+      handle.addEventListener('keydown', event => nudgeColumnWidth(event, projKey, table, handle));
+      handle.addEventListener('dblclick', event => {
+        event.preventDefault();
+        event.stopPropagation();
+        const widths = Object.keys(getProjectColumnWidths(projKey)).length
+          ? getProjectColumnWidths(projKey)
+          : measuredColumnWidths(table);
+        const colId = handle.getAttribute('data-col');
+        widths[colId] = defaultColumnWidth(colId);
+        applyColumnWidths(table, widths);
+        rememberColumnWidths(projKey, widths);
+      });
     });
   });
 }
@@ -7728,7 +7752,6 @@ function startColumnResize(event, projKey, table, handle) {
   function move(nextEvent) {
     widths[colId] = clampColumnWidth(start + (nextEvent.clientX - startX));
     applyColumnWidths(table, widths);
-    syncProjectFreeze(projKey);
   }
   function end() {
     handle.removeEventListener('pointermove', move);
@@ -7737,7 +7760,6 @@ function startColumnResize(event, projKey, table, handle) {
     document.body.classList.remove('is-col-resize');
     handle.classList.remove('is-active');
     rememberColumnWidths(projKey, widths);
-    syncProjectFreeze(projKey);
   }
   handle.addEventListener('pointermove', move);
   handle.addEventListener('pointerup', end);
@@ -7759,153 +7781,233 @@ function nudgeColumnWidth(event, projKey, table, handle) {
   widths[colId] = clampColumnWidth((widths[colId] || defaultColumnWidth(colId)) + delta);
   applyColumnWidths(table, widths);
   rememberColumnWidths(projKey, widths);
-  syncProjectFreeze(projKey);
 }
 
-function projectColumnIds(table) {
-  return [...table.querySelectorAll('colgroup col')].map(col => col.getAttribute('data-col'));
+const FREEZE_COLUMN_RE = /^[A-Za-z][A-Za-z0-9_]{0,63}$/;
+let _freezePick = {};
+let _freezeStatus = {};
+
+function projectColumnLabel(colId) {
+  if (colId === 'notes') return 'Notes';
+  const field = ALL_FIELDS.find(item => item.id === colId);
+  return (field && field.label) || colId;
 }
 
 function getProjectFreeze(projKey) {
   const value = _userPrefs.columnFreeze && _userPrefs.columnFreeze[projKey];
   if (value === 'none') return 'none';
-  if (typeof value === 'string' && /^[A-Za-z][A-Za-z0-9_]{0,63}$/.test(value)) return value;
-  return 'notes';
-}
-
-function effectiveProjectFreeze(projKey, colIds) {
-  const saved = getProjectFreeze(projKey);
-  if (saved === 'none') return 'none';
-  if (colIds.includes(saved)) return saved;
-  if (colIds.includes('notes')) return 'notes';
-  return 'none';
-}
-
-function freezeChoiceLabel(colId, index) {
-  const field = ALL_FIELDS.find(item => item.id === colId);
-  const name = colId === 'notes' ? 'Notes' : (field && field.label) || colId;
-  return index === 0 ? name : 'Through ' + name;
-}
-
-function applyProjectFreeze(table, colIds, throughId) {
-  if (!table) return;
-  const headers = [...table.querySelectorAll('thead th')];
-  headers.forEach(th => {
-    th.classList.remove('is-frozen', 'is-frozen-end');
-    th.style.left = '';
-  });
-  table.querySelectorAll('tbody td').forEach(td => {
-    td.classList.remove('is-frozen', 'is-frozen-end');
-    td.style.left = '';
-  });
-  const cut = throughId === 'none' ? -1 : colIds.indexOf(throughId);
-  table.classList.toggle('has-frozen-cols', cut >= 1);
-  if (cut < 0) return;
-  const rows = [...table.querySelectorAll('tbody tr')];
-  let left = 0;
-  for (let i = 0; i <= cut; i += 1) {
-    const th = headers[i];
-    if (!th) break;
-    const col = table.querySelectorAll('colgroup col')[i];
-    const styled = col ? parseInt(col.style.width, 10) : 0;
-    const width = Math.round(th.getBoundingClientRect().width) || styled || defaultColumnWidth(colIds[i]);
-    const last = i === cut;
-    th.classList.add('is-frozen');
-    th.classList.toggle('is-frozen-end', last);
-    th.style.left = left + 'px';
-    rows.forEach(row => {
-      const td = row.children[i];
-      if (!td || td.hasAttribute('colspan')) return;
-      td.classList.add('is-frozen');
-      td.classList.toggle('is-frozen-end', last);
-      td.style.left = left + 'px';
-    });
-    left += width;
+  if (typeof value === 'string' && FREEZE_COLUMN_RE.test(value)) return value;
+  if (value && typeof value === 'object' && FREEZE_COLUMN_RE.test(value.start) && FREEZE_COLUMN_RE.test(value.end)) {
+    return { start: value.start, end: value.end };
   }
+  return null;
 }
 
-function syncProjectFreeze(projKey) {
-  const table = document.querySelector('#issues-' + CSS.escape(projKey) + ' table.issues');
-  if (!table) return;
-  const colIds = projectColumnIds(table);
-  const through = effectiveProjectFreeze(projKey, colIds);
-  applyProjectFreeze(table, colIds, through);
-  const btn = document.querySelector('#issues-' + CSS.escape(projKey) + ' .proj-freeze-btn');
-  if (!btn) return;
-  const on = through !== 'none';
-  btn.classList.toggle('is-on', on);
-  btn.setAttribute('aria-pressed', on ? 'true' : 'false');
-  const index = colIds.indexOf(through);
-  const label = through === 'none' ? "Don't freeze" : freezeChoiceLabel(through, Math.max(index, 0));
-  btn.title = 'Freeze columns: ' + label;
+function resolveProjectFreeze(projKey, colIds) {
+  const saved = getProjectFreeze(projKey);
+  if (saved === 'none' || !colIds.length) return null;
+  let startId = 'notes';
+  let endId = 'notes';
+  if (typeof saved === 'string') {
+    startId = colIds[0];
+    endId = saved;
+  } else if (saved) {
+    startId = saved.start;
+    endId = saved.end;
+  }
+  let start = colIds.indexOf(startId);
+  let end = colIds.indexOf(endId);
+  if (start < 0 && end < 0) {
+    if (!colIds.includes('notes')) return null;
+    start = colIds.indexOf('notes');
+    end = start;
+  } else {
+    if (start < 0) start = end;
+    if (end < 0) end = start;
+  }
+  const from = Math.min(start, end);
+  const to = Math.max(start, end);
+  return { start: colIds[from], end: colIds[to], from, to };
 }
 
-let _openFreezeKey = null;
-
-function closeProjectFreezeMenu() {
-  if (!_openFreezeKey) return;
-  const pop = document.getElementById('proj-freeze-' + _openFreezeKey);
-  const btn = document.querySelector('#issues-' + CSS.escape(_openFreezeKey) + ' .proj-freeze-btn');
-  if (pop) pop.hidden = true;
-  if (btn) btn.setAttribute('aria-expanded', 'false');
-  _openFreezeKey = null;
+function paintFreezePick(projKey) {
+  const root = document.getElementById('issues-' + projKey);
+  if (!root) return;
+  const pending = _freezePick[projKey];
+  root.querySelectorAll('.th-freeze').forEach(btn => {
+    const on = btn.getAttribute('data-col') === pending;
+    btn.classList.toggle('is-armed', on);
+    const th = btn.closest('th');
+    if (th) th.classList.toggle('is-freeze-anchor', on);
+  });
+  root.querySelectorAll('th.is-freeze-preview').forEach(th => th.classList.remove('is-freeze-preview'));
 }
 
-function toggleProjectFreezeMenu(event, projKey) {
+function previewFreezeRange(root, projKey, colId) {
+  root.querySelectorAll('th.is-freeze-preview').forEach(th => th.classList.remove('is-freeze-preview'));
+  const pending = _freezePick[projKey];
+  if (!pending || !colId || pending === colId) return;
+  const host = root.querySelector('[data-col-order]');
+  const order = host ? host.getAttribute('data-col-order').split(',').filter(Boolean) : [];
+  const start = order.indexOf(pending);
+  const end = order.indexOf(colId);
+  if (start < 0 || end < 0) return;
+  const wanted = new Set(order.slice(Math.min(start, end), Math.max(start, end) + 1));
+  root.querySelectorAll('.th-freeze').forEach(btn => {
+    const id = btn.getAttribute('data-col');
+    if (!wanted.has(id) || id === pending) return;
+    const th = btn.closest('th');
+    if (th) th.classList.add('is-freeze-preview');
+  });
+}
+
+function pickProjectFreezeColumn(event, projKey, colId) {
   event.preventDefault();
   event.stopPropagation();
-  if (_openFreezeKey === projKey) {
-    closeProjectFreezeMenu();
+  const root = document.getElementById('issues-' + projKey);
+  const host = root && root.querySelector('[data-col-order]');
+  const order = host ? host.getAttribute('data-col-order').split(',').filter(Boolean) : [];
+  if (event.detail > 1) {
+    if (_freezePick[projKey] === colId) {
+      delete _freezePick[projKey];
+      setProjectFreeze(projKey, 'none');
+    }
     return;
   }
-  closeProjectFreezeMenu();
-  const pop = document.getElementById('proj-freeze-' + projKey);
-  const table = document.querySelector('#issues-' + CSS.escape(projKey) + ' table.issues');
-  if (!pop || !table) return;
-  const colIds = projectColumnIds(table);
-  const current = effectiveProjectFreeze(projKey, colIds);
-  const choices = [{ id: 'none', label: "Don't freeze" }].concat(colIds.map((id, index) => ({
-    id,
-    label: freezeChoiceLabel(id, index),
-  })));
-  pop.innerHTML = choices.map(choice => {
-    const on = choice.id === current;
-    return '<button type="button" role="radio" aria-checked="' + (on ? 'true' : 'false') + '" onclick=\'setProjectFreeze(event,'
-      + JSON.stringify(projKey) + ',' + JSON.stringify(choice.id) + ')\'>' + esc(choice.label) + '</button>';
-  }).join('');
-  pop.hidden = false;
-  _openFreezeKey = projKey;
-  event.currentTarget.setAttribute('aria-expanded', 'true');
+  const pending = _freezePick[projKey];
+  if (!pending) {
+    _freezePick[projKey] = colId;
+    paintFreezePick(projKey);
+    const hint = root && root.querySelector('.proj-freeze-hint');
+    if (hint) {
+      hint.hidden = false;
+      hint.textContent = 'Click another column to freeze through ' + projectColumnLabel(colId) + '.';
+    }
+    return;
+  }
+  delete _freezePick[projKey];
+  const start = order.indexOf(pending);
+  const end = order.indexOf(colId);
+  if (start < 0 || end < 0) {
+    paintFreezePick(projKey);
+    return;
+  }
+  const from = order[Math.min(start, end)];
+  const to = order[Math.max(start, end)];
+  if (from === 'notes' && to === 'notes') setProjectFreeze(projKey, '');
+  else setProjectFreeze(projKey, { start: from, end: to });
 }
 
-async function setProjectFreeze(event, projKey, column) {
-  if (event) {
-    event.preventDefault();
-    event.stopPropagation();
+function bindFreezeColumns(projKey) {
+  const root = document.getElementById('issues-' + projKey);
+  if (!root) return;
+  root.querySelectorAll('.th-freeze').forEach(btn => {
+    const colId = btn.getAttribute('data-col');
+    btn.addEventListener('click', event => pickProjectFreezeColumn(event, projKey, colId));
+    btn.addEventListener('mouseenter', () => previewFreezeRange(root, projKey, colId));
+  });
+  root.querySelectorAll('thead').forEach(head => {
+    head.addEventListener('mouseleave', () => {
+      root.querySelectorAll('th.is-freeze-preview').forEach(th => th.classList.remove('is-freeze-preview'));
+    });
+  });
+}
+
+function syncIssueSplit(root) {
+  if (!root || !root.querySelector) return;
+  const split = root.querySelector('.proj-issue-split');
+  if (!split) return;
+  const tables = [...split.querySelectorAll('table.issues')];
+  if (tables.length < 2) return;
+  const rowSets = tables.map(table => [...table.rows]);
+  const count = Math.min.apply(null, rowSets.map(rows => rows.length));
+  for (let i = 0; i < count; i += 1) {
+    rowSets.forEach(rows => { rows[i].style.height = ''; });
   }
-  closeProjectFreezeMenu();
+  for (let i = 0; i < count; i += 1) {
+    let max = 0;
+    rowSets.forEach(rows => {
+      max = Math.max(max, rows[i].getBoundingClientRect().height);
+    });
+    const height = Math.ceil(max) + 'px';
+    rowSets.forEach(rows => { rows[i].style.height = height; });
+  }
+}
+
+function bindIssueSplit(root) {
+  const split = root && root.querySelector('.proj-issue-split');
+  if (!split) return;
+  const frozen = split.querySelector('.proj-frozen-pane');
+  const scroll = split.querySelector('.proj-scroll-pane');
+  if (!frozen || !scroll) return;
+  let lock = false;
+  scroll.addEventListener('scroll', () => {
+    if (lock) return;
+    lock = true;
+    frozen.scrollTop = scroll.scrollTop;
+    lock = false;
+  }, { passive: true });
+  frozen.addEventListener('wheel', event => {
+    if (Math.abs(event.deltaX) > Math.abs(event.deltaY)) return;
+    scroll.scrollTop += event.deltaY;
+    event.preventDefault();
+  }, { passive: false });
+  const bodies = [...split.querySelectorAll('table.issues tbody')].map(body => [...body.rows]);
+  if (bodies.length > 1) {
+    const count = Math.min.apply(null, bodies.map(rows => rows.length));
+    for (let i = 0; i < count; i += 1) {
+      bodies.forEach(rows => {
+        const row = rows[i];
+        row.addEventListener('mouseenter', () => {
+          bodies.forEach(list => list[i].classList.add('is-linked-hover'));
+        });
+        row.addEventListener('mouseleave', () => {
+          bodies.forEach(list => list[i].classList.remove('is-linked-hover'));
+        });
+      });
+    }
+  }
+  split.addEventListener('focusin', () => syncIssueSplit(root));
+  split.addEventListener('focusout', () => syncIssueSplit(root));
+  syncIssueSplit(root);
+  requestAnimationFrame(() => syncIssueSplit(root));
+  if (window.ResizeObserver) {
+    if (root._splitObserver) root._splitObserver.disconnect();
+    let frame = 0;
+    const observer = new ResizeObserver(() => {
+      if (frame) return;
+      frame = requestAnimationFrame(() => {
+        frame = 0;
+        syncIssueSplit(root);
+      });
+    });
+    observer.observe(frozen);
+    observer.observe(scroll);
+    root._splitObserver = observer;
+  }
+}
+
+function rememberProjectFreeze(projKey, freeze) {
   if (!_userPrefs.columnFreeze) _userPrefs.columnFreeze = {};
-  if (!column || column === 'notes') delete _userPrefs.columnFreeze[projKey];
-  else _userPrefs.columnFreeze[projKey] = column;
-  syncProjectFreeze(projKey);
-  const tools = document.querySelector('#issues-' + CSS.escape(projKey) + ' .proj-table-tools');
-  const old = tools && tools.querySelector('.proj-freeze-status');
-  if (old) old.remove();
+  if (!freeze || freeze === 'notes') delete _userPrefs.columnFreeze[projKey];
+  else _userPrefs.columnFreeze[projKey] = freeze;
+}
+
+async function setProjectFreeze(projKey, freeze) {
+  rememberProjectFreeze(projKey, freeze);
+  delete _freezeStatus[projKey];
+  refreshProjectListing(projKey);
   try {
     const response = await authFetch('/api/user-preferences/column-freeze/' + encodeURIComponent(projKey), {
       method: 'PUT',
-      body: JSON.stringify({ column: !column || column === 'notes' ? '' : column }),
+      body: JSON.stringify({ freeze: freeze || '' }),
     });
     const result = await response.json().catch(() => ({}));
     if (!response.ok) throw new Error(result.error || 'Could not save frozen columns.');
-    if (result.column === 'notes' || !result.column) delete _userPrefs.columnFreeze[projKey];
-    else _userPrefs.columnFreeze[projKey] = result.column;
+    rememberProjectFreeze(projKey, result.freeze);
   } catch (err) {
-    if (!tools) return;
-    const note = document.createElement('span');
-    note.className = 'proj-sort-status is-error proj-freeze-status';
-    note.textContent = err.message || 'Could not save frozen columns.';
-    tools.appendChild(note);
+    _freezeStatus[projKey] = err.message || 'Could not save frozen columns.';
+    refreshProjectListing(projKey);
   }
 }
 
@@ -7925,9 +8027,11 @@ function renderIssueTable(proj, issues, activeFilter) {
   const existingSearch = document.getElementById('proj-search-' + proj.key);
   const hadFocus = document.activeElement === existingSearch;
   const caret = existingSearch ? existingSearch.selectionStart : null;
-  const existingWrap = issuesEl.querySelector('.proj-issue-table');
-  const scrollTop = existingWrap ? existingWrap.scrollTop : 0;
-  const scrollLeft = existingWrap ? existingWrap.scrollLeft : 0;
+  const existingScroll = issuesEl.querySelector('.proj-scroll-pane') || issuesEl.querySelector('.proj-issue-table');
+  const existingFrozen = issuesEl.querySelector('.proj-frozen-pane');
+  const scrollTop = existingScroll ? existingScroll.scrollTop : 0;
+  const scrollLeft = existingScroll ? existingScroll.scrollLeft : 0;
+  const frozenLeft = existingFrozen ? existingFrozen.scrollLeft : 0;
 
   const vf = qualityListingFields(proj, S.enabled.map(id => ALL_FIELDS.find(f=>f.id===id)).filter(Boolean));
   const filtered = d ? getFilteredProjectIssues(proj.key) : source;
@@ -7943,55 +8047,30 @@ function renderIssueTable(proj, issues, activeFilter) {
   const labelField = vf.some(f => f.id === 'summary') ? 'summary' : (vf.some(f => f.id === 'key') ? 'key' : (vf[0] && vf[0].id));
   const indentField = vf.some(f => f.id === 'summary') ? 'summary' : (vf.some(f => f.id === 'key') ? 'key' : '');
 
-  function issueRowCells(issue, opts) {
-    return vf.map(f => {
-      const classes = [];
-      if (opts.indent && f.id === indentField) classes.push('epic-indent');
-      if (opts.parentLabel && f.id === labelField) classes.push('epic-parent-label');
-      if (window.JiraWrite && JiraWrite.fieldKind) {
-        const kind = JiraWrite.fieldKind(f.id);
-        if (kind === 'number') classes.push('is-inline-edit');
-        if (kind === 'option' || kind === 'priority' || kind === 'transition') classes.push('is-choice');
-      }
-      return `<td${classes.length ? ` class="${classes.join(' ')}"` : ''} title="${esc(String(getCellValue(issue, f)))}">${renderCell(f, issue)}</td>`;
-    }).join('');
+  const colIds = ['notes'].concat(vf.map(field => field.id));
+  const freeze = resolveProjectFreeze(proj.key, colIds);
+  const activeIds = freeze ? colIds.slice(freeze.from, freeze.to + 1) : [];
+  const scrollIds = colIds.filter(id => activeIds.indexOf(id) < 0);
+  const split = activeIds.length > 0 && scrollIds.length > 0;
+  const frozenSet = new Set(activeIds);
+  if (_freezePick[proj.key] && colIds.indexOf(_freezePick[proj.key]) < 0) delete _freezePick[proj.key];
+
+  function freezeButtonHtml(colId, label) {
+    const pending = _freezePick[proj.key] === colId;
+    const frozen = frozenSet.has(colId);
+    const title = pending
+      ? 'Click another column to freeze through it. Click this column again to freeze only it. Double-click to unfreeze.'
+      : 'Click a starting column, then another column. That range stays put and has its own horizontal scroll. Double-click to unfreeze.';
+    return `<button type="button" class="th-freeze${pending ? ' is-armed' : ''}" data-col="${esc(colId)}" aria-pressed="${frozen || pending ? 'true' : 'false'}" aria-label="${esc((pending ? 'Choosing freeze from ' : (frozen ? 'Frozen ' : 'Freeze ')) + label)}" title="${esc(title)}"></button>`;
   }
 
-  function issueRow(issue, opts) {
-    const link = S.creds.url ? S.creds.url + '/browse/' + (issue.key || '') : '#';
-    const summary = (issue.fields && issue.fields.summary) || '';
-    const gutter = showEpicGutter
-      ? epicGutterHtml(opts.toggle || '<span class="epic-toggle-spacer" aria-hidden="true"></span>', opts.count)
-      : '';
-    const cls = opts.rowClass ? ` class="${opts.rowClass}"` : '';
-    const hidden = opts.hidden ? ' hidden' : '';
-    const parentAttr = opts.parentKey ? ` data-epic-parent="${esc(opts.parentKey)}"` : '';
-    const epicAttr = opts.epicKey ? ` data-epic-key="${esc(opts.epicKey)}"` : '';
-    return `<tr${cls}${hidden}${parentAttr}${epicAttr} data-issue-key="${esc(issue.key || '')}" onclick="window.open('${link}','_blank')" style="cursor:pointer"><td class="notes-cell"><span class="notes-cell-inner">${gutter}${ticketNotesButton(issue.key, summary)}</span></td>${issueRowCells(issue, opts)}</tr>`;
-  }
-
-  const rows = groupedModel.map(row => {
-    if (row.kind !== 'epic') return issueRow(row.issue, {});
-    const open = !_epicCollapsed[epicCollapseId(proj.key, row.epicKey)];
-    const summary = (row.issue.fields && row.issue.fields.summary) || '';
-    const toggle = `<button type="button" class="epic-toggle" aria-expanded="${open ? 'true' : 'false'}" data-count="${row.children.length}" data-summary="${esc(summary)}" aria-label="${esc(epicToggleLabel(row.epicKey, summary, row.children.length, open))}" onclick='toggleEpicGroup(event,${JSON.stringify(proj.key)},${JSON.stringify(row.epicKey)})'><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="9 6 15 12 9 18"/></svg></button>`;
-    const parentRow = issueRow(row.issue, {
-      rowClass: 'epic-parent',
-      toggle,
-      count: row.children.length,
-      epicKey: row.epicKey,
-      parentLabel: true,
-    });
-    const childRows = row.children.map(child => issueRow(child, {
-      rowClass: 'epic-child',
-      parentKey: row.epicKey,
-      indent: true,
-      hidden: !open,
-    })).join('');
-    return parentRow + childRows;
-  }).join('');
-
-  const headers = vf.map(f => {
+  function headerHtml(colId) {
+    const pending = _freezePick[proj.key] === colId;
+    const mark = `${pending ? ' is-freeze-anchor' : ''}${frozenSet.has(colId) ? ' is-frozen' : ''}`;
+    if (colId === 'notes') {
+      return `<th class="notes-col${mark}"><span class="notes-cell-inner">${collapseAll}${freezeButtonHtml('notes', 'Notes')}<span class="th-label">Notes</span></span>${columnResizerHtml('notes', 'Notes')}</th>`;
+    }
+    const f = vf.find(field => field.id === colId);
     const levelIdx = sortLevels.findIndex(level => level.col === f.id);
     const active = levelIdx >= 0;
     const hasFilter = !!(colSt.cols[f.id] && colSt.cols[f.id].size);
@@ -8000,8 +8079,9 @@ function renderIssueTable(proj, issues, activeFilter) {
     const rank = active && sortLevels.length > 1 ? `<span class="sort-rank">${levelIdx + 1}</span>` : '';
     const aria = active ? (dir === 1 ? 'ascending' : 'descending') : 'none';
     const open = S._openColFilter && S._openColFilter.projKey === proj.key && S._openColFilter.fieldId === f.id;
-    return `<th class="${active ? 'sorted' : ''} ${hasFilter ? 'filtered' : ''}">
+    return `<th class="${active ? 'sorted' : ''} ${hasFilter ? 'filtered' : ''}${mark}">
       <div class="th-inner">
+        ${freezeButtonHtml(f.id, f.label)}
         <span class="th-label" onclick='projectSort(event,${JSON.stringify(proj.key)},${JSON.stringify(f.id)})' aria-sort="${aria}" title="Sort by ${esc(f.label)}. Shift-click to add a level.">${rank}${esc(f.label)} <span class="sort-icon">${icon}</span></span>
         <button type="button" class="th-filter ${hasFilter ? 'has-filter' : ''} ${open ? 'active' : ''}" data-field="${esc(f.id)}" title="Filter ${esc(f.label)}" aria-label="Filter ${esc(f.label)}" onclick='toggleProjectColFilter(event,${JSON.stringify(proj.key)},${JSON.stringify(f.id)})'>
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"><polygon points="4 5 20 5 14 13 14 19 10 21 10 13 4 5"/></svg>
@@ -8009,16 +8089,85 @@ function renderIssueTable(proj, issues, activeFilter) {
       </div>
       ${columnResizerHtml(f.id, f.label)}
     </th>`;
-  }).join('');
+  }
+
+  function cellsById(issue, opts) {
+    const summary = (issue.fields && issue.fields.summary) || '';
+    const gutter = showEpicGutter
+      ? epicGutterHtml(opts.toggle || '<span class="epic-toggle-spacer" aria-hidden="true"></span>', opts.count)
+      : '';
+    const cells = {
+      notes: `<td class="notes-cell"><span class="notes-cell-inner">${gutter}${ticketNotesButton(issue.key, summary)}</span></td>`,
+    };
+    vf.forEach(f => {
+      const classes = [];
+      if (opts.indent && f.id === indentField) classes.push('epic-indent');
+      if (opts.parentLabel && f.id === labelField) classes.push('epic-parent-label');
+      if (window.JiraWrite && JiraWrite.fieldKind) {
+        const kind = JiraWrite.fieldKind(f.id);
+        if (kind === 'number') classes.push('is-inline-edit');
+        if (kind === 'option' || kind === 'priority' || kind === 'transition') classes.push('is-choice');
+      }
+      cells[f.id] = `<td${classes.length ? ` class="${classes.join(' ')}"` : ''} title="${esc(String(getCellValue(issue, f)))}">${renderCell(f, issue)}</td>`;
+    });
+    return cells;
+  }
+
+  function issueRow(issue, opts, ids) {
+    const link = S.creds.url ? S.creds.url + '/browse/' + (issue.key || '') : '#';
+    const cls = opts.rowClass ? ` class="${opts.rowClass}"` : '';
+    const hidden = opts.hidden ? ' hidden' : '';
+    const parentAttr = opts.parentKey ? ` data-epic-parent="${esc(opts.parentKey)}"` : '';
+    const epicAttr = opts.epicKey ? ` data-epic-key="${esc(opts.epicKey)}"` : '';
+    const cells = cellsById(issue, opts);
+    return `<tr${cls}${hidden}${parentAttr}${epicAttr} data-issue-key="${esc(issue.key || '')}" onclick="window.open('${link}','_blank')" style="cursor:pointer">${ids.map(id => cells[id] || '').join('')}</tr>`;
+  }
+
+  function rowsHtml(ids) {
+    return groupedModel.map(row => {
+      if (row.kind !== 'epic') return issueRow(row.issue, {}, ids);
+      const open = !_epicCollapsed[epicCollapseId(proj.key, row.epicKey)];
+      const summary = (row.issue.fields && row.issue.fields.summary) || '';
+      const toggle = `<button type="button" class="epic-toggle" aria-expanded="${open ? 'true' : 'false'}" data-count="${row.children.length}" data-summary="${esc(summary)}" aria-label="${esc(epicToggleLabel(row.epicKey, summary, row.children.length, open))}" onclick='toggleEpicGroup(event,${JSON.stringify(proj.key)},${JSON.stringify(row.epicKey)})'><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="9 6 15 12 9 18"/></svg></button>`;
+      const parentRow = issueRow(row.issue, {
+        rowClass: 'epic-parent',
+        toggle,
+        count: row.children.length,
+        epicKey: row.epicKey,
+        parentLabel: true,
+      }, ids);
+      const childRows = row.children.map(child => issueRow(child, {
+        rowClass: 'epic-child',
+        parentKey: row.epicKey,
+        indent: true,
+        hidden: !open,
+      }, ids)).join('');
+      return parentRow + childRows;
+    }).join('');
+  }
+
   const collapseAll = showEpicGutter
     ? `<button type="button" class="epic-toggle" id="epic-collapse-all-${esc(proj.key)}" aria-expanded="${epicsAllCollapsed ? 'false' : 'true'}" aria-label="${epicsAllCollapsed ? 'Expand all epics' : 'Collapse all epics'}" title="${epicsAllCollapsed ? 'Expand all epics' : 'Collapse all epics'}" onclick='event.stopPropagation();toggleAllEpicGroups(${JSON.stringify(proj.key)})'><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="9 6 15 12 9 18"/></svg></button>`
     : '';
-  const headersWithNotes = `<th class="notes-col"><span class="notes-cell-inner">${collapseAll}<span class="th-label">Notes</span></span>${columnResizerHtml('notes', 'Notes')}</th>` + headers;
-  const columns = columnGroupHtml(proj.key, ['notes'].concat(vf.map(field => field.id)));
+  const emptyMessage = `No issues match the current filters${phaseLabel && phaseLabel !== 'Total' ? ' for "'+esc(phaseLabel)+'"' : ''}.`;
 
-  const emptyRow = !sorted.length
-    ? `<tr><td class="issues-empty" colspan="${Math.max(vf.length + 1, 1)}">No issues match the current filters${phaseLabel && phaseLabel !== 'Total' ? ' for "'+esc(phaseLabel)+'"' : ''}.</td></tr>`
-    : '';
+  function tableHtml(ids, showEmpty) {
+    const columns = columnGroupHtml(proj.key, ids);
+    const emptyRow = !sorted.length
+      ? `<tr><td class="issues-empty" colspan="${Math.max(ids.length, 1)}">${showEmpty ? emptyMessage : ''}</td></tr>`
+      : '';
+    const label = split && ids === activeIds ? proj.key + ' frozen columns' : proj.key + ' issues';
+    return `<table class="issues${columns.sized ? ' is-col-sized' : ''}" aria-label="${esc(label)}"${columns.sized ? ` style="width:${columns.total}px"` : ''}>
+      ${columns.html}
+      <thead><tr>${ids.map(headerHtml).join('')}</tr></thead>
+      <tbody>${rowsHtml(ids)}${emptyRow}</tbody>
+    </table>`;
+  }
+
+  const orderAttr = ` data-col-order="${esc(colIds.join(','))}"`;
+  const tableRegion = split
+    ? `<div class="proj-issue-split"${orderAttr}><div class="proj-frozen-pane">${tableHtml(activeIds, false)}</div><div class="proj-scroll-pane">${tableHtml(scrollIds, true)}</div></div>`
+    : `<div class="table-wrap proj-issue-table"${orderAttr}>${tableHtml(colIds, true)}</div>`;
 
   const shown = sorted.length;
   const originalTotal = issuesForProjectStatCardsOriginal(proj.key).length || source.length;
@@ -8041,10 +8190,8 @@ function renderIssueTable(proj, issues, activeFilter) {
       <input id="proj-search-${proj.key}" class="proj-search" type="search" placeholder="Search issues…" value="${esc(colSt.q || '')}" oninput='onProjectSearchInput(${JSON.stringify(proj.key)},this.value)' />
       ${hasProjectColFilters(proj.key) ? `<button class="btn btn-sm" onclick='clearProjectFilters(${JSON.stringify(proj.key)})'>Clear filters</button>` : ''}
       <button class="btn btn-sm proj-sort-btn${sortLevels.length ? ' is-on' : ''}" type="button" onclick='openProjectSortDialog(${JSON.stringify(proj.key)})' title="${esc(sortLevels.length ? projectSortSummary(sortLevels) : 'Define a nested sort')}">${esc(projectSortButtonLabel(sortLevels))}</button>
-      <div class="proj-freeze-wrap">
-        <button class="btn btn-sm proj-freeze-btn${effectiveProjectFreeze(proj.key, ['notes'].concat(vf.map(field => field.id))) !== 'none' ? ' is-on' : ''}" type="button" aria-haspopup="listbox" aria-expanded="false" aria-pressed="${effectiveProjectFreeze(proj.key, ['notes'].concat(vf.map(field => field.id))) !== 'none' ? 'true' : 'false'}" title="Freeze columns while the table scrolls" onclick='toggleProjectFreezeMenu(event, ${JSON.stringify(proj.key)})'>Freeze</button>
-        <div class="proj-freeze-pop" id="proj-freeze-${esc(proj.key)}" role="listbox" aria-label="Freeze columns" hidden></div>
-      </div>
+      <span class="proj-freeze-hint"${_freezePick[proj.key] ? '' : ' hidden'}>${_freezePick[proj.key] ? `Click another column to freeze through ${esc(projectColumnLabel(_freezePick[proj.key]))}.` : ''}</span>
+      ${_freezeStatus[proj.key] ? `<span class="proj-sort-status is-error">${esc(_freezeStatus[proj.key])}</span>` : ''}
       ${_projSortStatus[proj.key] ? `<span class="proj-sort-status${_projSortStatus[proj.key].error ? ' is-error' : ''}">${esc(_projSortStatus[proj.key].message)}</span>` : ''}
       ${isQualityDashboardProject(proj) ? '' : `<div class="epic-layout-toggle" role="group" aria-label="How issues are listed">
         <button type="button" aria-pressed="${groupByEpicOn() ? 'true' : 'false'}" title="List each enhancement under its epic" onclick='setEpicGrouping(${JSON.stringify(proj.key)}, true)'>
@@ -8059,21 +8206,17 @@ function renderIssueTable(proj, issues, activeFilter) {
       ${_epicGroupStatus[proj.key] ? `<span class="proj-sort-status is-error">${esc(_epicGroupStatus[proj.key])}</span>` : ''}
       <span class="proj-count">${countLabel}</span>
     </div>
-    <div class="table-wrap proj-issue-table">
-      <table class="issues${columns.sized ? ' is-col-sized' : ''}" aria-label="${esc(proj.key)} issues"${columns.sized ? ` style="width:${columns.total}px"` : ''}>
-        ${columns.html}
-        <thead><tr>${headersWithNotes}</tr></thead>
-        <tbody>${rows}${emptyRow}</tbody>
-      </table>
-    </div>`;
+    ${tableRegion}`;
 
   if (isQualityDashboardProject(proj)) buildJiraProjectFilterOptions(jiraPrefix, getQualityProjects());
 
-  const wrap = issuesEl.querySelector('.proj-issue-table');
-  if (wrap && (scrollTop || scrollLeft)) {
-    wrap.scrollTop = scrollTop;
-    wrap.scrollLeft = scrollLeft;
+  const scrollPane = issuesEl.querySelector('.proj-scroll-pane') || issuesEl.querySelector('.proj-issue-table');
+  const frozenPane = issuesEl.querySelector('.proj-frozen-pane');
+  if (scrollPane && (scrollTop || scrollLeft)) {
+    scrollPane.scrollTop = scrollTop;
+    scrollPane.scrollLeft = scrollLeft;
   }
+  if (frozenPane && frozenLeft) frozenPane.scrollLeft = frozenLeft;
 
   const search = document.getElementById('proj-search-' + proj.key);
   if (search && hadFocus) {
@@ -8091,7 +8234,8 @@ function renderIssueTable(proj, issues, activeFilter) {
     }
   }
   bindColumnResizers(proj.key);
-  syncProjectFreeze(proj.key);
+  bindFreezeColumns(proj.key);
+  bindIssueSplit(issuesEl);
   if (window.JiraWrite && JiraWrite.warmChoices) JiraWrite.warmChoices();
 }
 
@@ -12236,10 +12380,8 @@ document.addEventListener('click', e => {
   if (!e.target.closest('#proj-col-filter-pop') && !e.target.closest('.th-filter')) {
     closeProjectColFilter();
   }
-  if (!e.target.closest('.proj-freeze-wrap')) closeProjectFreezeMenu();
 });
 document.addEventListener('scroll', e => {
-  if (!(e.target && e.target.closest && e.target.closest('.proj-freeze-pop'))) closeProjectFreezeMenu();
   if (!S._openColFilter) return;
   if (e.target && e.target.closest && e.target.closest('#proj-col-filter-pop')) return;
   closeProjectColFilter();

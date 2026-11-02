@@ -420,7 +420,9 @@ app.put('/api/user-preferences/column-freeze/:projectKey', (req, res) => {
   const user = requireUser(req, res);
   if (!user) return;
   try {
-    res.json(userPreferences.setColumnFreeze(user.id, req.params.projectKey, req.body?.column));
+    const body = req.body && typeof req.body === 'object' ? req.body : {};
+    const value = Object.prototype.hasOwnProperty.call(body, 'freeze') ? body.freeze : body.column;
+    res.json(userPreferences.setColumnFreeze(user.id, req.params.projectKey, value));
   } catch (err) {
     sendStoreError(res, err);
   }
