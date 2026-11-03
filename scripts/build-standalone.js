@@ -65,6 +65,10 @@ function copyPackageFiles(outDir) {
     path.join(ROOT, 'lib', 'jira-write-ui.js'),
     path.join(outDir, 'lib', 'jira-write-ui.js')
   );
+  fs.copyFileSync(
+    path.join(ROOT, 'lib', 'menu.js'),
+    path.join(outDir, 'lib', 'menu.js')
+  );
 
   fs.copyFileSync(
     path.join(ROOT, 'README.md'),

@@ -201,6 +201,12 @@ app.get('/lib/jira-write-ui.js', (req, res) => {
   res.sendFile(path.join(ROOT, 'lib', 'jira-write-ui.js'));
 });
 
+app.get('/lib/menu.js', (req, res) => {
+  res.setHeader('Cache-Control', 'no-store');
+  res.type('application/javascript');
+  res.sendFile(path.join(ROOT, 'lib', 'menu.js'));
+});
+
 // ── Health check endpoint ─────────────────────────────────────────────────────
 app.get('/health', (req, res) => {
   res.status(200).json({ status: 'ok', message: 'Proxy is running' });

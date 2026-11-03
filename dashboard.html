@@ -13,6 +13,7 @@
 <script src="/lib/epic-groups.js"></script>
 <script src="/lib/jira-write-ui.js"></script>
 <script src="/lib/release-plan.js"></script>
+<script src="/lib/menu.js"></script>
 <style>
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 :root {
@@ -62,7 +63,11 @@ body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sa
 
 /* ── Layout ── */
 #app { display: flex; height: 100vh; }
-#sidebar { width: var(--sidebar-w); background: var(--bg2); border-right: 0.5px solid var(--border); display: flex; flex-direction: column; flex-shrink: 0; overflow-x: hidden; overflow-y: auto; transition: width .18s ease; }
+#sidebar { width: var(--sidebar-w); background: var(--bg2); border-right: 0.5px solid var(--border); display: flex; flex-direction: column; flex-shrink: 0; overflow: hidden; transition: width .18s ease; }
+#menu-groups { flex: 1 1 auto; min-height: 0; overflow-x: hidden; overflow-y: auto; }
+#menu-config { flex: 0 0 auto; margin-top: auto; border-top: 0.5px solid var(--border); background: var(--bg2); }
+#menu-config .nav-group { margin-top: 0; }
+#menu-config .nav-group-body { max-height: min(420px, 46vh); overflow-y: auto; }
 #main { flex: 1; display: flex; flex-direction: column; overflow: hidden; min-width: 0; }
 #topbar { height: var(--header-h); background: var(--bg); border-bottom: 0.5px solid var(--border); display: flex; align-items: center; padding: 0 20px; gap: 10px; flex-shrink: 0; }
 #topbar h1 { font-size: 15px; font-weight: 600; flex: 1; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
@@ -134,11 +139,25 @@ html.sidebar-collapsed .sidebar-toggle svg { transform: scaleX(-1); }
 .nav-item.active { background: var(--bg); color: var(--text); font-weight: 600; box-shadow: 0 0 0 0.5px var(--border); }
 .nav-label { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .proj-dot { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
+.nav-group { margin-top: 4px; }
+.nav-group-toggle { display: flex; align-items: center; gap: 8px; width: calc(100% - 12px); margin: 8px 6px 2px; padding: 7px 10px; border: none; border-radius: var(--radius); background: none; color: var(--text); font: inherit; font-size: 12px; font-weight: 700; letter-spacing: 0.04em; text-transform: uppercase; cursor: pointer; text-align: left; }
+.nav-group-toggle:hover { background: var(--bg3); }
+.nav-group-toggle:focus-visible { outline: 2px solid var(--blue); outline-offset: 1px; }
+.nav-group-chevron { width: 14px; height: 14px; flex-shrink: 0; transition: transform .15s ease; }
+.nav-group.is-collapsed .nav-group-chevron { transform: rotate(-90deg); }
+.nav-group.is-collapsed .nav-group-body { display: none; }
+.nav-subhead { padding: 8px 14px 2px 22px; font-size: 10px; font-weight: 600; color: var(--text3); letter-spacing: 0.06em; text-transform: uppercase; }
+.nav-group .category-label { padding-left: 22px; }
+.nav-group .nav-item { padding-left: 22px; }
 html.sidebar-collapsed #sidebar { width: 56px; }
 html.sidebar-collapsed .brand-copy,
 html.sidebar-collapsed .sec-label,
 html.sidebar-collapsed .category-label,
+html.sidebar-collapsed .nav-subhead,
+html.sidebar-collapsed .nav-group-toggle,
 html.sidebar-collapsed .nav-label { display: none; }
+html.sidebar-collapsed .nav-group.is-collapsed .nav-group-body { display: block; }
+html.sidebar-collapsed .nav-group .nav-item { padding-left: 0; }
 html.sidebar-collapsed .sidebar-brand { padding: 10px 6px; flex-direction: column; gap: 8px; }
 html.sidebar-collapsed .nav-item { width: calc(100% - 8px); margin: 1px 4px; padding: 8px 0; justify-content: center; gap: 0; }
 html.sidebar-collapsed #log-badge { position: absolute; top: 3px; right: 3px; margin-left: 0; min-width: 7px; width: 7px; height: 7px; padding: 0; font-size: 0; line-height: 0; overflow: hidden; }
@@ -1212,83 +1231,46 @@ code { font-family: monospace; font-size: 12px; background: var(--bg3); padding:
       </button>
     </div>
 
-    <div class="sec-label" id="projects-section-label">Projects</div>
-    <div id="projects-container"></div>
+    <div id="menu-groups"></div>
 
-    <div class="sec-label">Insights</div>
-    <button class="nav-item" onclick="nav('velocity')" id="nav-velocity" title="Developer Velocity">
-      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z"/></svg>
-      <span class="nav-label">Developer Velocity</span>
-    </button>
-    <button class="nav-item" onclick="nav('data-gaps')" id="nav-data-gaps" title="Data Gaps">
-      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
-      <span class="nav-label">Data Gaps</span>
-    </button>
-    <button class="nav-item" onclick="nav('analytics')" id="nav-analytics" title="Analytics">
-      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>
-      <span class="nav-label">Analytics</span>
-    </button>
-    <button class="nav-item" onclick="nav('release-report')" id="nav-release-report" title="Release Report">
-      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M8 8h8M8 12h8M8 16h5"/></svg>
-      <span class="nav-label">Release Report</span>
-    </button>
-    <button class="nav-item" onclick="nav('team')" id="nav-team" title="Team View">
-      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
-      <span class="nav-label">Team View</span>
-    </button>
-    <button class="nav-item" onclick="nav('release-plan')" id="nav-release-plan" title="Release plan">
-      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 5h16M4 12h10M4 19h7"/><path d="M15 10h5v4h-5z"/></svg>
-      <span class="nav-label">Release plan</span>
-    </button>
-    <button class="nav-item" onclick="nav('phase-timeline')" id="nav-phase-timeline" title="Project Phase">
-      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 3v18h18"/><path d="M18 17V9"/><path d="M13 17V5"/><path d="M8 17v-3"/></svg>
-      <span class="nav-label">Project Phase</span>
-    </button>
-    <button class="nav-item" onclick="nav('log')" id="nav-log" title="Daily Progress">
-      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><polyline points="10 9 9 9 8 9"/></svg>
-      <span class="nav-label">Daily Progress</span>
-      <span id="log-badge" style="display:none;margin-left:auto;background:var(--red);color:#fff;font-size:10px;font-weight:700;padding:1px 6px;border-radius:10px"></span>
-    </button>
-
-    <div class="sec-label">Quality Insights</div>
-    <button class="nav-item" onclick="nav('quality-insights')" id="nav-quality-insights" title="Quality Insights">
-      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
-      <span class="nav-label">Quality Insights</span>
-    </button>
-    <button class="nav-item" onclick="nav('quality-phase')" id="nav-quality-phase" title="Quality Phase">
-      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 3v18h18"/><path d="M18 17V9"/><path d="M13 17V5"/><path d="M8 17v-3"/></svg>
-      <span class="nav-label">Quality Phase</span>
-    </button>
-    <button class="nav-item" onclick="nav('quality-progress')" id="nav-quality-progress" title="Quality Progress">
-      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><polyline points="10 9 9 9 8 9"/></svg>
-      <span class="nav-label">Quality Progress</span>
-    </button>
-
-    <div class="sec-label">Config</div>
-    <button class="nav-item" onclick="nav('connector')" id="nav-connector" title="Jira Connector">
-      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M8 12h8M12 8v8"/><circle cx="12" cy="12" r="9"/><path d="M7 3l-4 4M17 3l4 4M7 21l-4-4M17 21l4-4"/></svg>
-      <span class="nav-label">Jira Connector</span>
-    </button>
-    <button class="nav-item" onclick="nav('projects-config')" id="nav-projects-config" title="Projects">
-      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="3" width="7" height="7" rx="1.5"/><rect x="3" y="14" width="7" height="7" rx="1.5"/><rect x="14" y="14" width="7" height="7" rx="1.5"/></svg>
-      <span class="nav-label">Projects</span>
-    </button>
-    <button class="nav-item" onclick="nav('releases-config')" id="nav-releases-config" title="Releases">
-      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"/><line x1="9" y1="3" x2="9" y2="21"/><line x1="15" y1="3" x2="15" y2="21"/><line x1="3" y1="9" x2="21" y2="9"/><line x1="3" y1="15" x2="21" y2="15"/></svg>
-      <span class="nav-label">Releases</span>
-    </button>
-    <button class="nav-item" onclick="nav('milestones-config')" id="nav-milestones-config" title="Milestones">
-      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 15s1-1 4-1 5 2 8 2 4-1 4-1V3s-1 1-4 1-5-2-8-2-4 1-4 1z"/><line x1="4" y1="22" x2="4" y2="15"/></svg>
-      <span class="nav-label">Milestones</span>
-    </button>
-    <button class="nav-item" onclick="nav('fields')" id="nav-fields" title="Field Configuration">
-      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="8" y1="6" x2="21" y2="6"/><line x1="8" y1="12" x2="21" y2="12"/><line x1="8" y1="18" x2="21" y2="18"/><line x1="3" y1="6" x2="3.01" y2="6"/><line x1="3" y1="12" x2="3.01" y2="12"/><line x1="3" y1="18" x2="3.01" y2="18"/></svg>
-      <span class="nav-label">Field Configuration</span>
-    </button>
-    <button class="nav-item" onclick="nav('setup')" id="nav-setup" title="Jira Setup">
-      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M19.07 4.93a10 10 0 0 1 0 14.14M4.93 4.93a10 10 0 0 0 0 14.14"/></svg>
-      <span class="nav-label">Jira Setup</span>
-    </button>
+    <div id="menu-config">
+      <div class="nav-group is-collapsed" data-group="config">
+        <button type="button" class="nav-group-toggle" data-group="config" aria-expanded="false" aria-controls="nav-group-config">
+          <svg class="nav-group-chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"/></svg>
+          <span class="nav-label">Config</span>
+        </button>
+        <div class="nav-group-body" id="nav-group-config">
+          <button type="button" class="nav-item" id="nav-connector" data-page="connector" title="Jira Connector">
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M8 12h8M12 8v8"/><circle cx="12" cy="12" r="9"/><path d="M7 3l-4 4M17 3l4 4M7 21l-4-4M17 21l4-4"/></svg>
+            <span class="nav-label">Jira Connector</span>
+          </button>
+          <button type="button" class="nav-item" id="nav-projects-config" data-page="projects-config" title="Projects">
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="3" width="7" height="7" rx="1.5"/><rect x="3" y="14" width="7" height="7" rx="1.5"/><rect x="14" y="14" width="7" height="7" rx="1.5"/></svg>
+            <span class="nav-label">Projects</span>
+          </button>
+          <button type="button" class="nav-item" id="nav-menu" data-page="menu" title="Menu">
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="4" y1="6" x2="20" y2="6"/><line x1="4" y1="12" x2="14" y2="12"/><line x1="4" y1="18" x2="18" y2="18"/><polyline points="15 10 19 12 15 14"/></svg>
+            <span class="nav-label">Menu</span>
+          </button>
+          <button type="button" class="nav-item" id="nav-releases-config" data-page="releases-config" title="Releases">
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"/><line x1="9" y1="3" x2="9" y2="21"/><line x1="15" y1="3" x2="15" y2="21"/><line x1="3" y1="9" x2="21" y2="9"/><line x1="3" y1="15" x2="21" y2="15"/></svg>
+            <span class="nav-label">Releases</span>
+          </button>
+          <button type="button" class="nav-item" id="nav-milestones-config" data-page="milestones-config" title="Milestones">
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 15s1-1 4-1 5 2 8 2 4-1 4-1V3s-1 1-4 1-5-2-8-2-4 1-4 1z"/><line x1="4" y1="22" x2="4" y2="15"/></svg>
+            <span class="nav-label">Milestones</span>
+          </button>
+          <button type="button" class="nav-item" id="nav-fields" data-page="fields" title="Field Configuration">
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="8" y1="6" x2="21" y2="6"/><line x1="8" y1="12" x2="21" y2="12"/><line x1="8" y1="18" x2="21" y2="18"/><line x1="3" y1="6" x2="3.01" y2="6"/><line x1="3" y1="12" x2="3.01" y2="12"/><line x1="3" y1="18" x2="3.01" y2="18"/></svg>
+            <span class="nav-label">Field Configuration</span>
+          </button>
+          <button type="button" class="nav-item" id="nav-setup" data-page="setup" title="Jira Setup">
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M19.07 4.93a10 10 0 0 1 0 14.14M4.93 4.93a10 10 0 0 0 0 14.14"/></svg>
+            <span class="nav-label">Jira Setup</span>
+          </button>
+        </div>
+      </div>
+    </div>
   </nav>
 
   <!-- ── Main ── -->
@@ -1635,6 +1617,23 @@ code { font-family: monospace; font-size: 12px; background: var(--bg3); padding:
           <div id="pc-custom" style="display:flex;flex-direction:column;gap:8px;margin-bottom:24px">
             <p id="pc-empty" style="font-size:13px;color:var(--text3)">No custom projects yet.</p>
           </div>
+        </div>
+      </div>
+
+      <div class="page" id="page-menu">
+        <div style="max-width:760px">
+          <h2 style="font-size:18px;font-weight:600;margin-bottom:6px">Menu</h2>
+          <p style="font-size:13px;color:var(--text2);line-height:1.65;margin-bottom:16px">
+            Each main item collapses. Inside it, projects are listed first, then insights. A project category is listed under the first menu item that names it. Categories that no item names stay on the item that includes remaining categories.
+            <br><strong>Saved to config/menu.json</strong>
+          </p>
+          <div id="menu-config-list" style="display:flex;flex-direction:column;gap:12px"></div>
+          <div style="display:flex;gap:10px;margin-top:16px;flex-wrap:wrap">
+            <button class="btn btn-sm" type="button" onclick="addMenuGroup()">Add menu item</button>
+            <button class="btn btn-sm primary" type="button" onclick="saveMenuConfig()">Save menu</button>
+            <button class="btn btn-sm" type="button" onclick="resetMenuConfig()">Reset to defaults</button>
+          </div>
+          <div id="menu-config-msg" style="margin-top:10px;font-size:13px;color:var(--text3)"></div>
         </div>
       </div>
 
@@ -4512,7 +4511,7 @@ async function checkProxy() {
 // ── Deep linking (History API) ───────────────────────────────────────────────
 const STATIC_PAGES = new Set([
   'setup', 'velocity', 'data-gaps', 'analytics', 'release-report', 'quality-insights', 'quality-phase', 'quality-progress', 'team', 'release-plan', 'phase-timeline', 'log',
-  'connector', 'projects-config', 'releases-config', 'milestones-config', 'fields'
+  'connector', 'projects-config', 'menu', 'releases-config', 'milestones-config', 'fields'
 ]);
 
 let _routeNavigating = false;
@@ -5011,6 +5010,7 @@ function nav(id, opts = {}) {
   const navBtn = document.getElementById('nav-' + id);
   if (page) page.classList.add('active');
   if (navBtn) navBtn.classList.add('active');
+  revealMenuGroup(id);
   const prevNames = getSelectedReleaseNames().join('\0');
   S.page = id;
   if (getSelectedReleaseNames().join('\0') !== prevNames) bindCacheToActiveRelease();
@@ -5057,6 +5057,9 @@ function nav(id, opts = {}) {
   } else if (id === 'projects-config') {
     document.getElementById('topbar-title').textContent = 'Projects';
     renderProjectsConfig();
+  } else if (id === 'menu') {
+    document.getElementById('topbar-title').textContent = 'Menu';
+    renderMenuConfig();
   } else if (id === 'connector') {
     document.getElementById('topbar-title').textContent = 'Jira Connector';
     renderConnectorPage();
@@ -17269,58 +17272,322 @@ function selectAllLogDevelopers() {
 function esc(s) { return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
 
 // ── Dynamic project UI ────────────────────────────────────────────────────────
-function rebuildDynamicUI() {
-  const sidebar  = document.getElementById('sidebar');
-  const content  = document.getElementById('content');
-  const projectsContainer = document.getElementById('projects-container');
+const MENU_OPEN_KEY = 'jira-dashboard-menu-open';
+const CONFIG_PAGES = new Set(['connector', 'projects-config', 'menu', 'releases-config', 'milestones-config', 'fields', 'setup']);
+const MENU_PAGE_ICONS = {
+  velocity: '<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z"/></svg>',
+  'data-gaps': '<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>',
+  analytics: '<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>',
+  'release-report': '<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M8 8h8M8 12h8M8 16h5"/></svg>',
+  team: '<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>',
+  'release-plan': '<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 5h16M4 12h10M4 19h7"/><path d="M15 10h5v4h-5z"/></svg>',
+  'phase-timeline': '<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 3v18h18"/><path d="M18 17V9"/><path d="M13 17V5"/><path d="M8 17v-3"/></svg>',
+  log: '<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><polyline points="10 9 9 9 8 9"/></svg>',
+  'quality-insights': '<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>',
+  'quality-phase': '<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 3v18h18"/><path d="M18 17V9"/><path d="M13 17V5"/><path d="M8 17v-3"/></svg>',
+  'quality-progress': '<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><polyline points="10 9 9 9 8 9"/></svg>',
+};
+let _menuGroupsBound = false;
+let _menuDraft = null;
 
-  // Remove old project pages
-  document.querySelectorAll('.custom-proj-page, .builtin-proj-page').forEach(el => el.remove());
+function normalizeMenuState() {
+  if (!window.Menu) return;
+  S.menuGroups = Menu.normalizeMenuGroups(S.menuGroups);
+}
 
-  // Get all visible projects
-  const allProjects = getAllProjects();
-  
-  // Group projects by category
+function readMenuOpenMap() {
+  try {
+    const parsed = JSON.parse(localStorage.getItem(MENU_OPEN_KEY) || '{}');
+    return parsed && typeof parsed === 'object' ? parsed : {};
+  } catch (err) {
+    return {};
+  }
+}
+
+function isMenuGroupOpen(id) {
+  const map = readMenuOpenMap();
+  if (id === 'config' && !Object.prototype.hasOwnProperty.call(map, 'config')) return false;
+  return map[id] !== false;
+}
+
+function applyStoredMenuGroup(id) {
+  const el = document.querySelector('.nav-group[data-group="' + CSS.escape(id) + '"]');
+  if (!el) return;
+  const open = isMenuGroupOpen(id);
+  el.classList.toggle('is-collapsed', !open);
+  const btn = el.querySelector('.nav-group-toggle');
+  if (btn) btn.setAttribute('aria-expanded', open ? 'true' : 'false');
+}
+
+function setMenuGroupOpen(id, open) {
+  const map = readMenuOpenMap();
+  map[id] = !!open;
+  try { localStorage.setItem(MENU_OPEN_KEY, JSON.stringify(map)); } catch (err) { /* ignore */ }
+}
+
+function menuGroupsNow() {
+  if (window.Menu) return Menu.normalizeMenuGroups(S.menuGroups);
+  return Array.isArray(S.menuGroups) ? S.menuGroups : [];
+}
+
+function groupIdForPage(pageId) {
+  if (CONFIG_PAGES.has(pageId)) return 'config';
+  const groups = menuGroupsNow();
+  if (!groups.length || !window.Menu) return '';
+  const projects = getAllProjects();
+  const proj = projects.find(p => p.id === pageId);
+  if (proj) {
+    const buckets = Menu.assignProjects(groups, projects);
+    const index = buckets.findIndex(list => list.some(p => p.id === pageId));
+    return index >= 0 ? groups[index].id : '';
+  }
+  const group = groups.find(item => (item.pages || []).includes(pageId));
+  return group ? group.id : '';
+}
+
+function revealMenuGroup(pageId) {
+  const groupId = groupIdForPage(pageId);
+  if (!groupId) return;
+  if (!isMenuGroupOpen(groupId)) setMenuGroupOpen(groupId, true);
+  const el = document.querySelector('.nav-group[data-group="' + CSS.escape(groupId) + '"]');
+  if (!el) return;
+  el.classList.remove('is-collapsed');
+  const btn = el.querySelector('.nav-group-toggle');
+  if (btn) btn.setAttribute('aria-expanded', 'true');
+}
+
+function toggleMenuGroup(id) {
+  const open = !isMenuGroupOpen(id);
+  setMenuGroupOpen(id, open);
+  const el = document.querySelector('.nav-group[data-group="' + CSS.escape(id) + '"]');
+  if (!el) return;
+  el.classList.toggle('is-collapsed', !open);
+  const btn = el.querySelector('.nav-group-toggle');
+  if (btn) btn.setAttribute('aria-expanded', open ? 'true' : 'false');
+}
+
+function bindMenuGroups() {
+  if (_menuGroupsBound) return;
+  const root = document.getElementById('sidebar');
+  if (!root) return;
+  _menuGroupsBound = true;
+  root.addEventListener('click', event => {
+    const toggle = event.target.closest('.nav-group-toggle');
+    if (toggle) {
+      toggleMenuGroup(toggle.dataset.group);
+      return;
+    }
+    const item = event.target.closest('.nav-item[data-page]');
+    if (item) nav(item.dataset.page);
+  });
+}
+
+function sortedProjectCategories(projects) {
   const categoryMap = {};
-  allProjects.forEach(proj => {
+  projects.forEach(proj => {
     const category = proj.category || 'Uncategorized';
     if (!categoryMap[category]) categoryMap[category] = [];
     categoryMap[category].push(proj);
   });
-
-  // Sort categories alphabetically
-  const sortedCategories = Object.keys(categoryMap).sort((a, b) => {
-    // Keep "Uncategorized" at the end
+  return Object.keys(categoryMap).sort((a, b) => {
     if (a === 'Uncategorized') return 1;
     if (b === 'Uncategorized') return -1;
     return a.localeCompare(b);
+  }).map(category => ({ category, projects: categoryMap[category] }));
+}
+
+function menuProjectButton(proj) {
+  return `<button type="button" class="nav-item" id="nav-${esc(proj.id)}" data-page="${esc(proj.id)}" title="${esc(proj.name)}"><span class="proj-dot" style="background:${esc(proj.color)}"></span><span class="nav-label">${esc(proj.name)}</span></button>`;
+}
+
+function menuInsightButton(pageId) {
+  const page = window.Menu ? Menu.insightPage(pageId) : null;
+  if (!page) return '';
+  const badge = page.id === 'log'
+    ? '<span id="log-badge" style="display:none;margin-left:auto;background:var(--red);color:#fff;font-size:10px;font-weight:700;padding:1px 6px;border-radius:10px"></span>'
+    : '';
+  return `<button type="button" class="nav-item" id="nav-${esc(page.id)}" data-page="${esc(page.id)}" title="${esc(page.label)}">${MENU_PAGE_ICONS[page.id] || ''}<span class="nav-label">${esc(page.label)}</span>${badge}</button>`;
+}
+
+function renderMenuGroup(group, projects) {
+  const open = isMenuGroupOpen(group.id);
+  const categories = sortedProjectCategories(projects || []);
+  const showCategory = categories.length > 1;
+  const projectHtml = categories.map(entry => {
+    const label = showCategory ? `<div class="category-label">${esc(entry.category)}</div>` : '';
+    return label + entry.projects.map(menuProjectButton).join('');
+  }).join('');
+  const insightHtml = (group.pages || []).map(menuInsightButton).join('');
+  const projectsBlock = projectHtml
+    ? `<div class="nav-subhead">Projects</div>${projectHtml}`
+    : '';
+  const insightsBlock = insightHtml
+    ? `<div class="nav-subhead">Insights</div>${insightHtml}`
+    : '';
+  return `<div class="nav-group${open ? '' : ' is-collapsed'}" data-group="${esc(group.id)}">
+    <button type="button" class="nav-group-toggle" data-group="${esc(group.id)}" aria-expanded="${open ? 'true' : 'false'}" aria-controls="nav-group-${esc(group.id)}">
+      <svg class="nav-group-chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"/></svg>
+      <span class="nav-label">${esc(group.label)}</span>
+    </button>
+    <div class="nav-group-body" id="nav-group-${esc(group.id)}">${projectsBlock}${insightsBlock}</div>
+  </div>`;
+}
+
+function rebuildDynamicUI() {
+  const content  = document.getElementById('content');
+  const menuRoot = document.getElementById('menu-groups');
+
+  document.querySelectorAll('.custom-proj-page, .builtin-proj-page').forEach(el => el.remove());
+
+  const allProjects = getAllProjects();
+  allProjects.forEach(proj => {
+    const page = document.createElement('div');
+    page.className = 'page proj-page ' + (isBuiltinProjectKey(proj.key) ? 'builtin-proj-page' : 'custom-proj-page');
+    page.id = 'page-' + proj.id;
+    content.appendChild(page);
   });
 
-  // Build sidebar grouped by category
-  projectsContainer.innerHTML = '';
-  sortedCategories.forEach(category => {
-    const projects = categoryMap[category];
-    const categoryLabel = document.createElement('div');
-    categoryLabel.className = 'category-label';
-    categoryLabel.textContent = category;
-    projectsContainer.appendChild(categoryLabel);
-    projects.forEach(proj => {
-      const btn = document.createElement('button');
-      btn.className = 'nav-item'; btn.id = 'nav-' + proj.id; btn.title = proj.name;
-      btn.onclick = () => nav(proj.id);
-      btn.innerHTML = `<span class="proj-dot" style="background:${esc(proj.color)}"></span><span class="nav-label">${esc(proj.name)}</span>`;
-      projectsContainer.appendChild(btn);
-      const page = document.createElement('div');
-      page.className = 'page proj-page ' + (isBuiltinProjectKey(proj.key) ? 'builtin-proj-page' : 'custom-proj-page');
-      page.id = 'page-' + proj.id; content.appendChild(page);
-    });
-  });
+  if (menuRoot && window.Menu) {
+    const groups = menuGroupsNow();
+    const buckets = Menu.assignProjects(groups, allProjects);
+    menuRoot.innerHTML = groups.map((group, index) => renderMenuGroup(group, buckets[index])).join('');
+  }
 
-  // If user is on a project page that became hidden/disabled, redirect.
   const currentProjectVisible = allProjects.some(p => p.id === S.page);
   if (!currentProjectVisible && /^p\d+$|^cp_/.test(S.page || '')) {
     nav(getDefaultProjectPage());
+    return;
   }
+  const navBtn = document.getElementById('nav-' + S.page);
+  if (navBtn) navBtn.classList.add('active');
+  updateLogBadge();
+}
+
+function knownMenuCategories(draft) {
+  const labels = new Map();
+  const add = value => {
+    const label = String(value || '').trim() || 'Uncategorized';
+    const key = label.toLowerCase();
+    if (!labels.has(key)) labels.set(key, label);
+  };
+  [...PROJECTS, ...(S.customProjects || [])].forEach(proj => add(proj.category));
+  (draft || []).forEach(group => (group.categories || []).forEach(add));
+  return [...labels.values()].sort((a, b) => a.localeCompare(b));
+}
+
+function renderMenuConfig() {
+  if (!_menuDraft) _menuDraft = JSON.parse(JSON.stringify(menuGroupsNow()));
+  const list = document.getElementById('menu-config-list');
+  if (!list || !window.Menu) return;
+  const categories = knownMenuCategories(_menuDraft);
+  const catalog = Menu.INSIGHT_PAGES;
+  list.innerHTML = _menuDraft.map((group, index) => {
+    const selected = new Set((group.categories || []).map(category => category.toLowerCase()));
+    const categoryBoxes = categories.map(category => {
+      const checked = selected.has(category.toLowerCase()) ? 'checked' : '';
+      return `<label style="display:flex;align-items:center;gap:6px;font-size:12px;color:var(--text2)"><input type="checkbox" ${checked} onchange='toggleMenuCategory(${index}, ${JSON.stringify(category)}, this.checked)'>${esc(category)}</label>`;
+    }).join('');
+    const placed = new Set(group.pages || []);
+    const pageRows = catalog.map(page => {
+      const checked = placed.has(page.id) ? 'checked' : '';
+      return `<label style="display:flex;align-items:center;gap:6px;font-size:12px;color:var(--text2)"><input type="checkbox" ${checked} onchange='toggleMenuPage(${index}, ${JSON.stringify(page.id)}, this.checked)'>${esc(page.label)}</label>`;
+    }).join('');
+    return `<div style="padding:12px 14px;background:var(--bg2);border:0.5px solid var(--border);border-radius:var(--radius)">
+      <div style="display:flex;align-items:center;gap:8px;margin-bottom:10px">
+        <input type="text" value="${esc(group.label)}" aria-label="Menu item name" oninput="updateMenuGroupLabel(${index}, this.value)" style="flex:1;padding:6px 8px;border:0.5px solid var(--border2);border-radius:var(--radius);background:var(--bg);color:var(--text);font:inherit;font-size:13px;font-weight:600" />
+        <button class="btn btn-sm" type="button" onclick="moveMenuGroup(${index}, -1)" ${index === 0 ? 'disabled' : ''}>Up</button>
+        <button class="btn btn-sm" type="button" onclick="moveMenuGroup(${index}, 1)" ${index === _menuDraft.length - 1 ? 'disabled' : ''}>Down</button>
+        <button class="btn btn-sm" type="button" style="color:var(--red)" onclick="removeMenuGroup(${index})" ${_menuDraft.length < 2 ? 'disabled' : ''}>Remove</button>
+      </div>
+      <div style="font-size:11px;font-weight:600;color:var(--text3);letter-spacing:.04em;text-transform:uppercase;margin-bottom:6px">Project categories</div>
+      <div style="display:flex;flex-wrap:wrap;gap:8px 14px;margin-bottom:8px">${categoryBoxes}</div>
+      <label style="display:flex;align-items:center;gap:6px;font-size:12px;color:var(--text2);margin-bottom:12px"><input type="checkbox" ${group.catchAll ? 'checked' : ''} onchange="setMenuCatchAll(${index}, this.checked)">Include categories not listed on another menu item</label>
+      <div style="font-size:11px;font-weight:600;color:var(--text3);letter-spacing:.04em;text-transform:uppercase;margin-bottom:6px">Insights</div>
+      <div style="display:flex;flex-wrap:wrap;gap:8px 14px">${pageRows}</div>
+    </div>`;
+  }).join('');
+}
+
+function updateMenuGroupLabel(index, value) {
+  if (!_menuDraft || !_menuDraft[index]) return;
+  _menuDraft[index].label = value;
+}
+
+function toggleMenuCategory(index, category, checked) {
+  const group = _menuDraft && _menuDraft[index];
+  if (!group) return;
+  const key = category.toLowerCase();
+  group.categories = (group.categories || []).filter(item => item.toLowerCase() !== key);
+  if (checked) group.categories.push(category);
+  renderMenuConfig();
+}
+
+function setMenuCatchAll(index, checked) {
+  if (!_menuDraft || !_menuDraft[index]) return;
+  _menuDraft[index].catchAll = !!checked;
+}
+
+function toggleMenuPage(index, pageId, checked) {
+  if (!_menuDraft) return;
+  _menuDraft.forEach(group => {
+    group.pages = (group.pages || []).filter(id => id !== pageId);
+  });
+  if (checked && _menuDraft[index]) {
+    const order = Menu.INSIGHT_PAGES.map(page => page.id);
+    _menuDraft[index].pages.push(pageId);
+    _menuDraft[index].pages.sort((a, b) => order.indexOf(a) - order.indexOf(b));
+  }
+  renderMenuConfig();
+}
+
+function moveMenuGroup(index, delta) {
+  if (!_menuDraft) return;
+  const next = index + delta;
+  if (next < 0 || next >= _menuDraft.length) return;
+  const [group] = _menuDraft.splice(index, 1);
+  _menuDraft.splice(next, 0, group);
+  renderMenuConfig();
+}
+
+function removeMenuGroup(index) {
+  if (!_menuDraft || _menuDraft.length < 2) return;
+  _menuDraft.splice(index, 1);
+  renderMenuConfig();
+}
+
+function addMenuGroup() {
+  if (!_menuDraft) _menuDraft = [];
+  const used = new Set(_menuDraft.map(group => group.id));
+  let id = 'group';
+  let n = 2;
+  while (used.has(id)) {
+    id = 'group-' + n;
+    n += 1;
+  }
+  _menuDraft.push({ id, label: 'New menu', categories: [], catchAll: false, pages: [] });
+  renderMenuConfig();
+}
+
+async function saveMenuConfig() {
+  const msg = document.getElementById('menu-config-msg');
+  if (!isAdmin()) {
+    if (msg) msg.textContent = 'Only dashboard admins can change configuration.';
+    return;
+  }
+  if (!window.Menu) return;
+  S.menuGroups = Menu.normalizeMenuGroups(_menuDraft);
+  _menuDraft = JSON.parse(JSON.stringify(S.menuGroups));
+  rebuildDynamicUI();
+  const saved = await persistNow();
+  renderMenuConfig();
+  if (msg) msg.textContent = saved ? 'Menu saved.' : (_storeError || 'Could not save the menu.');
+}
+
+async function resetMenuConfig() {
+  if (!window.Menu) return;
+  if (!confirm('Reset the menu to Delivery and Quality?')) return;
+  _menuDraft = Menu.defaultMenuGroups();
+  await saveMenuConfig();
 }
 
 // ── Projects config page ──────────────────────────────────────────────────────
@@ -18733,6 +19000,7 @@ async function resetMilestones() {
 
 // ── Init ──────────────────────────────────────────────────────────────────────
 async function initApp() {
+  applyStoredMenuGroup('config');
   checkProxy();
   if (!S.log) S.log = [];
   if (!S.customProjects) S.customProjects = [];
@@ -18768,7 +19036,10 @@ async function initApp() {
 
   applyTheme(S.theme || getPreferredTheme(), false);
   applySidebar(!!S.sidebarCollapsed, false);
+  normalizeMenuState();
   rebuildDynamicUI();
+  bindMenuGroups();
+  revealMenuGroup(S.page);
   renderFields();
   updateLogBadge();
   initDeepLinking();

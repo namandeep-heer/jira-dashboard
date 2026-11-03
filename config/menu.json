@@ -1,0 +1,33 @@
+{
+  "groups": [
+    {
+      "id": "delivery",
+      "label": "Delivery",
+      "categories": [],
+      "catchAll": true,
+      "pages": [
+        "velocity",
+        "data-gaps",
+        "analytics",
+        "release-report",
+        "team",
+        "release-plan",
+        "phase-timeline",
+        "log"
+      ]
+    },
+    {
+      "id": "quality",
+      "label": "Quality",
+      "categories": [
+        "Quality"
+      ],
+      "catchAll": false,
+      "pages": [
+        "quality-insights",
+        "quality-phase",
+        "quality-progress"
+      ]
+    }
+  ]
+}

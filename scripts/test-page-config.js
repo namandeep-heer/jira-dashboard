@@ -16,7 +16,7 @@ const pageConfig = createPageConfig({ configDir: tmpDir });
 
 assert.deepStrictEqual(
   PAGE_CONFIGS.map(page => page.file),
-  ['setup.json', 'connector.json', 'projects.json', 'releases.json', 'fields.json']
+  ['setup.json', 'connector.json', 'projects.json', 'releases.json', 'fields.json', 'menu.json']
 );
 
 const state = {
@@ -29,6 +29,10 @@ const state = {
   enabled: ['key', 'summary'],
   customIds: { cf_devest: 'customfield_10204' },
   connector: { releases: ['N2026.R1'], scheduleEnabled: true, intervals: { 'N2026.R1': 60 } },
+  menuGroups: [
+    { id: 'delivery', label: 'Products', categories: [], catchAll: true, pages: ['velocity', 'analytics'] },
+    { id: 'quality', label: 'Quality', categories: ['Quality'], catchAll: false, pages: ['quality-insights'] },
+  ],
   cache: { NFS: { issues: [] } },
   activeRelease: 'N2026.R1',
 };
@@ -65,6 +69,7 @@ assert.ok(!stripped.milestones);
 assert.ok(!stripped.enabled);
 assert.ok(!stripped.customIds);
 assert.ok(!stripped.connector);
+assert.ok(!stripped.menuGroups);
 assert.strictEqual(stripped.activeRelease, 'N2026.R1');
 assert.ok(stripped.cache);
 assert.strictEqual(stripped.creds.token, 'secret-token');
@@ -73,6 +78,8 @@ const merged = pageConfig.mergeIntoState(stripped);
 assert.strictEqual(merged.projectSettings.NFS.jql, 'project = NFS AND issuetype = Bug');
 assert.strictEqual(merged.releases[0].name, 'N2026.R1');
 assert.strictEqual(merged.connector.scheduleEnabled, true);
+assert.strictEqual(merged.menuGroups[0].label, 'Products');
+assert.deepStrictEqual(merged.menuGroups[1].pages, ['quality-insights']);
 assert.strictEqual(merged.creds.email, 'admin@example.com');
 assert.strictEqual(merged.creds.token, 'secret-token');
 
