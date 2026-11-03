@@ -134,6 +134,24 @@ assert.deepStrictEqual(triage.columnViews, {
 });
 assert.deepStrictEqual(prefs.get('user-a').columnViews.NFS.views[0].columns, ['key', 'summary']);
 assert.deepStrictEqual(createUserPreferences({ filePath }).get('user-a').columnViews.NFS.views[0].name, 'Triage');
+const withFreeze = prefs.setColumnViews('user-a', 'NFS', {
+  active: 'triage',
+  order: [],
+  freeze: { start: 'key', end: 'status' },
+  views: [{ id: 'triage', name: 'Triage', columns: ['key', 'summary'], freeze: 'none' }],
+});
+assert.deepStrictEqual(withFreeze.columnViews.freeze, { start: 'key', end: 'status' });
+assert.strictEqual(withFreeze.columnViews.views[0].freeze, 'none');
+assert.deepStrictEqual(createUserPreferences({ filePath }).get('user-a').columnViews.NFS.freeze, { start: 'key', end: 'status' });
+assert.deepStrictEqual(prefs.setColumnViews('user-a', 'NFS', {
+  active: 'default',
+  order: [],
+  views: [],
+  freeze: 'none',
+}).columnViews, { active: 'default', order: [], views: [], freeze: 'none' });
+assert.throws(() => prefs.setColumnViews('user-a', 'NFS', {
+  views: [{ id: 'bad', name: 'Bad', columns: ['key'], freeze: 'has space' }],
+}), /column to freeze/);
 assert.throws(() => prefs.setColumnViews('user-a', 'NFS', {
   views: [
     { id: 'a', name: 'One', columns: ['key'] },

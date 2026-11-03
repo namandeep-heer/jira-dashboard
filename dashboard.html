@@ -1399,7 +1399,7 @@ code { font-family: monospace; font-size: 12px; background: var(--bg3); padding:
         <div class="proj-sort-head">
           <div>
             <h2 id="proj-views-title">Views</h2>
-            <p class="proj-sort-kicker">Each view keeps its own column order. Drag a row here, or the grip on a table header. Notes stays first.</p>
+            <p class="proj-sort-kicker">Each view keeps its own column order and frozen columns. Drag a row here, or the grip on a table header. Notes stays first. Freeze columns from the table headers.</p>
           </div>
           <button class="btn btn-sm" type="button" onclick="closeColumnViewsDialog()">Close</button>
         </div>
@@ -6169,15 +6169,21 @@ function availableListingFields(proj) {
 function projectColumnViews(projKey) {
   const row = _userPrefs.columnViews && _userPrefs.columnViews[projKey];
   if (!row || typeof row !== 'object') return { active: 'default', order: [], views: [] };
-  return {
+  const spec = {
     active: typeof row.active === 'string' && row.active ? row.active : 'default',
     order: Array.isArray(row.order) ? row.order.slice() : [],
-    views: Array.isArray(row.views) ? row.views.map(view => ({
-      id: view.id,
-      name: view.name,
-      columns: Array.isArray(view.columns) ? view.columns.slice() : [],
-    })) : [],
+    views: Array.isArray(row.views) ? row.views.map(view => {
+      const next = {
+        id: view.id,
+        name: view.name,
+        columns: Array.isArray(view.columns) ? view.columns.slice() : [],
+      };
+      if (Object.prototype.hasOwnProperty.call(view, 'freeze')) next.freeze = view.freeze;
+      return next;
+    }) : [],
   };
+  if (Object.prototype.hasOwnProperty.call(row, 'freeze')) spec.freeze = row.freeze;
+  return spec;
 }
 
 function orderListingFields(base, order) {
@@ -8100,14 +8106,53 @@ function projectColumnLabel(colId) {
   return (field && field.label) || colId;
 }
 
-function getProjectFreeze(projKey) {
-  const value = _userPrefs.columnFreeze && _userPrefs.columnFreeze[projKey];
+function copyFreezeValue(value) {
   if (value === 'none') return 'none';
-  if (typeof value === 'string' && FREEZE_COLUMN_RE.test(value)) return value;
+  if (typeof value === 'string' && FREEZE_COLUMN_RE.test(value) && value !== 'notes') return value;
   if (value && typeof value === 'object' && FREEZE_COLUMN_RE.test(value.start) && FREEZE_COLUMN_RE.test(value.end)) {
+    if (value.start === 'notes' && value.end === 'notes') return null;
     return { start: value.start, end: value.end };
   }
   return null;
+}
+
+function legacyProjectFreeze(projKey) {
+  return copyFreezeValue(_userPrefs.columnFreeze && _userPrefs.columnFreeze[projKey]);
+}
+
+function effectiveFreeze(projKey, spec) {
+  const row = spec || { active: 'default', order: [], views: [] };
+  if (row.active && row.active !== 'default') {
+    const view = (row.views || []).find(item => item.id === row.active);
+    return copyFreezeValue(view && view.freeze);
+  }
+  if (Object.prototype.hasOwnProperty.call(row, 'freeze')) return copyFreezeValue(row.freeze);
+  return legacyProjectFreeze(projKey);
+}
+
+function writeSpecFreeze(spec, freeze) {
+  const stored = copyFreezeValue(freeze);
+  if (spec.active && spec.active !== 'default') {
+    const view = (spec.views || []).find(item => item.id === spec.active);
+    if (!view) return;
+    if (stored) view.freeze = stored;
+    else delete view.freeze;
+    return;
+  }
+  spec.freeze = stored || '';
+}
+
+function freezeDetail(freeze) {
+  const value = copyFreezeValue(freeze);
+  if (value === 'none') return 'Nothing frozen';
+  if (!value) return 'Notes frozen';
+  if (typeof value === 'string') return 'Frozen through ' + projectColumnLabel(value);
+  if (value.start === value.end) return projectColumnLabel(value.start) + ' frozen';
+  return projectColumnLabel(value.start) + '–' + projectColumnLabel(value.end) + ' frozen';
+}
+
+function getProjectFreeze(projKey) {
+  return effectiveFreeze(projKey, projectColumnViews(projKey));
 }
 
 function resolveProjectFreeze(projKey, colIds) {
@@ -8319,19 +8364,38 @@ function rememberProjectFreeze(projKey, freeze) {
   else _userPrefs.columnFreeze[projKey] = freeze;
 }
 
+async function saveLegacyColumnFreeze(projKey, freeze) {
+  const response = await authFetch('/api/user-preferences/column-freeze/' + encodeURIComponent(projKey), {
+    method: 'PUT',
+    body: JSON.stringify({ freeze: freeze || '' }),
+  });
+  const result = await response.json().catch(() => ({}));
+  if (!response.ok) throw new Error(result.error || 'Could not save frozen columns.');
+  rememberProjectFreeze(projKey, result.freeze);
+}
+
 async function setProjectFreeze(projKey, freeze) {
-  rememberProjectFreeze(projKey, freeze);
+  const dialog = _columnViewDialog && _columnViewDialog.projKey === projKey ? _columnViewDialog : null;
+  delete _freezePick[projKey];
   delete _freezeStatus[projKey];
-  refreshProjectListing(projKey);
+  if (dialog) {
+    writeSpecFreeze(dialog.draft, freeze);
+    previewColumnViews(projKey, dialog.draft);
+    renderColumnViewsDialog();
+    return;
+  }
+  const spec = projectColumnViews(projKey);
+  const previousLegacy = legacyProjectFreeze(projKey);
+  writeSpecFreeze(spec, freeze);
+  const isDefault = !spec.active || spec.active === 'default';
+  if (isDefault) rememberProjectFreeze(projKey, copyFreezeValue(freeze) || '');
+  let viewsSaved = false;
   try {
-    const response = await authFetch('/api/user-preferences/column-freeze/' + encodeURIComponent(projKey), {
-      method: 'PUT',
-      body: JSON.stringify({ freeze: freeze || '' }),
-    });
-    const result = await response.json().catch(() => ({}));
-    if (!response.ok) throw new Error(result.error || 'Could not save frozen columns.');
-    rememberProjectFreeze(projKey, result.freeze);
+    await commitColumnViews(projKey, spec);
+    viewsSaved = true;
+    if (isDefault) await saveLegacyColumnFreeze(projKey, copyFreezeValue(freeze) || '');
   } catch (err) {
+    if (!viewsSaved && isDefault) rememberProjectFreeze(projKey, previousLegacy || '');
     _freezeStatus[projKey] = err.message || 'Could not save frozen columns.';
     refreshProjectListing(projKey);
   }
@@ -8348,34 +8412,41 @@ function columnViewButtonLabel(projKey) {
 
 function columnViewButtonTitle(projKey) {
   const pref = projectColumnViews(projKey);
+  const frozen = freezeDetail(effectiveFreeze(projKey, pref));
   if (pref.active !== 'default') {
     const view = pref.views.find(item => item.id === pref.active);
-    if (view) return 'View: ' + view.name + '. Change the columns and their order.';
+    if (view) return 'View: ' + view.name + '. ' + frozen + '. Change the columns and their order.';
   }
-  if (pref.order.length) return 'Columns are rearranged. Open views to save or reset that order.';
-  return 'Rearrange columns and save views. Notes stays first.';
+  if (pref.order.length || copyFreezeValue(pref.freeze)) return 'Columns follow this view. ' + frozen + '.';
+  return 'Rearrange columns and save views. ' + frozen + '. Notes stays first.';
 }
 
 function columnViewIsCustom(projKey) {
   const pref = projectColumnViews(projKey);
-  return pref.active !== 'default' || pref.order.length > 0;
+  return pref.active !== 'default' || pref.order.length > 0 || !!copyFreezeValue(pref.freeze);
 }
 
 function blankColumnViews(spec) {
-  return !spec || spec.active === 'default' && (!spec.order || !spec.order.length) && (!spec.views || !spec.views.length);
+  return !spec || spec.active === 'default' && (!spec.order || !spec.order.length) && (!spec.views || !spec.views.length) && !copyFreezeValue(spec.freeze);
 }
 
 function copyColumnViews(spec) {
   const row = spec || { active: 'default', order: [], views: [] };
-  return {
+  const next = {
     active: row.active || 'default',
     order: Array.isArray(row.order) ? row.order.slice() : [],
-    views: (row.views || []).map(view => ({
-      id: view.id,
-      name: view.name,
-      columns: (view.columns || []).slice(),
-    })),
+    views: (row.views || []).map(view => {
+      const item = {
+        id: view.id,
+        name: view.name,
+        columns: (view.columns || []).slice(),
+      };
+      if (Object.prototype.hasOwnProperty.call(view, 'freeze')) item.freeze = copyFreezeValue(view.freeze) || '';
+      return item;
+    }),
   };
+  if (Object.prototype.hasOwnProperty.call(row, 'freeze')) next.freeze = copyFreezeValue(row.freeze) || '';
+  return next;
 }
 
 function rememberColumnViews(projKey, spec) {
@@ -8521,8 +8592,8 @@ function renderColumnViewsDialog() {
   const list = document.getElementById('proj-views-list');
   const editor = document.getElementById('proj-views-editor');
   if (!list || !editor) return;
-  const items = [{ id: 'default', name: 'Default', detail: spec.order.length ? 'Custom order' : 'Field settings' }]
-    .concat(spec.views.map(view => ({ id: view.id, name: view.name, detail: view.columns.length + ' columns' })));
+  const items = [{ id: 'default', name: 'Default', detail: (spec.order.length ? 'Custom order' : 'Field settings') + ' · ' + freezeDetail(effectiveFreeze(dialog.projKey, Object.assign({}, spec, { active: 'default' }))) }]
+    .concat(spec.views.map(view => ({ id: view.id, name: view.name, detail: view.columns.length + ' columns · ' + freezeDetail(view.freeze) })));
   list.innerHTML = items.map(item => {
     const on = item.id === spec.active;
     return '<div class="proj-sort-nav-row' + (on ? ' is-on' : '') + '">'
@@ -8552,7 +8623,8 @@ function renderColumnViewsDialog() {
     ? '<label class="proj-sort-level-label" for="proj-views-name">Name</label><input id="proj-views-name" class="proj-view-name" maxlength="40" value="' + esc(view.name) + '" oninput="setColumnViewName(this.value)">'
     : '<p class="proj-sort-kicker">Default shows every enabled column. Add a view to keep a smaller set.</p>')
     + (named ? '<div class="proj-sort-level-top"><span class="proj-sort-level-label">Columns</span><button type="button" class="proj-sort-text-btn remove" onclick="deleteColumnView()">Delete view</button></div>' : '<span class="proj-sort-level-label">Columns</span>')
-    + '<ul class="proj-sort-values">' + rows + hiddenRows + '</ul>';
+    + '<ul class="proj-sort-values">' + rows + hiddenRows + '</ul>'
+    + '<p class="proj-sort-kicker">' + esc(freezeDetail(effectiveFreeze(dialog.projKey, spec))) + '. Change frozen columns from the table headers. Apply saves them with this view.</p>';
 }
 
 function openColumnViewsDialog(projKey) {
@@ -8594,6 +8666,7 @@ function closeColumnViewsDialog() {
 function selectColumnView(id) {
   if (!_columnViewDialog) return;
   _columnViewDialog.draft.active = id;
+  delete _freezePick[_columnViewDialog.projKey];
   columnViewStatus('');
   renderColumnViewsDialog();
   previewColumnViews(_columnViewDialog.projKey, _columnViewDialog.draft);
@@ -8616,7 +8689,10 @@ function addColumnView() {
     guard += 1;
     name = 'View ' + (dialog.draft.views.length + 1 + guard);
   }
-  dialog.draft.views.push({ id, name, columns: columns.slice() });
+  const created = { id, name, columns: columns.slice() };
+  const freeze = effectiveFreeze(dialog.projKey, dialog.draft);
+  if (freeze) created.freeze = freeze;
+  dialog.draft.views.push(created);
   dialog.draft.active = id;
   columnViewStatus('');
   renderColumnViewsDialog();
