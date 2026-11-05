@@ -1138,7 +1138,8 @@ body.plan-fs #main { width: 100%; }
 .plan-cell.is-frozen-end { box-shadow: 1px 0 0 var(--border); }
 .plan-group-cell { gap: 8px; padding-left: 12px; }
 .plan-h { align-items: flex-end; height: auto; padding: 0 8px 8px; font-size: 10px; font-weight: 600; letter-spacing: .06em; text-transform: uppercase; color: var(--text3); }
-.plan-h:first-child { padding-left: 12px; }
+.plan-h:first-child { padding-left: 4px; }
+.plan-head-grip { width: 24px; flex-shrink: 0; }
 .plan-timehead { display: flex; flex-direction: column; }
 .plan-months, .plan-dates { display: flex; }
 .plan-band, .plan-band-label { flex: 0 0 auto; box-sizing: border-box; height: 22px; display: flex; align-items: center; padding-left: 6px; font-size: 11px; font-weight: 600; color: var(--text2); border-bottom: 0.5px solid var(--border); overflow: hidden; white-space: nowrap; }
@@ -1150,7 +1151,16 @@ body.plan-fs #main { width: 100%; }
 .plan-date.is-today .plan-num { background: var(--blue); color: #fff; border-radius: 6px; }
 .plan-ms { font-size: 9px; font-weight: 700; letter-spacing: .03em; height: 12px; line-height: 12px; }
 .plan-ms-spacer { visibility: hidden; }
-.plan-name-cell { display: flex; gap: 8px; min-width: 0; align-items: center; width: 100%; padding-left: 12px; }
+.plan-name-cell { display: flex; gap: 8px; min-width: 0; align-items: center; width: 100%; padding-left: 4px; }
+.plan-row-grip { display: inline-flex; align-items: center; justify-content: center; width: 16px; height: 22px; padding: 0; border: none; border-radius: 4px; background: none; color: var(--text3); cursor: grab; opacity: .45; flex-shrink: 0; touch-action: none; }
+.plan-row-grip::before { content: ''; width: 8px; height: 10px; background-image: radial-gradient(currentColor 1.1px, transparent 1.2px); background-size: 4px 5px; background-position: 0 0; }
+.plan-line:hover .plan-row-grip, .plan-row-grip:hover, .plan-row-grip:focus-visible { opacity: 1; color: var(--blue); }
+.plan-row-grip:focus-visible { outline: 2px solid var(--blue); outline-offset: 1px; }
+.plan-row-grip:active, .plan-line.is-row-dragging .plan-row-grip { cursor: grabbing; }
+.plan-line.is-row-dragging { z-index: 5; }
+.plan-line.is-row-dragging .plan-cell { background: var(--bg); }
+.plan-line.is-row-dragging .plan-cell:first-child { box-shadow: 0 8px 20px rgba(0,0,0,.12); }
+.plan-insert { position: absolute; left: 0; right: 0; height: 2px; margin-top: -1px; background: var(--blue); z-index: 7; pointer-events: none; }
 .plan-key { font-size: 12px; font-weight: 650; color: var(--text2); flex-shrink: 0; text-decoration: none; }
 .plan-key:hover { color: var(--blue); }
 .plan-sum { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 13px; color: var(--text); }
@@ -2205,8 +2215,9 @@ code { font-family: monospace; font-size: 12px; background: var(--bg3); padding:
                 <button type="button" class="plan-menu-btn" data-plan-pop="plan-legend" onclick="planTogglePop('plan-legend')">Legend</button>
                 <div class="plan-pop" id="plan-legend">
                   <div id="plan-legend-swatches"></div>
-                  <p class="plan-legend-copy">Bars use working days from the dev estimate. In-development work sits across today. The rest packs in until feature freeze, then stays off the calendar as days to distribute. Drag a bar to pin its start. Double-click, or press Delete, to reset that pin. Summary, people, status, and the dev estimate save to Jira. Freeze keeps columns on the left while the calendar scrolls. QA is the assignee when they are not the developer.</p>
+                  <p class="plan-legend-copy">Bars use working days from the dev estimate. In-development work sits across today. The rest packs in until feature freeze, then stays off the calendar as days to distribute. Drag the handle beside a ticket to move it up or down. The bars pack again in that order, and a pinned date on those tickets is cleared. Drag a bar to pin its start. Double-click, or press Delete, to reset that pin. Summary, people, status, and the dev estimate save to Jira. Freeze keeps columns on the left while the calendar scrolls. QA is the assignee when they are not the developer.</p>
                   <button type="button" class="plan-text-btn" onclick="planResetPins()">Reset pinned dates</button>
+                  <button type="button" class="plan-text-btn" onclick="planResetOrder()">Reset ticket order</button>
                 </div>
               </div>
               <input id="plan-search" class="plan-search" type="search" placeholder="Search tickets" aria-label="Search tickets" oninput="planSearchInput()" />
@@ -13932,6 +13943,7 @@ const PLAN_FREEZE_LEVELS = [
   { id: 'all', label: 'All columns' },
 ];
 const PLAN_STORE_KEY = 'jira-dashboard.release-plan';
+const PLAN_ORDER_KEY = 'jira-dashboard.release-plan-order';
 
 function planState() {
   if (!S._plan) {
@@ -13994,9 +14006,94 @@ function planClearOverride(key) {
   planWriteOverrides(next);
 }
 
+function planClearPinsFor(keys) {
+  const next = Object.assign({}, planOverrides());
+  let changed = false;
+  (keys || []).forEach(key => {
+    if (Object.prototype.hasOwnProperty.call(next, key)) {
+      delete next[key];
+      changed = true;
+    }
+  });
+  if (changed) planWriteOverrides(next);
+}
+
 function planResetPins() {
   planWriteOverrides({});
   renderReleasePlan({ keepScroll: true });
+}
+
+function planOrderMap() {
+  try {
+    const parsed = JSON.parse(localStorage.getItem(PLAN_ORDER_KEY) || '{}');
+    return parsed && typeof parsed === 'object' ? parsed : {};
+  } catch (e) {
+    return {};
+  }
+}
+
+function planOrders() {
+  const bucket = planOrderMap()[planOverrideBucket()];
+  if (!bucket || typeof bucket !== 'object' || Array.isArray(bucket)) return {};
+  const clean = {};
+  Object.keys(bucket).forEach(name => {
+    if (typeof name !== 'string' || !name.trim() || name.length > 120) return;
+    if (!Array.isArray(bucket[name])) return;
+    const keys = [];
+    bucket[name].forEach(key => {
+      if (typeof key !== 'string') return;
+      const trimmed = key.trim();
+      if (!trimmed || trimmed.length > 40 || keys.includes(trimmed) || keys.length >= 500) return;
+      keys.push(trimmed);
+    });
+    if (keys.length) clean[name] = keys;
+  });
+  return clean;
+}
+
+function planWriteOrders(next) {
+  const all = planOrderMap();
+  all[planOverrideBucket()] = next;
+  try { localStorage.setItem(PLAN_ORDER_KEY, JSON.stringify(all)); } catch (e) { /* ignore quota */ }
+}
+
+function planSaveDeveloperOrder(developer, keys) {
+  const name = String(developer || '').trim();
+  if (!name) return;
+  const next = Object.assign({}, planOrders());
+  const list = [];
+  (keys || []).forEach(key => {
+    const trimmed = String(key || '').trim();
+    if (!trimmed || trimmed.length > 40 || list.includes(trimmed) || list.length >= 500) return;
+    list.push(trimmed);
+  });
+  if (list.length) next[name] = list;
+  else delete next[name];
+  planWriteOrders(next);
+}
+
+function planResetOrder() {
+  const all = planOrderMap();
+  delete all[planOverrideBucket()];
+  try { localStorage.setItem(PLAN_ORDER_KEY, JSON.stringify(all)); } catch (e) { /* ignore quota */ }
+  renderReleasePlan({ keepScroll: true });
+}
+
+function planDevRows(developer) {
+  return [...document.querySelectorAll('#plan-board .plan-line[data-key]')].filter(row => row.dataset.dev === developer);
+}
+
+function planCommitDeveloperOrder(developer, beforeKeys, afterKeys, focusKey) {
+  if (!window.ReleasePlan) return;
+  const previous = (planOrders()[developer] || []).slice();
+  const merged = ReleasePlan.reorderVisible(previous, beforeKeys, afterKeys);
+  planSaveDeveloperOrder(developer, merged);
+  planClearPinsFor(merged.concat(beforeKeys, afterKeys));
+  renderReleasePlan({ keepScroll: true });
+  if (!focusKey) return;
+  const safe = window.CSS && CSS.escape ? CSS.escape(focusKey) : focusKey;
+  const grip = document.querySelector('#plan-board .plan-row-grip[data-key="' + safe + '"]');
+  if (grip) grip.focus();
 }
 
 function planPhaseLabel(status) {
@@ -14069,7 +14166,8 @@ function planHorizonDates() {
 }
 
 function planFreezeChoices(state) {
-  const visible = new Set(['none', 'name', 'days', 'all']);
+  const visible = new Set(['none', 'name', 'all']);
+  if (!state.cols.est) visible.add('days');
   Object.entries(state.cols || {}).forEach(([id, on]) => { if (on) visible.add(id); });
   return PLAN_FREEZE_LEVELS.filter(item => visible.has(item.id));
 }
@@ -14177,6 +14275,7 @@ function renderReleasePlan(opts) {
     phases: state.phases,
     query: document.getElementById('plan-search')?.value || '',
     overrides: planOverrides(),
+    order: planOrders(),
     tickets: collectPlanTickets(),
     milestones: horizon.milestones,
   });
@@ -14273,6 +14372,7 @@ function bindReleasePlan() {
   board.addEventListener('pointerdown', planPointerDown);
   board.addEventListener('dblclick', planBarDblClick);
   board.addEventListener('keydown', planBarKeydown);
+  board.addEventListener('keydown', planGripKeydown);
   document.addEventListener('click', event => {
     const target = event.target;
     if (target && target.closest && (target.closest('.plan-pop') || target.closest('[data-plan-pop]'))) return;
@@ -14292,6 +14392,10 @@ function planEditClick(event) {
 }
 
 function planPointerDown(event) {
+  if (event.target.closest && event.target.closest('.plan-row-grip')) {
+    planGripPointerDown(event);
+    return;
+  }
   const bar = event.target.closest && event.target.closest('.plan-bar');
   if (!bar || event.button !== 0 || !window.ReleasePlan) return;
   event.preventDefault();
@@ -14324,6 +14428,106 @@ function planPointerDown(event) {
   bar.addEventListener('pointermove', move);
   bar.addEventListener('pointerup', up);
   bar.addEventListener('pointercancel', up);
+}
+
+function planGripPointerDown(event) {
+  const grip = event.target.closest('.plan-row-grip');
+  const row = grip && grip.closest('.plan-line');
+  if (!grip || !row || event.button !== 0) return;
+  event.preventDefault();
+  event.stopPropagation();
+  grip.focus();
+  const developer = row.dataset.dev || '';
+  const rows = planDevRows(developer);
+  const fromIndex = rows.indexOf(row);
+  if (fromIndex < 0 || rows.length < 2) return;
+  const scroller = document.getElementById('plan-scroll');
+  const baseScroll = scroller ? scroller.scrollTop : 0;
+  const mids = rows.map(item => {
+    const rect = item.getBoundingClientRect();
+    return rect.top + rect.height / 2;
+  });
+  const tops = rows.map(item => item.getBoundingClientRect().top);
+  const bottoms = rows.map(item => item.getBoundingClientRect().bottom);
+  const beforeKeys = rows.map(item => item.dataset.key);
+  const y0 = event.clientY;
+  let insertIndex = fromIndex;
+  let moved = false;
+  const marker = document.createElement('div');
+  marker.className = 'plan-insert';
+  const canvas = document.querySelector('#plan-board .plan-canvas');
+  if (canvas) canvas.appendChild(marker);
+  row.classList.add('is-row-dragging');
+  try { grip.setPointerCapture(event.pointerId); } catch (e) { /* ignore */ }
+
+  function viewportShift() {
+    return scroller ? scroller.scrollTop - baseScroll : 0;
+  }
+
+  function indexAt(clientY) {
+    const shift = viewportShift();
+    for (let i = 0; i < mids.length; i += 1) {
+      if (clientY < mids[i] - shift) return i;
+    }
+    return rows.length;
+  }
+
+  function placeMarker(index) {
+    if (!canvas || !marker.isConnected) return;
+    const shift = viewportShift();
+    const y = index >= rows.length ? bottoms[bottoms.length - 1] - shift : tops[index] - shift;
+    const canvasTop = canvas.getBoundingClientRect().top;
+    marker.style.top = (y - canvasTop) + 'px';
+    marker.style.width = canvas.offsetWidth + 'px';
+  }
+
+  function move(ev) {
+    const dy = ev.clientY - y0;
+    if (Math.abs(dy) > 3) moved = true;
+    row.style.transform = 'translateY(' + dy + 'px)';
+    insertIndex = indexAt(ev.clientY);
+    placeMarker(insertIndex);
+    if (!scroller) return;
+    const bounds = scroller.getBoundingClientRect();
+    if (ev.clientY < bounds.top + 28) scroller.scrollTop -= 14;
+    else if (ev.clientY > bounds.bottom - 28) scroller.scrollTop += 14;
+  }
+
+  function up() {
+    grip.removeEventListener('pointermove', move);
+    grip.removeEventListener('pointerup', up);
+    grip.removeEventListener('pointercancel', up);
+    if (marker.parentNode) marker.parentNode.removeChild(marker);
+    row.classList.remove('is-row-dragging');
+    row.style.transform = '';
+    if (!moved) return;
+    const afterKeys = ReleasePlan.movedKeys(beforeKeys, fromIndex, insertIndex);
+    if (!afterKeys) return;
+    planCommitDeveloperOrder(developer, beforeKeys, afterKeys, row.dataset.key);
+  }
+
+  grip.addEventListener('pointermove', move);
+  grip.addEventListener('pointerup', up);
+  grip.addEventListener('pointercancel', up);
+}
+
+function planGripKeydown(event) {
+  const grip = event.target.closest && event.target.closest('.plan-row-grip');
+  if (!grip) return;
+  if (event.key !== 'ArrowUp' && event.key !== 'ArrowDown') return;
+  const row = grip.closest('.plan-line');
+  if (!row) return;
+  event.preventDefault();
+  const developer = row.dataset.dev || '';
+  const rows = planDevRows(developer);
+  const index = rows.findIndex(item => item.dataset.key === row.dataset.key);
+  const to = event.key === 'ArrowUp' ? index - 1 : index + 1;
+  if (index < 0 || to < 0 || to >= rows.length) return;
+  const beforeKeys = rows.map(item => item.dataset.key);
+  const afterKeys = beforeKeys.slice();
+  const [movedKey] = afterKeys.splice(index, 1);
+  afterKeys.splice(to, 0, movedKey);
+  planCommitDeveloperOrder(developer, beforeKeys, afterKeys, movedKey);
 }
 
 function planBarDblClick(event) {
