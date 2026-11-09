@@ -718,7 +718,7 @@ app.post('/api/release-report/pptx', async (req, res) => {
       res.status(400).json({ error: 'Missing generated report' });
       return;
     }
-    const buf = await buildReleaseReportPptx(report);
+    const buf = await buildReleaseReportPptx(report, req.body?.options);
     const name = sanitizeFilename(report.releaseName) + '-release-report.pptx';
     res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.presentationml.presentation');
     res.setHeader('Content-Disposition', `attachment; filename="${name}"`);

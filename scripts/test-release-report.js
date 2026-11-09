@@ -27,6 +27,7 @@ function issue(opts = {}) {
       customfield_10203: opts.actual,
       customfield_10200: opts.scope ? { value: opts.scope } : undefined,
       customfield_10208: opts.custcom,
+      customfield_10202: opts.clarity ? { value: opts.clarity } : undefined,
       updated: opts.updated,
       fixVersions: (opts.fixVersions || []).map(name => ({ name })),
     },
@@ -473,6 +474,43 @@ async function testPptx() {
   const mixedBuf = await buildReleaseReportPptx(mixedReport);
   assert.ok(Buffer.isBuffer(mixedBuf) && mixedBuf.length > 2000);
   console.log('release-report pptx: ok (' + buf.length + ' bytes)');
+
+  // Deck options: A + Clarity data flows through and both layouts build.
+  const clarityReport = analyzeRelease({
+    projects: [
+      { project: { key: 'AAA', name: 'Alpha' }, issues: [
+        issue({ key: 'AAA-1', clarity: 'Clear', status: 'Closed' }),
+        issue({ key: 'AAA-2', clarity: 'Clear', status: 'Developing' }),
+        issue({ key: 'AAA-3', status: 'QA' }),
+      ] },
+      { project: { key: 'BBB', name: 'Beta' }, issues: [
+        issue({ key: 'BBB-1', clarity: 'Needs work', status: 'Developing' }),
+      ] },
+    ],
+    release, milestones, fieldIds, now,
+  });
+  assert.strictEqual(clarityReport.projects[0].tickets.find(t => t.key === 'AAA-1').clarity, 'Clear');
+  const byClarity = Object.fromEntries(clarityReport.projects[0].progress.byClarity.map(c => [c.label, c.count]));
+  assert.deepStrictEqual(byClarity, { Clear: 2, 'Not set': 1 });
+
+  const { normalizeDeckOptions } = require('../lib/release-report-pptx');
+  assert.strictEqual(normalizeDeckOptions().mode, 'by-project');
+  assert.strictEqual(normalizeDeckOptions({ mode: 'cumulative', sections: { milestones: true } }).sections.milestones, false);
+  assert.strictEqual(normalizeDeckOptions({ sections: { risks: false } }).sections.risks, false);
+
+  const cumBuf = await buildReleaseReportPptx(clarityReport, { mode: 'cumulative' });
+  const detBuf = await buildReleaseReportPptx(clarityReport, { mode: 'by-project' });
+  const slimBuf = await buildReleaseReportPptx(clarityReport, {
+    mode: 'cumulative',
+    sections: { portfolio: false, statusChart: false, highValue: false, mustFix: false, risks: false },
+  });
+  [cumBuf, detBuf, slimBuf].forEach(b => assert.ok(Buffer.isBuffer(b) && b.length > 2000));
+  assert.ok(slimBuf.length < cumBuf.length, 'deselected sections should shrink the deck');
+  if (process.env.DECK_OUT_DIR) { // optional: dump sample decks for visual review
+    require('fs').writeFileSync(process.env.DECK_OUT_DIR + '/cumulative.pptx', cumBuf);
+    require('fs').writeFileSync(process.env.DECK_OUT_DIR + '/by-project.pptx', detBuf);
+  }
+  console.log('release-report pptx options: ok');
 }
 
 testPptx().catch(err => {
