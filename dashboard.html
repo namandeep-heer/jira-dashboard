@@ -171,6 +171,7 @@ html.sidebar-collapsed #log-badge { position: absolute; top: 3px; right: 3px; ma
 .deck-mode.selected { border-color: var(--blue); background: var(--blue-bg); }
 .deck-opt { display: flex; align-items: center; gap: 8px; font-size: 13px; cursor: pointer; }
 .deck-opt.disabled { opacity: .45; cursor: not-allowed; }
+.deck-count { color: var(--text3); font-size: 12px; }
 .btn.primary { background: var(--text); color: var(--bg); border-color: var(--text); }
 .btn.primary:hover { opacity: .85; }
 .btn svg { width: 14px; height: 14px; }
@@ -1469,10 +1470,20 @@ code { font-family: monospace; font-size: 12px; background: var(--bg3); padding:
           <label class="deck-opt" id="deck-opt-milestones-wrap"><input type="checkbox" id="deck-opt-milestones" checked /> Milestone dates</label>
           <label class="deck-opt"><input type="checkbox" id="deck-opt-portfolio" checked /> Portfolio summary</label>
           <label class="deck-opt"><input type="checkbox" id="deck-opt-highValue" checked /> High-value deliverables</label>
-          <label class="deck-opt"><input type="checkbox" id="deck-opt-mustFix" checked /> Must-fix defects</label>
           <label class="deck-opt"><input type="checkbox" id="deck-opt-risks" checked /> Risks and issues</label>
-          <label class="deck-opt"><input type="checkbox" id="deck-opt-html" checked /> Also download ticket list (HTML)</label>
         </div>
+
+        <div style="font-size:11px;font-weight:600;letter-spacing:.06em;text-transform:uppercase;color:var(--text3);margin-bottom:8px">Quality</div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px 14px;margin-bottom:6px">
+          <label class="deck-opt" id="deck-opt-qualityReport-wrap"><input type="checkbox" id="deck-opt-qualityReport" checked /> <span>Quality bug report <span class="deck-count" id="deck-count-qualityReport"></span></span></label>
+          <label class="deck-opt" id="deck-opt-mustFix-wrap"><input type="checkbox" id="deck-opt-mustFix" checked /> <span>Must-fix defects <span class="deck-count" id="deck-count-mustFix"></span></span></label>
+          <label class="deck-opt" id="deck-opt-preGoLive-wrap"><input type="checkbox" id="deck-opt-preGoLive" checked /> <span>Pre Go-Live bugs <span class="deck-count" id="deck-count-preGoLive"></span></span></label>
+          <label class="deck-opt" id="deck-opt-postGoLive-wrap"><input type="checkbox" id="deck-opt-postGoLive" checked /> <span>Post Go-Live bugs <span class="deck-count" id="deck-count-postGoLive"></span></span></label>
+        </div>
+        <label class="deck-opt" id="deck-opt-includeClosed-wrap" style="margin-bottom:6px"><input type="checkbox" id="deck-opt-includeClosed" checked onchange="refreshDeckQualityState()" /> <span>Include closed tickets in quality slides <span class="deck-count">(the Quality Insights page includes them)</span></span></label>
+        <p id="deck-quality-hint" style="font-size:11.5px;color:var(--text3);margin-bottom:18px">Quality slides use only Quality-category projects, kept separate from the delivery slides.</p>
+
+        <label class="deck-opt" style="margin-bottom:18px"><input type="checkbox" id="deck-opt-html" checked /> Also download ticket list (HTML)</label>
 
         <div id="deck-modal-error" style="display:none;color:var(--red);font-size:12.5px;margin-bottom:10px"></div>
         <div style="display:flex;justify-content:flex-end;gap:8px">
@@ -11527,6 +11538,7 @@ function renderDataGaps() {
 
 // ── Release Report ────────────────────────────────────────────────────────────
 let _releaseReport = null;
+let _releaseQualityReport = null;
 let _releaseReportBusy = false;
 let _rrAiAvailable = null;
 
@@ -11758,6 +11770,126 @@ function setReleaseReportBusy(busy, label) {
   if (pptxBtn) pptxBtn.disabled = busy || !_releaseReport;
 }
 
+/**
+ * The Quality Insights "Queue" breakdowns (priority, phase, age since last status
+ * change, project) for the whole quality set and for the Pre / Post Go-Live subsets,
+ * computed with the same row logic as the Quality Insights page so the deck matches it.
+ */
+function buildQualityDeckQueue(qProjects, includeClosed = true) {
+  const preRe = /pre[-\s]?go[-\s]?live/i;
+  const postRe = /post[-\s]?go[-\s]?live/i;
+  // Same rows as the Quality Insights page, including its Jira-project and priority filters.
+  const jiraSelected = getSelectedJiraProjects();
+  const allRows = collectQualityInsightRows(qProjects);
+  const rows = filterRowsByQualityPriority(jiraSelected.size ? allRows.filter(r => jiraSelected.has(r.module)) : allRows)
+    .filter(r => includeClosed || r.phase !== 'Closed');
+  const summarize = list => ({
+    includeClosed,
+    total: list.length,
+    blockers: list.filter(r => r.severe).length,
+    high: list.filter(r => r.high).length,
+    customer: list.filter(r => r.customer).length,
+    unowned: list.filter(r => r.unowned).length,
+    stale: list.filter(r => r.stale).length,
+    byPriority: countQualityPriorityBuckets(list).map(({ label, count }) => ({ label, count })),
+    byPhase: countQualityBuckets(list, r => r.phase),
+    byAge: QUALITY_AGE_BANDS.map(label => ({ label, count: list.filter(r => r.ageBand === label).length })).filter(i => i.count),
+    byProject: countQualityBuckets(list, r => r.module),
+  });
+  return {
+    all: summarize(rows),
+    pre: summarize(rows.filter(r => preRe.test(r.type || '') || preRe.test(r.projectName || ''))),
+    post: summarize(rows.filter(r => postRe.test(r.type || '') || postRe.test(r.projectName || ''))),
+  };
+}
+
+/** Phase label for an issue, computed exactly like the Quality Insights rows. */
+function qualityIssuePhaseLabel(issue) {
+  const status = (issue && issue.fields && issue.fields.status && issue.fields.status.name) || '';
+  const phase = getPhaseForStatus(status);
+  return /^on[\s-]*hold/i.test(status) ? 'On Hold' : (phase?.label || 'Other');
+}
+
+/**
+ * Run fn as if the Quality Insights page were open. Release selection is stored per
+ * page category (Quality can have different releases than Delivery), so building quality
+ * data from the Release Report page would otherwise use the Delivery releases and
+ * disagree with the Quality Insights page. fn must be synchronous.
+ */
+function withQualityPageContext(fn) {
+  const prev = { page: S.page, cache: S.cache, active: S.activeRelease, merged: S._cacheViewMerged };
+  try {
+    S.page = 'quality-insights';
+    // Same binding the page performs (bindCacheToActiveRelease), but restorable and without
+    // touching the releaseCache buckets: the Quality category's releases and their tickets.
+    const names = getSelectedReleaseNames();
+    S.activeRelease = names[0] || '';
+    S._cacheViewMerged = names.length > 1;
+    S.cache = names.length > 1
+      ? mergeReleaseCacheBuckets(names)
+      : ((S.releaseCache && S.releaseCache[S.activeRelease]) || {});
+    return fn();
+  } finally {
+    S.page = prev.page;
+    S.cache = prev.cache;
+    S.activeRelease = prev.active;
+    S._cacheViewMerged = prev.merged;
+  }
+}
+
+/**
+ * Report built only from the latest synced Quality-category projects, or null when there
+ * are none. Called each time the deck is requested (never cached), and it applies the
+ * Quality Insights page's project, Jira-project and priority selections, so the deck
+ * shows exactly what that page shows for the current data.
+ */
+async function generateQualityDeckReport(includeClosed = true) {
+  try {
+    const fieldIds = releaseReportFieldIds();
+    // Everything that depends on the current page (release selection per category, filters)
+    // is evaluated as the Quality Insights page, synchronously, then the page is restored.
+    const prep = withQualityPageContext(() => {
+      const qualityProjects = getQualityProjects();
+      const pickedProjects = getSelectedQualityInsightProjects();
+      const qProjects = (pickedProjects.size ? qualityProjects.filter(p => pickedProjects.has(p.key)) : qualityProjects)
+        .filter(p => S.cache[p.key] && !S.cache[p.key].err);
+      const projects = qProjects.map(proj => ({
+        project: { key: proj.key, name: proj.name, color: proj.color, category: proj.category || 'Quality' },
+        issues: filterIssuesToActiveRelease(S.cache[proj.key].issues || [], proj).issues
+          .filter(issueInSelectedJiraProjects)
+          .filter(issueInSelectedQualityPriorities)
+          .filter(iss => includeClosed || qualityIssuePhaseLabel(iss) !== 'Closed')
+          .map(iss => slimIssueForReleaseReport(iss, fieldIds)),
+      })).filter(p => p.issues.length);
+      const release = (S.releases || []).find(r => r.name === S.activeRelease) || { name: S.activeRelease, milestones: {} };
+      const baseBody = {
+        release: { name: release.name, milestones: release.milestones || {} },
+        milestones: (typeof ReleaseMilestones !== 'undefined')
+          ? ReleaseMilestones.releaseMilestoneDefs(release, getMilestones())
+          : getMilestones(),
+        fieldIds,
+        reportMode: document.getElementById('rr-mode')?.value || 'auto',
+        now: new Date().toISOString(),
+      };
+      return { projects, baseBody, queue: projects.length ? buildQualityDeckQueue(qProjects, includeClosed) : null };
+    });
+    const projects = prep.projects;
+    const baseBody = prep.baseBody;
+    if (!projects.length || !baseBody.release.name) return null;
+    const r = await fetch(API_BASE + '/api/release-report', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ ...baseBody, useAi: false, projects }),
+    });
+    if (!r.ok) return null;
+    const json = await r.json();
+    json.queue = prep.queue;
+    return json;
+  } catch (e) {
+    return null; // Quality slides are optional; the delivery report still works.
+  }
+}
+
 async function generateReleaseReport() {
   if (_releaseReportBusy) return;
   if (!S.activeRelease) {
@@ -11811,6 +11943,8 @@ async function generateReleaseReport() {
     const json = await r.json().catch(() => ({}));
     if (!r.ok) throw new Error(json.error || 'HTTP ' + r.status);
     _releaseReport = json;
+    // Quality data is never mixed into this report; it is fetched fresh when a deck is requested.
+    _releaseQualityReport = null;
     renderReleaseReportPreview(json);
     const pptxBtn = document.getElementById('rr-pptx-btn');
     if (pptxBtn) pptxBtn.disabled = false;
@@ -11989,7 +12123,25 @@ function releaseReportFileStem() {
   return (S.activeRelease || _releaseReport?.releaseName || 'release').replace(/[^\w.-]+/g, '-') || 'release';
 }
 
-const DECK_SECTION_KEYS = ['clarityChart', 'statusChart', 'milestones', 'portfolio', 'highValue', 'mustFix', 'risks'];
+const DECK_SECTION_KEYS = ['clarityChart', 'statusChart', 'milestones', 'portfolio', 'qualityReport', 'preGoLive', 'postGoLive', 'highValue', 'mustFix', 'risks'];
+const DECK_QUALITY_KEYS = ['qualityReport', 'mustFix', 'preGoLive', 'postGoLive'];
+
+// Mirrors the matching in lib/release-report-pptx.js so counts match the slides.
+function deckQualityCounts(report) {
+  const preRe = /pre[-\s]?go[-\s]?live/i;
+  const postRe = /post[-\s]?go[-\s]?live/i;
+  const seen = { qualityReport: new Set(), preGoLive: new Set(), postGoLive: new Set() };
+  (report?.projects || []).forEach(pr => {
+    if (pr.insightKind !== 'quality') return;
+    (pr.tickets || []).forEach(t => {
+      seen.qualityReport.add(t.key);
+      if (preRe.test(t.type || '') || preRe.test(t.projectName || '')) seen.preGoLive.add(t.key);
+      if (postRe.test(t.type || '') || postRe.test(t.projectName || '')) seen.postGoLive.add(t.key);
+    });
+  });
+  const mustFix = (report?.projects || []).reduce((s, pr) => s + (pr.insightKind === 'quality' ? (pr.mustFix || []).length : 0), 0);
+  return { qualityReport: seen.qualityReport.size, mustFix, preGoLive: seen.preGoLive.size, postGoLive: seen.postGoLive.size };
+}
 const DECK_PREFS_KEY = 'rr-deck-options';
 
 function readDeckPrefs() {
@@ -12011,8 +12163,46 @@ function syncDeckOptions() {
   document.getElementById('deck-modal-error').style.display = 'none';
 }
 
-function openDeckOptions() {
+function deckIncludeClosed() {
+  const el = document.getElementById('deck-opt-includeClosed');
+  return el ? !!el.checked : true;
+}
+
+let _deckQualityRefreshSeq = 0;
+
+/** Re-read the latest quality data and update each Quality option's count and enabled state. */
+async function refreshDeckQualityState() {
+  const seq = ++_deckQualityRefreshSeq;
+  const includeClosed = deckIncludeClosed();
+  const report = await generateQualityDeckReport(includeClosed);
+  if (seq !== _deckQualityRefreshSeq) return; // a newer refresh superseded this one
+  _releaseQualityReport = report;
+  const counts = deckQualityCounts(report || _releaseReport);
+  DECK_QUALITY_KEYS.forEach(k => {
+    const el = document.getElementById('deck-opt-' + k);
+    const none = !counts[k];
+    // Re-enable (and re-tick) options that were only off because there was nothing to show.
+    if (el.disabled && !none && el.dataset.auto === '1') el.checked = true;
+    el.dataset.auto = none ? '1' : '';
+    el.disabled = none;
+    if (none) el.checked = false;
+    document.getElementById('deck-opt-' + k + '-wrap').classList.toggle('disabled', none);
+    document.getElementById('deck-count-' + k).textContent = none ? '(no tickets)' : `(${counts[k]})`;
+  });
+  const closedBox = document.getElementById('deck-opt-includeClosed');
+  if (closedBox) closedBox.disabled = !counts.qualityReport && includeClosed;
+  const hint = document.getElementById('deck-quality-hint');
+  if (hint) {
+    hint.textContent = counts.qualityReport
+      ? 'Quality slides use only Quality-category projects, kept separate from the delivery slides.'
+      : 'No quality tickets for the current selection. Sync Bugs / Pre-Go Live / Post Go Live from Jira Connector (or include closed tickets), then try again.';
+  }
+}
+
+async function openDeckOptions() {
   if (!_releaseReport) return;
+  const btn = document.getElementById('rr-pptx-btn');
+  if (btn) { btn.disabled = true; btn.textContent = 'Reading latest quality data…'; }
   const prefs = readDeckPrefs();
   const mode = prefs.mode === 'cumulative' ? 'cumulative' : 'by-project';
   const radio = document.querySelector(`input[name="deck-mode"][value="${mode}"]`);
@@ -12022,6 +12212,13 @@ function openDeckOptions() {
     if (el) el.checked = prefs.sections ? prefs.sections[k] !== false : true;
   });
   document.getElementById('deck-opt-html').checked = prefs.includeHtml !== false;
+  const closedBox = document.getElementById('deck-opt-includeClosed');
+  if (closedBox) { closedBox.disabled = false; closedBox.checked = prefs.includeClosed !== false; }
+  try {
+    await refreshDeckQualityState();
+  } finally {
+    if (btn) { btn.disabled = !_releaseReport; btn.textContent = 'Download PowerPoint + HTML'; }
+  }
   syncDeckOptions();
   document.getElementById('deck-modal-overlay').style.display = 'flex';
 }
@@ -12042,12 +12239,15 @@ function confirmDeckOptions() {
     err.style.display = 'block';
     return;
   }
-  try { localStorage.setItem(DECK_PREFS_KEY, JSON.stringify({ mode, sections, includeHtml })); } catch (e) { /* prefs are optional */ }
+  // Don't remember options that were only off because this report had no tickets for them.
+  const savedSections = { ...sections };
+  DECK_QUALITY_KEYS.forEach(k => { if (document.getElementById('deck-opt-' + k)?.disabled) delete savedSections[k]; });
+  try { localStorage.setItem(DECK_PREFS_KEY, JSON.stringify({ mode, sections: savedSections, includeHtml, includeClosed: deckIncludeClosed() })); } catch (e) { /* prefs are optional */ }
   closeDeckOptions();
-  downloadReleaseReportPptx({ mode, sections }, includeHtml);
+  downloadReleaseReportPptx({ mode, sections }, includeHtml, deckIncludeClosed());
 }
 
-async function downloadReleaseReportPptx(deckOptions, includeHtml = true) {
+async function downloadReleaseReportPptx(deckOptions, includeHtml = true, includeClosed = true) {
   if (!_releaseReport) return;
   const btn = document.getElementById('rr-pptx-btn');
   if (btn) { btn.disabled = true; btn.textContent = 'Building files…'; }
@@ -12055,11 +12255,13 @@ async function downloadReleaseReportPptx(deckOptions, includeHtml = true) {
   const jiraBaseUrl = String(S.creds?.url || '').replace(/\/+$/, '');
   const stem = releaseReportFileStem();
   try {
+    // Rebuild quality data from the latest synced tickets at the moment of the request.
+    _releaseQualityReport = await generateQualityDeckReport(includeClosed);
     const [pptxRes, htmlRes] = await Promise.all([
       fetch(API_BASE + '/api/release-report/pptx', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ report: _releaseReport, options: deckOptions }),
+        body: JSON.stringify({ report: _releaseReport, qualityReport: _releaseQualityReport, options: deckOptions }),
       }),
       includeHtml
         ? fetch(API_BASE + '/api/release-report/html', {

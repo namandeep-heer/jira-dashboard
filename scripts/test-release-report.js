@@ -506,6 +506,87 @@ async function testPptx() {
   });
   [cumBuf, detBuf, slimBuf].forEach(b => assert.ok(Buffer.isBuffer(b) && b.length > 2000));
   assert.ok(slimBuf.length < cumBuf.length, 'deselected sections should shrink the deck');
+  // Quality bug report + Pre/Post Go-Live slides.
+  const qReport = analyzeRelease({
+    projects: [
+      { project: { key: 'BUGS', name: 'Bugs', category: 'Quality' }, issues: [
+        issue({ key: 'B-1', type: 'Bug', priority: 'High', status: 'Developing' }),
+        issue({ key: 'B-2', type: 'Bug', priority: 'Low', status: 'Closed' }),
+      ] },
+      { project: { key: 'PEGL', name: 'Pre-Go Live', category: 'Quality' }, issues: [
+        issue({ key: 'P-1', type: 'R&D Pre-GoLive Bug', priority: 'Highest', status: 'QA' }),
+        issue({ key: 'P-2', type: 'R&D Pre-GoLive Bug', priority: 'Medium', status: 'Developing' }),
+      ] },
+      { project: { key: 'POGL', name: 'Post-Go Live', category: 'Quality' }, issues: [
+        issue({ key: 'G-1', type: 'R&D Post-GoLive Bug', priority: 'Critical', status: 'Developing' }),
+      ] },
+    ],
+    release, milestones, fieldIds, now,
+  });
+  const allSections = { portfolio: false, statusChart: false, clarityChart: false, milestones: false, highValue: false, mustFix: false, risks: false, qualityReport: false, preGoLive: false, postGoLive: false };
+  const qBuf = await buildReleaseReportPptx(qReport, { sections: { ...allSections, qualityReport: true, preGoLive: true, postGoLive: true } });
+  const noQBuf = await buildReleaseReportPptx(qReport, { sections: { ...allSections, qualityReport: false, preGoLive: false, postGoLive: false, risks: true } });
+  const preOnly = await buildReleaseReportPptx(qReport, { sections: { ...allSections, preGoLive: true } });
+  assert.ok(qBuf.length > preOnly.length && preOnly.length > 2000 && noQBuf.length > 2000);
+  // A report with no quality tickets must not emit empty quality slides.
+  const noQuality = await buildReleaseReportPptx(clarityReport, { sections: { ...allSections, qualityReport: true, preGoLive: true, postGoLive: true } });
+  const titleOnly = await buildReleaseReportPptx(clarityReport, { sections: allSections });
+  assert.strictEqual(noQuality.length, titleOnly.length);
+  if (process.env.DECK_OUT_DIR) require('fs').writeFileSync(process.env.DECK_OUT_DIR + '/quality.pptx', qBuf);
+
+  // Page-provided queue numbers are what the quality slide shows, and the closed-excluded note appears.
+  {
+    const JSZip = (() => { try { return require('jszip'); } catch (e) { return null; } })();
+    const withQueue = (includeClosed) => ({
+      ...qReport,
+      queue: { all: {
+        includeClosed, total: 265, blockers: 18, high: 108, customer: 3, unowned: 2, stale: 241,
+        byPriority: [{ label: 'Critical', count: 18 }, { label: 'High', count: 90 }],
+        byPhase: [{ label: 'Closed', count: 125 }], byAge: [{ label: '60+ days', count: 29 }], byProject: [{ label: 'NFS', count: 170 }],
+      } },
+    });
+    const only = { ...allSections, qualityReport: true };
+    const pageStyle = await buildReleaseReportPptx(qReport, { sections: only }, withQueue(true));
+    const openOnly = await buildReleaseReportPptx(qReport, { sections: only }, withQueue(false));
+    assert.ok(Buffer.isBuffer(pageStyle) && Buffer.isBuffer(openOnly));
+    if (JSZip) {
+      const text = async buf => {
+        const zip = await JSZip.loadAsync(buf);
+        const xml = await zip.file('ppt/slides/slide2.xml').async('string');
+        return (xml.match(/<a:t>[^<]*<\/a:t>/g) || []).map(t => t.replace(/<[^>]+>/g, '')).join('|');
+      };
+      const a = await text(pageStyle);
+      const b = await text(openOnly);
+      assert.ok(a.includes('265 tickets') && a.includes('170') && a.includes('125'), 'slide shows the supplied queue numbers');
+      assert.ok(!a.includes('closed tickets excluded'));
+      assert.ok(b.includes('closed tickets excluded'));
+    }
+  }
+
+  // Delivery and quality data stay separate.
+  const { splitReportByKind } = require('../lib/release-report');
+  const mixed = analyzeRelease({
+    projects: [
+      { project: { key: 'AAA', name: 'Alpha' }, issues: [issue({ key: 'AAA-1', clarity: 'Clear', status: 'Closed' })] },
+      { project: { key: 'BUGS', name: 'Bugs', category: 'Quality' }, issues: [issue({ key: 'B-1', type: 'Bug', status: 'Developing' }), issue({ key: 'B-2', type: 'Bug', status: 'Developing' })] },
+    ],
+    release, milestones, fieldIds, now,
+  });
+  const parts = splitReportByKind(mixed);
+  assert.deepStrictEqual(parts.delivery.projects.map(p => p.projectKey), ['AAA']);
+  assert.deepStrictEqual(parts.quality.projects.map(p => p.projectKey), ['BUGS']);
+  assert.strictEqual(parts.delivery.portfolio.total, 1, 'delivery totals exclude quality tickets');
+  assert.strictEqual(parts.quality.portfolio.total, 2, 'quality totals exclude delivery tickets');
+  assert.strictEqual(splitReportByKind(clarityReport).quality, null);
+  // Delivery-only report + separate quality report == one mixed report.
+  const sections = { ...allSections, qualityReport: true, clarityChart: true };
+  const viaMixed = await buildReleaseReportPptx(mixed, { mode: 'cumulative', sections });
+  const viaSplit = await buildReleaseReportPptx(parts.delivery, { mode: 'cumulative', sections }, parts.quality);
+  assert.ok(Math.abs(viaMixed.length - viaSplit.length) < 400);
+  const qualitySlideBuf = await buildReleaseReportPptx(parts.delivery, { mode: 'cumulative', sections: { ...allSections, qualityReport: true } }, parts.quality);
+  const noQualitySlide = await buildReleaseReportPptx(parts.delivery, { mode: 'cumulative', sections: { ...allSections, qualityReport: true } });
+  assert.ok(qualitySlideBuf.length > noQualitySlide.length, 'separate quality report feeds the quality slide');
+
   if (process.env.DECK_OUT_DIR) { // optional: dump sample decks for visual review
     require('fs').writeFileSync(process.env.DECK_OUT_DIR + '/cumulative.pptx', cumBuf);
     require('fs').writeFileSync(process.env.DECK_OUT_DIR + '/by-project.pptx', detBuf);
