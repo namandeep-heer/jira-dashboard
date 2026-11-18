@@ -29,6 +29,7 @@ const { buildReleaseReportPptx, sanitizeFilename } = require('./lib/release-repo
 const { buildReleaseReportHtml, buildTicketListHtml, htmlFilename, ticketListFilename, normalizeTicketGroupBy } = require('./lib/release-report-html');
 const { createLocalStore } = require('./lib/local-store');
 const { createTicketNotes } = require('./lib/ticket-notes');
+const { createWorkspaces } = require('./lib/workspaces');
 const { createUserPreferences } = require('./lib/user-preferences');
 const { slimDashboardState, dashboardStateForClient } = require('./lib/slim-cache');
 const { createPageConfig } = require('./lib/page-config');
@@ -59,6 +60,7 @@ const store = createLocalStore({
   adminEmail,
 });
 const ticketNotes = createTicketNotes({ filePath: path.join(DATA_DIR, 'ticket-notes.json') });
+const workspaces = createWorkspaces({ filePath: path.join(DATA_DIR, 'workspaces.json') });
 const userPreferences = createUserPreferences({ filePath: path.join(DATA_DIR, 'user-preferences.json') });
 const pageConfig = createPageConfig({ configDir: CONFIG_DIR });
 try { ensureStatusPipelineFile(CONFIG_DIR); } catch (err) {
@@ -205,6 +207,18 @@ app.get('/lib/menu.js', (req, res) => {
   res.setHeader('Cache-Control', 'no-store');
   res.type('application/javascript');
   res.sendFile(path.join(ROOT, 'lib', 'menu.js'));
+});
+
+app.get('/lib/clarity-dashboard.js', (req, res) => {
+  res.setHeader('Cache-Control', 'no-store');
+  res.type('application/javascript');
+  res.sendFile(path.join(ROOT, 'lib', 'clarity-dashboard.js'));
+});
+
+app.get('/lib/workspace-query.js', (req, res) => {
+  res.setHeader('Cache-Control', 'no-store');
+  res.type('application/javascript');
+  res.sendFile(path.join(ROOT, 'lib', 'workspace-query.js'));
 });
 
 // ── Health check endpoint ─────────────────────────────────────────────────────
@@ -387,6 +401,70 @@ app.delete('/api/ticket-notes/:key/comments/:commentId', (req, res) => {
       author: user.email,
       isAdmin: user.role === 'admin',
     }));
+  } catch (err) {
+    sendStoreError(res, err);
+  }
+});
+
+app.get('/api/workspaces', (req, res) => {
+  const user = requireUser(req, res);
+  if (!user) return;
+  try {
+    res.json(workspaces.list());
+  } catch (err) {
+    sendStoreError(res, err);
+  }
+});
+
+app.post('/api/workspaces', (req, res) => {
+  const user = requireUser(req, res);
+  if (!user) return;
+  try {
+    res.json(workspaces.create({ name: req.body?.name, author: user.email }));
+  } catch (err) {
+    sendStoreError(res, err);
+  }
+});
+
+app.put('/api/workspaces/:id', (req, res) => {
+  const user = requireUser(req, res);
+  if (!user) return;
+  try {
+    res.json(workspaces.rename(req.params.id, { name: req.body?.name }));
+  } catch (err) {
+    sendStoreError(res, err);
+  }
+});
+
+app.delete('/api/workspaces/:id', (req, res) => {
+  const user = requireUser(req, res);
+  if (!user) return;
+  try {
+    res.json(workspaces.remove(req.params.id));
+  } catch (err) {
+    sendStoreError(res, err);
+  }
+});
+
+app.post('/api/workspaces/:id/items', (req, res) => {
+  const user = requireUser(req, res);
+  if (!user) return;
+  try {
+    res.json(workspaces.addItems(req.params.id, {
+      keys: req.body?.keys,
+      items: req.body?.items,
+      author: user.email,
+    }));
+  } catch (err) {
+    sendStoreError(res, err);
+  }
+});
+
+app.post('/api/workspaces/:id/items/remove', (req, res) => {
+  const user = requireUser(req, res);
+  if (!user) return;
+  try {
+    res.json(workspaces.removeItems(req.params.id, { keys: req.body?.keys }));
   } catch (err) {
     sendStoreError(res, err);
   }

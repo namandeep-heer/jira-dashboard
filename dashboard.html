@@ -14,6 +14,8 @@
 <script src="/lib/jira-write-ui.js"></script>
 <script src="/lib/release-plan.js"></script>
 <script src="/lib/menu.js"></script>
+<script src="/lib/clarity-dashboard.js"></script>
+<script src="/lib/workspace-query.js"></script>
 <style>
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 :root {
@@ -296,6 +298,20 @@ html.sidebar-collapsed #log-badge { position: absolute; top: 3px; right: 3px; ma
 .stat-card .sl { font-size: 11px; color: var(--text3); margin-bottom: 3px; white-space: nowrap; }
 .stat-card .sv { font-size: 22px; font-weight: 700; }
 .stat-card .so { font-size: 10px; color: var(--text3); margin-top: 2px; font-weight: 500; }
+.clarity-chart-block { margin: 4px 0 22px; }
+.clarity-scope-row { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; margin: 0 0 10px; }
+.clarity-scope-row .section-control { margin-left: auto; }
+.clarity-scope { border: 0.5px solid var(--border); background: var(--bg); color: var(--text2); border-radius: 999px; padding: 5px 11px; font: inherit; font-size: 12px; cursor: pointer; }
+.clarity-scope:hover { border-color: var(--border2); color: var(--text); }
+.clarity-scope.active { border-color: var(--blue); background: var(--blue-bg); color: var(--blue); font-weight: 600; }
+.clarity-numbers { margin-bottom: 0; }
+.clarity-numbers th { font-weight: 500; text-transform: none; letter-spacing: 0; }
+.clarity-numbers th.ph-col, .clarity-numbers td.num { text-align: center; }
+.clarity-numbers td { font-weight: 400; }
+.clarity-num-dot { width: 8px; height: 8px; border-radius: 2px; display: inline-block; margin-right: 6px; vertical-align: middle; }
+.clarity-num { border: 0; background: none; padding: 2px 6px; border-radius: 6px; font: inherit; font-size: 13px; font-weight: 400; color: var(--text); cursor: pointer; }
+.clarity-num:hover { background: var(--bg2); color: var(--blue); }
+.clarity-zero { color: var(--text3); font-weight: 400; }
 
 .table-wrap { overflow: auto; max-height: calc(100vh - 280px); background: var(--bg); border: 0.5px solid var(--border); border-radius: var(--radius-lg); }
 table.issues { width: 100%; border-collapse: collapse; font-size: 12px; }
@@ -583,6 +599,59 @@ table.issues tr.is-just-created td { background: var(--bg2); }
 .ticket-notes-btn:hover { color: var(--text); background: var(--bg2); }
 .ticket-notes-btn:focus-visible { outline: 2px solid var(--blue); outline-offset: 1px; }
 .ticket-notes-btn.has-notes { color: var(--blue); background: var(--blue-bg); border-color: transparent; }
+.ws-add-btn { display: inline-flex; align-items: center; justify-content: center; width: 24px; height: 24px; padding: 0; border-radius: 999px; border: 0.5px solid var(--border2); background: var(--bg); color: var(--text3); cursor: pointer; }
+.ws-add-btn svg { width: 13px; height: 13px; }
+.ws-add-btn:hover { color: var(--text); background: var(--bg2); }
+.ws-add-btn:focus-visible { outline: 2px solid var(--blue); outline-offset: 1px; }
+.ws-add-btn.has-workspace { color: var(--blue); background: var(--blue-bg); border-color: transparent; }
+.ws-add-btn.has-workspace svg { fill: currentColor; }
+.ws-count { margin-left: auto; font-size: 10px; font-weight: 600; color: var(--text3); }
+.nav-item.active .ws-count { color: var(--text2); }
+#ws-picker { position: fixed; z-index: 80; width: 280px; max-width: calc(100vw - 16px); background: var(--bg); border: 0.5px solid var(--border); border-radius: var(--radius-lg); box-shadow: 0 12px 32px rgba(0,0,0,.16); padding: 10px; }
+.ws-picker-title { font-size: 12px; font-weight: 600; margin-bottom: 8px; }
+.ws-picker-list { display: flex; flex-direction: column; gap: 2px; max-height: 260px; overflow-y: auto; }
+.ws-picker-row { display: flex; align-items: center; gap: 8px; padding: 6px 4px; border-radius: 6px; font-size: 13px; cursor: pointer; }
+.ws-picker-row:hover { background: var(--bg3); }
+.ws-picker-row span { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.ws-picker-empty { font-size: 12px; color: var(--text2); line-height: 1.45; margin-bottom: 8px; }
+.ws-picker-error { font-size: 12px; color: var(--red); margin-top: 8px; min-height: 0; }
+.ws-create-backdrop { position: fixed; inset: 0; background: rgba(0,0,0,.35); z-index: 90; }
+.ws-create-panel { position: fixed; z-index: 91; top: 18vh; left: 50%; transform: translateX(-50%); width: 420px; max-width: calc(100vw - 32px); background: var(--bg); border: 0.5px solid var(--border); border-radius: var(--radius-lg); padding: 18px; box-shadow: 0 18px 50px rgba(0,0,0,.18); }
+.ws-search-panel { position: fixed; z-index: 91; top: 10vh; left: 50%; transform: translateX(-50%); width: 720px; max-width: calc(100vw - 32px); max-height: calc(100vh - 14vh); overflow: auto; background: var(--bg); border: 0.5px solid var(--border); border-radius: var(--radius-lg); padding: 18px; box-shadow: 0 18px 50px rgba(0,0,0,.18); }
+.ws-search-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; margin-bottom: 8px; }
+.ws-create-panel h2, .ws-search-panel h2 { font-size: 16px; margin-bottom: 6px; }
+.ws-kicker { font-size: 12px; color: var(--text2); line-height: 1.45; margin-bottom: 12px; }
+.ws-create-panel input, .ws-rename, .ws-query, .ws-filter { width: 100%; padding: 7px 10px; border: 0.5px solid var(--border2); border-radius: var(--radius); background: var(--bg); color: var(--text); font: inherit; font-size: 13px; }
+.ws-create-foot, .ws-toolbar, .ws-search-actions { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+.ws-create-foot { justify-content: flex-end; margin-top: 12px; }
+.ws-error { color: var(--red); font-size: 12px; min-height: 16px; margin-top: 8px; }
+.ws-page-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 16px; margin-bottom: 16px; }
+.ws-page-head h2 { font-size: 18px; font-weight: 600; }
+.ws-card { background: var(--bg); border: 0.5px solid var(--border); border-radius: var(--radius-lg); padding: 16px 18px; margin-bottom: 16px; }
+.ws-card h3 { font-size: 13px; font-weight: 600; margin-bottom: 4px; }
+.ws-search-actions { margin-top: 10px; }
+.ws-results { margin-top: 12px; display: flex; flex-direction: column; gap: 4px; max-height: 320px; overflow-y: auto; }
+.ws-result { display: grid; grid-template-columns: 20px 92px minmax(0,1fr) auto; gap: 8px; align-items: center; padding: 6px 4px; border-radius: 6px; font-size: 13px; }
+.ws-result:hover { background: var(--bg3); }
+.ws-result .sum { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.ws-result .meta { font-size: 11px; color: var(--text3); white-space: nowrap; }
+.ws-members { width: 100%; border-collapse: collapse; font-size: 13px; }
+.ws-members th { text-align: left; font-size: 11px; font-weight: 600; color: var(--text3); letter-spacing: .04em; text-transform: uppercase; padding: 8px 8px; border-bottom: 0.5px solid var(--border); }
+.ws-members td { padding: 8px; border-bottom: 0.5px solid var(--border); vertical-align: middle; }
+.ws-members tr:hover td { background: var(--bg2); }
+.ws-members .sum { max-width: 420px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.ws-status { font-size: 12px; color: var(--text2); min-height: 16px; }
+.ws-status.is-error { color: var(--red); }
+.ws-inline { display: flex; gap: 8px; align-items: center; }
+.ws-edit-btn { display: inline-flex; align-items: center; justify-content: center; width: 28px; height: 28px; padding: 0; border: none; border-radius: 8px; background: transparent; color: var(--text3); cursor: pointer; }
+.ws-edit-btn svg { width: 15px; height: 15px; }
+.ws-edit-btn:hover { background: var(--bg3); color: var(--text); }
+.ws-edit-btn:focus-visible { outline: 2px solid var(--blue); outline-offset: 1px; }
+.proj-issues table.ws-issue-grid { width: max-content; min-width: 0; table-layout: auto; }
+.proj-issues table.ws-issue-grid th,
+.proj-issues table.ws-issue-grid td { width: auto; max-width: none; }
+.proj-issues table.ws-issue-grid th.ws-summary,
+.proj-issues table.ws-issue-grid td.ws-summary { max-width: 520px; }
 .ticket-notes-count { font-size: 11px; font-weight: 600; font-variant-numeric: tabular-nums; }
 #ticket-notes-preview { position: fixed; z-index: 720; width: min(320px, calc(100vw - 16px)); max-height: min(340px, calc(100vh - 16px)); overflow: auto; padding: 12px 14px 14px; background: var(--bg); color: var(--text); border: 0.5px solid var(--border2); border-radius: var(--radius-lg); box-shadow: 0 16px 40px rgba(0,0,0,.16); opacity: 0; transform: translateY(6px) scale(0.98); transform-origin: left center; transition: opacity .18s cubic-bezier(.2,.8,.2,1), transform .22s cubic-bezier(.2,.8,.2,1); }
 #ticket-notes-preview.open { opacity: 1; transform: none; }
@@ -1345,6 +1414,33 @@ code { font-family: monospace; font-size: 12px; background: var(--bg3); padding:
         <p>Refreshing project data from Jira in…</p>
         <div class="auto-sync-count" id="auto-sync-count">5</div>
         <button class="btn btn-sm" id="auto-sync-cancel-btn" onclick="cancelAutoSyncCountdown()">Cancel</button>
+      </div>
+    </div>
+
+    <div id="ws-create-root" hidden>
+      <div class="ws-create-backdrop" onclick="closeCreateWorkspace()"></div>
+      <div class="ws-create-panel" role="dialog" aria-modal="true" aria-labelledby="ws-create-title">
+        <h2 id="ws-create-title">New workspace</h2>
+        <p class="ws-kicker">Name a list of tickets you are watching or tracking. Everyone who signs in on this machine can see it.</p>
+        <input id="ws-create-name" type="text" maxlength="60" placeholder="Closing watch" aria-label="Workspace name" onkeydown="onCreateWorkspaceKey(event)">
+        <p id="ws-create-error" class="ws-error"></p>
+        <div class="ws-create-foot">
+          <button type="button" class="btn btn-sm" onclick="closeCreateWorkspace()">Cancel</button>
+          <button type="button" class="btn btn-sm primary" id="ws-create-submit" onclick="submitCreateWorkspace()">Create</button>
+        </div>
+      </div>
+    </div>
+
+    <div id="ws-rename-root" hidden>
+      <div class="ws-create-backdrop" onclick="closeWorkspaceRename()"></div>
+      <div class="ws-create-panel" role="dialog" aria-modal="true" aria-labelledby="ws-rename-title">
+        <h2 id="ws-rename-title">Rename workspace</h2>
+        <input id="ws-rename" type="text" maxlength="60" aria-label="Workspace name" onkeydown="onWorkspaceRenameKey(event)">
+        <p id="ws-rename-error" class="ws-error"></p>
+        <div class="ws-create-foot">
+          <button type="button" class="btn btn-sm" onclick="closeWorkspaceRename()">Cancel</button>
+          <button type="button" class="btn btn-sm primary" id="ws-rename-submit" onclick="commitWorkspaceRename()">Save</button>
+        </div>
       </div>
     </div>
 
@@ -3090,7 +3186,7 @@ let S = {
   connector:{ releases:[], projects:null, scheduleEnabled:false, intervals:{}, lastRun:{} },
   theme:'',
   sidebarCollapsed:false,
-  analyticsViews:{ phase:'table', dev:'table', priority:'doughnut', type:'doughnut' }
+  analyticsViews:{ phase:'table', dev:'table', priority:'doughnut', type:'doughnut', clarity:'bar' }
 };
 
 function isAdmin() { return _dashboardRole === 'admin'; }
@@ -4587,9 +4683,14 @@ function isProjectPageId(id) {
   return getAllProjects().some(p => p.id === id) || /^p\d+$|^cp_/.test(id);
 }
 
+function isWorkspacePageId(id) {
+  return /^ws_w[a-z0-9]{8}$/.test(String(id || ''));
+}
+
 function isValidPageId(id) {
   if (!id) return false;
   if (STATIC_PAGES.has(id)) return true;
+  if (isWorkspacePageId(id)) return _workspaces.some(ws => workspacePageId(ws.id) === id);
   return getAllProjects().some(p => p.id === id);
 }
 
@@ -4704,6 +4805,8 @@ function applyPendingRouteState(page) {
     if (devView) S.analyticsViews.dev = devView;
     if (priorityView) S.analyticsViews.priority = priorityView;
     if (typeView) S.analyticsViews.type = typeView;
+    const clarityView = params.get('clarityView');
+    if (clarityView) S.analyticsViews.clarity = clarityView;
   }
 
   if (page === 'quality-insights' || page === 'quality-phase' || page === 'quality-progress') {
@@ -4900,6 +5003,7 @@ function collectRouteParams() {
     if (S.analyticsViews.dev !== 'table') params.set('devView', S.analyticsViews.dev);
     if (S.analyticsViews.priority !== 'doughnut') params.set('priorityView', S.analyticsViews.priority);
     if (S.analyticsViews.type !== 'doughnut') params.set('typeView', S.analyticsViews.type);
+    if (S.analyticsViews.clarity && S.analyticsViews.clarity !== 'bar') params.set('clarityView', S.analyticsViews.clarity);
   } else if (page === 'release-report') {
     const projects = csvParam(getSelectedReleaseReportProjects());
     if (projects) params.set('projects', projects);
@@ -5142,6 +5246,10 @@ function nav(id, opts = {}) {
     document.getElementById('inp-email').value = S.creds.email;
     document.getElementById('inp-token').value = S.creds.token;
     checkProxy();
+  } else if (isWorkspacePageId(id)) {
+    const ws = workspaceByPage(id);
+    document.getElementById('topbar-title').textContent = ws ? ws.name : 'Workspace';
+    renderWorkspacePage();
   }
 
   if (!opts.fromRoute && !_routeNavigating) syncRoute();
@@ -9675,7 +9783,7 @@ function renderIssueTable(proj, issues, activeFilter) {
       : '';
     const bulkCheck = `<input type="checkbox" class="bulk-check" aria-label="Select ${esc(issue.key || 'ticket')}"${bulkHas(proj.key, issue.key) ? ' checked' : ''}${bulkBusy ? ' disabled' : ''} onmousedown="event.stopPropagation()" onclick='event.stopPropagation();toggleBulkRow(event,${JSON.stringify(proj.key)},${JSON.stringify(issue.key || '')})'>`;
     const cells = {
-      notes: `<td class="notes-cell"><span class="notes-cell-inner">${bulkCheck}${gutter}${ticketNotesButton(issue.key, summary)}</span></td>`,
+      notes: `<td class="notes-cell"><span class="notes-cell-inner">${bulkCheck}${gutter}${ticketNotesButton(issue.key, summary)}${workspaceAddButton(issue.key)}</span></td>`,
     };
     vf.forEach(f => {
       const classes = [];
@@ -9795,6 +9903,7 @@ function renderIssueTable(proj, issues, activeFilter) {
       <span class="proj-count">${countLabel}</span>
       <button class="btn btn-sm proj-views-btn${columnViewIsCustom(proj.key) ? ' is-on' : ''}" type="button" onclick='openColumnViewsDialog(${JSON.stringify(proj.key)})' title="${esc(columnViewButtonTitle(proj.key))}">${esc(columnViewButtonLabel(proj.key))}</button>
       <button class="btn btn-sm proj-bulk-btn${bulkOn ? ' is-on' : ''}" type="button" onclick='openBulkEdit(${JSON.stringify(proj.key)})' ${bulkCount && !bulkBusy ? '' : 'disabled'} title="${bulkCount ? 'Edit the selected tickets' : 'Select tickets to bulk edit'}">Bulk edit</button>
+      <button class="btn btn-sm ws-bulk-add" type="button" data-proj="${esc(proj.key)}" onclick="event.stopPropagation();openWorkspacePicker(event)" ${bulkCount && !bulkBusy ? '' : 'disabled'} title="${bulkCount ? 'Add the selected tickets to a workspace' : 'Select tickets to add to a workspace'}">Add to workspace</button>
     </div>
     ${tableRegion}`;
 
@@ -10045,6 +10154,7 @@ function ensureAnalyticsViews() {
   if (!devModes.has(S.analyticsViews.dev)) S.analyticsViews.dev = 'table';
   if (!donutModes.has(S.analyticsViews.priority)) S.analyticsViews.priority = 'doughnut';
   if (!donutModes.has(S.analyticsViews.type)) S.analyticsViews.type = 'doughnut';
+  if (S.analyticsViews.clarity !== 'bar' && S.analyticsViews.clarity !== 'numbers') S.analyticsViews.clarity = 'bar';
 }
 
 function setAnalyticsView(section, value) {
@@ -10084,7 +10194,7 @@ function hasIssueDays(issue, fieldAlias, fallbackFieldId) {
 }
 
 function resetAnalyticsViews() {
-  S.analyticsViews = { phase:'table', dev:'table', priority:'doughnut', type:'doughnut' };
+  S.analyticsViews = { phase:'table', dev:'table', priority:'doughnut', type:'doughnut', clarity:'bar' };
   persist();
   renderAnalytics();
 }
@@ -10092,6 +10202,7 @@ function resetAnalyticsViews() {
 // ── Analytics ─────────────────────────────────────────────────────────────────
 function renderAnalytics() {
   ensureAnalyticsViews();
+  bindAnalyticsClarity();
   document.body.classList.remove('qi-history-fs-active');
   Object.values(S.charts).forEach(c=>{try{c.destroy();}catch(e){}});
   S.charts = {};
@@ -10126,6 +10237,7 @@ function renderAnalytics() {
       <div class="stat-strip" style="margin-bottom:0;flex:1">${summaryCards}</div>
       <button class="btn btn-sm" onclick="resetAnalyticsViews()">Reset graph views</button>
     </div>
+    ${analyticsClarityChartHtml(loaded)}
     <div class="qi-block">
       <div class="qi-history-head">
         <div>
@@ -10177,6 +10289,8 @@ function renderAnalytics() {
       </select>
     </div>
     <div class="charts-grid" id="ch-type"></div>`;
+
+  drawAnalyticsClarityChart(loaded);
 
   const PALETTES = {
     phase:    PHASES.map(p => p.color),
@@ -14056,7 +14170,237 @@ function renderQualityInsights() {
   drawQualityHistoryCharts(historyIssues);
 }
 
+// ── A + Clarity chart on Analytics ───────────────────────────────────────────
+function bindAnalyticsClarity() {
+  if (S._clarityMatrixBound) return;
+  const page = document.getElementById('page-analytics');
+  if (!page) return;
+  S._clarityMatrixBound = true;
+  page.addEventListener('click', event => {
+    const countBtn = event.target.closest('[data-clarity-count]');
+    if (countBtn) {
+      openProjectFromClarityCell(
+        countBtn.getAttribute('data-clarity-project'),
+        claritySelectedScopes(S._clarityScopeOptions || []),
+        countBtn.getAttribute('data-clarity-rating') || ''
+      );
+      return;
+    }
+    const scopeBtn = event.target.closest('[data-clarity-scope-pick]');
+    if (!scopeBtn) return;
+    const pick = scopeBtn.getAttribute('data-clarity-scope-pick') || '';
+    if (pick === 'all') {
+      S.clarityScopes = [];
+    } else {
+      const current = Array.isArray(S.clarityScopes) ? S.clarityScopes.slice() : [];
+      const index = current.indexOf(pick);
+      if (index === -1) current.push(pick);
+      else current.splice(index, 1);
+      S.clarityScopes = current;
+    }
+    renderAnalytics();
+  });
+}
+
+function claritySelectedScopes(available) {
+  const allowed = new Set(available || []);
+  const raw = Array.isArray(S.clarityScopes) ? S.clarityScopes : [];
+  return raw.filter(scope => allowed.has(scope));
+}
+
+function clarityFieldText(issue, fieldId) {
+  const field = ALL_FIELDS.find(item => item.id === fieldId);
+  if (!field) return '';
+  const value = getCellValue(issue, field);
+  return String(value == null ? '' : value).trim();
+}
+
+function analyticsClarityRows(projects) {
+  const rows = [];
+  (projects || []).forEach(proj => {
+    const issues = (S.cache[proj.key] && S.cache[proj.key].issues) || [];
+    issues.forEach(issue => {
+      rows.push({
+        projectKey: proj.key,
+        projectName: proj.name || proj.key,
+        scope: clarityFieldText(issue, 'cf_scope') || ClarityDashboard.UNSET,
+        clarity: clarityFieldText(issue, 'cf_clarity') || ClarityDashboard.UNSET,
+      });
+    });
+  });
+  return rows;
+}
+
+function analyticsClarityView(projects) {
+  if (!window.ClarityDashboard) return null;
+  const rows = analyticsClarityRows(projects);
+  if (!rows.length) return null;
+  const scopes = ClarityDashboard.orderLabels(rows.map(row => row.scope), ClarityDashboard.SCOPE_ORDER);
+  S._clarityScopeOptions = scopes;
+  const selected = claritySelectedScopes(scopes);
+  const filtered = selected.length ? ClarityDashboard.applyFilters(rows, { scope: selected }) : rows;
+  const summary = ClarityDashboard.summarize(filtered, {
+    projectOrder: (projects || []).map(proj => proj.key),
+  });
+  return { scopes, selected, summary };
+}
+
+function analyticsClarityChartHtml(projects) {
+  const view = analyticsClarityView(projects);
+  if (!view || !view.summary.byProject.length) return '';
+  const chips = ['All'].concat(view.scopes).map(label => {
+    const pick = label === 'All' ? 'all' : label;
+    const active = label === 'All' ? !view.selected.length : view.selected.indexOf(label) !== -1;
+    return `<button type="button" class="clarity-scope${active ? ' active' : ''}" data-clarity-scope-pick="${esc(pick)}" aria-pressed="${active ? 'true' : 'false'}">${esc(label)}</button>`;
+  }).join('');
+  const height = Math.min(560, Math.max(260, view.summary.byProject.length * 48 + 36));
+  const numbers = S.analyticsViews && S.analyticsViews.clarity === 'numbers';
+  const scopeLabel = view.selected.map(esc).join(', ');
+  const clickHint = numbers ? 'Click a number' : 'Click a segment';
+  const note = view.selected.length
+    ? `Scope types: ${scopeLabel}. ${clickHint} to open that project filtered to these scopes and that rating.`
+    : `Each row is one project, split by A + Clarity. Select any scope types to narrow it. ${clickHint} to open that project filtered to that rating.`;
+  const body = numbers
+    ? analyticsClarityNumbersHtml(view)
+    : `<div class="chart-card" style="margin-bottom:0">
+      <h3>A + Clarity by project</h3>
+      <div class="chart-sub">${view.summary.total} issues${view.selected.length ? ' · ' + view.selected.map(esc).join(', ') : ''}</div>
+      <div style="position:relative;width:100%;height:${height}px">
+        <canvas id="c_clarity" role="img" aria-label="A + Clarity by project"></canvas>
+      </div>
+    </div>`;
+  const viewSelect = `<select class="section-control" aria-label="A + Clarity view" onchange="setAnalyticsView('clarity', this.value)">
+        <option value="bar" ${numbers ? '' : 'selected'}>Bars</option>
+        <option value="numbers" ${numbers ? 'selected' : ''}>Numbers</option>
+      </select>`;
+  return `<div class="clarity-chart-block">
+    <div class="section-h">A + Clarity</div>
+    <p class="stat-filter-note">${note}</p>
+    <div class="clarity-scope-row" role="group" aria-label="Scope type">${chips}${viewSelect}</div>
+    ${body}
+  </div>`;
+}
+
+function analyticsClarityCountHtml(projectKey, rating, count, label) {
+  if (!count) return '<span class="clarity-zero">—</span>';
+  const title = `${label}: ${count}`;
+  return `<button type="button" class="clarity-num" data-clarity-count="1" data-clarity-project="${esc(projectKey)}" data-clarity-rating="${esc(rating)}" title="${esc(title)}" aria-label="${esc(title)}">${count}</button>`;
+}
+
+function analyticsClarityNumbersHtml(view) {
+  const summary = view.summary;
+  const labels = summary.clarityLabels;
+  const head = labels.map(label => (
+    `<th class="ph-col"><span class="clarity-num-dot" style="background:${ClarityDashboard.clarityColor(label)}"></span>${esc(ClarityDashboard.clarityCaption(label))}</th>`
+  )).join('');
+  const totals = {};
+  labels.forEach(label => { totals[label] = 0; });
+  const body = summary.byProject.map(group => {
+    const cells = labels.map(label => {
+      const count = (group.counts && group.counts[label]) || 0;
+      totals[label] += count;
+      return `<td class="num">${analyticsClarityCountHtml(group.key, label, count, `${group.label} · ${ClarityDashboard.clarityCaption(label)}`)}</td>`;
+    }).join('');
+    return `<tr>
+      <td><button type="button" class="clarity-num" data-clarity-count="1" data-clarity-project="${esc(group.key)}" title="Open ${esc(group.label)}">${esc(group.label)}</button></td>
+      ${cells}
+      <td class="num">${analyticsClarityCountHtml(group.key, '', group.total, `${group.label} · total`)}</td>
+    </tr>`;
+  }).join('');
+  const totalCells = labels.map(label => `<td class="num">${totals[label] || '—'}</td>`).join('');
+  return `<table class="pipeline-table clarity-numbers">
+    <thead><tr><th>Project</th>${head}<th class="ph-col">Total</th></tr></thead>
+    <tbody>${body}<tr><td>Total</td>${totalCells}<td class="num">${summary.total}</td></tr></tbody>
+  </table>`;
+}
+
+function drawAnalyticsClarityChart(projects) {
+  const canvas = document.getElementById('c_clarity');
+  const view = analyticsClarityView(projects);
+  if (!canvas || !view || !view.summary.byProject.length || typeof Chart === 'undefined') return;
+  const summary = view.summary;
+  const series = ClarityDashboard.stacked(summary.byProject, summary.clarityLabels);
+  const datasets = series.map(item => ({
+    label: ClarityDashboard.clarityCaption(item.label),
+    clarityValue: item.label,
+    data: item.data,
+    backgroundColor: item.color,
+    borderWidth: 0,
+    maxBarThickness: 28,
+  }));
+  try {
+    S.charts.clarity = new Chart(canvas, {
+      type: 'bar',
+      data: {
+        labels: summary.byProject.map(group => group.label),
+        datasets,
+      },
+      options: {
+        indexAxis: 'y',
+        responsive: true,
+        maintainAspectRatio: false,
+        scales: {
+          x: { stacked: true, beginAtZero: true, ticks: { precision: 0 }, grid: { display: false } },
+          y: { stacked: true, grid: { display: false } },
+        },
+        plugins: {
+          legend: {
+            display: true,
+            position: 'bottom',
+            labels: { boxWidth: 12, boxHeight: 12, padding: 14, font: { size: 12 } },
+          },
+          tooltip: {
+            filter: item => item.raw > 0,
+            callbacks: {
+              label: item => ` ${item.dataset.label}: ${item.raw}`,
+            },
+          },
+        },
+        onHover: (event, elements) => {
+          const target = event.native && event.native.target;
+          if (target) target.style.cursor = elements.length ? 'pointer' : 'default';
+        },
+        onClick: (event, elements) => {
+          const hit = elements && elements[0];
+          if (!hit) return;
+          const group = summary.byProject[hit.index];
+          const dataset = datasets[hit.datasetIndex];
+          if (!group || !dataset || !dataset.data[hit.index]) return;
+          openProjectFromClarityCell(group.key, view.selected, dataset.clarityValue);
+        },
+      },
+    });
+  } catch (err) {
+    console.warn('[clarity]', err);
+    const plot = canvas.parentElement;
+    if (plot) plot.insertAdjacentHTML('beforeend', '<div class="info-box">This A + Clarity chart could not be drawn.</div>');
+  }
+}
+
+function openProjectFromClarityCell(projectKey, scope, clarity) {
+  const proj = getAllProjects().find(item => item.key === projectKey);
+  if (!proj || !window.ClarityDashboard) return;
+  if (!S.activeFilter) S.activeFilter = {};
+  S.activeFilter[proj.key] = null;
+  const data = S._projData && S._projData[proj.key];
+  if (data) data.scopeCommitment = null;
+  const filters = getProjectColFilters(proj.key);
+  filters.q = '';
+  filters.cols = {};
+  const put = (fieldId, value) => {
+    const list = (Array.isArray(value) ? value : (value ? [value] : []))
+      .map(item => (item === ClarityDashboard.UNSET ? PROJ_BLANK : item))
+      .filter(Boolean);
+    if (!list.length) return;
+    filters.cols[fieldId] = new Set(list);
+  };
+  put('cf_scope', scope);
+  put('cf_clarity', clarity);
+  nav(proj.id);
+}
+
 // ── Filtered HTML export (same ticket-list format as the release report) ─────
+
 function exportTicketFromIssue(issue, proj) {
   const f = (issue && issue.fields) || {};
   const status = f.status?.name || '';
@@ -14222,6 +14566,9 @@ function clearMs(id) {
 document.addEventListener('click', e => {
   if (!e.target.closest('.ms-wrap')) {
     document.querySelectorAll('.ms-dropdown.open').forEach(d => d.classList.remove('open'));
+  }
+  if (!e.target.closest('#ws-picker') && !e.target.closest('.ws-add-btn') && !e.target.closest('.ws-bulk-add')) {
+    closeWorkspacePicker();
   }
   if (!e.target.closest('#proj-col-filter-pop') && !e.target.closest('.th-filter')) {
     closeProjectColFilter();
@@ -17917,6 +18264,7 @@ function menuGroupsNow() {
 
 function groupIdForPage(pageId) {
   if (CONFIG_PAGES.has(pageId)) return 'config';
+  if (isWorkspacePageId(pageId)) return 'workspaces';
   const groups = menuGroupsNow();
   if (!groups.length || !window.Menu) return '';
   const projects = getAllProjects();
@@ -18036,6 +18384,7 @@ function rebuildDynamicUI() {
     const groups = menuGroupsNow();
     const buckets = Menu.assignProjects(groups, allProjects);
     menuRoot.innerHTML = groups.map((group, index) => renderMenuGroup(group, buckets[index])).join('');
+    renderWorkspacesNav();
   }
 
   const currentProjectVisible = allProjects.some(p => p.id === S.page);
@@ -19583,6 +19932,772 @@ async function resetMilestones() {
   renderReleasesList();
 }
 
+// ── Workspaces ───────────────────────────────────────────────────────────────
+let _workspaces = [];
+let _wsPickerItems = [];
+let _wsPendingItems = null;
+let _wsSearch = {};
+let _wsAddOpen = false;
+let _wsFilter = {};
+let _wsStatus = {};
+let _wsMissing = {};
+
+function workspacePageId(id) { return 'ws_' + id; }
+
+function workspaceIdFromPage(page) {
+  const match = /^ws_(w[a-z0-9]{8})$/.exec(String(page || ''));
+  return match ? match[1] : '';
+}
+
+function workspaceById(id) {
+  return _workspaces.find(ws => ws.id === id) || null;
+}
+
+function workspaceByPage(page) {
+  return workspaceById(workspaceIdFromPage(page));
+}
+
+function workspacesForKey(key) {
+  const want = String(key || '').toUpperCase();
+  return _workspaces.filter(ws => (ws.items || []).some(item => item.key === want));
+}
+
+function workspaceAddButton(key) {
+  const normalized = String(key || '').toUpperCase();
+  if (!normalized) return '';
+  const names = workspacesForKey(normalized).map(ws => ws.name);
+  const marked = names.length > 0;
+  const label = marked ? (normalized + ' is in ' + names.join(', ')) : ('Add ' + normalized + ' to a workspace');
+  return `<button type="button" class="ws-add-btn${marked ? ' has-workspace' : ''}" data-key="${esc(normalized)}" aria-label="${esc(label)}" title="${esc(label)}" onclick="event.stopPropagation();openWorkspacePicker(event)">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M6 3h12a1 1 0 0 1 1 1v17l-7-4-7 4V4a1 1 0 0 1 1-1z"/></svg>
+  </button>`;
+}
+
+function paintWorkspaceButtons() {
+  document.querySelectorAll('.ws-add-btn').forEach(btn => {
+    const names = workspacesForKey(btn.dataset.key).map(ws => ws.name);
+    const marked = names.length > 0;
+    btn.classList.toggle('has-workspace', marked);
+    const label = marked ? (btn.dataset.key + ' is in ' + names.join(', ')) : ('Add ' + btn.dataset.key + ' to a workspace');
+    btn.title = label;
+    btn.setAttribute('aria-label', label);
+  });
+}
+
+function ensureWorkspacePages() {
+  const content = document.getElementById('content');
+  if (!content) return;
+  const wanted = new Set(_workspaces.map(ws => 'page-' + workspacePageId(ws.id)));
+  content.querySelectorAll('.workspace-page').forEach(el => {
+    if (!wanted.has(el.id)) el.remove();
+  });
+  _workspaces.forEach(ws => {
+    const id = 'page-' + workspacePageId(ws.id);
+    let page = document.getElementById(id);
+    if (!page) {
+      page = document.createElement('div');
+      page.id = id;
+      content.appendChild(page);
+    }
+    const active = page.classList.contains('active');
+    page.className = 'page workspace-page proj-page' + (active ? ' active' : '');
+  });
+}
+
+function workspacesNavHtml() {
+  const open = isMenuGroupOpen('workspaces');
+  const items = _workspaces.map(ws => {
+    const page = workspacePageId(ws.id);
+    const count = (ws.items || []).length;
+    return `<button type="button" class="nav-item" id="nav-${esc(page)}" data-page="${esc(page)}" title="${esc(ws.name)}">
+      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M6 3h12a1 1 0 0 1 1 1v17l-7-4-7 4V4a1 1 0 0 1 1-1z"/></svg>
+      <span class="nav-label">${esc(ws.name)}</span>
+      <span class="nav-label ws-count">${count}</span>
+    </button>`;
+  }).join('');
+  return `<div id="menu-workspaces"><div class="nav-group${open ? '' : ' is-collapsed'}" data-group="workspaces">
+    <button type="button" class="nav-group-toggle" data-group="workspaces" aria-expanded="${open ? 'true' : 'false'}" aria-controls="nav-group-workspaces">
+      <svg class="nav-group-chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"/></svg>
+      <span class="nav-label">Workspaces</span>
+    </button>
+    <div class="nav-group-body" id="nav-group-workspaces">
+      ${items}
+      <button type="button" class="nav-item" id="nav-ws-new" title="New workspace" onclick="openCreateWorkspace()">
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+        <span class="nav-label">New workspace</span>
+      </button>
+    </div>
+  </div></div>`;
+}
+
+function renderWorkspacesNav() {
+  const menuRoot = document.getElementById('menu-groups');
+  if (!menuRoot) return;
+  const html = workspacesNavHtml();
+  const host = document.getElementById('menu-workspaces');
+  if (host) host.outerHTML = html;
+  else menuRoot.insertAdjacentHTML('afterbegin', html);
+  const navBtn = document.getElementById('nav-' + S.page);
+  if (navBtn) navBtn.classList.add('active');
+}
+
+function applyWorkspacesPayload(data) {
+  _workspaces = data && Array.isArray(data.workspaces) ? data.workspaces : [];
+  ensureWorkspacePages();
+  renderWorkspacesNav();
+  paintWorkspaceButtons();
+  if (!isWorkspacePageId(S.page)) return;
+  if (workspaceByPage(S.page)) renderWorkspacePage();
+  else nav(typeof getDefaultProjectPage === 'function' && S.creds.url ? getDefaultProjectPage() : 'setup');
+}
+
+async function loadWorkspaces() {
+  try {
+    const response = await authFetch('/api/workspaces');
+    if (!response.ok) return;
+    const data = await response.json();
+    _workspaces = Array.isArray(data.workspaces) ? data.workspaces : [];
+    ensureWorkspacePages();
+    renderWorkspacesNav();
+  } catch (err) {
+    console.warn('[workspaces]', err.message);
+  }
+}
+
+async function workspaceRequest(path, options) {
+  const response = await authFetch(path, options);
+  const text = await response.text();
+  let data = {};
+  try { data = text ? JSON.parse(text) : {}; } catch (err) { data = {}; }
+  if (!response.ok) {
+    if (data.error) throw new Error(data.error);
+    if (response.status === 404) {
+      throw new Error('Workspace saving is not loaded. Stop the dashboard and start it again, then retry.');
+    }
+    throw new Error('Workspace request failed (' + response.status + ').');
+  }
+  return data;
+}
+
+async function addWorkspaceItems(id, items) {
+  let last = null;
+  const list = items || [];
+  for (let i = 0; i < list.length; i += 200) {
+    const slice = list.slice(i, i + 200);
+    last = await workspaceRequest('/api/workspaces/' + encodeURIComponent(id) + '/items', {
+      method: 'POST',
+      body: JSON.stringify({ keys: slice.map(item => item.key), items: slice }),
+    });
+  }
+  return last;
+}
+
+function setWorkspaceStatus(id, message, isError) {
+  _wsStatus[id] = { message: message || '', error: !!isError };
+}
+
+function cachedIssueByKey(key) {
+  const want = String(key || '').toUpperCase();
+  const data = S._projData || {};
+  const projKeys = Object.keys(data);
+  for (let i = 0; i < projKeys.length; i++) {
+    const issues = (data[projKeys[i]] && data[projKeys[i]].issues) || [];
+    for (let j = 0; j < issues.length; j++) {
+      if (String(issues[j].key || '').toUpperCase() === want) return issues[j];
+    }
+  }
+  return null;
+}
+
+function workspaceSnapshotFromIssue(issue) {
+  const fields = (issue && issue.fields) || {};
+  const key = String((issue && issue.key) || '').toUpperCase();
+  return {
+    key,
+    summary: fields.summary || '',
+    status: (fields.status && fields.status.name) || '',
+    type: (fields.issuetype && fields.issuetype.name) || '',
+    project: (fields.project && fields.project.key) || (key.split('-')[0] || ''),
+    priority: (fields.priority && fields.priority.name) || '',
+    assignee: (fields.assignee && fields.assignee.displayName) || '',
+  };
+}
+
+function pickerItemsFrom(button) {
+  if (button && button.dataset.proj) {
+    const keys = bulkSelectedKeys(button.dataset.proj);
+    return keys.map(key => {
+      const issue = cachedIssueByKey(key);
+      return issue ? workspaceSnapshotFromIssue(issue) : { key: String(key).toUpperCase() };
+    }).filter(item => item.key);
+  }
+  const key = button && button.dataset.key;
+  if (!key) return [];
+  const issue = cachedIssueByKey(key);
+  return [issue ? workspaceSnapshotFromIssue(issue) : { key: String(key).toUpperCase() }];
+}
+
+function closeWorkspacePicker() {
+  const picker = document.getElementById('ws-picker');
+  if (picker) picker.hidden = true;
+}
+
+function pickerMembership(ws) {
+  const keys = _wsPickerItems.map(item => item.key);
+  const have = new Set((ws.items || []).map(item => item.key));
+  const inside = keys.filter(key => have.has(key)).length;
+  return {
+    checked: keys.length > 0 && inside === keys.length,
+    indeterminate: inside > 0 && inside < keys.length,
+  };
+}
+
+function paintWorkspacePicker() {
+  const picker = document.getElementById('ws-picker');
+  if (!picker) return;
+  const count = _wsPickerItems.length;
+  const noun = count === 1 ? _wsPickerItems[0].key : (count + ' tickets');
+  const rows = _workspaces.map(ws => {
+    return `<label class="ws-picker-row"><input type="checkbox" id="ws-pick-${esc(ws.id)}" onchange="onWorkspacePickerToggle('${esc(ws.id)}', this.checked)"><span>${esc(ws.name)}</span></label>`;
+  }).join('');
+  picker.innerHTML = `<div class="ws-picker-title">Add ${esc(noun)} to</div>`
+    + (rows ? `<div class="ws-picker-list">${rows}</div>` : `<p class="ws-picker-empty">No workspaces yet. Create one and these tickets will be added to it.</p><button type="button" class="btn btn-sm primary" onclick="openCreateWorkspace(true)">New workspace</button>`)
+    + `<p class="ws-picker-error" id="ws-picker-error"></p>`;
+  _workspaces.forEach(ws => {
+    const input = document.getElementById('ws-pick-' + ws.id);
+    if (!input) return;
+    const state = pickerMembership(ws);
+    input.checked = state.checked;
+    input.indeterminate = state.indeterminate;
+  });
+}
+
+function openWorkspacePicker(event) {
+  event.stopPropagation();
+  const button = event.currentTarget;
+  _wsPickerItems = pickerItemsFrom(button);
+  if (!_wsPickerItems.length) return;
+  let picker = document.getElementById('ws-picker');
+  if (!picker) {
+    picker = document.createElement('div');
+    picker.id = 'ws-picker';
+    picker.setAttribute('role', 'dialog');
+    picker.setAttribute('aria-label', 'Add to workspace');
+    document.body.appendChild(picker);
+  }
+  paintWorkspacePicker();
+  picker.hidden = false;
+  const rect = button.getBoundingClientRect();
+  const width = picker.offsetWidth || 280;
+  let left = Math.min(rect.left, window.innerWidth - width - 8);
+  if (left < 8) left = 8;
+  let top = rect.bottom + 6;
+  picker.style.left = left + 'px';
+  picker.style.top = top + 'px';
+  const height = picker.offsetHeight;
+  if (top + height > window.innerHeight - 8) picker.style.top = Math.max(8, rect.top - height - 6) + 'px';
+}
+
+async function onWorkspacePickerToggle(wsId, checked) {
+  const input = document.getElementById('ws-pick-' + wsId);
+  if (input) input.disabled = true;
+  const keys = _wsPickerItems.map(item => item.key);
+  try {
+    const data = checked
+      ? await addWorkspaceItems(wsId, _wsPickerItems)
+      : await workspaceRequest('/api/workspaces/' + encodeURIComponent(wsId) + '/items/remove', {
+        method: 'POST',
+        body: JSON.stringify({ keys }),
+      });
+    applyWorkspacesPayload(data);
+    const picker = document.getElementById('ws-picker');
+    if (picker && !picker.hidden) paintWorkspacePicker();
+  } catch (err) {
+    const error = document.getElementById('ws-picker-error');
+    if (error) error.textContent = err.message;
+    if (input) input.checked = !checked;
+  } finally {
+    if (input) input.disabled = false;
+  }
+}
+
+function openCreateWorkspace(keepPending) {
+  closeWorkspacePicker();
+  _wsPendingItems = keepPending && _wsPickerItems.length ? _wsPickerItems.slice() : null;
+  const root = document.getElementById('ws-create-root');
+  const input = document.getElementById('ws-create-name');
+  const error = document.getElementById('ws-create-error');
+  if (error) error.textContent = '';
+  if (input) input.value = '';
+  if (root) root.hidden = false;
+  if (input) input.focus();
+}
+
+function closeCreateWorkspace() {
+  const root = document.getElementById('ws-create-root');
+  if (root) root.hidden = true;
+  _wsPendingItems = null;
+}
+
+function onCreateWorkspaceKey(event) {
+  if (event.key === 'Enter') { event.preventDefault(); submitCreateWorkspace(); }
+  if (event.key === 'Escape') closeCreateWorkspace();
+}
+
+async function submitCreateWorkspace() {
+  const input = document.getElementById('ws-create-name');
+  const error = document.getElementById('ws-create-error');
+  const button = document.getElementById('ws-create-submit');
+  const name = input ? input.value : '';
+  if (button) button.disabled = true;
+  try {
+    const created = await workspaceRequest('/api/workspaces', {
+      method: 'POST',
+      body: JSON.stringify({ name }),
+    });
+    const pending = _wsPendingItems ? _wsPendingItems.slice() : [];
+    _wsPendingItems = null;
+    let data = created;
+    if (pending.length && created.createdId) {
+      try {
+        data = await addWorkspaceItems(created.createdId, pending);
+        setWorkspaceStatus(created.createdId, 'Added ' + pending.length + ' ticket' + (pending.length === 1 ? '' : 's') + '.');
+      } catch (err) {
+        setWorkspaceStatus(created.createdId, err.message, true);
+      }
+    }
+    applyWorkspacesPayload(data);
+    closeCreateWorkspace();
+    setMenuGroupOpen('workspaces', true);
+    nav(workspacePageId(created.createdId));
+  } catch (err) {
+    if (error) error.textContent = err.message;
+  } finally {
+    if (button) button.disabled = false;
+  }
+}
+
+function jiraAuthHeader() {
+  const creds = S.creds || {};
+  if (!creds.url || !creds.email || !creds.token) {
+    throw new Error('Save a Jira API token in Jira Setup before searching.');
+  }
+  return {
+    url: String(creds.url).replace(/\/+$/, ''),
+    auth: 'Basic ' + btoa(unescape(encodeURIComponent(creds.email + ':' + creds.token))),
+  };
+}
+
+async function fetchJiraByJql(jql, limit) {
+  const creds = jiraAuthHeader();
+  const cap = Math.max(1, Math.min(500, limit || 100));
+  const fields = ['summary', 'status', 'issuetype', 'priority', 'assignee', 'project', 'updated'];
+  const issues = [];
+  let nextPageToken = null;
+  let isLast = false;
+  while (issues.length < cap) {
+    const payload = { jql, fields, maxResults: Math.min(100, cap - issues.length) };
+    if (nextPageToken) payload.nextPageToken = nextPageToken;
+    const proxyUrl = PROXY + '?target=' + encodeURIComponent(creds.url + '/rest/api/3/search/jql');
+    const response = await fetch(proxyUrl, {
+      method: 'POST',
+      headers: { Authorization: creds.auth, Accept: 'application/json', 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload),
+    });
+    const text = await response.text();
+    let json = {};
+    try { json = text ? JSON.parse(text) : {}; } catch (err) { json = {}; }
+    if (!response.ok) {
+      const detail = (json.errorMessages && json.errorMessages.join(' ')) || json.message || String(text || '').slice(0, 240);
+      throw new Error(detail || ('Jira returned HTTP ' + response.status));
+    }
+    (json.issues || []).forEach(issue => issues.push(issue));
+    isLast = json.isLast !== false;
+    nextPageToken = json.nextPageToken || null;
+    if (isLast || !nextPageToken) { isLast = true; break; }
+  }
+  return { issues: issues.slice(0, cap), truncated: !isLast };
+}
+
+function onWorkspaceQueryInput(id, value) {
+  if (!_wsSearch[id]) _wsSearch[id] = { issues: [], selected: new Set() };
+  _wsSearch[id].query = value;
+}
+
+function onWorkspaceFilterInput(id, value, caret) {
+  _wsFilter[id] = value;
+  renderWorkspacePage();
+  const input = document.getElementById('ws-filter');
+  if (input) {
+    input.focus();
+    if (caret != null) {
+      try { input.setSelectionRange(caret, caret); } catch (err) { /* ignore */ }
+    }
+  }
+}
+
+function toggleWorkspaceSearchHit(id, key, checked) {
+  const state = _wsSearch[id];
+  if (!state) return;
+  if (!state.selected) state.selected = new Set();
+  if (checked) state.selected.add(key);
+  else state.selected.delete(key);
+}
+
+async function searchWorkspaceTickets(id) {
+  const input = document.getElementById('ws-query');
+  const query = input ? input.value : ((_wsSearch[id] && _wsSearch[id].query) || '');
+  let jql = '';
+  try {
+    if (!window.WorkspaceQuery) throw new Error('Search is unavailable. Refresh the page.');
+    jql = WorkspaceQuery.workspaceSearchJql(query);
+  } catch (err) {
+    _wsSearch[id] = { query, issues: [], error: err.message, selected: new Set(), loading: false };
+    renderWorkspacePage();
+    return;
+  }
+  _wsSearch[id] = { query, jql, issues: [], error: '', selected: new Set(), loading: true, truncated: false };
+  renderWorkspacePage();
+  try {
+    const result = await fetchJiraByJql(jql, 100);
+    _wsSearch[id] = { query, jql, issues: result.issues, truncated: result.truncated, error: '', loading: false, selected: new Set() };
+  } catch (err) {
+    _wsSearch[id] = { query, jql, issues: [], error: err.message, loading: false, selected: new Set(), truncated: false };
+  }
+  renderWorkspacePage();
+}
+
+function onWorkspaceQueryKey(event, id) {
+  if (event.key === 'Enter') { event.preventDefault(); searchWorkspaceTickets(id); }
+}
+
+async function addWorkspaceSearchResults(id, mode) {
+  const state = _wsSearch[id] || {};
+  const ws = workspaceById(id);
+  if (!ws) return;
+  let issues = state.issues || [];
+  try {
+    if (mode === 'all') {
+      if (!issues.length && !state.jql) {
+        setWorkspaceStatus(id, 'Search before adding tickets.', true);
+        renderWorkspacePage();
+        return;
+      }
+      if (state.truncated) {
+        if (!confirm('Add every match, up to 500 tickets, to "' + ws.name + '"?')) return;
+        const more = await fetchJiraByJql(state.jql, 500);
+        issues = more.issues;
+      } else if (issues.length > 20 && !confirm('Add ' + issues.length + ' tickets to "' + ws.name + '"?')) {
+        return;
+      }
+    } else {
+      const selected = state.selected || new Set();
+      issues = issues.filter(issue => selected.has(String(issue.key || '').toUpperCase()));
+      if (!issues.length) {
+        setWorkspaceStatus(id, 'Select at least one search result.', true);
+        renderWorkspacePage();
+        return;
+      }
+    }
+    if (!issues.length) {
+      setWorkspaceStatus(id, 'No tickets matched.', true);
+      renderWorkspacePage();
+      return;
+    }
+    const items = issues.map(workspaceSnapshotFromIssue).filter(item => item.key);
+    const data = await addWorkspaceItems(id, items);
+    setWorkspaceStatus(id, 'Added ' + items.length + ' ticket' + (items.length === 1 ? '' : 's') + '.');
+    applyWorkspacesPayload(data);
+  } catch (err) {
+    setWorkspaceStatus(id, err.message, true);
+    renderWorkspacePage();
+  }
+}
+
+async function removeWorkspaceItem(id, key) {
+  try {
+    const data = await workspaceRequest('/api/workspaces/' + encodeURIComponent(id) + '/items/remove', {
+      method: 'POST',
+      body: JSON.stringify({ keys: [key] }),
+    });
+    setWorkspaceStatus(id, 'Removed ' + key + '.');
+    applyWorkspacesPayload(data);
+  } catch (err) {
+    setWorkspaceStatus(id, err.message, true);
+    renderWorkspacePage();
+  }
+}
+
+async function refreshWorkspaceFromJira(id) {
+  const ws = workspaceById(id);
+  if (!ws) return;
+  const keys = (ws.items || []).map(item => item.key);
+  if (!keys.length) {
+    setWorkspaceStatus(id, 'Add a ticket before refreshing.', true);
+    renderWorkspacePage();
+    return;
+  }
+  setWorkspaceStatus(id, 'Refreshing from Jira…');
+  renderWorkspacePage();
+  try {
+    const issues = [];
+    for (let i = 0; i < keys.length; i += 50) {
+      const slice = keys.slice(i, i + 50);
+      const jql = slice.length === 1 ? ('key = ' + slice[0]) : ('key in (' + slice.join(', ') + ')');
+      const result = await fetchJiraByJql(jql, slice.length);
+      result.issues.forEach(issue => issues.push(issue));
+    }
+    const found = new Set(issues.map(issue => String(issue.key || '').toUpperCase()));
+    _wsMissing[id] = keys.filter(key => !found.has(key));
+    if (issues.length) {
+      const data = await addWorkspaceItems(id, issues.map(workspaceSnapshotFromIssue));
+      const missing = _wsMissing[id].length;
+      setWorkspaceStatus(id, missing
+        ? ('Refreshed ' + issues.length + '. ' + missing + ' not found in Jira.')
+        : ('Refreshed ' + issues.length + ' ticket' + (issues.length === 1 ? '' : 's') + '.'));
+      applyWorkspacesPayload(data);
+      return;
+    }
+    setWorkspaceStatus(id, 'None of these tickets were found in Jira.', true);
+    renderWorkspacePage();
+  } catch (err) {
+    setWorkspaceStatus(id, err.message, true);
+    renderWorkspacePage();
+  }
+}
+
+function workspaceStatusBadge(status) {
+  const text = String(status || '');
+  if (!text) return '';
+  const sl = text.toLowerCase();
+  const cls = /progress|active|dev/i.test(sl) ? 'b-ip'
+    : /done|closed|resolved|complete|groomed/i.test(sl) ? 'b-done'
+    : /block/i.test(sl) ? 'b-blocked'
+    : /review|test|qa/i.test(sl) ? 'b-review'
+    : 'b-todo';
+  return `<span class="badge ${cls}">${esc(text)}</span>`;
+}
+
+function openWorkspaceRename() {
+  const ws = workspaceByPage(S.page);
+  const root = document.getElementById('ws-rename-root');
+  const input = document.getElementById('ws-rename');
+  const error = document.getElementById('ws-rename-error');
+  if (!ws || !root || !input) return;
+  if (error) error.textContent = '';
+  input.value = ws.name;
+  root.hidden = false;
+  input.focus();
+  input.select();
+}
+
+function closeWorkspaceRename() {
+  const root = document.getElementById('ws-rename-root');
+  if (root) root.hidden = true;
+}
+
+async function commitWorkspaceRename() {
+  const id = workspaceIdFromPage(S.page);
+  const input = document.getElementById('ws-rename');
+  const error = document.getElementById('ws-rename-error');
+  const button = document.getElementById('ws-rename-submit');
+  const ws = workspaceById(id);
+  if (!input || !ws) return;
+  const name = input.value.trim();
+  if (!name || name === ws.name) { closeWorkspaceRename(); return; }
+  if (button) button.disabled = true;
+  try {
+    const data = await workspaceRequest('/api/workspaces/' + encodeURIComponent(id), {
+      method: 'PUT',
+      body: JSON.stringify({ name }),
+    });
+    closeWorkspaceRename();
+    if (workspaceById(id)) setWorkspaceStatus(id, 'Renamed to ' + name + '.');
+    applyWorkspacesPayload(data);
+    if (S.page === workspacePageId(id)) document.getElementById('topbar-title').textContent = name;
+  } catch (err) {
+    if (error) error.textContent = err.message;
+  } finally {
+    if (button) button.disabled = false;
+  }
+}
+
+function onWorkspaceRenameKey(event) {
+  if (event.key === 'Enter') { event.preventDefault(); commitWorkspaceRename(); }
+  if (event.key === 'Escape') { event.preventDefault(); closeWorkspaceRename(); }
+}
+
+async function deleteWorkspace(id) {
+  const ws = workspaceById(id);
+  if (!ws) return;
+  if (!confirm('Delete workspace "' + ws.name + '"? Tickets stay in Jira.')) return;
+  try {
+    const data = await workspaceRequest('/api/workspaces/' + encodeURIComponent(id), { method: 'DELETE' });
+    delete _wsSearch[id];
+    _wsAddOpen = false;
+    delete _wsFilter[id];
+    delete _wsStatus[id];
+    delete _wsMissing[id];
+    applyWorkspacesPayload(data);
+  } catch (err) {
+    setWorkspaceStatus(id, err.message, true);
+    renderWorkspacePage();
+  }
+}
+
+function renderWorkspacePage() {
+  if (!isWorkspacePageId(S.page)) return;
+  const id = workspaceIdFromPage(S.page);
+  const ws = workspaceById(id);
+  const page = document.getElementById('page-' + S.page);
+  if (!page) return;
+  const queryEl = document.getElementById('ws-query');
+  const queryFocused = document.activeElement === queryEl;
+  const queryCaret = queryEl ? queryEl.selectionStart : null;
+  if (!ws) {
+    page.innerHTML = '<div class="state-box"><span>That workspace was deleted.</span></div>';
+    setExportSnapshot({ page: S.page, title: 'Workspace', tickets: [], filename: 'workspace.html', emptyMessage: 'Nothing to export.' });
+    return;
+  }
+  const filter = _wsFilter[id] || '';
+  const terms = filter.trim().toLowerCase().split(/\s+/).filter(Boolean);
+  const missing = new Set(_wsMissing[id] || []);
+  const items = (ws.items || []).slice().reverse().filter(item => {
+    if (!terms.length) return true;
+    const hay = [item.key, item.summary, item.status, item.type, item.project, item.priority, item.assignee].join(' ').toLowerCase();
+    return terms.every(term => hay.indexOf(term) >= 0);
+  });
+  const status = _wsStatus[id] || {};
+  const search = _wsSearch[id] || { query: '', issues: [], selected: new Set() };
+  const have = new Set((ws.items || []).map(item => item.key));
+  const resultRows = (search.issues || []).map(issue => {
+    const snap = workspaceSnapshotFromIssue(issue);
+    const checked = search.selected && search.selected.has(snap.key);
+    const already = have.has(snap.key);
+    return `<label class="ws-result">
+      <input type="checkbox" ${checked ? 'checked' : ''} onchange="toggleWorkspaceSearchHit('${esc(id)}', '${esc(snap.key)}', this.checked)" aria-label="Select ${esc(snap.key)}">
+      <a class="key-link" href="${esc(S.creds.url ? S.creds.url + '/browse/' + snap.key : '#')}" target="_blank" rel="noopener">${esc(snap.key)}</a>
+      <span class="sum" title="${esc(snap.summary)}">${esc(snap.summary)}</span>
+      <span class="meta">${esc([snap.status, snap.type, already ? 'In workspace' : ''].filter(Boolean).join(' · '))}</span>
+    </label>`;
+  }).join('');
+  const memberRows = items.map(item => {
+    const href = S.creds.url ? S.creds.url + '/browse/' + item.key : '';
+    const open = href ? ` onclick='if(!event.target.closest("button,a")) window.open(${JSON.stringify(href)},"_blank")' style="cursor:pointer"` : '';
+    const statusText = missing.has(item.key) ? 'Not in Jira' : (item.status || '');
+    const typeName = String(item.type || '');
+    const typeClass = typeName.toLowerCase() === 'epic' ? 'type-epic' : typeName.toLowerCase() === 'enhancement' ? 'type-enh' : 'type-other';
+    return `<tr${open}>
+      <td>${href ? `<a class="key-link" href="${esc(href)}" target="_blank" rel="noopener">${esc(item.key)}</a>` : esc(item.key)}</td>
+      <td class="ws-summary" title="${esc(item.summary || '')}">${esc(item.summary || '')}</td>
+      <td>${typeName ? `<span class="${typeClass}">${esc(typeName)}</span>` : ''}</td>
+      <td>${workspaceStatusBadge(statusText)}</td>
+      <td>${renderPriorityCell(item.priority || '')}</td>
+      <td title="${esc(item.assignee || '')}">${esc(item.assignee || '')}</td>
+      <td title="${esc(item.project || '')}">${esc(item.project || '')}</td>
+      <td><button type="button" class="bulk-pick-remove" aria-label="Remove ${esc(item.key)}" title="Remove ${esc(item.key)}" onclick='event.stopPropagation();removeWorkspaceItem(${JSON.stringify(id)}, ${JSON.stringify(item.key)})'>×</button></td>
+    </tr>`;
+  }).join('');
+  const searchNote = search.loading
+    ? 'Searching Jira…'
+    : (search.truncated ? 'Showing the first 100 matches. Add all fetches up to 500.' : '');
+  const addPopup = _wsAddOpen ? `
+    <div class="ws-create-backdrop" onclick="closeWorkspaceSearch()"></div>
+    <div class="ws-search-panel" role="dialog" aria-modal="true" aria-labelledby="ws-search-title">
+      <div class="ws-search-head">
+        <h2 id="ws-search-title">Add tickets</h2>
+        <button type="button" class="btn btn-sm" onclick="closeWorkspaceSearch()">Close</button>
+      </div>
+      <p class="ws-kicker">Search a key such as NFS-123, several keys, or a JQL query. Words without JQL operators search Jira text.</p>
+      <input id="ws-query" class="ws-query" type="search" placeholder="NFS-123 or project = NFS AND status = Open" aria-label="Search tickets" value="${esc(search.query || '')}" oninput="onWorkspaceQueryInput('${esc(id)}', this.value)" onkeydown="onWorkspaceQueryKey(event, '${esc(id)}')">
+      <div class="ws-search-actions">
+        <button type="button" class="btn btn-sm primary" onclick="searchWorkspaceTickets('${esc(id)}')" ${search.loading ? 'disabled' : ''}>Search</button>
+        <button type="button" class="btn btn-sm" onclick="addWorkspaceSearchResults('${esc(id)}', 'selected')" ${(search.issues || []).length ? '' : 'disabled'}>Add selected</button>
+        <button type="button" class="btn btn-sm" onclick="addWorkspaceSearchResults('${esc(id)}', 'all')" ${(search.issues || []).length ? '' : 'disabled'}>Add all</button>
+        <span class="ws-status${search.error ? ' is-error' : ''}">${esc(search.error || searchNote)}</span>
+      </div>
+      ${resultRows ? `<div class="ws-results">${resultRows}</div>` : ''}
+    </div>` : '';
+  const total = (ws.items || []).length;
+  const countLabel = items.length === total ? `${total} issue${total === 1 ? '' : 's'}` : `${items.length} of ${total} issues`;
+  page.innerHTML = `
+    <div class="proj-page-top">
+      <div class="proj-header">
+        <div class="proj-title">
+          <h2>${esc(ws.name)}</h2>
+          <button type="button" class="ws-edit-btn" onclick="openWorkspaceRename()" aria-label="Rename workspace" title="Rename workspace"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M12 20h9"/><path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4 12.5-12.5z"/></svg></button>
+          <span class="proj-title-actions">
+            <button type="button" class="btn btn-sm primary" onclick="openWorkspaceSearch()">Add tickets</button>
+            <button type="button" class="btn btn-sm" onclick="refreshWorkspaceFromJira('${esc(id)}')">Refresh from Jira</button>
+            <button type="button" class="btn btn-sm" style="color:var(--red)" onclick="deleteWorkspace('${esc(id)}')">Delete</button>
+          </span>
+        </div>
+      </div>
+      ${status.message ? `<p class="ws-status${status.error ? ' is-error' : ''}">${esc(status.message)}</p>` : ''}
+    </div>
+    <div class="proj-issues">
+      <div class="proj-table-tools">
+        <input id="ws-filter" class="proj-search" type="search" placeholder="Search issues…" aria-label="Filter tickets in this workspace" value="${esc(filter)}" oninput="onWorkspaceFilterInput('${esc(id)}', this.value, this.selectionStart)">
+        <span class="proj-count">${countLabel}</span>
+      </div>
+      ${memberRows
+        ? `<div class="table-wrap"><table class="issues ws-issue-grid" aria-label="${esc(ws.name)} issues"><thead><tr><th>Key</th><th class="ws-summary">Summary</th><th>Type</th><th>Status</th><th>Priority</th><th>Assignee</th><th>Project</th><th></th></tr></thead><tbody>${memberRows}</tbody></table></div>`
+        : `<div class="state-box"><span>${filter ? 'No issues match the current filters.' : 'No issues yet. Add one from a project, or use Add tickets.'}</span></div>`}
+    </div>
+    ${addPopup}`;
+  setExportSnapshot({
+    page: S.page,
+    title: ws.name,
+    kicker: 'Workspace',
+    tickets: items.map(item => ({
+      key: item.key,
+      summary: item.summary || '',
+      type: item.type || '',
+      priority: item.priority || '',
+      status: item.status || '',
+      phase: '',
+      assignee: item.assignee || '',
+      estimate: '',
+      projectKey: item.project || '',
+      projectName: item.project || '',
+    })),
+    filename: (ws.name || 'workspace').replace(/[^\w.-]+/g, '-').replace(/^-|-$/g, '') + '.html',
+    emptyMessage: 'This workspace has no tickets to export.',
+  });
+  if (queryFocused) {
+    const next = document.getElementById('ws-query');
+    if (next) {
+      next.focus();
+      if (queryCaret != null) {
+        try { next.setSelectionRange(queryCaret, queryCaret); } catch (err) { /* ignore */ }
+      }
+    }
+  }
+}
+
+function openWorkspaceSearch() {
+  _wsAddOpen = true;
+  renderWorkspacePage();
+  const input = document.getElementById('ws-query');
+  if (input) input.focus();
+}
+
+function closeWorkspaceSearch() {
+  if (!_wsAddOpen) return;
+  _wsAddOpen = false;
+  renderWorkspacePage();
+}
+
+document.addEventListener('keydown', event => {
+  if (event.key !== 'Escape') return;
+  const create = document.getElementById('ws-create-root');
+  if (create && !create.hidden) { closeCreateWorkspace(); return; }
+  const rename = document.getElementById('ws-rename-root');
+  if (rename && !rename.hidden) { closeWorkspaceRename(); return; }
+  if (_wsAddOpen) { closeWorkspaceSearch(); return; }
+  closeWorkspacePicker();
+});
+
 // ── Init ──────────────────────────────────────────────────────────────────────
 async function initApp() {
   applyStoredMenuGroup('config');
@@ -19614,6 +20729,7 @@ async function initApp() {
   if (storeLoaded) {
     await loadTicketNotes();
     await loadUserPreferences();
+    await loadWorkspaces();
   }
   updateGlobalReleaseSelector();
   await loadDefaultProjects();

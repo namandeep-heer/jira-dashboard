@@ -101,7 +101,8 @@ FIRST TIME USE
   `match` must be escaped (`\\s`). Restart the proxy and refresh after editing.
 
   Accounts, sessions, encrypted Jira API tokens, the selected market release,
-  synced Jira issue cache, and activity logs stay in `data/store.json`. No
+  synced Jira issue cache, and activity logs stay in `data/store.json`.
+  Named workspaces stay in `data/workspaces.json`. No
   cloud database or extra service is required. The connector scheduler runs
   while the dashboard tab is open.
 
@@ -167,6 +168,11 @@ FEATURES
     * Download as PowerPoint for a company all-hands, plus an HTML list of every ticket
     * Group the HTML ticket list by status, by project, or by project then status when generating the report
     * Optional SpaceXAI write-up of ticket descriptions when `XAI_API_KEY` is set in `config/.env`
+  - Workspaces for tickets you are watching or tracking
+    * Named lists in the sidebar, saved in data/workspaces.json
+    * Create, rename, and delete a workspace
+    * Add or remove a ticket from its project row, or add the rows you selected
+    * On a workspace, search by ticket key or JQL and add one match or all matches
   - Click any row to open the issue in Jira
   - Dark mode (follows system preference)
 
