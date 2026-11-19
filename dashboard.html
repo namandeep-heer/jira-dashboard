@@ -380,6 +380,31 @@ span.clarity-num:hover { background: none; color: var(--text); }
 .clarity-proj { display: inline-flex; align-items: center; gap: 8px; font-weight: 600; padding-left: 0; }
 .clarity-num:hover { background: var(--bg2); color: var(--blue); }
 .clarity-zero { color: var(--text3); font-weight: 400; }
+#breakdown-list-root { position: fixed; inset: 0; z-index: 1000; }
+#breakdown-list-root[hidden] { display: none !important; }
+.breakdown-list-backdrop { position: absolute; inset: 0; background: rgba(0,0,0,.28); }
+.breakdown-list-panel { position: absolute; top: 50%; left: 50%; width: min(960px, calc(100vw - 32px)); max-height: min(80vh, 760px); display: flex; flex-direction: column; background: var(--bg); border: 0.5px solid var(--border); border-radius: 18px; box-shadow: 0 24px 60px rgba(0,0,0,.16); transform: translate(-50%, -50%); }
+.breakdown-list-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 16px; padding: 20px 20px 0; }
+.breakdown-list-head h2 { font-size: 17px; font-weight: 600; letter-spacing: -0.02em; margin: 0; }
+.breakdown-list-head p { margin: 6px 0 0; font-size: 13px; color: var(--text2); }
+.breakdown-list-actions { display: flex; gap: 8px; flex-shrink: 0; }
+.breakdown-list-max { display: inline-flex; align-items: center; gap: 6px; }
+#breakdown-list-root.is-fullscreen .breakdown-list-backdrop { background: var(--bg); }
+#breakdown-list-root.is-fullscreen .breakdown-list-panel { inset: 0; top: 0; left: 0; width: 100%; height: 100%; max-height: none; border-radius: 0; transform: none; }
+.breakdown-list-search { display: flex; align-items: center; gap: 12px; padding: 12px 20px 0; }
+.breakdown-list-search .proj-search { width: min(320px, 100%); }
+.breakdown-list-body { min-height: 0; margin: 12px 0 0; padding: 0 20px 20px; overflow: auto; }
+.breakdown-list-h { display: inline-flex; align-items: center; gap: 4px; }
+.breakdown-list-sort { border: 0; background: none; padding: 0; font: inherit; font-weight: 600; color: inherit; cursor: pointer; }
+.breakdown-list-table th .sort-icon { opacity: .4; margin-left: 3px; font-size: 10px; }
+.breakdown-list-table th.sorted { color: var(--text); }
+.breakdown-list-table th.sorted .sort-icon { opacity: 1; color: var(--blue); }
+#breakdown-list-filter-pop { z-index: 1100; }
+.breakdown-list-table { width: 100%; border-collapse: collapse; font-size: 13px; }
+.breakdown-list-table th, .breakdown-list-table td { padding: 8px 10px; border-bottom: 0.5px solid var(--border); text-align: left; vertical-align: top; }
+.breakdown-list-table th { font-size: 11px; font-weight: 600; color: var(--text3); position: sticky; top: 0; background: var(--bg); white-space: nowrap; }
+.breakdown-list-proj { border: 0; background: none; padding: 0; font: inherit; color: var(--text); cursor: pointer; text-align: left; }
+.breakdown-list-proj:hover { color: var(--blue); }
 
 .table-wrap { overflow: auto; max-height: calc(100vh - 280px); background: var(--bg); border: 0.5px solid var(--border); border-radius: var(--radius-lg); }
 table.issues { width: 100%; border-collapse: collapse; font-size: 12px; }
@@ -1171,6 +1196,7 @@ body.phase-chart-fs-active { overflow: hidden; }
 .ms-footer { display:flex; justify-content:space-between; padding:6px 10px; border-top:0.5px solid var(--border); }
 .ms-footer button { font-size:11px; color:var(--blue); background:none; border:none; cursor:pointer; font-family:inherit; padding:2px 4px; }
 .ms-footer button:hover { text-decoration:underline; }
+.ms-footer button:disabled { color:var(--text3); cursor:default; text-decoration:none; }
 .qi-show-chart { display:inline-flex; align-items:center; gap:6px; padding:6px 10px; border:0.5px solid var(--border2); border-radius:var(--radius); background:var(--bg); color:var(--text); font-size:13px; font-family:inherit; cursor:pointer; white-space:nowrap; user-select:none; }
 .qi-show-chart:hover { background:var(--bg2); }
 .qi-show-chart.is-on { border-color:var(--blue); color:var(--blue); background:var(--blue-bg); }
@@ -1643,6 +1669,17 @@ code { font-family: monospace; font-size: 12px; background: var(--bg3); padding:
       </div>
     </div>
 
+    <div id="breakdown-list-filter-pop" class="proj-col-filter-pop" role="dialog" aria-label="Column filter">
+      <div class="ms-dropdown-search">
+        <input type="text" id="breakdown-list-filter-search" placeholder="Search values…" oninput="filterBreakdownListOptions(this.value)" />
+      </div>
+      <div class="ms-options" id="breakdown-list-filter-opts"></div>
+      <div class="ms-footer">
+        <button type="button" onclick="selectVisibleBreakdownListValues()">Select visible</button>
+        <button type="button" onclick="clearBreakdownListFilter()">Clear</button>
+      </div>
+    </div>
+
     <div id="proj-col-filter-pop" class="proj-col-filter-pop" role="dialog" aria-label="Column filter">
       <div class="ms-dropdown-search">
         <input type="text" id="proj-col-filter-search" placeholder="Search values…" oninput="filterProjectColOptions(this.value)" />
@@ -1699,6 +1736,27 @@ code { font-family: monospace; font-size: 12px; background: var(--bg3); padding:
           <button class="btn" type="button" onclick="closeDeckOptions()">Cancel</button>
           <button class="btn primary" type="button" onclick="confirmDeckOptions()">Download</button>
         </div>
+      </div>
+    </div>
+
+    <div id="breakdown-list-root" hidden>
+      <div class="breakdown-list-backdrop" data-breakdown-list-close="1"></div>
+      <div class="breakdown-list-panel" role="dialog" aria-modal="true" aria-labelledby="breakdown-list-title">
+        <div class="breakdown-list-head">
+          <div>
+            <h2 id="breakdown-list-title"></h2>
+            <p id="breakdown-list-sub"></p>
+          </div>
+          <div class="breakdown-list-actions">
+            <button type="button" class="btn btn-sm breakdown-list-max" id="breakdown-list-max" onclick="toggleBreakdownListFullscreen()" title="Full screen" aria-label="Full screen" aria-pressed="false"></button>
+            <button type="button" class="btn btn-sm" data-breakdown-list-close="1">Close</button>
+          </div>
+        </div>
+        <div class="breakdown-list-search">
+          <input type="search" id="breakdown-list-search" class="proj-search" placeholder="Search tickets…" aria-label="Search tickets" oninput="setBreakdownListSearch(this.value)" />
+          <span id="breakdown-list-count" class="proj-count"></span>
+        </div>
+        <div class="breakdown-list-body" id="breakdown-list-body"></div>
       </div>
     </div>
 
@@ -2110,8 +2168,8 @@ code { font-family: monospace; font-size: 12px; background: var(--bg3); padding:
               <div class="ms-dropdown" id="qi-project-filter-dropdown">
                 <div class="ms-options" id="qi-project-filter-options"></div>
                 <div class="ms-footer">
-                  <button type="button" onclick="clearQualityInsightProjectFilter()">Clear</button>
-                  <button type="button" onclick="selectAllQualityInsightProjects()">Select All</button>
+                  <button type="button" id="qi-project-filter-all" onclick="selectAllQualityInsightProjects()">Select all</button>
+                  <button type="button" id="qi-project-filter-none" onclick="clearQualityInsightProjectFilter()">None</button>
                 </div>
               </div>
             </div>
@@ -2124,8 +2182,8 @@ code { font-family: monospace; font-size: 12px; background: var(--bg3); padding:
               <div class="ms-dropdown" id="qi-jira-project-filter-dropdown">
                 <div class="ms-options" id="qi-jira-project-filter-options"></div>
                 <div class="ms-footer">
-                  <button type="button" onclick="clearJiraProjectFilter('qi')">Clear</button>
-                  <button type="button" onclick="selectAllJiraProjects('qi')">Select All</button>
+                  <button type="button" id="qi-jira-project-filter-all" onclick="selectAllJiraProjects('qi')">Select all</button>
+                  <button type="button" id="qi-jira-project-filter-none" onclick="selectNoJiraProjects('qi')">None</button>
                 </div>
               </div>
             </div>
@@ -2140,6 +2198,20 @@ code { font-family: monospace; font-size: 12px; background: var(--bg3); padding:
                 <div class="ms-footer">
                   <button type="button" onclick="clearQualityPriorityFilter('qi')">Clear</button>
                   <button type="button" onclick="selectAllQualityPriorities('qi')">Select All</button>
+                </div>
+              </div>
+            </div>
+            <div class="ms-wrap">
+              <button class="ms-btn" id="qi-status-filter-btn" type="button" onclick="toggleQualityStatusFilter('qi')">
+                <span id="qi-status-filter-label">All statuses</span>
+                <span class="ms-badge" id="qi-status-filter-count" style="display:none">0</span>
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"/></svg>
+              </button>
+              <div class="ms-dropdown" id="qi-status-filter-dropdown">
+                <div class="ms-options" id="qi-status-filter-options"></div>
+                <div class="ms-footer">
+                  <button type="button" onclick="clearQualityStatusFilter('qi')">Clear</button>
+                  <button type="button" onclick="selectAllQualityStatuses('qi')">Select All</button>
                 </div>
               </div>
             </div>
@@ -5196,13 +5268,28 @@ function applyPendingRouteState(page) {
   }
   if (page === 'quality-insights') {
     const projects = params.get('projects');
-    if (projects) {
+    if (projects === 'none') {
+      S._qiProjectsNone = true;
+      S._qiSelectedProjects = new Set();
+    } else if (projects) {
+      S._qiProjectsNone = false;
       S._qiSelectedProjects = new Set(projects.split(',').map(s => {
         try { return decodeURIComponent(s.trim()); } catch (e) { return s.trim(); }
       }).filter(Boolean));
     }
+    const jiraPick = params.get('jiraProjects');
+    if (jiraPick === 'none') {
+      S._qiJiraProjectsNone = true;
+      S._qiJiraProjectFilter = new Set();
+    }
     if (params.get('showPriority') === '0') S._qiShowPriorityOnChart = false;
     if (params.get('showPriority') === '1') S._qiShowPriorityOnChart = true;
+    const statuses = params.get('statuses');
+    if (statuses) {
+      S._qiStatusFilter = new Set(statuses.split(',').map(s => {
+        try { return decodeURIComponent(s.trim()); } catch (e) { return s.trim(); }
+      }).filter(Boolean));
+    }
   }
 
   if (page === 'release-report') {
@@ -5385,12 +5472,20 @@ function collectRouteParams() {
     if (ticketGroup && ticketGroup !== 'project-status') params.set('ticketGroup', ticketGroup);
     if (document.getElementById('rr-use-ai')?.checked) params.set('ai', '1');
   } else if (page === 'quality-insights') {
-    const queues = csvParam(getSelectedQualityInsightProjects());
-    if (queues) params.set('projects', queues);
-    const jira = csvParam(getSelectedJiraProjects());
-    if (jira) params.set('jiraProjects', jira);
+    if (S._qiProjectsNone) params.set('projects', 'none');
+    else {
+      const queues = csvParam(getSelectedQualityInsightProjects());
+      if (queues && queues.split(',').length < getQualityProjects().length) params.set('projects', queues);
+    }
+    if (S._qiJiraProjectsNone) params.set('jiraProjects', 'none');
+    else {
+      const jira = csvParam(getSelectedJiraProjects());
+      if (jira) params.set('jiraProjects', jira);
+    }
     const priorities = csvParam(getSelectedQualityPriorities());
     if (priorities) params.set('priorities', priorities);
+    const statuses = csvParam(getSelectedQualityStatuses());
+    if (statuses) params.set('statuses', statuses);
     if (S._qiShowPriorityOnChart === false) params.set('showPriority', '0');
   } else if (page === 'team') {
     if (S._msState) {
@@ -8179,6 +8274,20 @@ document.addEventListener('keydown', (ev) => {
     closeTicketNotes();
     return;
   }
+  const breakdownList = document.getElementById('breakdown-list-root');
+  if (breakdownList && !breakdownList.hidden) {
+    ev.preventDefault();
+    ev.stopImmediatePropagation();
+    if (S._breakdownListFilterOpen) closeBreakdownListFilter();
+    else {
+      const listSearch = document.getElementById('breakdown-list-search');
+      if (listSearch && document.activeElement === listSearch && String(listSearch.value || '').trim()) {
+        listSearch.value = '';
+        setBreakdownListSearch('');
+      } else closeBreakdownTotalList();
+    }
+    return;
+  }
   if (_columnViewDialog) {
     ev.preventDefault();
     ev.stopImmediatePropagation();
@@ -10537,16 +10646,21 @@ function ensureAnalyticsViews() {
   if (!devModes.has(S.analyticsViews.dev)) S.analyticsViews.dev = 'table';
   if (!donutModes.has(S.analyticsViews.priority)) S.analyticsViews.priority = 'doughnut';
   if (!donutModes.has(S.analyticsViews.type)) S.analyticsViews.type = 'doughnut';
-  ['clarity', 'custcom', 'custint'].forEach(id => {
+  ['clarity', 'custcom', 'custint', 'qi_custcom'].forEach(id => {
     if (S.analyticsViews[id] !== 'bar' && S.analyticsViews[id] !== 'numbers') S.analyticsViews[id] = 'bar';
   });
+}
+
+function renderBreakdownSurface() {
+  if (S.page === 'quality-insights') renderQualityInsights();
+  else renderAnalytics();
 }
 
 function setAnalyticsView(section, value) {
   ensureAnalyticsViews();
   S.analyticsViews[section] = value;
   persist();
-  renderAnalytics();
+  renderBreakdownSurface();
   if (!_routeNavigating) syncRoute();
 }
 
@@ -10586,6 +10700,7 @@ function resetAnalyticsViews() {
 
 // ── Analytics ─────────────────────────────────────────────────────────────────
 function renderAnalytics() {
+  closeBreakdownTotalList();
   ensureAnalyticsViews();
   bindAnalyticsClarity();
   document.body.classList.remove('qi-history-fs-active');
@@ -12293,7 +12408,7 @@ function buildQualityDeckQueue(qProjects, includeClosed = true) {
   // Same rows as the Quality Insights page, including its Jira-project and priority filters.
   const jiraSelected = getSelectedJiraProjects();
   const allRows = collectQualityInsightRows(qProjects);
-  const rows = filterRowsByQualityPriority(jiraSelected.size ? allRows.filter(r => jiraSelected.has(r.module)) : allRows)
+  const rows = filterRowsByQualityStatus(filterRowsByQualityPriority(jiraSelected.size ? allRows.filter(r => jiraSelected.has(r.module)) : allRows))
     .filter(r => includeClosed || r.phase !== 'Closed');
   const summarize = list => ({
     includeClosed,
@@ -12363,13 +12478,14 @@ async function generateQualityDeckReport(includeClosed = true) {
     const prep = withQualityPageContext(() => {
       const qualityProjects = getQualityProjects();
       const pickedProjects = getSelectedQualityInsightProjects();
-      const qProjects = (pickedProjects.size ? qualityProjects.filter(p => pickedProjects.has(p.key)) : qualityProjects)
+      const qProjects = (S._qiProjectsNone ? [] : (pickedProjects.size ? qualityProjects.filter(p => pickedProjects.has(p.key)) : qualityProjects))
         .filter(p => S.cache[p.key] && !S.cache[p.key].err);
       const projects = qProjects.map(proj => ({
         project: { key: proj.key, name: proj.name, color: proj.color, category: proj.category || 'Quality' },
         issues: filterIssuesToActiveRelease(S.cache[proj.key].issues || [], proj).issues
           .filter(issueInSelectedJiraProjects)
           .filter(issueInSelectedQualityPriorities)
+          .filter(issueInSelectedQualityStatuses)
           .filter(iss => includeClosed || qualityIssuePhaseLabel(iss) !== 'Closed')
           .map(iss => slimIssueForReleaseReport(iss, fieldIds)),
       })).filter(p => p.issues.length);
@@ -12887,6 +13003,42 @@ function issueInSelectedQualityPriorities(issue) {
   return selected.has(qualityIssuePriorityName(issue));
 }
 
+function getSelectedQualityStatuses() {
+  return S._qiStatusFilter instanceof Set ? S._qiStatusFilter : new Set();
+}
+
+function qualityStatusName(issue) {
+  const status = issue && issue.fields && issue.fields.status;
+  return (status && status.name) || 'Unknown';
+}
+
+function qualityStatusRank(name) {
+  const idx = PHASES.findIndex(phase => phase.re.test(String(name || '').trim()));
+  return idx >= 0 ? idx : PHASES.length;
+}
+
+function qualityStatusColor(name) {
+  const phase = getPhaseForStatus(name || '');
+  return (phase && phase.color) || '#888780';
+}
+
+function filterRowsByQualityStatus(rows) {
+  const selected = getSelectedQualityStatuses();
+  if (!selected.size) return rows || [];
+  return (rows || []).filter(row => selected.has(row.status || 'Unknown'));
+}
+
+function issueInSelectedQualityStatuses(issue) {
+  const selected = getSelectedQualityStatuses();
+  if (!selected.size) return true;
+  return selected.has(qualityStatusName(issue));
+}
+
+function qualityChartColumnFilters() {
+  const statuses = [...getSelectedQualityStatuses()];
+  return statuses.length ? { status: statuses } : null;
+}
+
 function qualityAgeBand(days) {
   const n = Number(days) || 0;
   if (n <= 7) return '0–7 days';
@@ -12942,6 +13094,7 @@ function getSelectedJiraProjects() {
 }
 
 function issueInSelectedJiraProjects(issue) {
+  if (S.page === 'quality-insights' && S._qiJiraProjectsNone) return false;
   const selected = getSelectedJiraProjects();
   if (!selected.size) return true;
   return selected.has(qualityModuleFromKey(issue && issue.key));
@@ -12949,11 +13102,16 @@ function issueInSelectedJiraProjects(issue) {
 
 function syncJiraProjectFilterButton(prefix) {
   const selected = getSelectedJiraProjects();
+  const none = prefix === 'qi' && !!S._qiJiraProjectsNone;
   const btn = document.getElementById(prefix + '-jira-project-filter-btn');
   const label = document.getElementById(prefix + '-jira-project-filter-label');
   const badge = document.getElementById(prefix + '-jira-project-filter-count');
   if (!label) return;
-  if (selected.size === 0) {
+  if (none) {
+    label.textContent = 'None';
+    if (badge) badge.style.display = 'none';
+    btn && btn.classList.remove('has-selection');
+  } else if (selected.size === 0) {
     label.textContent = 'All Jira projects';
     if (badge) badge.style.display = 'none';
     btn && btn.classList.remove('has-selection');
@@ -12965,17 +13123,27 @@ function syncJiraProjectFilterButton(prefix) {
     }
     btn && btn.classList.add('has-selection');
   }
+  const allBtn = document.getElementById(prefix + '-jira-project-filter-all');
+  const noneBtn = document.getElementById(prefix + '-jira-project-filter-none');
+  if (allBtn) allBtn.disabled = !none && selected.size === 0;
+  if (noneBtn) noneBtn.disabled = none;
 }
 
 function buildJiraProjectFilterOptions(prefix, projects) {
   const optionsEl = document.getElementById(prefix + '-jira-project-filter-options');
   if (!optionsEl) return;
   const keys = collectJiraProjectKeys(projects);
-  const selected = getSelectedJiraProjects();
+  let selected = getSelectedJiraProjects();
+  if (prefix === 'qi' && keys.length && selected.size === keys.length && keys.every(key => selected.has(key))) {
+    S._qiJiraProjectsNone = false;
+    S._qiJiraProjectFilter = new Set();
+    selected = S._qiJiraProjectFilter;
+  }
+  const allOn = prefix === 'qi' && !S._qiJiraProjectsNone && selected.size === 0;
   optionsEl.innerHTML = keys.length
     ? keys.map(key => `
     <label class="ms-option">
-      <input type="checkbox" value="${esc(key)}" ${selected.has(key) ? 'checked' : ''} onchange="updateJiraProjectFilter('${prefix}')">
+      <input type="checkbox" value="${esc(key)}" ${(allOn || selected.has(key)) ? 'checked' : ''} onchange="updateJiraProjectFilter('${prefix}')">
       <span class="ms-option-label">
         <span style="width:8px;height:8px;border-radius:50%;background:${jiraProjectColor(key)};display:inline-block;margin-right:6px"></span>
         ${esc(key)}
@@ -13004,11 +13172,23 @@ function toggleJiraProjectFilter(prefix) {
 
 function updateJiraProjectFilter(prefix) {
   const optionsEl = document.getElementById(prefix + '-jira-project-filter-options');
+  const boxes = optionsEl ? [...optionsEl.querySelectorAll('input[type="checkbox"]')] : [];
   const selected = new Set();
-  if (optionsEl) {
-    optionsEl.querySelectorAll('input[type="checkbox"]:checked').forEach(cb => selected.add(cb.value));
+  boxes.forEach(cb => { if (cb.checked) selected.add(cb.value); });
+  if (prefix === 'qi') {
+    if (!selected.size) {
+      S._qiJiraProjectsNone = true;
+      S._qiJiraProjectFilter = new Set();
+    } else if (boxes.length && selected.size === boxes.length) {
+      S._qiJiraProjectsNone = false;
+      S._qiJiraProjectFilter = new Set();
+    } else {
+      S._qiJiraProjectsNone = false;
+      S._qiJiraProjectFilter = selected;
+    }
+  } else {
+    S._qiJiraProjectFilter = selected;
   }
-  S._qiJiraProjectFilter = selected;
   syncJiraProjectFilterButton(prefix);
   refreshQualityJiraProjectViews();
   if (!_routeNavigating) syncRoute();
@@ -13021,9 +13201,23 @@ function clearJiraProjectFilter(prefix) {
 }
 
 function selectAllJiraProjects(prefix) {
+  if (prefix === 'qi') {
+    S._qiJiraProjectsNone = false;
+    S._qiJiraProjectFilter = new Set();
+    refreshQualityJiraProjectViews();
+    if (!_routeNavigating) syncRoute();
+    return;
+  }
   const optionsEl = document.getElementById(prefix + '-jira-project-filter-options');
   if (optionsEl) optionsEl.querySelectorAll('input[type="checkbox"]').forEach(cb => { cb.checked = true; });
   updateJiraProjectFilter(prefix);
+}
+
+function selectNoJiraProjects(prefix) {
+  S._qiJiraProjectsNone = true;
+  S._qiJiraProjectFilter = new Set();
+  refreshQualityJiraProjectViews();
+  if (!_routeNavigating) syncRoute();
 }
 
 function getSelectedQualityPriorities() {
@@ -13120,6 +13314,86 @@ function selectAllQualityPriorities(prefix) {
   const optionsEl = document.getElementById(prefix + '-priority-filter-options');
   if (optionsEl) optionsEl.querySelectorAll('input[type="checkbox"]').forEach(cb => { cb.checked = true; });
   updateQualityPriorityFilter(prefix);
+}
+
+function syncQualityStatusFilterButton(prefix) {
+  const selected = getSelectedQualityStatuses();
+  const btn = document.getElementById(prefix + '-status-filter-btn');
+  const label = document.getElementById(prefix + '-status-filter-label');
+  const badge = document.getElementById(prefix + '-status-filter-count');
+  if (!label) return;
+  if (selected.size === 0) {
+    label.textContent = 'All statuses';
+    if (badge) badge.style.display = 'none';
+    btn && btn.classList.remove('has-selection');
+  } else {
+    label.textContent = selected.size === 1 ? [...selected][0] : 'Statuses';
+    if (badge) {
+      badge.textContent = selected.size;
+      badge.style.display = '';
+    }
+    btn && btn.classList.add('has-selection');
+  }
+}
+
+function buildQualityStatusFilterOptions(prefix, statuses) {
+  const optionsEl = document.getElementById(prefix + '-status-filter-options');
+  if (!optionsEl) return;
+  const keys = [...new Set((statuses || []).map(status => status || 'Unknown'))]
+    .sort((a, b) => qualityStatusRank(a) - qualityStatusRank(b) || String(a).localeCompare(String(b)));
+  const selected = getSelectedQualityStatuses();
+  optionsEl.innerHTML = keys.length
+    ? keys.map(key => `
+    <label class="ms-option">
+      <input type="checkbox" value="${esc(key)}" ${selected.has(key) ? 'checked' : ''} onchange="updateQualityStatusFilter('${prefix}')">
+      <span class="ms-option-label">
+        <span style="width:8px;height:8px;border-radius:50%;background:${qualityStatusColor(key)};display:inline-block;margin-right:6px"></span>
+        ${esc(key)}
+      </span>
+    </label>`).join('')
+    : '<div style="padding:8px 10px;font-size:12px;color:var(--text3)">No statuses in the current Quality data.</div>';
+  syncQualityStatusFilterButton(prefix);
+}
+
+function toggleQualityStatusFilter(prefix) {
+  const dropdown = document.getElementById(prefix + '-status-filter-dropdown');
+  if (!dropdown) return;
+  dropdown.classList.toggle('open');
+  if (dropdown.classList.contains('open')) {
+    setTimeout(() => {
+      const handler = function (e) {
+        const btn = document.getElementById(prefix + '-status-filter-btn');
+        if (dropdown.contains(e.target) || (btn && btn.contains(e.target))) return;
+        dropdown.classList.remove('open');
+        document.removeEventListener('click', handler);
+      };
+      document.addEventListener('click', handler);
+    }, 0);
+  }
+}
+
+function updateQualityStatusFilter(prefix) {
+  const optionsEl = document.getElementById(prefix + '-status-filter-options');
+  const selected = new Set();
+  if (optionsEl) {
+    optionsEl.querySelectorAll('input[type="checkbox"]:checked').forEach(cb => selected.add(cb.value));
+  }
+  S._qiStatusFilter = selected;
+  syncQualityStatusFilterButton(prefix);
+  refreshQualityJiraProjectViews();
+  if (!_routeNavigating) syncRoute();
+}
+
+function clearQualityStatusFilter(prefix) {
+  const optionsEl = document.getElementById(prefix + '-status-filter-options');
+  if (optionsEl) optionsEl.querySelectorAll('input[type="checkbox"]').forEach(cb => { cb.checked = false; });
+  updateQualityStatusFilter(prefix);
+}
+
+function selectAllQualityStatuses(prefix) {
+  const optionsEl = document.getElementById(prefix + '-status-filter-options');
+  if (optionsEl) optionsEl.querySelectorAll('input[type="checkbox"]').forEach(cb => { cb.checked = true; });
+  updateQualityStatusFilter(prefix);
 }
 
 function toggleQualityPriorityOnChart(checked) {
@@ -13384,50 +13658,95 @@ function getSelectedQualityInsightProjects() {
   return selected;
 }
 
-function updateQualityInsightProjectFilter(skipRender) {
-  const selected = getSelectedQualityInsightProjects();
-  S._qiSelectedProjects = selected;
+function syncQualityInsightProjectFilterButton(projects) {
+  const keys = (projects || []).map(proj => proj.key);
+  const stored = S._qiSelectedProjects instanceof Set ? S._qiSelectedProjects : new Set();
+  const chosen = [...stored].filter(key => !keys.length || keys.includes(key));
+  const none = !!S._qiProjectsNone;
+  const all = !none && !chosen.length;
   const btn = document.getElementById('qi-project-filter-btn');
   const label = document.getElementById('qi-project-filter-label');
   const badge = document.getElementById('qi-project-filter-count');
   if (label && badge) {
-    if (selected.size === 0) {
+    if (none) {
+      label.textContent = 'None';
+      badge.style.display = 'none';
+      btn?.classList.remove('has-selection');
+    } else if (all) {
       label.textContent = 'All Quality projects';
       badge.style.display = 'none';
       btn?.classList.remove('has-selection');
+    } else if (chosen.length === 1) {
+      const proj = (projects || []).find(item => item.key === chosen[0]);
+      label.textContent = proj ? proj.name : chosen[0];
+      badge.style.display = 'none';
+      btn?.classList.add('has-selection');
     } else {
-      label.textContent = 'Projects';
-      badge.textContent = selected.size;
+      label.textContent = 'Quality projects';
+      badge.textContent = String(chosen.length);
       badge.style.display = '';
       btn?.classList.add('has-selection');
     }
   }
-  if (!skipRender) renderQualityInsights();
+  const allBtn = document.getElementById('qi-project-filter-all');
+  const noneBtn = document.getElementById('qi-project-filter-none');
+  if (allBtn) allBtn.disabled = all;
+  if (noneBtn) noneBtn.disabled = none;
+}
+
+function updateQualityInsightProjectFilter() {
+  const boxes = [...document.querySelectorAll('#qi-project-filter-options input[type="checkbox"]')];
+  const selected = new Set();
+  boxes.forEach(cb => { if (cb.checked) selected.add(cb.value); });
+  if (!selected.size) {
+    S._qiProjectsNone = true;
+    S._qiSelectedProjects = new Set();
+  } else if (boxes.length && selected.size === boxes.length) {
+    S._qiProjectsNone = false;
+    S._qiSelectedProjects = new Set();
+  } else {
+    S._qiProjectsNone = false;
+    S._qiSelectedProjects = selected;
+  }
+  renderQualityInsights();
+  if (!_routeNavigating) syncRoute();
 }
 
 function clearQualityInsightProjectFilter() {
-  document.querySelectorAll('#qi-project-filter-options input[type="checkbox"]').forEach(cb => { cb.checked = false; });
-  updateQualityInsightProjectFilter();
+  S._qiProjectsNone = true;
+  S._qiSelectedProjects = new Set();
+  renderQualityInsights();
+  if (!_routeNavigating) syncRoute();
 }
 
 function selectAllQualityInsightProjects() {
-  document.querySelectorAll('#qi-project-filter-options input[type="checkbox"]').forEach(cb => { cb.checked = true; });
-  updateQualityInsightProjectFilter();
+  S._qiProjectsNone = false;
+  S._qiSelectedProjects = new Set();
+  renderQualityInsights();
+  if (!_routeNavigating) syncRoute();
 }
 
 function buildQualityInsightProjectFilterOptions(projects) {
   const optionsEl = document.getElementById('qi-project-filter-options');
   if (!optionsEl) return;
-  const prev = S._qiSelectedProjects instanceof Set ? S._qiSelectedProjects : getSelectedQualityInsightProjects();
+  let prev = S._qiSelectedProjects instanceof Set ? S._qiSelectedProjects : new Set();
+  const keys = (projects || []).map(proj => proj.key);
+  if (keys.length && prev.size === keys.length && keys.every(key => prev.has(key))) {
+    S._qiProjectsNone = false;
+    S._qiSelectedProjects = new Set();
+    prev = S._qiSelectedProjects;
+  }
+  const allOn = !S._qiProjectsNone && !prev.size;
   optionsEl.innerHTML = projects.map(proj => `
     <label class="ms-option">
-      <input type="checkbox" value="${esc(proj.key)}" ${prev && prev.size && prev.has(proj.key) ? 'checked' : ''} onchange="updateQualityInsightProjectFilter()">
+      <input type="checkbox" value="${esc(proj.key)}" ${(allOn || prev.has(proj.key)) ? 'checked' : ''} onchange="updateQualityInsightProjectFilter()">
       <span class="ms-option-label">
         <span style="width:8px;height:8px;border-radius:50%;background:${proj.color};display:inline-block;margin-right:6px"></span>
         ${esc(proj.name)}
       </span>
     </label>
   `).join('');
+  syncQualityInsightProjectFilterButton(projects);
 }
 
 const QI_HISTORY_MENU = [
@@ -14032,8 +14351,159 @@ function drawQualityHistoryCharts(issues) {
   mounts.forEach(mount => mount());
 }
 
+const QI_CUSTOMER_BREAKDOWNS = [
+  { id: 'qi_custcom', title: 'Customers', fieldId: 'cf_custcom', canvasId: 'c_qi_custcom', multi: true, top: 12, noun: 'customer' },
+];
+
+function qualityBreakdownIssueList(projects) {
+  const entries = [];
+  (projects || []).forEach(proj => {
+    if (!isQualityDashboardProject(proj)) return;
+    const filtered = filterIssuesToActiveRelease((S.cache[proj.key] && S.cache[proj.key].issues) || [], proj);
+    (filtered.issues || []).forEach(issue => {
+      if (!issueInSelectedJiraProjects(issue)) return;
+      if (!issueInSelectedQualityPriorities(issue)) return;
+      if (!issueInSelectedQualityStatuses(issue)) return;
+      entries.push({ issue, project: proj });
+    });
+  });
+  return entries;
+}
+
+function qualityBreakdownProjects(entries) {
+  const keys = new Set((entries || []).map(entry => entry.project && entry.project.key).filter(Boolean));
+  return getQualityProjects().filter(proj => keys.has(proj.key));
+}
+
+function breakdownTicketFields(issue) {
+  const fields = (issue && issue.fields) || {};
+  const status = fields.status;
+  const type = fields.issuetype;
+  const priority = fields.priority;
+  const nameOf = value => {
+    if (!value) return '';
+    if (typeof value === 'string') return value;
+    return value.name || value.value || '';
+  };
+  return {
+    key: (issue && issue.key) || '',
+    summary: fields.summary || '',
+    status: nameOf(status),
+    type: nameOf(type),
+    priority: nameOf(priority),
+  };
+}
+
+function qualityBreakdownRows(entries, spec) {
+  const unset = window.ClarityDashboard ? ClarityDashboard.UNSET : 'Not set';
+  const rows = [];
+  (entries || []).forEach(entry => {
+    const proj = entry.project;
+    const issue = entry.issue;
+    if (!proj || !isQualityDashboardProject(proj) || !issue) return;
+    const row = Object.assign(breakdownTicketFields(issue), {
+      projectKey: proj.key,
+      projectName: proj.name || proj.key,
+      scope: clarityFieldText(issue, 'cf_scope') || unset,
+    });
+    if (spec.multi) row.values = analyticsOptionList(issue, spec.fieldId);
+    else row.clarity = clarityFieldText(issue, spec.fieldId) || unset;
+    rows.push(row);
+  });
+  return rows;
+}
+
+function qualityCustomerChartExtra(issues, spec) {
+  const chartProjects = qualityBreakdownProjects(issues);
+  const colors = {};
+  chartProjects.forEach(proj => { colors[proj.key] = proj.color || '#888780'; });
+  return {
+    rows: qualityBreakdownRows(issues, spec),
+    plain: true,
+    projectOrder: chartProjects.map(proj => proj.key),
+    colors,
+    projects: chartProjects,
+  };
+}
+
+function qualityCustomerChartsHtml(issues) {
+  return QI_CUSTOMER_BREAKDOWNS.map(spec => {
+    const extra = qualityCustomerChartExtra(issues, spec);
+    return analyticsBreakdownChartHtml(spec, extra.projects, extra);
+  }).join('');
+}
+
+function destroyQualityCustomerCharts() {
+  ['qi_custcom', 'qi_custint'].forEach(id => {
+    const chart = S.charts && S.charts[id];
+    if (!chart) return;
+    try { chart.destroy(); } catch (e) {}
+    delete S.charts[id];
+  });
+}
+
+function drawQualityCustomerCharts(issues) {
+  QI_CUSTOMER_BREAKDOWNS.forEach(spec => {
+    const extra = qualityCustomerChartExtra(issues, spec);
+    drawAnalyticsBreakdownChart(spec, extra.projects, extra);
+  });
+}
+
+function bindQualityCustomerCharts() {
+  if (S._qiCustomerBound) return;
+  const page = document.getElementById('page-quality-insights');
+  if (!page) return;
+  S._qiCustomerBound = true;
+  page.addEventListener('change', event => {
+    const input = event.target.closest('[data-breakdown-customer]');
+    if (!input) return;
+    toggleBreakdownCustomer(input.getAttribute('data-breakdown-spec'), input.getAttribute('data-breakdown-customer'), input.checked);
+  });
+  page.addEventListener('click', event => {
+    const totalBtn = event.target.closest('[data-clarity-total]');
+    if (totalBtn) {
+      openBreakdownTotalList(
+        totalBtn.getAttribute('data-clarity-spec') || '',
+        totalBtn.getAttribute('data-clarity-rating') || '',
+        totalBtn.getAttribute('data-clarity-project') || ''
+      );
+      return;
+    }
+    const countBtn = event.target.closest('[data-clarity-count]');
+    if (countBtn) {
+      const rating = countBtn.getAttribute('data-clarity-rating') || '';
+      const specId = countBtn.getAttribute('data-clarity-spec') || '';
+      openProjectFromClarityCell(
+        countBtn.getAttribute('data-clarity-project'),
+        claritySelectedScopes(S._qiClarityScopeOptions || [], 'qiClarityScopes'),
+        rating || breakdownCustomersForSpec(specId),
+        countBtn.getAttribute('data-clarity-field') || 'cf_custcom',
+        qualityChartColumnFilters()
+      );
+      return;
+    }
+    const scopeBtn = event.target.closest('[data-qi-scope-pick]');
+    if (!scopeBtn) return;
+    const pick = scopeBtn.getAttribute('data-qi-scope-pick') || '';
+    if (pick === 'all') S.qiClarityScopes = [];
+    else {
+      const current = Array.isArray(S.qiClarityScopes) ? S.qiClarityScopes.slice() : [];
+      const index = current.indexOf(pick);
+      if (index === -1) current.push(pick);
+      else current.splice(index, 1);
+      S.qiClarityScopes = current;
+    }
+    persist();
+    renderQualityInsights();
+    if (!_routeNavigating) syncRoute();
+  });
+}
+
 function renderQualityInsights() {
+  closeBreakdownTotalList();
   destroyQualityHistoryCharts();
+  destroyQualityCustomerCharts();
+  bindQualityCustomerCharts();
   document.body.classList.remove('qi-history-fs-active');
   const body = document.getElementById('quality-insights-body');
   if (!body) return;
@@ -14041,6 +14511,7 @@ function renderQualityInsights() {
   buildQualityInsightProjectFilterOptions(qualityProjects);
   buildJiraProjectFilterOptions('qi', qualityProjects);
   buildQualityPriorityFilterOptions('qi', []);
+  buildQualityStatusFilterOptions('qi', []);
   syncQualityPriorityChartToggle();
   if (!S.activeRelease) {
     setExportSnapshot({ page: 'quality-insights', title: 'Quality Insights', tickets: [], filename: 'quality-insights-tickets.html', emptyMessage: 'No quality tickets to export.' });
@@ -14052,6 +14523,11 @@ function renderQualityInsights() {
     return;
   }
   const selected = getSelectedQualityInsightProjects();
+  if (S._qiProjectsNone) {
+    setExportSnapshot({ page: 'quality-insights', title: 'Quality Insights', tickets: [], filename: 'quality-insights-tickets.html', emptyMessage: 'No quality tickets to export.' });
+    body.innerHTML = `<div class="info-box">No Quality projects selected. Use Select all in the project list.</div>`;
+    return;
+  }
   const projects = (selected.size ? qualityProjects.filter(p => selected.has(p.key)) : qualityProjects)
     .filter(p => S.cache[p.key] && !S.cache[p.key].err);
   if (!projects.length) {
@@ -14061,10 +14537,11 @@ function renderQualityInsights() {
 
   const allRows = collectQualityInsightRows(projects);
   const jiraSelected = getSelectedJiraProjects();
-  const jiraFiltered = jiraSelected.size ? allRows.filter(r => jiraSelected.has(r.module)) : allRows;
+  const jiraFiltered = S._qiJiraProjectsNone ? [] : (jiraSelected.size ? allRows.filter(r => jiraSelected.has(r.module)) : allRows);
   buildQualityPriorityFilterOptions('qi', jiraFiltered.map(r => r.priority));
+  buildQualityStatusFilterOptions('qi', jiraFiltered.map(r => r.status));
   syncQualityPriorityChartToggle();
-  const rows = filterRowsByQualityPriority(jiraFiltered);
+  const rows = filterRowsByQualityStatus(filterRowsByQualityPriority(jiraFiltered));
   const unfilteredCount = allRows.length;
   const showOriginal = rows.length !== unfilteredCount;
   setExportSnapshot({
@@ -14129,8 +14606,8 @@ function renderQualityInsights() {
     risks.push({ sev: 'low', title: `${noisyModule.label} accounts for ${noisyModule.count} of the ${blockers.length ? 'blocker/critical' : 'open'} tickets`, detail: 'Module concentration — the noisy product area for this market/patch.' });
   }
 
-  const historyIssues = collectQualityHistoryIssues(projects);
-  const historyPeriodWord = S.qiHistoryPeriod === 'month' ? 'Monthly' : 'Weekly';
+  const qiCustomerIssues = qualityBreakdownIssueList(projects);
+  const qiCustomerHtml = qualityCustomerChartsHtml(qiCustomerIssues);
 
   const kpiHtml = [
     `<div class="rr-kpi"><div class="v">${rows.length}</div>${showOriginal ? `<div class="so">of ${unfilteredCount}</div>` : ''}<div class="l">Open tickets</div></div>`,
@@ -14170,16 +14647,7 @@ function renderQualityInsights() {
       </div>
     </div>
 
-    <div class="qi-block">
-      <div class="qi-history-head">
-        <div>
-          <h2>History</h2>
-          <p class="sub">${historyPeriodWord} bug counts from status history for this market release. Colored vertical lines mark its milestones. Click a point to list the tickets in that count.</p>
-        </div>
-        ${qualityHistoryMenuHtml()}
-      </div>
-      <div class="qi-history-grid" id="qi-history-grid"></div>
-    </div>
+    ${qiCustomerHtml ? `<div class="qi-block">${qiCustomerHtml}</div>` : ''}
 
     <div class="qi-block">
       <h2>Queue</h2>
@@ -14267,7 +14735,7 @@ function renderQualityInsights() {
         </div>
       </div>
     </div>`;
-  drawQualityHistoryCharts(historyIssues);
+  drawQualityCustomerCharts(qiCustomerIssues);
 }
 
 // ── A + Clarity chart on Analytics ───────────────────────────────────────────
@@ -14287,12 +14755,23 @@ function bindAnalyticsClarity() {
     document.querySelectorAll('.clarity-pick-panel').forEach(panel => { panel.hidden = true; });
   });
   page.addEventListener('click', event => {
+    const totalBtn = event.target.closest('[data-clarity-total]');
+    if (totalBtn) {
+      openBreakdownTotalList(
+        totalBtn.getAttribute('data-clarity-spec') || '',
+        totalBtn.getAttribute('data-clarity-rating') || '',
+        totalBtn.getAttribute('data-clarity-project') || ''
+      );
+      return;
+    }
     const countBtn = event.target.closest('[data-clarity-count]');
     if (countBtn) {
+      const rating = countBtn.getAttribute('data-clarity-rating') || '';
+      const specId = countBtn.getAttribute('data-clarity-spec') || '';
       openProjectFromClarityCell(
         countBtn.getAttribute('data-clarity-project'),
         claritySelectedScopes(S._clarityScopeOptions || []),
-        countBtn.getAttribute('data-clarity-rating') || '',
+        rating || breakdownCustomersForSpec(specId),
         countBtn.getAttribute('data-clarity-field') || 'cf_clarity'
       );
       return;
@@ -14313,9 +14792,9 @@ function bindAnalyticsClarity() {
   });
 }
 
-function claritySelectedScopes(available) {
+function claritySelectedScopes(available, scopeKey) {
   const allowed = new Set(available || []);
-  const raw = Array.isArray(S.clarityScopes) ? S.clarityScopes : [];
+  const raw = Array.isArray(S[scopeKey || 'clarityScopes']) ? S[scopeKey || 'clarityScopes'] : [];
   return raw.filter(scope => allowed.has(scope));
 }
 
@@ -14354,11 +14833,11 @@ function analyticsBreakdownRows(projects, spec) {
   (projects || []).forEach(proj => {
     const issues = (S.cache[proj.key] && S.cache[proj.key].issues) || [];
     issues.forEach(issue => {
-      const row = {
+      const row = Object.assign(breakdownTicketFields(issue), {
         projectKey: proj.key,
         projectName: proj.name || proj.key,
         scope: clarityFieldText(issue, 'cf_scope') || ClarityDashboard.UNSET,
-      };
+      });
       if (spec.multi) row.values = analyticsOptionList(issue, spec.fieldId);
       else row.clarity = clarityFieldText(issue, spec.fieldId) || ClarityDashboard.UNSET;
       rows.push(row);
@@ -14381,6 +14860,7 @@ function collapseAnalyticsBreakdown(summary, limit) {
   const labels = keep.map(item => item.label);
   if (rest.length) labels.push('Other');
   if (summary.clarityLabels.includes(unset)) labels.push(unset);
+  summary.folded = rest.map(item => item.label);
   if (rest.length) {
     const drop = new Set(rest.map(item => item.label));
     summary.byProject.forEach(group => {
@@ -14470,7 +14950,7 @@ function setBreakdownAxis(specId, value) {
   if (!S.breakdownAxis) S.breakdownAxis = {};
   S.breakdownAxis[specId] = value === 'x' ? 'x' : 'y';
   persist();
-  renderAnalytics();
+  renderBreakdownSurface();
   if (!_routeNavigating) syncRoute();
 }
 
@@ -14478,7 +14958,7 @@ function setBreakdownCustomer(specId, value) {
   if (!S.breakdownCustomer) S.breakdownCustomer = {};
   S.breakdownCustomer[specId] = Array.isArray(value) ? value.filter(Boolean) : (value ? [value] : []);
   persist();
-  renderAnalytics();
+  renderBreakdownSurface();
   if (!_routeNavigating) syncRoute();
 }
 
@@ -14533,20 +15013,23 @@ function restoreBreakdownPick() {
   if (panel) panel.hidden = false;
 }
 
-function analyticsBreakdownView(projects, spec) {
+function analyticsBreakdownView(projects, spec, extra) {
+  const opts = extra || {};
   if (!window.ClarityDashboard) return null;
-  const rows = analyticsBreakdownRows(projects, spec);
+  const rows = opts.rows || analyticsBreakdownRows(projects, spec);
   if (!rows.length) return null;
+  const scopeKey = opts.scopeKey || 'clarityScopes';
   const scopes = ClarityDashboard.orderLabels(rows.map(row => row.scope), ClarityDashboard.SCOPE_ORDER);
-  S._clarityScopeOptions = scopes;
-  const selected = claritySelectedScopes(scopes);
+  if (scopeKey === 'qiClarityScopes') S._qiClarityScopeOptions = scopes;
+  else S._clarityScopeOptions = scopes;
+  const selected = opts.plain ? [] : claritySelectedScopes(scopes, scopeKey);
   const filtered = selected.length ? ClarityDashboard.applyFilters(rows, { scope: selected }) : rows;
   const unset = ClarityDashboard.UNSET;
   const customerOptions = breakdownValueOptions(filtered, spec);
   if (!S._breakdownValueOptions) S._breakdownValueOptions = {};
   S._breakdownValueOptions[spec.id] = customerOptions;
-  const pick = breakdownPickState(spec, customerOptions);
-  if (S.breakdownCustomer) S.breakdownCustomer[spec.id] = pick.none ? [BREAKDOWN_NONE] : pick.customers;
+  const pick = opts.plain ? { all: true, none: false, customers: [] } : breakdownPickState(spec, customerOptions);
+  if (!opts.plain && S.breakdownCustomer) S.breakdownCustomer[spec.id] = pick.none ? [BREAKDOWN_NONE] : pick.customers;
   const customers = pick.customers;
   const rowValues = row => {
     const list = row.values && row.values.length ? row.values : [unset];
@@ -14562,13 +15045,13 @@ function analyticsBreakdownView(projects, spec) {
     chartRows = filtered.filter(row => customers.indexOf(row.clarity || unset) !== -1);
   }
   const summary = ClarityDashboard.summarize(chartRows, {
-    projectOrder: (projects || []).map(proj => proj.key),
+    projectOrder: opts.projectOrder || (projects || []).map(proj => proj.key),
     valuesKey: spec.multi ? 'values' : undefined,
   });
   if (spec.top && !customers.length) collapseAnalyticsBreakdown(summary, spec.top);
-  const colors = {};
-  (projects || []).forEach(proj => { colors[proj.key] = proj.color || '#888780'; });
-  return { spec, scopes, selected, summary, colors, customers, customerOptions, pickAll: pick.all, pickNone: pick.none };
+  const colors = Object.assign({}, opts.colors || {});
+  if (!opts.colors) (projects || []).forEach(proj => { colors[proj.key] = proj.color || '#888780'; });
+  return { spec, scopes, selected, summary, colors, customers, customerOptions, pickAll: pick.all, pickNone: pick.none, chartRows };
 }
 
 function analyticsClarityView(projects) {
@@ -14578,6 +15061,7 @@ function analyticsClarityView(projects) {
 function analyticsBreakdownNote(spec, view, numbers) {
   if (view.pickNone) return `No ${spec.noun}s selected. Check a box to show them.`;
   const clickHint = numbers ? 'Click a number' : 'Click a segment';
+  const totalHint = numbers ? ' Click a total to list those tickets.' : '';
   const scopeLabel = view.selected.map(esc).join(', ');
   const along = breakdownAxis(spec) === 'x' ? 'column' : 'row';
   const picked = (view.customers || []).map(name => ClarityDashboard.clarityCaption(name));
@@ -14590,9 +15074,9 @@ function analyticsBreakdownNote(spec, view, numbers) {
       : `Each ${along} is one project, split by ${spec.title}.`);
   const focus = picked.length ? `${spec.multi ? 'Customers' : 'Ratings'}: ${picked.map(esc).join(', ')}. ` : '';
   if (view.selected.length) {
-    return `${focus}Scope types: ${scopeLabel}. ${clickHint} to open that project filtered to these scopes and that ${spec.noun}.`;
+    return `${focus}Scope types: ${scopeLabel}. ${clickHint} to open that project filtered to these scopes and that ${spec.noun}.${totalHint}`;
   }
-  return `${focus}${split} Select any scope types to narrow it. ${clickHint} to open that project filtered to that ${spec.noun}.`;
+  return `${focus}${split} Select any scope types to narrow it. ${clickHint} to open that project filtered to that ${spec.noun}.${totalHint}`;
 }
 
 function analyticsClarityChartHtml(projects) {
@@ -14600,13 +15084,15 @@ function analyticsClarityChartHtml(projects) {
   return `<div class="analytics-card-grid cols-${analyticsCardCols()}">${cards}</div>`;
 }
 
-function analyticsBreakdownChartHtml(spec, projects) {
-  const view = analyticsBreakdownView(projects, spec);
+function analyticsBreakdownChartHtml(spec, projects, extra) {
+  const view = analyticsBreakdownView(projects, spec, extra);
   if (!view || (!view.summary.byProject.length && !view.pickNone)) return '';
-  const chips = ['All'].concat(view.scopes).map(label => {
+  const plain = !!(extra && extra.plain);
+  const chips = plain ? '' : ['All'].concat(view.scopes).map(label => {
     const pick = label === 'All' ? 'all' : label;
     const active = label === 'All' ? !view.selected.length : view.selected.indexOf(label) !== -1;
-    return `<button type="button" class="clarity-scope${active ? ' active' : ''}" data-clarity-scope-pick="${esc(pick)}" aria-pressed="${active ? 'true' : 'false'}">${esc(label)}</button>`;
+    const scopeAttr = (extra && extra.scopeAttr) || 'data-clarity-scope-pick';
+    return `<button type="button" class="clarity-scope${active ? ' active' : ''}" ${scopeAttr}="${esc(pick)}" aria-pressed="${active ? 'true' : 'false'}">${esc(label)}</button>`;
   }).join('');
   const horizontal = breakdownAxis(spec) !== 'x';
   const height = horizontal
@@ -14641,14 +15127,17 @@ function analyticsBreakdownChartHtml(spec, projects) {
         ${view.customerOptions.map(name => `<label><input type="checkbox" data-breakdown-spec="${esc(spec.id)}" data-breakdown-customer="${esc(name)}" ${(view.pickAll || picked.indexOf(name) !== -1) ? 'checked' : ''}>${esc(ClarityDashboard.clarityCaption(name))}</label>`).join('')}
       </div>
     </div>`;
-  const viewSelect = `${customerSelect}<select class="section-control" aria-label="${esc(spec.title)} view" onchange="setAnalyticsView('${spec.id}', this.value)">
+  const viewSelect = `${plain ? '' : customerSelect}<select class="section-control" aria-label="${esc(spec.title)} view" onchange="setAnalyticsView('${spec.id}', this.value)">
         <option value="bar" ${numbers ? '' : 'selected'}>Bars</option>
         <option value="numbers" ${numbers ? 'selected' : ''}>Numbers</option>
       </select>${analyticsAxisControl(spec.id, 'Projects', 'y')}`;
+  const note = plain
+    ? `${numbers ? 'Click a number' : 'Click a segment'} to open that Quality project filtered to that customer.${numbers ? ' Click a total to list those tickets.' : ''} Use the status filter to narrow the tickets.`
+    : analyticsBreakdownNote(spec, view, numbers);
   return `<div class="clarity-chart-block">
     <div class="section-h">${esc(spec.title)}</div>
-    <p class="stat-filter-note">${analyticsBreakdownNote(spec, view, numbers)}</p>
-    <div class="clarity-scope-row" role="group" aria-label="Scope type">${chips}${viewSelect}</div>
+    <p class="stat-filter-note">${note}</p>
+    <div class="clarity-scope-row" role="group" aria-label="${plain ? 'Chart view' : 'Scope type'}">${chips}${viewSelect}</div>
     ${body}
   </div>`;
 }
@@ -14658,7 +15147,15 @@ function analyticsClarityCountHtml(projectKey, rating, count, label, spec) {
   if (rating === 'Other') return `<span class="clarity-num" title="${esc(label)}: ${count}">${count}</span>`;
   const title = `${label}: ${count}`;
   const fieldId = spec && spec.fieldId ? spec.fieldId : 'cf_clarity';
-  return `<button type="button" class="clarity-num" data-clarity-count="1" data-clarity-field="${esc(fieldId)}" data-clarity-project="${esc(projectKey)}" data-clarity-rating="${esc(rating)}" title="${esc(title)}" aria-label="${esc(title)}">${count}</button>`;
+  const specId = spec && spec.id ? spec.id : '';
+  return `<button type="button" class="clarity-num" data-clarity-count="1" data-clarity-spec="${esc(specId)}" data-clarity-field="${esc(fieldId)}" data-clarity-project="${esc(projectKey)}" data-clarity-rating="${esc(rating)}" title="${esc(title)}" aria-label="${esc(title)}">${count}</button>`;
+}
+
+function analyticsBreakdownTotalHtml(spec, rating, count, label, projectKey) {
+  const n = Number(count) || 0;
+  if (!n) return '<span class="clarity-zero">—</span>';
+  const title = `List ${n} ticket${n === 1 ? '' : 's'} · ${label}`;
+  return `<button type="button" class="clarity-num" data-clarity-total="1" data-clarity-spec="${esc(spec.id)}" data-clarity-project="${esc(projectKey || '')}" data-clarity-rating="${esc(rating || '')}" title="${esc(title)}" aria-label="${esc(title)}">${n}</button>`;
 }
 
 function analyticsClarityNumbersHtml(view) {
@@ -14666,10 +15163,11 @@ function analyticsClarityNumbersHtml(view) {
 }
 
 function analyticsBreakdownProjectLabel(group, spec, color) {
-  return `<button type="button" class="clarity-num clarity-proj" data-clarity-count="1" data-clarity-field="${esc(spec.fieldId)}" data-clarity-project="${esc(group.key)}" title="Open ${esc(group.label)}"><span class="proj-dot" style="background:${esc(color)}"></span>${esc(group.label)}</button>`;
+  return `<button type="button" class="clarity-num clarity-proj" data-clarity-count="1" data-clarity-spec="${esc(spec.id)}" data-clarity-field="${esc(spec.fieldId)}" data-clarity-project="${esc(group.key)}" title="Open ${esc(group.label)}"><span class="proj-dot" style="background:${esc(color)}"></span>${esc(group.label)}</button>`;
 }
 
 function analyticsBreakdownNumbersHtml(view) {
+  rememberBreakdownTickets(view);
   const summary = view.summary;
   const spec = view.spec || ANALYTICS_BREAKDOWNS[0];
   const labels = summary.clarityLabels;
@@ -14700,13 +15198,13 @@ function analyticsBreakdownNumbersDown(view, labels, totals) {
     return `<tr>
       <td>${analyticsBreakdownProjectLabel(group, spec, color)}</td>
       ${cells}
-      <td class="num">${analyticsClarityCountHtml(group.key, '', group.total, `${group.label} · total`, spec)}</td>
+      <td class="num">${analyticsBreakdownTotalHtml(spec, '', group.total, `${group.label} · total`, group.key)}</td>
     </tr>`;
   }).join('');
-  const totalCells = labels.map(label => `<td class="num">${totals[label] || '—'}</td>`).join('');
+  const totalCells = labels.map(label => `<td class="num">${analyticsBreakdownTotalHtml(spec, label, totals[label] || 0, ClarityDashboard.clarityCaption(label))}</td>`).join('');
   return `<table class="pipeline-table clarity-numbers">
     <thead><tr><th>Project</th>${head}<th class="ph-col">Total</th></tr></thead>
-    <tbody>${body}<tr><td>Total</td>${totalCells}<td class="num">${summary.total}</td></tr></tbody>
+    <tbody>${body}<tr><td>Total</td>${totalCells}<td class="num">${analyticsBreakdownTotalHtml(spec, '', summary.total, 'All')}</td></tr></tbody>
   </table>`;
 }
 
@@ -14726,15 +15224,15 @@ function analyticsBreakdownNumbersAcross(view, labels, totals) {
     return `<tr>
       <th scope="row"><span class="clarity-num-dot" style="background:${color}"></span>${esc(ClarityDashboard.clarityCaption(label))}</th>
       ${cells}
-      <td class="num">${totals[label] || '—'}</td>
+      <td class="num">${analyticsBreakdownTotalHtml(spec, label, totals[label] || 0, ClarityDashboard.clarityCaption(label))}</td>
     </tr>`;
   }).join('');
   const totalCells = summary.byProject.map(group => (
-    `<td class="num">${analyticsClarityCountHtml(group.key, '', group.total, `${group.label} · total`, spec)}</td>`
+    `<td class="num">${analyticsBreakdownTotalHtml(spec, '', group.total, `${group.label} · total`, group.key)}</td>`
   )).join('');
   return `<table class="pipeline-table clarity-numbers projects-x">
     <thead><tr><th></th>${head}<th class="ph-col">Total</th></tr></thead>
-    <tbody>${body}<tr><th scope="row">Total</th>${totalCells}<td class="num">${summary.total}</td></tr></tbody>
+    <tbody>${body}<tr><th scope="row">Total</th>${totalCells}<td class="num">${analyticsBreakdownTotalHtml(spec, '', summary.total, 'All')}</td></tr></tbody>
   </table>`;
 }
 
@@ -14742,9 +15240,9 @@ function drawAnalyticsClarityChart(projects) {
   ANALYTICS_BREAKDOWNS.forEach(spec => drawAnalyticsBreakdownChart(spec, projects));
 }
 
-function drawAnalyticsBreakdownChart(spec, projects) {
+function drawAnalyticsBreakdownChart(spec, projects, extra) {
   const canvas = document.getElementById(spec.canvasId);
-  const view = analyticsBreakdownView(projects, spec);
+  const view = analyticsBreakdownView(projects, spec, extra);
   if (!canvas || !view || !view.summary.byProject.length || typeof Chart === 'undefined') return;
   const summary = view.summary;
   const series = ClarityDashboard.stacked(summary.byProject, summary.clarityLabels);
@@ -14820,7 +15318,13 @@ function drawAnalyticsBreakdownChart(spec, projects) {
           const group = summary.byProject[hit.index];
           const dataset = datasets[hit.datasetIndex];
           if (!group || !dataset || !dataset.data[hit.index] || dataset.clarityValue === 'Other') return;
-          openProjectFromClarityCell(group.key, view.selected, dataset.clarityValue, spec.fieldId);
+          openProjectFromClarityCell(
+            group.key,
+            view.selected,
+            dataset.clarityValue,
+            spec.fieldId,
+            String(spec.id || '').indexOf('qi_') === 0 ? qualityChartColumnFilters() : null
+          );
         },
       },
     });
@@ -14831,7 +15335,7 @@ function drawAnalyticsBreakdownChart(spec, projects) {
   }
 }
 
-function openProjectFromClarityCell(projectKey, scope, clarity, fieldId) {
+function openProjectFromClarityCell(projectKey, scope, clarity, fieldId, extraCols) {
   const proj = getAllProjects().find(item => item.key === projectKey);
   if (!proj || !window.ClarityDashboard) return;
   if (!S.activeFilter) S.activeFilter = {};
@@ -14850,7 +15354,420 @@ function openProjectFromClarityCell(projectKey, scope, clarity, fieldId) {
   };
   put('cf_scope', scope);
   put(fieldId || 'cf_clarity', clarity);
+  Object.entries(extraCols || {}).forEach(([targetField, value]) => put(targetField, value));
   nav(proj.id);
+}
+
+function breakdownCustomersForSpec(specId) {
+  if (!specId) return [];
+  const options = (S._breakdownValueOptions && S._breakdownValueOptions[specId]) || [];
+  const pick = breakdownPickState({ id: specId }, options);
+  return pick.all || pick.none ? [] : pick.customers;
+}
+
+function rememberBreakdownTickets(view) {
+  if (!view || !view.spec) return;
+  if (!S._breakdownTicketRows) S._breakdownTicketRows = {};
+  S._breakdownTicketRows[view.spec.id] = {
+    rows: view.chartRows || [],
+    folded: (view.summary && view.summary.folded) || [],
+    title: view.spec.title,
+    noun: view.spec.noun || 'value',
+    multi: !!view.spec.multi,
+    fieldId: view.spec.fieldId,
+    scopes: view.selected || [],
+  };
+}
+
+function breakdownRowValues(row, multi) {
+  const unset = window.ClarityDashboard ? ClarityDashboard.UNSET : 'Not set';
+  if (multi) {
+    const list = row && row.values && row.values.length ? row.values : [unset];
+    return list.map(value => value || unset);
+  }
+  return [((row && row.clarity) || unset)];
+}
+
+function breakdownTotalTickets(specId, rating, projectKey) {
+  const pack = S._breakdownTicketRows && S._breakdownTicketRows[specId];
+  if (!pack) return [];
+  let rows = pack.rows || [];
+  if (projectKey) rows = rows.filter(row => row.projectKey === projectKey);
+  if (!rating) return rows.slice();
+  const folded = pack.folded || [];
+  if (rating === 'Other' && folded.length) {
+    const hidden = new Set(folded);
+    return rows.filter(row => breakdownRowValues(row, pack.multi).some(value => hidden.has(value)));
+  }
+  return rows.filter(row => breakdownRowValues(row, pack.multi).some(value => value === rating));
+}
+
+function breakdownListFilterValue(specId, rating) {
+  const pack = S._breakdownTicketRows && S._breakdownTicketRows[specId];
+  if (rating === 'Other' && pack && (pack.folded || []).length) return pack.folded;
+  if (!rating) return breakdownCustomersForSpec(specId);
+  return rating;
+}
+
+function closeBreakdownTotalList() {
+  const root = document.getElementById('breakdown-list-root');
+  if (root) {
+    root.hidden = true;
+    root.classList.remove('is-fullscreen');
+  }
+  closeBreakdownListFilter();
+  syncBreakdownListMaxBtn(false);
+}
+
+function openBreakdownTotalProject(specId, projectKey, rating) {
+  const pack = S._breakdownTicketRows && S._breakdownTicketRows[specId];
+  if (!pack || !projectKey) return;
+  const extra = String(specId).indexOf('qi_') === 0 ? qualityChartColumnFilters() : null;
+  closeBreakdownTotalList();
+  openProjectFromClarityCell(projectKey, pack.scopes || [], breakdownListFilterValue(specId, rating), pack.fieldId, extra);
+}
+
+function breakdownListColumns(multi) {
+  return [
+    { id: 'key', label: 'Key' },
+    { id: 'summary', label: 'Summary' },
+    { id: 'project', label: 'Project' },
+    { id: 'scope', label: 'Scope' },
+    { id: 'values', label: multi ? 'Customers' : 'Rating' },
+    { id: 'status', label: 'Status' },
+  ];
+}
+
+function breakdownListCell(row, col, multi) {
+  if (col === 'key') return row.key || '—';
+  if (col === 'summary') return row.summary || '—';
+  if (col === 'project') return row.projectName || '—';
+  if (col === 'scope') return row.scope || '—';
+  if (col === 'status') return row.status || '—';
+  const values = breakdownRowValues(row, multi).map(value => window.ClarityDashboard ? ClarityDashboard.clarityCaption(value) : value);
+  return values.filter(Boolean).join(', ') || '—';
+}
+
+function breakdownListQuery(state) {
+  return String((state && state.query) || '').trim().toLowerCase();
+}
+
+function setBreakdownListSearch(value) {
+  if (!S._breakdownList) return;
+  S._breakdownList.query = String(value || '');
+  paintBreakdownList();
+}
+
+function breakdownListSortState() {
+  const sort = S._breakdownListSort || {};
+  return { col: sort.col || 'project', dir: sort.dir === -1 ? -1 : 1 };
+}
+
+function setBreakdownListSort(col) {
+  if (!S._breakdownList || !col) return;
+  const cur = breakdownListSortState();
+  S._breakdownListSort = cur.col === col ? { col, dir: cur.dir * -1 } : { col, dir: 1 };
+  closeBreakdownListFilter();
+  paintBreakdownList();
+}
+
+function breakdownListSorted(rows, state) {
+  const sort = breakdownListSortState();
+  return rows.slice().sort((a, b) => {
+    const av = breakdownListCell(a, sort.col, state.multi);
+    const bv = breakdownListCell(b, sort.col, state.multi);
+    const aBlank = !av || av === '—';
+    const bBlank = !bv || bv === '—';
+    if (aBlank !== bBlank) return aBlank ? 1 : -1;
+    const cmp = String(av).localeCompare(String(bv), undefined, { numeric: true, sensitivity: 'base' });
+    if (cmp) return cmp * sort.dir;
+    return String(a.key || '').localeCompare(String(b.key || ''), undefined, { numeric: true });
+  });
+}
+
+function breakdownListFiltered(state) {
+  const filters = S._breakdownListFilter || {};
+  const query = breakdownListQuery(state);
+  return (state.tickets || []).filter(row => {
+    if (query) {
+      const hay = breakdownListColumns(state.multi).map(col => breakdownListCell(row, col.id, state.multi)).join(' ').toLowerCase();
+      if (hay.indexOf(query) === -1) return false;
+    }
+    return breakdownListColumns(state.multi).every(col => {
+      const selected = filters[col.id];
+      if (!selected || !selected.length) return true;
+      return selected.indexOf(breakdownListCell(row, col.id, state.multi)) !== -1;
+    });
+  });
+}
+
+function breakdownListValueList(col) {
+  const state = S._breakdownList;
+  if (!state) return [];
+  const counts = new Map();
+  (state.tickets || []).forEach(row => {
+    const value = breakdownListCell(row, col, state.multi);
+    counts.set(value, (counts.get(value) || 0) + 1);
+  });
+  return [...counts.entries()].map(([value, count]) => ({ value, count })).sort((a, b) => {
+    if ((a.value === '—') !== (b.value === '—')) return a.value === '—' ? 1 : -1;
+    return String(a.value).localeCompare(String(b.value));
+  });
+}
+
+function breakdownListFilterButton(col) {
+  const selected = (S._breakdownListFilter && S._breakdownListFilter[col.id]) || [];
+  const open = S._breakdownListFilterOpen && S._breakdownListFilterOpen.col === col.id;
+  return `<button type="button" class="th-filter breakdown-list-filter${selected.length ? ' has-filter' : ''}${open ? ' active' : ''}" data-col="${esc(col.id)}" title="Filter ${esc(col.label)}" aria-label="Filter ${esc(col.label)}"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" aria-hidden="true"><polygon points="4 5 20 5 14 13 14 19 10 21 10 13 4 5"/></svg></button>`;
+}
+
+function syncBreakdownListMaxBtn(expanded) {
+  const btn = document.getElementById('breakdown-list-max');
+  if (!btn) return;
+  const label = expanded ? 'Exit full screen' : 'Full screen';
+  btn.title = label;
+  btn.setAttribute('aria-label', label);
+  btn.setAttribute('aria-pressed', expanded ? 'true' : 'false');
+  btn.innerHTML = qualityHistoryMaxIcon(expanded);
+}
+
+function toggleBreakdownListFullscreen(force) {
+  const root = document.getElementById('breakdown-list-root');
+  if (!root || root.hidden) return;
+  const next = typeof force === 'boolean' ? force : !root.classList.contains('is-fullscreen');
+  root.classList.toggle('is-fullscreen', next);
+  syncBreakdownListMaxBtn(next);
+}
+
+function breakdownListSortButton(col) {
+  const sort = breakdownListSortState();
+  const icon = sort.col === col.id && sort.dir === -1 ? '▼' : '▲';
+  return `<button type="button" class="breakdown-list-sort" data-breakdown-sort="${esc(col.id)}" title="Sort by ${esc(col.label)}">${esc(col.label)} <span class="sort-icon">${icon}</span></button>`;
+}
+
+function paintBreakdownList() {
+  const state = S._breakdownList;
+  const body = document.getElementById('breakdown-list-body');
+  const subEl = document.getElementById('breakdown-list-sub');
+  const countEl = document.getElementById('breakdown-list-count');
+  if (!state || !body || !subEl) return;
+  const shown = breakdownListSorted(breakdownListFiltered(state), state);
+  const total = state.tickets.length;
+  const scopeText = state.scopeText ? ' · ' + state.scopeText : '';
+  const countLabel = shown.length === total
+    ? `${total} ${total === 1 ? 'ticket' : 'tickets'}`
+    : `${shown.length} of ${total} ${total === 1 ? 'ticket' : 'tickets'}`;
+  subEl.textContent = `${state.title}${scopeText}`;
+  if (countEl) countEl.textContent = countLabel;
+  const cols = breakdownListColumns(state.multi);
+  const sort = breakdownListSortState();
+  if (!total) {
+    body.innerHTML = '<p class="qi-history-list-empty">No tickets in this total.</p>';
+    return;
+  }
+  const head = cols.map(col => `<th class="${sort.col === col.id ? 'sorted' : ''}" aria-sort="${sort.col === col.id ? (sort.dir === 1 ? 'ascending' : 'descending') : 'none'}"><span class="breakdown-list-h">${breakdownListSortButton(col)}${breakdownListFilterButton(col)}</span></th>`).join('');
+  const rows = shown.length
+    ? shown.map(row => `<tr>
+        <td>${qualityJiraLink(row.key)}</td>
+        <td>${esc(row.summary)}</td>
+        <td><button type="button" class="breakdown-list-proj" data-breakdown-open-project="${esc(row.projectKey)}">${esc(row.projectName)}</button></td>
+        <td>${esc(breakdownListCell(row, 'scope', state.multi))}</td>
+        <td>${esc(breakdownListCell(row, 'values', state.multi))}</td>
+        <td>${esc(breakdownListCell(row, 'status', state.multi))}</td>
+      </tr>`).join('')
+    : `<tr><td colspan="${cols.length}" class="qi-history-list-empty">${breakdownListQuery(state) ? 'No tickets match this search.' : 'No tickets match these column filters.'}</td></tr>`;
+  body.innerHTML = `<table class="breakdown-list-table"><thead><tr>${head}</tr></thead><tbody>${rows}</tbody></table>`;
+}
+
+function closeBreakdownListFilter() {
+  const pop = document.getElementById('breakdown-list-filter-pop');
+  if (pop) pop.classList.remove('open');
+  document.querySelectorAll('.breakdown-list-filter.active').forEach(el => el.classList.remove('active'));
+  S._breakdownListFilterOpen = null;
+}
+
+function positionBreakdownListFilter(anchor) {
+  const pop = document.getElementById('breakdown-list-filter-pop');
+  if (!pop || !anchor) return;
+  const rect = anchor.getBoundingClientRect();
+  pop.classList.add('open');
+  const width = pop.offsetWidth;
+  const height = pop.offsetHeight;
+  let left = rect.left;
+  let top = rect.bottom + 4;
+  if (left + width > window.innerWidth - 8) left = Math.max(8, window.innerWidth - width - 8);
+  if (top + height > window.innerHeight - 8) top = Math.max(8, rect.top - height - 4);
+  pop.style.left = left + 'px';
+  pop.style.top = top + 'px';
+}
+
+function renderBreakdownListFilterOptions(col, query) {
+  const opts = document.getElementById('breakdown-list-filter-opts');
+  if (!opts) return;
+  const selected = new Set((S._breakdownListFilter && S._breakdownListFilter[col]) || []);
+  const q = String(query || '').toLowerCase();
+  opts.innerHTML = breakdownListValueList(col).map(item => {
+    const hide = q && item.value.toLowerCase().indexOf(q) === -1;
+    const on = !selected.size || selected.has(item.value);
+    return `<label class="ms-option" data-value="${esc(item.value)}"${hide ? ' style="display:none"' : ''}>
+      <input type="checkbox" ${on ? 'checked' : ''} />
+      <span class="ms-option-label" title="${esc(item.value)}">${esc(item.value)}</span>
+      <span style="color:var(--text3);font-size:11px">${item.count}</span>
+    </label>`;
+  }).join('') || '<div style="padding:12px;font-size:12px;color:var(--text3)">No values</div>';
+}
+
+function bindBreakdownListFilterPop() {
+  const opts = document.getElementById('breakdown-list-filter-opts');
+  if (!opts || opts.dataset.bound) return;
+  opts.dataset.bound = '1';
+  opts.addEventListener('change', event => {
+    const input = event.target.closest('input[type="checkbox"]');
+    const row = input && input.closest('.ms-option');
+    const open = S._breakdownListFilterOpen;
+    if (!input || !row || !open) return;
+    toggleBreakdownListValue(open.col, row.getAttribute('data-value') || '', input.checked);
+  });
+}
+
+function openBreakdownListFilter(col, anchor, keepQuery) {
+  const prev = S._breakdownListFilterOpen;
+  const query = keepQuery && prev && prev.col === col ? (prev.query || '') : '';
+  S._breakdownListFilterOpen = { col, query };
+  bindBreakdownListFilterPop();
+  const search = document.getElementById('breakdown-list-filter-search');
+  if (search) search.value = query;
+  renderBreakdownListFilterOptions(col, query);
+  document.querySelectorAll('.breakdown-list-filter.active').forEach(el => el.classList.remove('active'));
+  if (anchor) anchor.classList.add('active');
+  positionBreakdownListFilter(anchor);
+  if (search && !keepQuery) search.focus();
+}
+
+function toggleBreakdownListFilter(col, anchor) {
+  const open = S._breakdownListFilterOpen;
+  if (open && open.col === col) {
+    closeBreakdownListFilter();
+    return;
+  }
+  openBreakdownListFilter(col, anchor);
+}
+
+function filterBreakdownListOptions(query) {
+  if (S._breakdownListFilterOpen) S._breakdownListFilterOpen.query = query || '';
+  const opts = document.getElementById('breakdown-list-filter-opts');
+  if (!opts) return;
+  const q = String(query || '').toLowerCase();
+  opts.querySelectorAll('.ms-option').forEach(el => {
+    const label = ((el.querySelector('.ms-option-label') && el.querySelector('.ms-option-label').textContent) || '').toLowerCase();
+    el.style.display = !q || label.indexOf(q) !== -1 ? '' : 'none';
+  });
+}
+
+function writeBreakdownListSelection(col, values) {
+  if (!S._breakdownListFilter) S._breakdownListFilter = {};
+  const all = breakdownListValueList(col).map(item => item.value);
+  const unique = [...new Set(values)];
+  if (!unique.length || (all.length && unique.length === all.length && all.every(value => unique.indexOf(value) !== -1))) delete S._breakdownListFilter[col];
+  else S._breakdownListFilter[col] = unique;
+  paintBreakdownList();
+  const open = S._breakdownListFilterOpen;
+  if (!open || open.col !== col) return;
+  let anchor = null;
+  document.querySelectorAll('.breakdown-list-filter').forEach(btn => {
+    if (btn.getAttribute('data-col') === col) anchor = btn;
+  });
+  openBreakdownListFilter(col, anchor, true);
+}
+
+function toggleBreakdownListValue(col, value, checked) {
+  const current = S._breakdownListFilter && S._breakdownListFilter[col];
+  const all = breakdownListValueList(col).map(item => item.value);
+  const selected = new Set(current && current.length ? current : all);
+  if (checked) selected.add(value);
+  else selected.delete(value);
+  writeBreakdownListSelection(col, [...selected]);
+}
+
+function selectVisibleBreakdownListValues() {
+  const open = S._breakdownListFilterOpen;
+  const opts = document.getElementById('breakdown-list-filter-opts');
+  if (!open || !opts) return;
+  const values = [];
+  opts.querySelectorAll('.ms-option').forEach(el => {
+    if (el.style.display === 'none') return;
+    values.push(el.getAttribute('data-value') || '');
+  });
+  writeBreakdownListSelection(open.col, values);
+}
+
+function clearBreakdownListFilter() {
+  const open = S._breakdownListFilterOpen;
+  if (!open) return;
+  writeBreakdownListSelection(open.col, []);
+}
+
+function bindBreakdownList() {
+  const root = document.getElementById('breakdown-list-root');
+  if (!root || root.dataset.bound) return;
+  root.dataset.bound = '1';
+  root.addEventListener('click', event => {
+    const filterBtn = event.target.closest('.breakdown-list-filter');
+    if (filterBtn) {
+      event.preventDefault();
+      event.stopPropagation();
+      toggleBreakdownListFilter(filterBtn.getAttribute('data-col') || '', filterBtn);
+      return;
+    }
+    const sortBtn = event.target.closest('[data-breakdown-sort]');
+    if (sortBtn) {
+      event.preventDefault();
+      event.stopPropagation();
+      setBreakdownListSort(sortBtn.getAttribute('data-breakdown-sort') || '');
+      return;
+    }
+    if (event.target.closest('[data-breakdown-list-close]')) {
+      closeBreakdownTotalList();
+      return;
+    }
+    const openBtn = event.target.closest('[data-breakdown-open-project]');
+    if (!openBtn) return;
+    openBreakdownTotalProject(root.dataset.spec || '', openBtn.getAttribute('data-breakdown-open-project') || '', root.dataset.rating || '');
+  });
+}
+
+function openBreakdownTotalList(specId, rating, projectKey) {
+  bindBreakdownList();
+  const pack = S._breakdownTicketRows && S._breakdownTicketRows[specId];
+  const root = document.getElementById('breakdown-list-root');
+  const titleEl = document.getElementById('breakdown-list-title');
+  if (!pack || !root || !titleEl) return;
+  const tickets = breakdownTotalTickets(specId, rating, projectKey).slice().sort((a, b) => {
+    const byProject = String(a.projectName || '').localeCompare(String(b.projectName || ''));
+    if (byProject) return byProject;
+    return String(a.key || '').localeCompare(String(b.key || ''));
+  });
+  const caption = rating && window.ClarityDashboard ? ClarityDashboard.clarityCaption(rating) : (rating || '');
+  const project = projectKey ? (tickets[0] && tickets[0].projectName) || projectKey : '';
+  titleEl.textContent = [project, caption].filter(Boolean).join(' · ') || 'All';
+  S._breakdownListFilter = {};
+  S._breakdownListSort = { col: 'project', dir: 1 };
+  closeBreakdownListFilter();
+  const listSearch = document.getElementById('breakdown-list-search');
+  if (listSearch) listSearch.value = '';
+  S._breakdownList = {
+    tickets,
+    multi: !!pack.multi,
+    title: pack.title,
+    scopeText: (pack.scopes || []).length ? (pack.scopes || []).join(', ') : '',
+  };
+  root.dataset.spec = specId;
+  root.dataset.rating = rating || '';
+  syncBreakdownListMaxBtn(root.classList.contains('is-fullscreen'));
+  paintBreakdownList();
+  root.hidden = false;
+  const closeBtn = root.querySelector('[data-breakdown-list-close].btn');
+  if (closeBtn) closeBtn.focus();
 }
 
 // ── Filtered HTML export (same ticket-list format as the release report) ─────
@@ -15024,16 +15941,26 @@ document.addEventListener('click', e => {
   if (!e.target.closest('#ws-picker') && !e.target.closest('.ws-add-btn') && !e.target.closest('.ws-bulk-add')) {
     closeWorkspacePicker();
   }
-  if (!e.target.closest('#proj-col-filter-pop') && !e.target.closest('.th-filter')) {
+  if (!e.target.closest('#proj-col-filter-pop') && !e.target.closest('.proj-issue-table .th-filter')) {
     closeProjectColFilter();
+  }
+  if (!e.target.closest('#breakdown-list-filter-pop') && !e.target.closest('.breakdown-list-filter')) {
+    if (e.target && e.target.isConnected === false) return;
+    closeBreakdownListFilter();
   }
 });
 document.addEventListener('scroll', e => {
-  if (!S._openColFilter) return;
-  if (e.target && e.target.closest && e.target.closest('#proj-col-filter-pop')) return;
-  closeProjectColFilter();
+  if (S._openColFilter) {
+    if (!(e.target && e.target.closest && e.target.closest('#proj-col-filter-pop'))) closeProjectColFilter();
+  }
+  if (S._breakdownListFilterOpen) {
+    if (!(e.target && e.target.closest && e.target.closest('#breakdown-list-filter-pop'))) closeBreakdownListFilter();
+  }
 }, true);
-window.addEventListener('resize', () => { if (S._openColFilter) closeProjectColFilter(); });
+window.addEventListener('resize', () => {
+  if (S._openColFilter) closeProjectColFilter();
+  if (S._breakdownListFilterOpen) closeBreakdownListFilter();
+});
 
 const PLAN_PHASES = ['Product', 'Developer Pending', 'Developing', 'QA', 'Rejected / Replied', 'On Hold', 'External Team', 'Other', 'Closed'];
 const PLAN_FREEZE_LEVELS = [

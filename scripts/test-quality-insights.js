@@ -264,5 +264,18 @@ assert.match(dashboardHtml, /function getConfiguredPhaseSnapshotType\(statusName
 assert.match(dashboardHtml, /title: \(items\) => \{\s+if \(!items \|\| !items\.length\) return '';\s+const item = items\[0\];\s+if \(!item \|\| !item\.dataset\) return '';/);
 assert.match(dashboardHtml, /return 'other';\s*\}/);
 assert.match(dashboardHtml, /if \(status === null\) return;/);
+assert.match(dashboardHtml, /id="qi-project-filter-all"/);
+assert.match(dashboardHtml, /id="qi-project-filter-none"/);
+assert.match(dashboardHtml, /id="qi-jira-project-filter-none"/);
+assert.match(dashboardHtml, /id="qi-status-filter-btn"/);
+assert.match(dashboardHtml, /function issueInSelectedQualityStatuses\(/);
+assert.match(dashboardHtml, /function filterRowsByQualityStatus\(/);
+assert.match(dashboardHtml, /function selectNoJiraProjects\(/);
+assert.match(dashboardHtml, /canvasId: 'c_qi_custcom'/);
+assert.ok(!dashboardHtml.includes("canvasId: 'c_qi_custint'"));
+assert.match(dashboardHtml, /plain: true/);
+assert.match(dashboardHtml, /if \(!proj \|\| !isQualityDashboardProject\(proj\) \|\| !issue\) return;/);
+assert.ok(!dashboardHtml.includes('function deliveryProjectByKey('));
+assert.ok(!dashboardHtml.includes('${qualityHistoryMenuHtml()}'));
 
 console.log('quality-insights: ok');
