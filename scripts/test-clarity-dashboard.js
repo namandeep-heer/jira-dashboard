@@ -59,6 +59,19 @@ assert.strictEqual(series.length, 5);
 assert.deepStrictEqual(series[0].data, [1, 0, 0, 0]);
 assert.strictEqual(series[0].color, '#3B6D11');
 
+const multi = [
+  { projectKey: 'NFS', projectName: 'Lease', scope: 'Committed', values: ['Apple', 'Mondi'] },
+  { projectKey: 'NFS', projectName: 'Lease', scope: 'Committed', values: [] },
+  { projectKey: 'GL', projectName: 'Ledger', scope: 'Opportunistic', values: ['Apple'] },
+];
+const multiSummary = Clarity.summarize(multi, { valuesKey: 'values', projectOrder: ['NFS', 'GL'] });
+assert.strictEqual(multiSummary.total, 3);
+assert.strictEqual(multiSummary.byProject[0].total, 2);
+assert.strictEqual(multiSummary.byProject[0].counts.Apple, 1);
+assert.strictEqual(multiSummary.byProject[0].counts.Mondi, 1);
+assert.strictEqual(multiSummary.byProject[0].counts['Not set'], 1);
+assert.strictEqual(multiSummary.byClarity.find(item => item.label === 'Apple').count, 2);
+
 assert.ok(Clarity.trackRank('🔴') < Clarity.trackRank('Not set'));
 assert.ok(Clarity.trackRank('Not set') < Clarity.trackRank('⚪'));
 assert.ok(Clarity.trackRank('🟡') < Clarity.trackRank('🟢'));
@@ -89,12 +102,22 @@ assert.ok(!dashboard.includes('class="clarity-matrix"'));
 assert.ok(dashboard.includes('function analyticsClarityChartHtml('));
 assert.ok(dashboard.includes('function drawAnalyticsClarityChart('));
 assert.ok(dashboard.includes('function openProjectFromClarityCell('));
-assert.ok(dashboard.includes('id="c_clarity"'));
+assert.ok(dashboard.includes("canvasId: 'c_clarity'"));
+assert.ok(dashboard.includes("canvasId: 'c_custcom'"));
+assert.ok(dashboard.includes("canvasId: 'c_custint'"));
+assert.ok(dashboard.includes('Customer Commitment'));
+assert.ok(dashboard.includes('Customer Interest'));
+assert.ok(dashboard.includes('function setBreakdownCustomer('));
+assert.ok(dashboard.includes('All customers'));
 assert.ok(dashboard.includes('data-clarity-scope-pick'));
 assert.ok(dashboard.includes('S.clarityScopes'));
 assert.ok(dashboard.includes('function analyticsClarityNumbersHtml('));
+assert.ok(dashboard.includes('class="clarity-num clarity-proj"'));
+assert.ok(dashboard.includes('view.colors[group.key]'));
 assert.ok(dashboard.includes('data-clarity-count'));
-assert.ok(dashboard.includes("setAnalyticsView('clarity'"));
+assert.ok(!dashboard.includes('function showAnalyticsBreakdownList('));
+assert.ok(!dashboard.includes('data-clarity-list'));
+assert.ok(dashboard.includes("setAnalyticsView('${spec.id}', this.value)"));
 assert.ok(dashboard.includes('/lib/clarity-dashboard.js'));
 assert.ok(!menuSrc.includes("{ id: 'clarity'"));
 assert.ok(proxy.includes("'/lib/clarity-dashboard.js'"));

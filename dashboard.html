@@ -301,15 +301,22 @@ html.sidebar-collapsed #log-badge { position: absolute; top: 3px; right: 3px; ma
 .clarity-chart-block { margin: 4px 0 22px; }
 .clarity-scope-row { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; margin: 0 0 10px; }
 .clarity-scope-row .section-control { margin-left: auto; }
+.clarity-customer-select { max-width: 240px; }
+.clarity-scope-row .clarity-customer-select + .section-control { margin-left: 0; }
 .clarity-scope { border: 0.5px solid var(--border); background: var(--bg); color: var(--text2); border-radius: 999px; padding: 5px 11px; font: inherit; font-size: 12px; cursor: pointer; }
 .clarity-scope:hover { border-color: var(--border2); color: var(--text); }
 .clarity-scope.active { border-color: var(--blue); background: var(--blue-bg); color: var(--blue); font-weight: 600; }
+.clarity-numbers-scroll { overflow-x: auto; }
 .clarity-numbers { margin-bottom: 0; }
+.clarity-numbers-scroll .clarity-numbers { width: max-content; min-width: 100%; }
+span.clarity-num { cursor: default; }
+span.clarity-num:hover { background: none; color: var(--text); }
 .clarity-numbers th { font-weight: 500; text-transform: none; letter-spacing: 0; }
 .clarity-numbers th.ph-col, .clarity-numbers td.num { text-align: center; }
 .clarity-numbers td { font-weight: 400; }
 .clarity-num-dot { width: 8px; height: 8px; border-radius: 2px; display: inline-block; margin-right: 6px; vertical-align: middle; }
 .clarity-num { border: 0; background: none; padding: 2px 6px; border-radius: 6px; font: inherit; font-size: 13px; font-weight: 400; color: var(--text); cursor: pointer; }
+.clarity-proj { display: inline-flex; align-items: center; gap: 8px; font-weight: 600; padding-left: 0; }
 .clarity-num:hover { background: var(--bg2); color: var(--blue); }
 .clarity-zero { color: var(--text3); font-weight: 400; }
 
@@ -3163,6 +3170,7 @@ const ALL_FIELDS = [
   { id:'cf_dev',      label:'Assignee: Development',    jira:'customfield_10206', custom:true  },
   { id:'cf_product',  label:'Assignee: Product',        jira:'customfield_10207', custom:true  },
   { id:'cf_custcom',  label:'Customer Commitment',      jira:'customfield_10208', custom:true  },
+  { id:'cf_custint',  label:'Customer Interest',        jira:'customfield_13980', custom:true  },
 ];
 
 const DEFAULT_ENABLED = ALL_FIELDS.map(f => f.id);
@@ -4807,6 +4815,10 @@ function applyPendingRouteState(page) {
     if (typeView) S.analyticsViews.type = typeView;
     const clarityView = params.get('clarityView');
     if (clarityView) S.analyticsViews.clarity = clarityView;
+    const custcomView = params.get('custcomView');
+    if (custcomView) S.analyticsViews.custcom = custcomView;
+    const custintView = params.get('custintView');
+    if (custintView) S.analyticsViews.custint = custintView;
   }
 
   if (page === 'quality-insights' || page === 'quality-phase' || page === 'quality-progress') {
@@ -5004,6 +5016,8 @@ function collectRouteParams() {
     if (S.analyticsViews.priority !== 'doughnut') params.set('priorityView', S.analyticsViews.priority);
     if (S.analyticsViews.type !== 'doughnut') params.set('typeView', S.analyticsViews.type);
     if (S.analyticsViews.clarity && S.analyticsViews.clarity !== 'bar') params.set('clarityView', S.analyticsViews.clarity);
+    if (S.analyticsViews.custcom && S.analyticsViews.custcom !== 'bar') params.set('custcomView', S.analyticsViews.custcom);
+    if (S.analyticsViews.custint && S.analyticsViews.custint !== 'bar') params.set('custintView', S.analyticsViews.custint);
   } else if (page === 'release-report') {
     const projects = csvParam(getSelectedReleaseReportProjects());
     if (projects) params.set('projects', projects);
@@ -6111,7 +6125,7 @@ function issueMatchesListingSearchAndCols(proj, issue) {
     if (!selected || !selected.size) continue;
     const field = listingFieldById(fieldId);
     if (!field) continue;
-    if (!selected.has(projectCellFilterKey(issue, field))) return false;
+    if (!projectCellMatchesSelected(issue, field, selected)) return false;
   }
   return true;
 }
@@ -6321,6 +6335,13 @@ function getPhaseFilteredProjectIssues(projKey) {
 function projectCellFilterKey(issue, field) {
   const val = String(getCellValue(issue, field));
   return val === '' ? PROJ_BLANK : val;
+}
+
+function projectCellMatchesSelected(issue, field, selected) {
+  const key = projectCellFilterKey(issue, field);
+  if (selected.has(key)) return true;
+  if (!key || key === PROJ_BLANK) return false;
+  return key.split(', ').some(part => selected.has(part));
 }
 
 function listingFieldById(fieldId) {
@@ -10154,7 +10175,9 @@ function ensureAnalyticsViews() {
   if (!devModes.has(S.analyticsViews.dev)) S.analyticsViews.dev = 'table';
   if (!donutModes.has(S.analyticsViews.priority)) S.analyticsViews.priority = 'doughnut';
   if (!donutModes.has(S.analyticsViews.type)) S.analyticsViews.type = 'doughnut';
-  if (S.analyticsViews.clarity !== 'bar' && S.analyticsViews.clarity !== 'numbers') S.analyticsViews.clarity = 'bar';
+  ['clarity', 'custcom', 'custint'].forEach(id => {
+    if (S.analyticsViews[id] !== 'bar' && S.analyticsViews[id] !== 'numbers') S.analyticsViews[id] = 'bar';
+  });
 }
 
 function setAnalyticsView(section, value) {
@@ -10194,7 +10217,7 @@ function hasIssueDays(issue, fieldAlias, fallbackFieldId) {
 }
 
 function resetAnalyticsViews() {
-  S.analyticsViews = { phase:'table', dev:'table', priority:'doughnut', type:'doughnut', clarity:'bar' };
+  S.analyticsViews = { phase:'table', dev:'table', priority:'doughnut', type:'doughnut', clarity:'bar', custcom:'bar', custint:'bar' };
   persist();
   renderAnalytics();
 }
@@ -10238,16 +10261,6 @@ function renderAnalytics() {
       <button class="btn btn-sm" onclick="resetAnalyticsViews()">Reset graph views</button>
     </div>
     ${analyticsClarityChartHtml(loaded)}
-    <div class="qi-block">
-      <div class="qi-history-head">
-        <div>
-          <h2>History</h2>
-          <p class="sub">${S.anHistoryPeriod === 'month' ? 'Monthly' : 'Weekly'} delivery counts from status history for this market release. Colored vertical lines mark its milestones. Click a point to list the tickets in that count.</p>
-        </div>
-        ${analyticsHistoryMenuHtml()}
-      </div>
-      <div class="qi-history-grid" id="an-history-grid"></div>
-    </div>
     <div class="section-h-row">
       <div class="section-h">Phase breakdown</div>
       <select class="section-control" onchange="setAnalyticsView('phase',this.value)">
@@ -10778,7 +10791,6 @@ function renderAnalytics() {
 
   buildCharts('ch-priority', is=>{const m={};is.forEach(i=>{const s=i.fields?.priority?.name||'Unknown';m[s]=(m[s]||0)+1;});return{labels:Object.keys(m),counts:Object.values(m)};}, 'priority', S.analyticsViews.priority);
   buildCharts('ch-type',     is=>{const m={};is.forEach(i=>{const s=i.fields?.issuetype?.name||'Unknown';m[s]=(m[s]||0)+1;});return{labels:Object.keys(m),counts:Object.values(m)};}, 'type', S.analyticsViews.type);
-  drawAnalyticsHistoryCharts(loaded);
 }
 
 // ── Developer Velocity ───────────────────────────────────────────────────────
@@ -13202,13 +13214,6 @@ const QI_HISTORY_CHART_BY_CANVAS = {
   'qi-hist-flow': 'qiHistFlow',
   'qi-hist-type': 'qiHistType',
   'qi-hist-priority': 'qiHistPriority',
-  'an-hist-grooming': 'anHistGrooming',
-  'an-hist-developing': 'anHistDeveloping',
-  'an-hist-testing': 'anHistTesting',
-  'an-hist-flow': 'anHistFlow',
-  'an-hist-phase': 'anHistPhase',
-  'an-hist-project': 'anHistProject',
-  'an-hist-scope': 'anHistScope',
 };
 
 function qualityHistoryMaxIcon(expanded) {
@@ -13641,297 +13646,6 @@ function drawQualityHistoryCharts(issues) {
   mounts.forEach(mount => mount());
 }
 
-const AN_HISTORY_MENU = [
-  { id: 'grooming', label: 'Grooming History', hint: 'Delivery work entering grooming, waiting there, and leaving it.' },
-  { id: 'developing', label: 'Developing History', hint: 'Delivery work entering development, waiting there, and leaving it.' },
-  { id: 'testing', label: 'Testing History', hint: 'Delivery work entering testing, waiting there, and leaving it.' },
-  { id: 'flow', label: 'Work Incoming & Outgoing', hint: 'Moves into and out of grooming, development, and testing.' },
-  { id: 'phase', label: 'Open Work By Phase', hint: 'Where open delivery work sat at the end of each period.' },
-  { id: 'project', label: 'Open Work By Project', hint: 'Open delivery work stacked by project.' },
-  { id: 'scope', label: 'Open Work By Scope', hint: 'Open work by each ticket’s current Scope Commitment At SC.' },
-];
-
-const AN_STAGE_SERIES = [
-  { key: 'totalWork', label: 'Total Work', color: '#185FA5', dash: [6, 4] },
-  { key: 'toCome', label: 'To Come', color: '#A32D2D', dash: [] },
-  { key: 'handled', label: 'Handled', color: '#c47a0f', dash: [4, 3] },
-  { key: 'open', label: 'Current Open', color: '#44403C', dash: [5, 4] },
-  { key: 'pendingActive', label: 'Pending / Active', color: '#533AB7', dash: [6, 4] },
-];
-
-const AN_FLOW_SERIES = [
-  { key: 'groomingIn', label: 'Grooming in', color: '#7C3AED', dash: [], axis: 'y' },
-  { key: 'groomingOut', label: 'Grooming out', color: '#7C3AED', dash: [5, 4], axis: 'y' },
-  { key: 'developingIn', label: 'Developing in', color: '#c47a0f', dash: [], axis: 'y' },
-  { key: 'developingOut', label: 'Developing out', color: '#c47a0f', dash: [5, 4], axis: 'y' },
-  { key: 'testingIn', label: 'Testing in', color: '#185FA5', dash: [], axis: 'y' },
-  { key: 'testingOut', label: 'Testing out', color: '#185FA5', dash: [5, 4], axis: 'y' },
-  { key: 'active', label: 'Active Grooming / Developing / Testing', color: '#A32D2D', dash: [], axis: 'y1' },
-  { key: 'open', label: 'Current Open', color: '#44403C', dash: [], axis: 'y1' },
-];
-
-const AN_PHASE_ORDER = ['Product', 'Developer Pending', 'Developing', 'QA', 'Rejected / Replied', 'On Hold', 'External Team', 'Other'];
-
-const AN_PHASE_COLORS = {
-  Product: '#533AB7',
-  'Developer Pending': '#854F0B',
-  Developing: '#185FA5',
-  QA: '#0F6E56',
-  'Rejected / Replied': '#c47a0f',
-  'On Hold': '#888780',
-  'External Team': '#7C3AED',
-  Other: '#44403C',
-};
-
-const AN_SCOPE_COLORS = ['#533AB7', '#185FA5', '#0F6E56', '#c47a0f', '#A32D2D', '#854F0B', '#993556', '#3B6D11'];
-
-function ensureAnalyticsHistoryVisible() {
-  const defaults = { grooming: true, developing: true, testing: true, flow: true, phase: true, project: true, scope: true };
-  S.anHistoryVisible = { ...defaults, ...(S.anHistoryVisible || {}) };
-  return S.anHistoryVisible;
-}
-
-function analyticsHistoryMenuHtml() {
-  const visible = ensureAnalyticsHistoryVisible();
-  const selected = AN_HISTORY_MENU.filter(item => visible[item.id] !== false).length;
-  const period = S.anHistoryPeriod === 'month' ? 'month' : 'week';
-  return `
-    <div class="qi-history-actions">
-      <select id="an-history-period" class="section-control" aria-label="Market release history period" onchange="setAnalyticsHistoryPeriod(this.value)">
-        <option value="week" ${period === 'week' ? 'selected' : ''}>By week</option>
-        <option value="month" ${period === 'month' ? 'selected' : ''}>By month</option>
-      </select>
-      <div class="ms-wrap">
-        <button class="ms-btn" id="an-history-menu-btn" type="button" onclick="toggleAnalyticsHistoryMenu()" aria-haspopup="true" aria-expanded="false">
-          <span>Charts</span>
-          <span class="ms-badge">${selected}</span>
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"/></svg>
-        </button>
-        <div class="ms-dropdown" id="an-history-menu">
-          <div class="ms-options">
-            ${AN_HISTORY_MENU.map(item => `
-              <label class="ms-option" title="${esc(item.hint)}">
-                <input type="checkbox" ${visible[item.id] !== false ? 'checked' : ''} aria-label="${esc(item.label)}" onchange="toggleAnalyticsHistoryChart('${item.id}', this.checked)">
-                <span class="ms-option-label">${esc(item.label)}</span>
-              </label>`).join('')}
-          </div>
-        </div>
-      </div>
-    </div>`;
-}
-
-function toggleAnalyticsHistoryMenu() {
-  const menu = document.getElementById('an-history-menu');
-  const btn = document.getElementById('an-history-menu-btn');
-  if (!menu) return;
-  const open = menu.classList.toggle('open');
-  if (btn) btn.setAttribute('aria-expanded', open ? 'true' : 'false');
-}
-
-function setAnalyticsHistoryPeriod(value) {
-  S.anHistoryPeriod = value === 'month' ? 'month' : 'week';
-  renderAnalytics();
-}
-
-function toggleAnalyticsHistoryChart(id, checked) {
-  const visible = ensureAnalyticsHistoryVisible();
-  visible[id] = !!checked;
-  renderAnalytics();
-}
-
-function analyticsHistoryPhaseLabel(statusName) {
-  const name = String(statusName || '').trim();
-  if (/^on[\s-]*hold\b/i.test(name)) return 'On Hold';
-  const phase = getPhaseForStatus(name);
-  if (phase && phase.label && phase.label !== 'Closed') return phase.label;
-  return 'Other';
-}
-
-function analyticsHistoryScopeLabel(issue) {
-  const scopeField = ALL_FIELDS.find(field => field.id === 'cf_scopesc');
-  if (!scopeField || !issue || !issue.fields) return 'Not Set';
-  const val = issue.fields[jiraId(scopeField)];
-  if (val && typeof val === 'object') return String(val.value || val.name || 'Not Set').trim() || 'Not Set';
-  const text = String(val == null ? '' : val).trim();
-  return text || 'Not Set';
-}
-
-function analyticsHistoryGroupAt(issue, statusName) {
-  return {
-    phase: analyticsHistoryPhaseLabel(statusName),
-    project: (issue && issue._releaseProject) || 'Unknown',
-    scope: analyticsHistoryScopeLabel(issue),
-  };
-}
-
-function analyticsHistoryGroupColor(groupId, label, index, projectColors) {
-  if (groupId === 'phase') return AN_PHASE_COLORS[label] || QI_HISTORY_EXTRA_COLORS[index % QI_HISTORY_EXTRA_COLORS.length];
-  if (groupId === 'project') return (projectColors && projectColors[label]) || QI_HISTORY_EXTRA_COLORS[index % QI_HISTORY_EXTRA_COLORS.length];
-  if (label === 'Not Set') return '#888780';
-  if (label === 'Other') return '#44403C';
-  return AN_SCOPE_COLORS[index % AN_SCOPE_COLORS.length];
-}
-
-function collectAnalyticsHistoryIssues(projects) {
-  const issues = [];
-  const projectColors = {};
-  (projects || []).forEach(proj => {
-    const name = proj.name || proj.key;
-    projectColors[name] = proj.color || '#185FA5';
-    const filtered = filterIssuesToActiveRelease((S.cache[proj.key] && S.cache[proj.key].issues) || [], proj);
-    (filtered.issues || []).forEach(issue => {
-      issues.push(Object.assign({ _releaseProject: name }, issue));
-    });
-  });
-  return { issues, projectColors };
-}
-
-function drawAnalyticsHistoryCharts(projects) {
-  const host = document.getElementById('an-history-grid');
-  if (!host) return;
-  resetHistoryMembers('anHist');
-  if (typeof QualityHistory === 'undefined' || !QualityHistory.buildQualityHistory) {
-    host.innerHTML = '<div class="info-box">History charts are unavailable. Restart the dashboard server so it can serve quality-history.js.</div>';
-    return;
-  }
-  if (typeof Chart === 'undefined') {
-    host.innerHTML = '<div class="info-box">History charts need Chart.js, which did not load.</div>';
-    return;
-  }
-  const collected = collectAnalyticsHistoryIssues(projects);
-  const issues = collected.issues;
-  if (!issues.length) {
-    host.innerHTML = '<p style="font-size:13px;color:var(--text3)">No delivery tickets in this market release.</p>';
-    return;
-  }
-  const release = findReleaseByName(S.activeRelease);
-  const milestones = getDatedReleaseMilestones(release).map(marker => ({
-    id: marker.id,
-    label: marker.label,
-    color: marker.color,
-    date: marker.date,
-  }));
-  let model;
-  try {
-    model = QualityHistory.buildQualityHistory(issues, {
-      now: new Date(),
-      period: S.anHistoryPeriod === 'month' ? 'month' : 'week',
-      milestones,
-      groupAt: analyticsHistoryGroupAt,
-      groupOrder: { phase: AN_PHASE_ORDER },
-      groupLimit: { scope: 8 },
-      includeMembers: true,
-    });
-  } catch (err) {
-    console.warn('[analytics-history]', err);
-    host.innerHTML = '<div class="info-box">History charts could not be built from the synced tickets.</div>';
-    return;
-  }
-  const visible = ensureAnalyticsHistoryVisible();
-  const periodWord = model.period === 'month' ? 'Monthly' : 'Weekly';
-  const cards = [];
-  const mounts = [];
-  function addStage(stageId, chartKey, canvasId, title) {
-    if (visible[stageId] === false) return;
-    const stageTickets = (model.members && model.members.stages && model.members.stages[stageId]) || {};
-    const series = AN_STAGE_SERIES.map(item => ({ ...item, tickets: stageTickets[item.key] }));
-    series.forEach(item => bindHistorySeriesTickets(chartKey, item.key, item.tickets, model.labels));
-    cards.push(qualityHistoryCard(
-      canvasId,
-      title,
-      'By issue counts. Total Work has entered this stage. To Come is still upstream. Handled has moved past it.',
-      qualityHistoryLegend(chartKey, series)
-    ));
-    mounts.push(() => {
-      const datasets = series.map(item => qualityHistoryLineDataset(
-        item,
-        model.stages[stageId][item.key],
-        !qualityHistorySeriesOn(chartKey, item.key)
-      ));
-      mountQualityHistoryChart(chartKey, canvasId, datasets, model.labels, model.markers, false, false);
-    });
-  }
-  function addGroup(menuId, chartKey, canvasId, title, subtitle, groupId) {
-    if (visible[menuId] === false) return;
-    const series = ((model.groups && model.groups[groupId]) || []).map((item, index) => ({
-      key: item.label,
-      label: item.label,
-      color: analyticsHistoryGroupColor(groupId, item.label, index, collected.projectColors),
-      dash: [],
-      data: item.data,
-      tickets: item.tickets,
-    }));
-    series.forEach(item => bindHistorySeriesTickets(chartKey, item.key, item.tickets, model.labels));
-    if (!series.length) return;
-    cards.push(qualityHistoryCard(
-      canvasId,
-      title,
-      subtitle,
-      qualityHistoryLegend(chartKey, series)
-    ));
-    mounts.push(() => {
-      const datasets = series.map(item => qualityHistoryAreaDataset(
-        item.label,
-        item.data,
-        item.color,
-        !qualityHistorySeriesOn(chartKey, item.key)
-      ));
-      mountQualityHistoryChart(chartKey, canvasId, datasets, model.labels, model.markers, true, false);
-    });
-  }
-  addStage('grooming', 'anHistGrooming', 'an-hist-grooming', 'Grooming History: By Issue Counts');
-  addStage('developing', 'anHistDeveloping', 'an-hist-developing', 'Developing History: By Issue Counts');
-  addGroup(
-    'phase',
-    'anHistPhase',
-    'an-hist-phase',
-    'Open Work By Phase',
-    'Open tickets at the end of each period, stacked by the pipeline phase of the status they held then.',
-    'phase'
-  );
-  addStage('testing', 'anHistTesting', 'an-hist-testing', 'Testing History: By Issue Counts');
-  if (visible.flow !== false) {
-    const flowTickets = (model.members && model.members.flow) || {};
-    const series = AN_FLOW_SERIES.map(item => ({ ...item, tickets: flowTickets[item.key] }));
-    series.forEach(item => bindHistorySeriesTickets('anHistFlow', item.key, item.tickets, model.labels));
-    cards.push(qualityHistoryCard(
-      'an-hist-flow',
-      'Work Incoming & Outgoing History: By Issue Counts',
-      `${periodWord} moves into and out of each stage are on the left. Active work and current open issues are on the right.`,
-      qualityHistoryLegend('anHistFlow', series)
-    ));
-    mounts.push(() => {
-      const datasets = series.map(item => qualityHistoryLineDataset(
-        item,
-        model.flow[item.key],
-        !qualityHistorySeriesOn('anHistFlow', item.key)
-      ));
-      mountQualityHistoryChart('anHistFlow', 'an-hist-flow', datasets, model.labels, model.markers, false, true);
-    });
-  }
-  addGroup(
-    'project',
-    'anHistProject',
-    'an-hist-project',
-    'Open Work By Project',
-    'Open tickets at the end of each period, stacked by project.',
-    'project'
-  );
-  addGroup(
-    'scope',
-    'anHistScope',
-    'an-hist-scope',
-    'Open Work By Scope',
-    'Open tickets at the end of each period, stacked by the current Scope Commitment At SC. Earlier scope changes are not in the changelog, so each week uses the scope on the ticket now.',
-    'scope'
-  );
-  const truncated = model.truncated
-    ? '<p style="font-size:12px;color:var(--text3);grid-column:1/-1">Showing the latest 180 periods.</p>'
-    : '';
-  host.innerHTML = truncated + (cards.join('') || '<p style="font-size:13px;color:var(--text3)">All history charts are hidden. Turn them back on from Charts.</p>');
-  mounts.forEach(mount => mount());
-}
-
 function renderQualityInsights() {
   destroyQualityHistoryCharts();
   document.body.classList.remove('qi-history-fs-active');
@@ -14182,7 +13896,8 @@ function bindAnalyticsClarity() {
       openProjectFromClarityCell(
         countBtn.getAttribute('data-clarity-project'),
         claritySelectedScopes(S._clarityScopeOptions || []),
-        countBtn.getAttribute('data-clarity-rating') || ''
+        countBtn.getAttribute('data-clarity-rating') || '',
+        countBtn.getAttribute('data-clarity-field') || 'cf_clarity'
       );
       return;
     }
@@ -14215,38 +13930,157 @@ function clarityFieldText(issue, fieldId) {
   return String(value == null ? '' : value).trim();
 }
 
+const ANALYTICS_BREAKDOWNS = [
+  { id: 'clarity', title: 'A + Clarity', fieldId: 'cf_clarity', canvasId: 'c_clarity', multi: false, top: 0, noun: 'rating' },
+  { id: 'custcom', title: 'Customer Commitment', fieldId: 'cf_custcom', canvasId: 'c_custcom', multi: true, top: 12, noun: 'customer' },
+  { id: 'custint', title: 'Customer Interest', fieldId: 'cf_custint', canvasId: 'c_custint', multi: true, top: 12, noun: 'customer' },
+];
+
+function analyticsOptionList(issue, fieldId) {
+  const field = ALL_FIELDS.find(item => item.id === fieldId);
+  if (!field || !issue || !issue.fields) return [];
+  const value = issue.fields[jiraId(field)];
+  if (value == null || value === '') return [];
+  const list = Array.isArray(value) ? value : [value];
+  return list.map(item => {
+    if (item == null) return '';
+    if (typeof item === 'string') return item.trim();
+    return String(item.value || item.name || '').trim();
+  }).filter(Boolean);
+}
+
 function analyticsClarityRows(projects) {
+  return analyticsBreakdownRows(projects, ANALYTICS_BREAKDOWNS[0]);
+}
+
+function analyticsBreakdownRows(projects, spec) {
   const rows = [];
   (projects || []).forEach(proj => {
     const issues = (S.cache[proj.key] && S.cache[proj.key].issues) || [];
     issues.forEach(issue => {
-      rows.push({
+      const row = {
         projectKey: proj.key,
         projectName: proj.name || proj.key,
         scope: clarityFieldText(issue, 'cf_scope') || ClarityDashboard.UNSET,
-        clarity: clarityFieldText(issue, 'cf_clarity') || ClarityDashboard.UNSET,
-      });
+      };
+      if (spec.multi) row.values = analyticsOptionList(issue, spec.fieldId);
+      else row.clarity = clarityFieldText(issue, spec.fieldId) || ClarityDashboard.UNSET;
+      rows.push(row);
     });
   });
   return rows;
 }
 
-function analyticsClarityView(projects) {
+function collapseAnalyticsBreakdown(summary, limit) {
+  const unset = ClarityDashboard.UNSET;
+  const ranked = summary.clarityLabels
+    .filter(label => label !== unset)
+    .map(label => {
+      const found = (summary.byClarity || []).find(item => item.label === label);
+      return { label, count: found ? found.count : 0 };
+    })
+    .sort((a, b) => b.count - a.count || a.label.localeCompare(b.label));
+  const keep = ranked.slice(0, limit);
+  const rest = ranked.slice(limit);
+  const labels = keep.map(item => item.label);
+  if (rest.length) labels.push('Other');
+  if (summary.clarityLabels.includes(unset)) labels.push(unset);
+  if (rest.length) {
+    const drop = new Set(rest.map(item => item.label));
+    summary.byProject.forEach(group => {
+      let other = 0;
+      drop.forEach(label => {
+        other += (group.counts && group.counts[label]) || 0;
+        if (group.counts) delete group.counts[label];
+      });
+      if (other) group.counts.Other = other;
+    });
+  }
+  summary.clarityLabels = labels;
+  summary.byClarity = labels.map(label => ({
+    label,
+    color: label === 'Other' ? '#44403C' : ClarityDashboard.clarityColor(label),
+    count: summary.byProject.reduce((sum, group) => sum + ((group.counts && group.counts[label]) || 0), 0),
+  }));
+  return summary;
+}
+
+function breakdownCustomerOptions(rows) {
+  const counts = new Map();
+  (rows || []).forEach(row => {
+    (row.values || []).forEach(value => {
+      if (!value || value === ClarityDashboard.UNSET) return;
+      counts.set(value, (counts.get(value) || 0) + 1);
+    });
+  });
+  return [...counts.entries()]
+    .sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0]))
+    .map(([label]) => label);
+}
+
+function breakdownCustomerChoice(spec) {
+  if (!S.breakdownCustomer) S.breakdownCustomer = {};
+  return S.breakdownCustomer[spec.id] || '';
+}
+
+function setBreakdownCustomer(specId, value) {
+  if (!S.breakdownCustomer) S.breakdownCustomer = {};
+  S.breakdownCustomer[specId] = value || '';
+  persist();
+  renderAnalytics();
+  if (!_routeNavigating) syncRoute();
+}
+
+function analyticsBreakdownView(projects, spec) {
   if (!window.ClarityDashboard) return null;
-  const rows = analyticsClarityRows(projects);
+  const rows = analyticsBreakdownRows(projects, spec);
   if (!rows.length) return null;
   const scopes = ClarityDashboard.orderLabels(rows.map(row => row.scope), ClarityDashboard.SCOPE_ORDER);
   S._clarityScopeOptions = scopes;
   const selected = claritySelectedScopes(scopes);
   const filtered = selected.length ? ClarityDashboard.applyFilters(rows, { scope: selected }) : rows;
-  const summary = ClarityDashboard.summarize(filtered, {
+  const customerOptions = spec.multi ? breakdownCustomerOptions(filtered) : [];
+  let customer = spec.multi ? breakdownCustomerChoice(spec) : '';
+  if (customer && customerOptions.indexOf(customer) === -1) customer = '';
+  if (spec.multi && S.breakdownCustomer) S.breakdownCustomer[spec.id] = customer;
+  const chartRows = customer
+    ? filtered.filter(row => (row.values || []).indexOf(customer) !== -1).map(row => Object.assign({}, row, { values: [customer] }))
+    : filtered;
+  const summary = ClarityDashboard.summarize(chartRows, {
     projectOrder: (projects || []).map(proj => proj.key),
+    valuesKey: spec.multi ? 'values' : undefined,
   });
-  return { scopes, selected, summary };
+  if (spec.top && !customer) collapseAnalyticsBreakdown(summary, spec.top);
+  const colors = {};
+  (projects || []).forEach(proj => { colors[proj.key] = proj.color || '#888780'; });
+  return { spec, scopes, selected, summary, colors, customer, customerOptions };
+}
+
+function analyticsClarityView(projects) {
+  return analyticsBreakdownView(projects, ANALYTICS_BREAKDOWNS[0]);
+}
+
+function analyticsBreakdownNote(spec, view, numbers) {
+  const clickHint = numbers ? 'Click a number' : 'Click a segment';
+  const scopeLabel = view.selected.map(esc).join(', ');
+  const split = spec.multi
+    ? (view.customer
+      ? `Each row is one project, counting tickets that include ${view.customer}.`
+      : `Each row is one project, split by ${spec.title}. A ticket with several customers counts in each. The top ${spec.top} are listed; the rest are Other. Pick one customer to show only that customer.`)
+    : `Each row is one project, split by ${spec.title}.`;
+  const focus = view.customer ? `Customer: ${esc(view.customer)}. ` : '';
+  if (view.selected.length) {
+    return `${focus}Scope types: ${scopeLabel}. ${clickHint} to open that project filtered to these scopes and that ${spec.noun}.`;
+  }
+  return `${focus}${split} Select any scope types to narrow it. ${clickHint} to open that project filtered to that ${spec.noun}.`;
 }
 
 function analyticsClarityChartHtml(projects) {
-  const view = analyticsClarityView(projects);
+  return ANALYTICS_BREAKDOWNS.map(spec => analyticsBreakdownChartHtml(spec, projects)).join('');
+}
+
+function analyticsBreakdownChartHtml(spec, projects) {
+  const view = analyticsBreakdownView(projects, spec);
   if (!view || !view.summary.byProject.length) return '';
   const chips = ['All'].concat(view.scopes).map(label => {
     const pick = label === 'All' ? 'all' : label;
@@ -14254,69 +14088,81 @@ function analyticsClarityChartHtml(projects) {
     return `<button type="button" class="clarity-scope${active ? ' active' : ''}" data-clarity-scope-pick="${esc(pick)}" aria-pressed="${active ? 'true' : 'false'}">${esc(label)}</button>`;
   }).join('');
   const height = Math.min(560, Math.max(260, view.summary.byProject.length * 48 + 36));
-  const numbers = S.analyticsViews && S.analyticsViews.clarity === 'numbers';
-  const scopeLabel = view.selected.map(esc).join(', ');
-  const clickHint = numbers ? 'Click a number' : 'Click a segment';
-  const note = view.selected.length
-    ? `Scope types: ${scopeLabel}. ${clickHint} to open that project filtered to these scopes and that rating.`
-    : `Each row is one project, split by A + Clarity. Select any scope types to narrow it. ${clickHint} to open that project filtered to that rating.`;
+  const numbers = S.analyticsViews && S.analyticsViews[spec.id] === 'numbers';
   const body = numbers
-    ? analyticsClarityNumbersHtml(view)
+    ? analyticsBreakdownNumbersHtml(view)
     : `<div class="chart-card" style="margin-bottom:0">
-      <h3>A + Clarity by project</h3>
-      <div class="chart-sub">${view.summary.total} issues${view.selected.length ? ' · ' + view.selected.map(esc).join(', ') : ''}</div>
+      <h3>${esc(spec.title)} by project</h3>
+      <div class="chart-sub">${view.summary.total} issues${view.customer ? ' · ' + esc(view.customer) : ''}${view.selected.length ? ' · ' + view.selected.map(esc).join(', ') : ''}</div>
       <div style="position:relative;width:100%;height:${height}px">
-        <canvas id="c_clarity" role="img" aria-label="A + Clarity by project"></canvas>
+        <canvas id="${esc(spec.canvasId)}" role="img" aria-label="${esc(spec.title)} by project"></canvas>
       </div>
     </div>`;
-  const viewSelect = `<select class="section-control" aria-label="A + Clarity view" onchange="setAnalyticsView('clarity', this.value)">
+  const customerSelect = spec.multi ? `<select class="section-control clarity-customer-select" aria-label="${esc(spec.title)} customer" onchange="setBreakdownCustomer('${spec.id}', this.value)">
+        <option value="" ${view.customer ? '' : 'selected'}>All customers</option>
+        ${view.customerOptions.map(name => `<option value="${esc(name)}" ${view.customer === name ? 'selected' : ''}>${esc(name)}</option>`).join('')}
+      </select>` : '';
+  const viewSelect = `${customerSelect}<select class="section-control" aria-label="${esc(spec.title)} view" onchange="setAnalyticsView('${spec.id}', this.value)">
         <option value="bar" ${numbers ? '' : 'selected'}>Bars</option>
         <option value="numbers" ${numbers ? 'selected' : ''}>Numbers</option>
       </select>`;
   return `<div class="clarity-chart-block">
-    <div class="section-h">A + Clarity</div>
-    <p class="stat-filter-note">${note}</p>
+    <div class="section-h">${esc(spec.title)}</div>
+    <p class="stat-filter-note">${analyticsBreakdownNote(spec, view, numbers)}</p>
     <div class="clarity-scope-row" role="group" aria-label="Scope type">${chips}${viewSelect}</div>
     ${body}
   </div>`;
 }
 
-function analyticsClarityCountHtml(projectKey, rating, count, label) {
+function analyticsClarityCountHtml(projectKey, rating, count, label, spec) {
   if (!count) return '<span class="clarity-zero">—</span>';
+  if (rating === 'Other') return `<span class="clarity-num" title="${esc(label)}: ${count}">${count}</span>`;
   const title = `${label}: ${count}`;
-  return `<button type="button" class="clarity-num" data-clarity-count="1" data-clarity-project="${esc(projectKey)}" data-clarity-rating="${esc(rating)}" title="${esc(title)}" aria-label="${esc(title)}">${count}</button>`;
+  const fieldId = spec && spec.fieldId ? spec.fieldId : 'cf_clarity';
+  return `<button type="button" class="clarity-num" data-clarity-count="1" data-clarity-field="${esc(fieldId)}" data-clarity-project="${esc(projectKey)}" data-clarity-rating="${esc(rating)}" title="${esc(title)}" aria-label="${esc(title)}">${count}</button>`;
 }
 
 function analyticsClarityNumbersHtml(view) {
+  return analyticsBreakdownNumbersHtml(view);
+}
+
+function analyticsBreakdownNumbersHtml(view) {
   const summary = view.summary;
+  const spec = view.spec || ANALYTICS_BREAKDOWNS[0];
   const labels = summary.clarityLabels;
-  const head = labels.map(label => (
-    `<th class="ph-col"><span class="clarity-num-dot" style="background:${ClarityDashboard.clarityColor(label)}"></span>${esc(ClarityDashboard.clarityCaption(label))}</th>`
-  )).join('');
+  const head = labels.map(label => {
+    const color = label === 'Other' ? '#44403C' : ClarityDashboard.clarityColor(label);
+    return `<th class="ph-col"><span class="clarity-num-dot" style="background:${color}"></span>${esc(ClarityDashboard.clarityCaption(label))}</th>`;
+  }).join('');
   const totals = {};
   labels.forEach(label => { totals[label] = 0; });
   const body = summary.byProject.map(group => {
     const cells = labels.map(label => {
       const count = (group.counts && group.counts[label]) || 0;
       totals[label] += count;
-      return `<td class="num">${analyticsClarityCountHtml(group.key, label, count, `${group.label} · ${ClarityDashboard.clarityCaption(label)}`)}</td>`;
+      return `<td class="num">${analyticsClarityCountHtml(group.key, label, count, `${group.label} · ${ClarityDashboard.clarityCaption(label)}`, spec)}</td>`;
     }).join('');
+    const color = (view.colors && view.colors[group.key]) || '#888780';
     return `<tr>
-      <td><button type="button" class="clarity-num" data-clarity-count="1" data-clarity-project="${esc(group.key)}" title="Open ${esc(group.label)}">${esc(group.label)}</button></td>
+      <td><button type="button" class="clarity-num clarity-proj" data-clarity-count="1" data-clarity-field="${esc(spec.fieldId)}" data-clarity-project="${esc(group.key)}" title="Open ${esc(group.label)}"><span class="proj-dot" style="background:${esc(color)}"></span>${esc(group.label)}</button></td>
       ${cells}
-      <td class="num">${analyticsClarityCountHtml(group.key, '', group.total, `${group.label} · total`)}</td>
+      <td class="num">${analyticsClarityCountHtml(group.key, '', group.total, `${group.label} · total`, spec)}</td>
     </tr>`;
   }).join('');
   const totalCells = labels.map(label => `<td class="num">${totals[label] || '—'}</td>`).join('');
-  return `<table class="pipeline-table clarity-numbers">
+  return `<div class="clarity-numbers-scroll"><table class="pipeline-table clarity-numbers">
     <thead><tr><th>Project</th>${head}<th class="ph-col">Total</th></tr></thead>
     <tbody>${body}<tr><td>Total</td>${totalCells}<td class="num">${summary.total}</td></tr></tbody>
-  </table>`;
+  </table></div>`;
 }
 
 function drawAnalyticsClarityChart(projects) {
-  const canvas = document.getElementById('c_clarity');
-  const view = analyticsClarityView(projects);
+  ANALYTICS_BREAKDOWNS.forEach(spec => drawAnalyticsBreakdownChart(spec, projects));
+}
+
+function drawAnalyticsBreakdownChart(spec, projects) {
+  const canvas = document.getElementById(spec.canvasId);
+  const view = analyticsBreakdownView(projects, spec);
   if (!canvas || !view || !view.summary.byProject.length || typeof Chart === 'undefined') return;
   const summary = view.summary;
   const series = ClarityDashboard.stacked(summary.byProject, summary.clarityLabels);
@@ -14324,12 +14170,12 @@ function drawAnalyticsClarityChart(projects) {
     label: ClarityDashboard.clarityCaption(item.label),
     clarityValue: item.label,
     data: item.data,
-    backgroundColor: item.color,
+    backgroundColor: item.label === 'Other' ? '#44403C' : item.color,
     borderWidth: 0,
     maxBarThickness: 28,
   }));
   try {
-    S.charts.clarity = new Chart(canvas, {
+    S.charts[spec.id] = new Chart(canvas, {
       type: 'bar',
       data: {
         labels: summary.byProject.map(group => group.label),
@@ -14341,7 +14187,16 @@ function drawAnalyticsClarityChart(projects) {
         maintainAspectRatio: false,
         scales: {
           x: { stacked: true, beginAtZero: true, ticks: { precision: 0 }, grid: { display: false } },
-          y: { stacked: true, grid: { display: false } },
+          y: {
+            stacked: true,
+            grid: { display: false },
+            ticks: {
+              color: ctx => {
+                const group = summary.byProject[ctx.index];
+                return (group && view.colors && view.colors[group.key]) || '#44403C';
+              },
+            },
+          },
         },
         plugins: {
           legend: {
@@ -14365,19 +14220,19 @@ function drawAnalyticsClarityChart(projects) {
           if (!hit) return;
           const group = summary.byProject[hit.index];
           const dataset = datasets[hit.datasetIndex];
-          if (!group || !dataset || !dataset.data[hit.index]) return;
-          openProjectFromClarityCell(group.key, view.selected, dataset.clarityValue);
+          if (!group || !dataset || !dataset.data[hit.index] || dataset.clarityValue === 'Other') return;
+          openProjectFromClarityCell(group.key, view.selected, dataset.clarityValue, spec.fieldId);
         },
       },
     });
   } catch (err) {
-    console.warn('[clarity]', err);
+    console.warn('[' + spec.id + ']', err);
     const plot = canvas.parentElement;
-    if (plot) plot.insertAdjacentHTML('beforeend', '<div class="info-box">This A + Clarity chart could not be drawn.</div>');
+    if (plot) plot.insertAdjacentHTML('beforeend', `<div class="info-box">This ${esc(spec.title)} chart could not be drawn.</div>`);
   }
 }
 
-function openProjectFromClarityCell(projectKey, scope, clarity) {
+function openProjectFromClarityCell(projectKey, scope, clarity, fieldId) {
   const proj = getAllProjects().find(item => item.key === projectKey);
   if (!proj || !window.ClarityDashboard) return;
   if (!S.activeFilter) S.activeFilter = {};
@@ -14387,15 +14242,15 @@ function openProjectFromClarityCell(projectKey, scope, clarity) {
   const filters = getProjectColFilters(proj.key);
   filters.q = '';
   filters.cols = {};
-  const put = (fieldId, value) => {
+  const put = (targetField, value) => {
     const list = (Array.isArray(value) ? value : (value ? [value] : []))
       .map(item => (item === ClarityDashboard.UNSET ? PROJ_BLANK : item))
-      .filter(Boolean);
+      .filter(item => item && item !== 'Other');
     if (!list.length) return;
-    filters.cols[fieldId] = new Set(list);
+    filters.cols[targetField] = new Set(list);
   };
   put('cf_scope', scope);
-  put('cf_clarity', clarity);
+  put(fieldId || 'cf_clarity', clarity);
   nav(proj.id);
 }
 
