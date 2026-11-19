@@ -347,8 +347,19 @@ html.sidebar-collapsed #log-badge { position: absolute; top: 3px; right: 3px; ma
 .clarity-chart-block { margin: 4px 0 22px; }
 .clarity-scope-row { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; margin: 0 0 10px; }
 .clarity-scope-row .section-control { margin-left: auto; }
-.clarity-customer-select { max-width: 240px; }
-.clarity-scope-row .section-control + .section-control { margin-left: 0; }
+.clarity-scope-row .clarity-pick { position: relative; margin-left: auto; }
+.clarity-scope-row .clarity-pick .section-control,
+.clarity-scope-row .clarity-pick ~ .section-control { margin-left: 0; }
+.clarity-pick-btn { max-width: 220px; }
+.clarity-pick-panel { position: absolute; top: calc(100% + 4px); right: 0; z-index: 40; min-width: 220px; max-height: 280px; overflow: auto; background: var(--bg); border: 0.5px solid var(--border2); border-radius: var(--radius); box-shadow: 0 8px 24px rgba(0,0,0,.14); padding: 4px 0; }
+.clarity-pick-panel[hidden] { display: none; }
+.clarity-pick-panel label { display: flex; align-items: center; gap: 8px; padding: 5px 12px; font-size: 13px; cursor: pointer; }
+.clarity-pick-panel label:hover { background: var(--bg2); }
+.clarity-pick-actions { display: flex; gap: 12px; padding: 4px 12px 6px; border-bottom: 0.5px solid var(--border); margin-bottom: 4px; }
+.clarity-pick-actions button { border: 0; background: none; padding: 0; font: inherit; font-size: 12px; color: var(--blue); cursor: pointer; }
+.clarity-pick-actions button:hover { text-decoration: underline; }
+.clarity-pick-actions button:disabled { color: var(--text3); cursor: default; text-decoration: none; }
+.section-h-controls { display: flex; align-items: center; gap: 8px; flex-shrink: 0; }
 .clarity-scope { border: 0.5px solid var(--border); background: var(--bg); color: var(--text2); border-radius: 999px; padding: 5px 11px; font: inherit; font-size: 12px; cursor: pointer; }
 .clarity-scope:hover { border-color: var(--border2); color: var(--text); }
 .clarity-scope.active { border-color: var(--blue); background: var(--blue-bg); color: var(--blue); font-weight: 600; }
@@ -10616,43 +10627,55 @@ function renderAnalytics() {
     ${analyticsClarityChartHtml(loaded)}
     <div class="section-h-row">
       <div class="section-h">Phase breakdown</div>
-      <select class="section-control" onchange="setAnalyticsView('phase',this.value)">
-        <option value="table" ${S.analyticsViews.phase === 'table' ? 'selected' : ''}>Table</option>
-        <option value="bar" ${S.analyticsViews.phase === 'bar' ? 'selected' : ''}>Stacked bar</option>
-        <option value="bar100" ${S.analyticsViews.phase === 'bar100' ? 'selected' : ''}>100% stacked</option>
-        <option value="grouped" ${S.analyticsViews.phase === 'grouped' ? 'selected' : ''}>Grouped bar</option>
-        <option value="doughnut" ${S.analyticsViews.phase === 'doughnut' ? 'selected' : ''}>Overall doughnut</option>
-      </select>
+      <div class="section-h-controls">
+        <select class="section-control" onchange="setAnalyticsView('phase',this.value)">
+          <option value="table" ${S.analyticsViews.phase === 'table' ? 'selected' : ''}>Table</option>
+          <option value="bar" ${S.analyticsViews.phase === 'bar' ? 'selected' : ''}>Stacked bar</option>
+          <option value="bar100" ${S.analyticsViews.phase === 'bar100' ? 'selected' : ''}>100% stacked</option>
+          <option value="grouped" ${S.analyticsViews.phase === 'grouped' ? 'selected' : ''}>Grouped bar</option>
+          <option value="doughnut" ${S.analyticsViews.phase === 'doughnut' ? 'selected' : ''}>Overall doughnut</option>
+        </select>
+        ${analyticsAxisControl('phase', 'Projects', 'x')}
+      </div>
     </div>
     <div id="ch-pipeline"></div>
     <div class="section-h-row">
       <div class="section-h">Developer progress</div>
-      <select class="section-control" onchange="setAnalyticsView('dev',this.value)">
-        <option value="table" ${S.analyticsViews.dev === 'table' ? 'selected' : ''}>Table</option>
-        <option value="bar" ${S.analyticsViews.dev === 'bar' ? 'selected' : ''}>Bar chart</option>
-      </select>
+      <div class="section-h-controls">
+        <select class="section-control" onchange="setAnalyticsView('dev',this.value)">
+          <option value="table" ${S.analyticsViews.dev === 'table' ? 'selected' : ''}>Table</option>
+          <option value="bar" ${S.analyticsViews.dev === 'bar' ? 'selected' : ''}>Bar chart</option>
+        </select>
+        ${analyticsAxisControl('dev', 'Developers', 'y')}
+      </div>
     </div>
     <div id="ch-devprogress"></div>
     <div class="section-h">Effort variance (Actual vs Estimate)</div>
     <div id="ch-effort"></div>
     <div class="section-h-row">
       <div class="section-h">Priority breakdown</div>
-      <select class="section-control" onchange="setAnalyticsView('priority',this.value)">
-        <option value="doughnut" ${S.analyticsViews.priority === 'doughnut' ? 'selected' : ''}>Doughnut</option>
-        <option value="pie" ${S.analyticsViews.priority === 'pie' ? 'selected' : ''}>Pie</option>
-        <option value="bar" ${S.analyticsViews.priority === 'bar' ? 'selected' : ''}>Bar</option>
-        <option value="polarArea" ${S.analyticsViews.priority === 'polarArea' ? 'selected' : ''}>Polar area</option>
-      </select>
+      <div class="section-h-controls">
+        <select class="section-control" onchange="setAnalyticsView('priority',this.value)">
+          <option value="doughnut" ${S.analyticsViews.priority === 'doughnut' ? 'selected' : ''}>Doughnut</option>
+          <option value="pie" ${S.analyticsViews.priority === 'pie' ? 'selected' : ''}>Pie</option>
+          <option value="bar" ${S.analyticsViews.priority === 'bar' ? 'selected' : ''}>Bar</option>
+          <option value="polarArea" ${S.analyticsViews.priority === 'polarArea' ? 'selected' : ''}>Polar area</option>
+        </select>
+        ${analyticsAxisControl('priority', 'Priorities', 'x')}
+      </div>
     </div>
     <div class="charts-grid" id="ch-priority"></div>
     <div class="section-h-row">
       <div class="section-h">Issue type breakdown</div>
-      <select class="section-control" onchange="setAnalyticsView('type',this.value)">
-        <option value="doughnut" ${S.analyticsViews.type === 'doughnut' ? 'selected' : ''}>Doughnut</option>
-        <option value="pie" ${S.analyticsViews.type === 'pie' ? 'selected' : ''}>Pie</option>
-        <option value="bar" ${S.analyticsViews.type === 'bar' ? 'selected' : ''}>Bar</option>
-        <option value="polarArea" ${S.analyticsViews.type === 'polarArea' ? 'selected' : ''}>Polar area</option>
-      </select>
+      <div class="section-h-controls">
+        <select class="section-control" onchange="setAnalyticsView('type',this.value)">
+          <option value="doughnut" ${S.analyticsViews.type === 'doughnut' ? 'selected' : ''}>Doughnut</option>
+          <option value="pie" ${S.analyticsViews.type === 'pie' ? 'selected' : ''}>Pie</option>
+          <option value="bar" ${S.analyticsViews.type === 'bar' ? 'selected' : ''}>Bar</option>
+          <option value="polarArea" ${S.analyticsViews.type === 'polarArea' ? 'selected' : ''}>Polar area</option>
+        </select>
+        ${analyticsAxisControl('type', 'Types', 'x')}
+      </div>
     </div>
     <div class="charts-grid" id="ch-type"></div>`;
 
@@ -10666,11 +10689,13 @@ function renderAnalytics() {
 
   function buildCharts(containerId, dataFn, palKey, chartType) {
     const container = document.getElementById(containerId);
+    const normalized = ['doughnut','pie','bar','polarArea'].includes(chartType) ? chartType : 'doughnut';
+    const horizontal = normalized === 'bar' && chartAxis(palKey, 'x') === 'y';
     container.innerHTML = loaded.map(p=>`
       <div class="chart-card">
         <h3><span style="width:9px;height:9px;border-radius:50%;background:${p.color};display:inline-block"></span>${esc(p.name)}</h3>
         <div class="chart-sub">${(S.cache[p.key].issues||[]).length} issues</div>
-        <div style="position:relative;width:100%;height:175px">
+        <div id="plot_${containerId}_${p.key}" style="position:relative;width:100%;height:175px">
           <canvas id="c_${containerId}_${p.key}" role="img" aria-label="${esc(p.name)} ${palKey} chart"></canvas>
         </div>
         <div class="legend" id="leg_${containerId}_${p.key}"></div>
@@ -10683,14 +10708,18 @@ function renderAnalytics() {
       const colors  = labels.map((_,i) => palette[i % palette.length] || '#888780');
       const ctx     = document.getElementById(`c_${containerId}_${p.key}`);
       if (!ctx) return;
+      const plot = document.getElementById(`plot_${containerId}_${p.key}`);
+      if (plot && horizontal) plot.style.height = Math.min(420, Math.max(200, labels.length * 28 + 24)) + 'px';
 
-      const normalized = ['doughnut','pie','bar','polarArea'].includes(chartType) ? chartType : 'doughnut';
       const chart = new Chart(ctx, {
         type: normalized,
         data: { labels, datasets: [{ data:counts, backgroundColor:colors, borderWidth: normalized === 'bar' ? 1 : 2, borderColor:'#ffffff' }] },
         options: {
+          indexAxis: horizontal ? 'y' : 'x',
           responsive: true, maintainAspectRatio: false,
-          scales: normalized === 'bar' ? { y: { beginAtZero: true, ticks: { precision: 0 } } } : {},
+          scales: normalized !== 'bar' ? {} : (horizontal
+            ? { x: { beginAtZero: true, ticks: { precision: 0 } } }
+            : { y: { beginAtZero: true, ticks: { precision: 0 } } }),
           plugins: {
             legend: { display:false },
             tooltip: { callbacks: { label: c => ` ${c.label}: ${c.raw} (${Math.round(c.raw/(counts.reduce((a,b)=>a+b,0)||1)*100)}%)` } }
@@ -10775,13 +10804,21 @@ function renderAnalytics() {
           }))
         : phaseDatasets;
       const isStacked = phaseMode !== 'grouped';
+      const phaseHorizontal = chartAxis('phase', 'x') === 'y';
+      const phaseHeight = phaseHorizontal ? Math.min(640, Math.max(320, labels.length * 42 + 48)) : 320;
       const subLabel = phaseMode === 'bar100' ? '100% stacked by project' : (phaseMode === 'grouped' ? 'Grouped bars by project' : 'Stacked bar chart');
+      const valueScale = {
+        stacked: isStacked,
+        beginAtZero: true,
+        max: phaseMode === 'bar100' ? 100 : undefined,
+        ticks: phaseMode === 'bar100' ? { callback: v => v + '%' } : { precision: 0 }
+      };
 
       document.getElementById('ch-pipeline').innerHTML =
         `<div class="chart-card" style="margin-bottom:28px">
           <h3>Issues by project and phase</h3>
           <div class="chart-sub">${subLabel}</div>
-          <div style="position:relative;width:100%;height:320px">
+          <div style="position:relative;width:100%;height:${phaseHeight}px">
             <canvas id="c_phase_overview" role="img" aria-label="Phase breakdown chart"></canvas>
           </div>
         </div>`;
@@ -10792,17 +10829,12 @@ function renderAnalytics() {
           type: 'bar',
           data: { labels, datasets },
           options: {
+            indexAxis: phaseHorizontal ? 'y' : 'x',
             responsive: true,
             maintainAspectRatio: false,
-            scales: {
-              x: { stacked: isStacked },
-              y: {
-                stacked: isStacked,
-                beginAtZero: true,
-                max: phaseMode === 'bar100' ? 100 : undefined,
-                ticks: phaseMode === 'bar100' ? { callback: v => v + '%' } : { precision: 0 }
-              }
-            },
+            scales: phaseHorizontal
+              ? { x: valueScale, y: { stacked: isStacked } }
+              : { x: { stacked: isStacked }, y: valueScale },
             plugins: {
               legend: { display: true, position: 'bottom' },
               tooltip: {
@@ -10954,11 +10986,13 @@ function renderAnalytics() {
         borderWidth: 0
       });
 
+      const devHorizontal = chartAxis('dev', 'y') === 'y';
+      const devHeight = devHorizontal ? Math.min(640, Math.max(340, labels.length * 36 + 48)) : 320;
       document.getElementById('ch-devprogress').innerHTML =
         `<div class="chart-card" style="margin-bottom:28px">
           <h3>Top developers by ticket count</h3>
           <div class="chart-sub">Showing top ${topEntries.length} developers, stacked by phase</div>
-          <div style="position:relative;width:100%;height:340px">
+          <div style="position:relative;width:100%;height:${devHeight}px">
             <canvas id="c_dev_overview" role="img" aria-label="Developer progress chart"></canvas>
           </div>
         </div>`;
@@ -10969,13 +11003,12 @@ function renderAnalytics() {
           type: 'bar',
           data: { labels, datasets },
           options: {
-            indexAxis: 'y',
+            indexAxis: devHorizontal ? 'y' : 'x',
             responsive: true,
             maintainAspectRatio: false,
-            scales: {
-              x: { stacked: true, beginAtZero: true, ticks: { precision: 0 } },
-              y: { stacked: true }
-            },
+            scales: devHorizontal
+              ? { x: { stacked: true, beginAtZero: true, ticks: { precision: 0 } }, y: { stacked: true } }
+              : { x: { stacked: true }, y: { stacked: true, beginAtZero: true, ticks: { precision: 0 } } },
             plugins: { legend: { display: true, position: 'bottom' } }
           }
         });
@@ -14243,6 +14276,16 @@ function bindAnalyticsClarity() {
   const page = document.getElementById('page-analytics');
   if (!page) return;
   S._clarityMatrixBound = true;
+  page.addEventListener('change', event => {
+    const input = event.target.closest('[data-breakdown-customer]');
+    if (!input) return;
+    toggleBreakdownCustomer(input.getAttribute('data-breakdown-spec'), input.getAttribute('data-breakdown-customer'), input.checked);
+  });
+  document.addEventListener('click', event => {
+    if (event.target.closest('.clarity-pick')) return;
+    _openBreakdownPick = '';
+    document.querySelectorAll('.clarity-pick-panel').forEach(panel => { panel.hidden = true; });
+  });
   page.addEventListener('click', event => {
     const countBtn = event.target.closest('[data-clarity-count]');
     if (countBtn) {
@@ -14358,22 +14401,37 @@ function collapseAnalyticsBreakdown(summary, limit) {
   return summary;
 }
 
-function breakdownCustomerOptions(rows) {
-  const counts = new Map();
-  (rows || []).forEach(row => {
-    (row.values || []).forEach(value => {
-      if (!value || value === ClarityDashboard.UNSET) return;
-      counts.set(value, (counts.get(value) || 0) + 1);
+let _openBreakdownPick = '';
+
+function breakdownValueOptions(rows, spec) {
+  const unset = ClarityDashboard.UNSET;
+  if (spec.multi) {
+    const counts = new Map();
+    (rows || []).forEach(row => {
+      const values = row.values && row.values.length ? row.values : [unset];
+      values.forEach(value => {
+        const label = value || unset;
+        counts.set(label, (counts.get(label) || 0) + 1);
+      });
     });
-  });
-  return [...counts.entries()]
-    .sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0]))
-    .map(([label]) => label);
+    const names = [...counts.entries()]
+      .filter(([label]) => label !== unset)
+      .sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0]))
+      .map(([label]) => label);
+    names.push(unset);
+    return names;
+  }
+  const present = new Set((rows || []).map(row => row.clarity || unset));
+  present.add(unset);
+  return ClarityDashboard.orderLabels([...present], ClarityDashboard.CLARITY_ORDER);
 }
 
 function breakdownCustomerChoice(spec) {
   if (!S.breakdownCustomer) S.breakdownCustomer = {};
-  return S.breakdownCustomer[spec.id] || '';
+  const raw = S.breakdownCustomer[spec.id];
+  if (Array.isArray(raw)) return raw.map(item => String(item || '')).filter(Boolean);
+  if (typeof raw === 'string' && raw) return [raw];
+  return [];
 }
 
 function analyticsCardCols() {
@@ -14389,9 +14447,23 @@ function setAnalyticsCardCols(value) {
   if (!_routeNavigating) syncRoute();
 }
 
-function breakdownAxis(spec) {
+function chartAxis(id, fallback) {
   if (!S.breakdownAxis) S.breakdownAxis = {};
-  return S.breakdownAxis[spec.id] === 'x' ? 'x' : 'y';
+  const stored = S.breakdownAxis[id];
+  if (stored === 'x' || stored === 'y') return stored;
+  return fallback === 'x' ? 'x' : 'y';
+}
+
+function breakdownAxis(spec) {
+  return chartAxis(spec.id, 'y');
+}
+
+function analyticsAxisControl(id, noun, fallback) {
+  const onX = chartAxis(id, fallback) === 'x';
+  return `<select class="section-control" aria-label="${esc(noun)} axis" onchange="setBreakdownAxis('${id}', this.value)">
+    <option value="y" ${onX ? '' : 'selected'}>${esc(noun)} on Y</option>
+    <option value="x" ${onX ? 'selected' : ''}>${esc(noun)} on X</option>
+  </select>`;
 }
 
 function setBreakdownAxis(specId, value) {
@@ -14404,10 +14476,61 @@ function setBreakdownAxis(specId, value) {
 
 function setBreakdownCustomer(specId, value) {
   if (!S.breakdownCustomer) S.breakdownCustomer = {};
-  S.breakdownCustomer[specId] = value || '';
+  S.breakdownCustomer[specId] = Array.isArray(value) ? value.filter(Boolean) : (value ? [value] : []);
   persist();
   renderAnalytics();
   if (!_routeNavigating) syncRoute();
+}
+
+const BREAKDOWN_NONE = '__none__';
+
+function breakdownPickState(spec, options) {
+  const list = options || [];
+  const raw = breakdownCustomerChoice(spec);
+  if (raw.length === 1 && raw[0] === BREAKDOWN_NONE) return { all: false, none: true, customers: [] };
+  const customers = raw.filter(name => list.indexOf(name) !== -1);
+  if (!customers.length || (list.length && customers.length === list.length)) return { all: true, none: false, customers: [] };
+  return { all: false, none: false, customers };
+}
+
+function setBreakdownPickAll(event, specId, all) {
+  event.preventDefault();
+  event.stopPropagation();
+  _openBreakdownPick = specId;
+  setBreakdownCustomer(specId, all ? [] : [BREAKDOWN_NONE]);
+}
+
+function toggleBreakdownCustomer(specId, value, checked) {
+  const options = (S._breakdownValueOptions && S._breakdownValueOptions[specId]) || [];
+  const pick = breakdownPickState({ id: specId }, options);
+  let next;
+  if (pick.none) next = checked && value ? [value] : [BREAKDOWN_NONE];
+  else if (pick.all) next = checked ? [] : options.filter(name => name !== value);
+  else {
+    next = pick.customers.filter(item => item !== value);
+    if (checked && value) next.push(value);
+  }
+  if (options.length && next.length === options.length && options.every(name => next.indexOf(name) !== -1)) next = [];
+  else if (!checked && !next.length) next = [BREAKDOWN_NONE];
+  _openBreakdownPick = specId;
+  setBreakdownCustomer(specId, next);
+}
+
+function toggleBreakdownPick(event, specId) {
+  event.preventDefault();
+  event.stopPropagation();
+  const panel = document.getElementById('clarity-pick-' + specId);
+  if (!panel) return;
+  const willOpen = panel.hidden;
+  document.querySelectorAll('.clarity-pick-panel').forEach(el => { el.hidden = true; });
+  panel.hidden = !willOpen;
+  _openBreakdownPick = willOpen ? specId : '';
+}
+
+function restoreBreakdownPick() {
+  if (!_openBreakdownPick) return;
+  const panel = document.getElementById('clarity-pick-' + _openBreakdownPick);
+  if (panel) panel.hidden = false;
 }
 
 function analyticsBreakdownView(projects, spec) {
@@ -14418,21 +14541,34 @@ function analyticsBreakdownView(projects, spec) {
   S._clarityScopeOptions = scopes;
   const selected = claritySelectedScopes(scopes);
   const filtered = selected.length ? ClarityDashboard.applyFilters(rows, { scope: selected }) : rows;
-  const customerOptions = spec.multi ? breakdownCustomerOptions(filtered) : [];
-  let customer = spec.multi ? breakdownCustomerChoice(spec) : '';
-  if (customer && customerOptions.indexOf(customer) === -1) customer = '';
-  if (spec.multi && S.breakdownCustomer) S.breakdownCustomer[spec.id] = customer;
-  const chartRows = customer
-    ? filtered.filter(row => (row.values || []).indexOf(customer) !== -1).map(row => Object.assign({}, row, { values: [customer] }))
-    : filtered;
+  const unset = ClarityDashboard.UNSET;
+  const customerOptions = breakdownValueOptions(filtered, spec);
+  if (!S._breakdownValueOptions) S._breakdownValueOptions = {};
+  S._breakdownValueOptions[spec.id] = customerOptions;
+  const pick = breakdownPickState(spec, customerOptions);
+  if (S.breakdownCustomer) S.breakdownCustomer[spec.id] = pick.none ? [BREAKDOWN_NONE] : pick.customers;
+  const customers = pick.customers;
+  const rowValues = row => {
+    const list = row.values && row.values.length ? row.values : [unset];
+    return list.map(value => value || unset);
+  };
+  let chartRows = filtered;
+  if (pick.none) chartRows = [];
+  else if (customers.length && spec.multi) {
+    chartRows = filtered.filter(row => rowValues(row).some(value => customers.indexOf(value) !== -1)).map(row => (
+      Object.assign({}, row, { values: rowValues(row).filter(value => customers.indexOf(value) !== -1) })
+    ));
+  } else if (customers.length) {
+    chartRows = filtered.filter(row => customers.indexOf(row.clarity || unset) !== -1);
+  }
   const summary = ClarityDashboard.summarize(chartRows, {
     projectOrder: (projects || []).map(proj => proj.key),
     valuesKey: spec.multi ? 'values' : undefined,
   });
-  if (spec.top && !customer) collapseAnalyticsBreakdown(summary, spec.top);
+  if (spec.top && !customers.length) collapseAnalyticsBreakdown(summary, spec.top);
   const colors = {};
   (projects || []).forEach(proj => { colors[proj.key] = proj.color || '#888780'; });
-  return { spec, scopes, selected, summary, colors, customer, customerOptions };
+  return { spec, scopes, selected, summary, colors, customers, customerOptions, pickAll: pick.all, pickNone: pick.none };
 }
 
 function analyticsClarityView(projects) {
@@ -14440,15 +14576,19 @@ function analyticsClarityView(projects) {
 }
 
 function analyticsBreakdownNote(spec, view, numbers) {
+  if (view.pickNone) return `No ${spec.noun}s selected. Check a box to show them.`;
   const clickHint = numbers ? 'Click a number' : 'Click a segment';
   const scopeLabel = view.selected.map(esc).join(', ');
   const along = breakdownAxis(spec) === 'x' ? 'column' : 'row';
+  const picked = (view.customers || []).map(name => ClarityDashboard.clarityCaption(name));
   const split = spec.multi
-    ? (view.customer
-      ? `Each ${along} is one project, counting tickets that include ${view.customer}.`
-      : `Each ${along} is one project, split by ${spec.title}. A ticket with several customers counts in each. The top ${spec.top} are listed; the rest are Other. Pick one customer to show only that customer.`)
-    : `Each ${along} is one project, split by ${spec.title}.`;
-  const focus = view.customer ? `Customer: ${esc(view.customer)}. ` : '';
+    ? (picked.length
+      ? `Each ${along} is one project, counting tickets that include ${picked.join(', ')}.`
+      : `Each ${along} is one project, split by ${spec.title}. A ticket with several customers counts in each. The top ${spec.top} are listed; the rest are Other. Check customers to show only those.`)
+    : (picked.length
+      ? `Each ${along} is one project, showing ${picked.join(', ')}.`
+      : `Each ${along} is one project, split by ${spec.title}.`);
+  const focus = picked.length ? `${spec.multi ? 'Customers' : 'Ratings'}: ${picked.map(esc).join(', ')}. ` : '';
   if (view.selected.length) {
     return `${focus}Scope types: ${scopeLabel}. ${clickHint} to open that project filtered to these scopes and that ${spec.noun}.`;
   }
@@ -14462,7 +14602,7 @@ function analyticsClarityChartHtml(projects) {
 
 function analyticsBreakdownChartHtml(spec, projects) {
   const view = analyticsBreakdownView(projects, spec);
-  if (!view || !view.summary.byProject.length) return '';
+  if (!view || (!view.summary.byProject.length && !view.pickNone)) return '';
   const chips = ['All'].concat(view.scopes).map(label => {
     const pick = label === 'All' ? 'all' : label;
     const active = label === 'All' ? !view.selected.length : view.selected.indexOf(label) !== -1;
@@ -14473,26 +14613,38 @@ function analyticsBreakdownChartHtml(spec, projects) {
     ? Math.min(560, Math.max(260, view.summary.byProject.length * 48 + 36))
     : 340;
   const numbers = S.analyticsViews && S.analyticsViews[spec.id] === 'numbers';
-  const body = numbers
+  const body = view.pickNone
+    ? `<div class="info-box">No ${esc(spec.noun)}s selected.</div>`
+    : numbers
     ? analyticsBreakdownNumbersHtml(view)
     : `<div class="chart-card" style="margin-bottom:0">
       <h3>${esc(spec.title)} by project</h3>
-      <div class="chart-sub">${view.summary.total} issues${view.customer ? ' · ' + esc(view.customer) : ''}${view.selected.length ? ' · ' + view.selected.map(esc).join(', ') : ''}</div>
+      <div class="chart-sub">${view.summary.total} issues${(view.customers || []).length ? ' · ' + (view.customers || []).map(name => esc(ClarityDashboard.clarityCaption(name))).join(', ') : ''}${view.selected.length ? ' · ' + view.selected.map(esc).join(', ') : ''}</div>
       <div style="position:relative;width:100%;height:${height}px">
         <canvas id="${esc(spec.canvasId)}" role="img" aria-label="${esc(spec.title)} by project"></canvas>
       </div>
     </div>`;
-  const customerSelect = spec.multi ? `<select class="section-control clarity-customer-select" aria-label="${esc(spec.title)} customer" onchange="setBreakdownCustomer('${spec.id}', this.value)">
-        <option value="" ${view.customer ? '' : 'selected'}>All customers</option>
-        ${view.customerOptions.map(name => `<option value="${esc(name)}" ${view.customer === name ? 'selected' : ''}>${esc(name)}</option>`).join('')}
-      </select>` : '';
+  const picked = view.customers || [];
+  const allLabel = spec.multi ? 'All customers' : 'All ratings';
+  const pickLabel = view.pickNone
+    ? 'None'
+    : (picked.length === 1
+      ? ClarityDashboard.clarityCaption(picked[0])
+      : (picked.length > 1 ? `${picked.length} ${spec.noun}s` : allLabel));
+  const customerSelect = `<div class="clarity-pick">
+      <button type="button" class="section-control clarity-pick-btn" aria-haspopup="listbox" aria-expanded="${_openBreakdownPick === spec.id ? 'true' : 'false'}" onclick="toggleBreakdownPick(event, '${spec.id}')">${esc(pickLabel)}</button>
+      <div class="clarity-pick-panel" id="clarity-pick-${spec.id}" ${ _openBreakdownPick === spec.id ? '' : 'hidden'}>
+        <div class="clarity-pick-actions">
+          <button type="button" onclick="setBreakdownPickAll(event, '${spec.id}', true)" ${view.pickAll ? 'disabled' : ''}>Select all</button>
+          <button type="button" onclick="setBreakdownPickAll(event, '${spec.id}', false)" ${view.pickNone ? 'disabled' : ''}>None</button>
+        </div>
+        ${view.customerOptions.map(name => `<label><input type="checkbox" data-breakdown-spec="${esc(spec.id)}" data-breakdown-customer="${esc(name)}" ${(view.pickAll || picked.indexOf(name) !== -1) ? 'checked' : ''}>${esc(ClarityDashboard.clarityCaption(name))}</label>`).join('')}
+      </div>
+    </div>`;
   const viewSelect = `${customerSelect}<select class="section-control" aria-label="${esc(spec.title)} view" onchange="setAnalyticsView('${spec.id}', this.value)">
         <option value="bar" ${numbers ? '' : 'selected'}>Bars</option>
         <option value="numbers" ${numbers ? 'selected' : ''}>Numbers</option>
-      </select><select class="section-control" aria-label="${esc(spec.title)} axis" onchange="setBreakdownAxis('${spec.id}', this.value)">
-        <option value="y" ${horizontal ? 'selected' : ''}>Projects on Y</option>
-        <option value="x" ${horizontal ? '' : 'selected'}>Projects on X</option>
-      </select>`;
+      </select>${analyticsAxisControl(spec.id, 'Projects', 'y')}`;
   return `<div class="clarity-chart-block">
     <div class="section-h">${esc(spec.title)}</div>
     <p class="stat-filter-note">${analyticsBreakdownNote(spec, view, numbers)}</p>
