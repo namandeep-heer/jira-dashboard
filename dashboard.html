@@ -302,7 +302,7 @@ html.sidebar-collapsed #log-badge { position: absolute; top: 3px; right: 3px; ma
 .clarity-scope-row { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; margin: 0 0 10px; }
 .clarity-scope-row .section-control { margin-left: auto; }
 .clarity-customer-select { max-width: 240px; }
-.clarity-scope-row .clarity-customer-select + .section-control { margin-left: 0; }
+.clarity-scope-row .section-control + .section-control { margin-left: 0; }
 .clarity-scope { border: 0.5px solid var(--border); background: var(--bg); color: var(--text2); border-radius: 999px; padding: 5px 11px; font: inherit; font-size: 12px; cursor: pointer; }
 .clarity-scope:hover { border-color: var(--border2); color: var(--text); }
 .clarity-scope.active { border-color: var(--blue); background: var(--blue-bg); color: var(--blue); font-weight: 600; }
@@ -314,6 +314,10 @@ span.clarity-num:hover { background: none; color: var(--text); }
 .clarity-numbers th { font-weight: 500; text-transform: none; letter-spacing: 0; }
 .clarity-numbers th.ph-col, .clarity-numbers td.num { text-align: center; }
 .clarity-numbers td { font-weight: 400; }
+.clarity-numbers.projects-x th.proj-head { text-align: center; vertical-align: bottom; }
+.clarity-numbers.projects-x th.proj-head .clarity-proj { margin: 0 auto; }
+.clarity-numbers.projects-x tbody th { text-align: left; font-weight: 500; }
+.clarity-numbers tr:last-child th { border-bottom: none; }
 .clarity-num-dot { width: 8px; height: 8px; border-radius: 2px; display: inline-block; margin-right: 6px; vertical-align: middle; }
 .clarity-num { border: 0; background: none; padding: 2px 6px; border-radius: 6px; font: inherit; font-size: 13px; font-weight: 400; color: var(--text); cursor: pointer; }
 .clarity-proj { display: inline-flex; align-items: center; gap: 8px; font-weight: 600; padding-left: 0; }
@@ -531,6 +535,7 @@ select.jw-choice { width: 100%; max-width: 100%; margin: 0; padding: 3px 4px; bo
 select.jw-choice:hover, select.jw-choice:focus { border-color: var(--border2); background: var(--bg); }
 select.jw-choice:focus-visible { outline: 2px solid var(--blue); outline-offset: 1px; }
 select.jw-choice.is-error { border-color: var(--red); background: var(--red-bg); }
+.jw-multi { display: inline-block; max-width: 100%; font-size: 12px; line-height: 1.35; }
 .jw-cell { display: flex; align-items: center; gap: 4px; min-width: 0; max-width: 100%; }
 .jw-value { min-width: 0; overflow: hidden; text-overflow: ellipsis; }
 .jw-edit, .jw-gap { font-family: inherit; }
@@ -740,7 +745,7 @@ table.issues tr.is-just-created td { background: var(--bg2); }
 .fcheck { display: flex; align-items: center; gap: 9px; padding: 8px 12px; border: 0.5px solid var(--border); border-radius: var(--radius); cursor: pointer; background: var(--bg); transition: border-color .12s; user-select: none; }
 .fcheck:hover { border-color: var(--border2); }
 .fcheck.on { border-color: var(--blue); background: var(--blue-bg); }
-.fcheck input { display: none; }
+
 .fcheck-box { width: 14px; height: 14px; border-radius: 3px; border: 1.5px solid var(--border2); flex-shrink: 0; display: flex; align-items: center; justify-content: center; }
 .fcheck.on .fcheck-box { background: var(--blue); border-color: var(--blue); }
 .fcheck-tick { display: none; }
@@ -750,8 +755,17 @@ table.issues tr.is-just-created td { background: var(--bg2); }
 .fid-row input { padding: 5px 8px; border: 0.5px solid var(--border2); border-radius: var(--radius); background: var(--bg2); color: var(--text); font-size: 12px; font-family: monospace; width: 100%; }
 
 /* ── Analytics ── */
+.analytics-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 16px; flex-wrap: wrap; }
 .analytics-head h2 { font-size: 18px; font-weight: 600; margin-bottom: 4px; }
 .analytics-head .sub { font-size: 13px; color: var(--text2); margin-bottom: 20px; }
+.analytics-cols { display: flex; align-items: center; gap: 8px; font-size: 13px; color: var(--text2); white-space: nowrap; margin-top: 2px; }
+.analytics-card-grid { display: grid; gap: 16px; margin-bottom: 22px; }
+.analytics-card-grid.cols-1 { grid-template-columns: 1fr; }
+.analytics-card-grid.cols-2 { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+.analytics-card-grid.cols-3 { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+.analytics-card-grid .clarity-chart-block { margin: 0; min-width: 0; }
+@media (max-width: 1100px) { .analytics-card-grid.cols-3 { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+@media (max-width: 760px) { .analytics-card-grid.cols-2, .analytics-card-grid.cols-3 { grid-template-columns: 1fr; } }
 
 /* ── Release report ── */
 .rr-toolbar { display:flex; align-items:flex-start; justify-content:space-between; gap:20px; margin-bottom:18px; flex-wrap:wrap; }
@@ -1929,8 +1943,17 @@ code { font-family: monospace; font-size: 12px; background: var(--bg3); padding:
       <!-- Analytics -->
       <div class="page" id="page-analytics">
         <div class="analytics-head">
-          <h2>Analytics</h2>
-          <p class="sub">History and current breakdowns for market-release projects. Quality (bugs/support) is under Quality Insights.</p>
+          <div>
+            <h2>Analytics</h2>
+            <p class="sub">History and current breakdowns for market-release projects. Quality (bugs/support) is under Quality Insights.</p>
+          </div>
+          <label class="analytics-cols">Cards per line
+            <select id="analytics-card-cols" class="section-control" aria-label="Cards per line" onchange="setAnalyticsCardCols(this.value)">
+              <option value="1">1</option>
+              <option value="2">2</option>
+              <option value="3">3</option>
+            </select>
+          </label>
         </div>
         <div id="analytics-body"></div>
       </div>
@@ -4819,6 +4842,8 @@ function applyPendingRouteState(page) {
     if (custcomView) S.analyticsViews.custcom = custcomView;
     const custintView = params.get('custintView');
     if (custintView) S.analyticsViews.custint = custintView;
+    const cardCols = Number(params.get('cardCols'));
+    if (cardCols === 2 || cardCols === 3) S.analyticsCardCols = cardCols;
   }
 
   if (page === 'quality-insights' || page === 'quality-phase' || page === 'quality-progress') {
@@ -5018,6 +5043,7 @@ function collectRouteParams() {
     if (S.analyticsViews.clarity && S.analyticsViews.clarity !== 'bar') params.set('clarityView', S.analyticsViews.clarity);
     if (S.analyticsViews.custcom && S.analyticsViews.custcom !== 'bar') params.set('custcomView', S.analyticsViews.custcom);
     if (S.analyticsViews.custint && S.analyticsViews.custint !== 'bar') params.set('custintView', S.analyticsViews.custint);
+    if (analyticsCardCols() !== 1) params.set('cardCols', String(analyticsCardCols()));
   } else if (page === 'release-report') {
     const projects = csvParam(getSelectedReleaseReportProjects());
     if (projects) params.set('projects', projects);
@@ -10045,11 +10071,10 @@ function renderCell(f, issue) {
 function renderFields() {
   document.getElementById('fields-grid').innerHTML = ALL_FIELDS.map(f => {
     const on = S.enabled.includes(f.id);
-    return `<label class="fcheck ${on?'on':''}" id="fc-${f.id}" onclick="toggleField('${f.id}')">
-      <input type="checkbox" ${on?'checked':''} />
+    return `<div class="fcheck ${on?'on':''}" id="fc-${f.id}" role="checkbox" aria-checked="${on?'true':'false'}" tabindex="0" onclick="toggleField('${f.id}')" onkeydown="if(event.key===' '||event.key==='Enter'){event.preventDefault();toggleField('${f.id}')}">
       <span class="fcheck-box"><svg class="fcheck-tick" width="9" height="9" viewBox="0 0 10 8" fill="none"><polyline points="1,4 4,7 9,1" stroke="white" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg></span>
       <span>${esc(f.label)}</span>
-    </label>`;
+    </div>`;
   }).join('');
 
   document.getElementById('custom-ids').innerHTML = ALL_FIELDS.filter(f=>f.custom).map(f=>`
@@ -10063,7 +10088,10 @@ function toggleField(id) {
   const idx = S.enabled.indexOf(id);
   if (idx>-1) S.enabled.splice(idx,1); else S.enabled.push(id);
   const el = document.getElementById('fc-'+id);
-  if (el) el.classList.toggle('on', S.enabled.includes(id));
+  if (!el) return;
+  const on = S.enabled.includes(id);
+  el.classList.toggle('on', on);
+  el.setAttribute('aria-checked', on ? 'true' : 'false');
 }
 async function saveFields()  { const saved = await persistNow(); const m=document.getElementById('fields-msg'); m.textContent = saved ? '✓ Saved to config/fields.json' : '✗ Failed to save.'; setTimeout(()=>m.textContent='',3000); }
 async function resetFields() { S.enabled=[...DEFAULT_ENABLED]; S.customIds={}; const saved = await persistNow(); renderFields(); const m=document.getElementById('fields-msg'); if (m) m.textContent = saved ? '✓ Saved to config/fields.json' : '✗ Failed to save.'; }
@@ -10231,6 +10259,8 @@ function renderAnalytics() {
   S.charts = {};
 
   const body = document.getElementById('analytics-body');
+  const colsSelect = document.getElementById('analytics-card-cols');
+  if (colsSelect) colsSelect.value = String(analyticsCardCols());
   const loaded = getDeliveryProjects().filter(p => S.cache[p.key] && !S.cache[p.key].err);
 
   if (!loaded.length) {
@@ -14023,6 +14053,32 @@ function breakdownCustomerChoice(spec) {
   return S.breakdownCustomer[spec.id] || '';
 }
 
+function analyticsCardCols() {
+  const count = Number(S.analyticsCardCols);
+  return count === 2 || count === 3 ? count : 1;
+}
+
+function setAnalyticsCardCols(value) {
+  const count = Number(value);
+  S.analyticsCardCols = count === 2 || count === 3 ? count : 1;
+  persist();
+  renderAnalytics();
+  if (!_routeNavigating) syncRoute();
+}
+
+function breakdownAxis(spec) {
+  if (!S.breakdownAxis) S.breakdownAxis = {};
+  return S.breakdownAxis[spec.id] === 'x' ? 'x' : 'y';
+}
+
+function setBreakdownAxis(specId, value) {
+  if (!S.breakdownAxis) S.breakdownAxis = {};
+  S.breakdownAxis[specId] = value === 'x' ? 'x' : 'y';
+  persist();
+  renderAnalytics();
+  if (!_routeNavigating) syncRoute();
+}
+
 function setBreakdownCustomer(specId, value) {
   if (!S.breakdownCustomer) S.breakdownCustomer = {};
   S.breakdownCustomer[specId] = value || '';
@@ -14063,11 +14119,12 @@ function analyticsClarityView(projects) {
 function analyticsBreakdownNote(spec, view, numbers) {
   const clickHint = numbers ? 'Click a number' : 'Click a segment';
   const scopeLabel = view.selected.map(esc).join(', ');
+  const along = breakdownAxis(spec) === 'x' ? 'column' : 'row';
   const split = spec.multi
     ? (view.customer
-      ? `Each row is one project, counting tickets that include ${view.customer}.`
-      : `Each row is one project, split by ${spec.title}. A ticket with several customers counts in each. The top ${spec.top} are listed; the rest are Other. Pick one customer to show only that customer.`)
-    : `Each row is one project, split by ${spec.title}.`;
+      ? `Each ${along} is one project, counting tickets that include ${view.customer}.`
+      : `Each ${along} is one project, split by ${spec.title}. A ticket with several customers counts in each. The top ${spec.top} are listed; the rest are Other. Pick one customer to show only that customer.`)
+    : `Each ${along} is one project, split by ${spec.title}.`;
   const focus = view.customer ? `Customer: ${esc(view.customer)}. ` : '';
   if (view.selected.length) {
     return `${focus}Scope types: ${scopeLabel}. ${clickHint} to open that project filtered to these scopes and that ${spec.noun}.`;
@@ -14076,7 +14133,8 @@ function analyticsBreakdownNote(spec, view, numbers) {
 }
 
 function analyticsClarityChartHtml(projects) {
-  return ANALYTICS_BREAKDOWNS.map(spec => analyticsBreakdownChartHtml(spec, projects)).join('');
+  const cards = ANALYTICS_BREAKDOWNS.map(spec => analyticsBreakdownChartHtml(spec, projects)).join('');
+  return `<div class="analytics-card-grid cols-${analyticsCardCols()}">${cards}</div>`;
 }
 
 function analyticsBreakdownChartHtml(spec, projects) {
@@ -14087,7 +14145,10 @@ function analyticsBreakdownChartHtml(spec, projects) {
     const active = label === 'All' ? !view.selected.length : view.selected.indexOf(label) !== -1;
     return `<button type="button" class="clarity-scope${active ? ' active' : ''}" data-clarity-scope-pick="${esc(pick)}" aria-pressed="${active ? 'true' : 'false'}">${esc(label)}</button>`;
   }).join('');
-  const height = Math.min(560, Math.max(260, view.summary.byProject.length * 48 + 36));
+  const horizontal = breakdownAxis(spec) !== 'x';
+  const height = horizontal
+    ? Math.min(560, Math.max(260, view.summary.byProject.length * 48 + 36))
+    : 340;
   const numbers = S.analyticsViews && S.analyticsViews[spec.id] === 'numbers';
   const body = numbers
     ? analyticsBreakdownNumbersHtml(view)
@@ -14105,6 +14166,9 @@ function analyticsBreakdownChartHtml(spec, projects) {
   const viewSelect = `${customerSelect}<select class="section-control" aria-label="${esc(spec.title)} view" onchange="setAnalyticsView('${spec.id}', this.value)">
         <option value="bar" ${numbers ? '' : 'selected'}>Bars</option>
         <option value="numbers" ${numbers ? 'selected' : ''}>Numbers</option>
+      </select><select class="section-control" aria-label="${esc(spec.title)} axis" onchange="setBreakdownAxis('${spec.id}', this.value)">
+        <option value="y" ${horizontal ? 'selected' : ''}>Projects on Y</option>
+        <option value="x" ${horizontal ? '' : 'selected'}>Projects on X</option>
       </select>`;
   return `<div class="clarity-chart-block">
     <div class="section-h">${esc(spec.title)}</div>
@@ -14126,34 +14190,77 @@ function analyticsClarityNumbersHtml(view) {
   return analyticsBreakdownNumbersHtml(view);
 }
 
+function analyticsBreakdownProjectLabel(group, spec, color) {
+  return `<button type="button" class="clarity-num clarity-proj" data-clarity-count="1" data-clarity-field="${esc(spec.fieldId)}" data-clarity-project="${esc(group.key)}" title="Open ${esc(group.label)}"><span class="proj-dot" style="background:${esc(color)}"></span>${esc(group.label)}</button>`;
+}
+
 function analyticsBreakdownNumbersHtml(view) {
   const summary = view.summary;
   const spec = view.spec || ANALYTICS_BREAKDOWNS[0];
   const labels = summary.clarityLabels;
+  const totals = {};
+  labels.forEach(label => { totals[label] = 0; });
+  summary.byProject.forEach(group => {
+    labels.forEach(label => { totals[label] += (group.counts && group.counts[label]) || 0; });
+  });
+  const table = breakdownAxis(spec) === 'x'
+    ? analyticsBreakdownNumbersAcross(view, labels, totals)
+    : analyticsBreakdownNumbersDown(view, labels, totals);
+  return `<div class="clarity-numbers-scroll">${table}</div>`;
+}
+
+function analyticsBreakdownNumbersDown(view, labels, totals) {
+  const summary = view.summary;
+  const spec = view.spec || ANALYTICS_BREAKDOWNS[0];
   const head = labels.map(label => {
     const color = label === 'Other' ? '#44403C' : ClarityDashboard.clarityColor(label);
     return `<th class="ph-col"><span class="clarity-num-dot" style="background:${color}"></span>${esc(ClarityDashboard.clarityCaption(label))}</th>`;
   }).join('');
-  const totals = {};
-  labels.forEach(label => { totals[label] = 0; });
   const body = summary.byProject.map(group => {
     const cells = labels.map(label => {
       const count = (group.counts && group.counts[label]) || 0;
-      totals[label] += count;
       return `<td class="num">${analyticsClarityCountHtml(group.key, label, count, `${group.label} · ${ClarityDashboard.clarityCaption(label)}`, spec)}</td>`;
     }).join('');
     const color = (view.colors && view.colors[group.key]) || '#888780';
     return `<tr>
-      <td><button type="button" class="clarity-num clarity-proj" data-clarity-count="1" data-clarity-field="${esc(spec.fieldId)}" data-clarity-project="${esc(group.key)}" title="Open ${esc(group.label)}"><span class="proj-dot" style="background:${esc(color)}"></span>${esc(group.label)}</button></td>
+      <td>${analyticsBreakdownProjectLabel(group, spec, color)}</td>
       ${cells}
       <td class="num">${analyticsClarityCountHtml(group.key, '', group.total, `${group.label} · total`, spec)}</td>
     </tr>`;
   }).join('');
   const totalCells = labels.map(label => `<td class="num">${totals[label] || '—'}</td>`).join('');
-  return `<div class="clarity-numbers-scroll"><table class="pipeline-table clarity-numbers">
+  return `<table class="pipeline-table clarity-numbers">
     <thead><tr><th>Project</th>${head}<th class="ph-col">Total</th></tr></thead>
     <tbody>${body}<tr><td>Total</td>${totalCells}<td class="num">${summary.total}</td></tr></tbody>
-  </table></div>`;
+  </table>`;
+}
+
+function analyticsBreakdownNumbersAcross(view, labels, totals) {
+  const summary = view.summary;
+  const spec = view.spec || ANALYTICS_BREAKDOWNS[0];
+  const head = summary.byProject.map(group => {
+    const color = (view.colors && view.colors[group.key]) || '#888780';
+    return `<th class="proj-head">${analyticsBreakdownProjectLabel(group, spec, color)}</th>`;
+  }).join('');
+  const body = labels.map(label => {
+    const cells = summary.byProject.map(group => {
+      const count = (group.counts && group.counts[label]) || 0;
+      return `<td class="num">${analyticsClarityCountHtml(group.key, label, count, `${group.label} · ${ClarityDashboard.clarityCaption(label)}`, spec)}</td>`;
+    }).join('');
+    const color = label === 'Other' ? '#44403C' : ClarityDashboard.clarityColor(label);
+    return `<tr>
+      <th scope="row"><span class="clarity-num-dot" style="background:${color}"></span>${esc(ClarityDashboard.clarityCaption(label))}</th>
+      ${cells}
+      <td class="num">${totals[label] || '—'}</td>
+    </tr>`;
+  }).join('');
+  const totalCells = summary.byProject.map(group => (
+    `<td class="num">${analyticsClarityCountHtml(group.key, '', group.total, `${group.label} · total`, spec)}</td>`
+  )).join('');
+  return `<table class="pipeline-table clarity-numbers projects-x">
+    <thead><tr><th></th>${head}<th class="ph-col">Total</th></tr></thead>
+    <tbody>${body}<tr><th scope="row">Total</th>${totalCells}<td class="num">${summary.total}</td></tr></tbody>
+  </table>`;
 }
 
 function drawAnalyticsClarityChart(projects) {
@@ -14182,22 +14289,39 @@ function drawAnalyticsBreakdownChart(spec, projects) {
         datasets,
       },
       options: {
-        indexAxis: 'y',
+        indexAxis: breakdownAxis(spec) === 'x' ? 'x' : 'y',
         responsive: true,
         maintainAspectRatio: false,
-        scales: {
-          x: { stacked: true, beginAtZero: true, ticks: { precision: 0 }, grid: { display: false } },
-          y: {
-            stacked: true,
-            grid: { display: false },
-            ticks: {
-              color: ctx => {
-                const group = summary.byProject[ctx.index];
-                return (group && view.colors && view.colors[group.key]) || '#44403C';
+        scales: breakdownAxis(spec) === 'x'
+          ? {
+            x: {
+              stacked: true,
+              grid: { display: false },
+              ticks: {
+                maxRotation: 45,
+                minRotation: 0,
+                autoSkip: false,
+                color: ctx => {
+                  const group = summary.byProject[ctx.index];
+                  return (group && view.colors && view.colors[group.key]) || '#44403C';
+                },
+              },
+            },
+            y: { stacked: true, beginAtZero: true, ticks: { precision: 0 }, grid: { display: false } },
+          }
+          : {
+            x: { stacked: true, beginAtZero: true, ticks: { precision: 0 }, grid: { display: false } },
+            y: {
+              stacked: true,
+              grid: { display: false },
+              ticks: {
+                color: ctx => {
+                  const group = summary.byProject[ctx.index];
+                  return (group && view.colors && view.colors[group.key]) || '#44403C';
+                },
               },
             },
           },
-        },
         plugins: {
           legend: {
             display: true,

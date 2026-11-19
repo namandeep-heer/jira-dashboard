@@ -16,7 +16,8 @@
     "cf_devpart",
     "cf_dev",
     "cf_product",
-    "cf_custcom"
+    "cf_custcom",
+    "cf_custint"
   ],
   "customIds": {
     "cf_dev": "customfield_13004",

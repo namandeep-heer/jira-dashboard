@@ -36,6 +36,14 @@ assert.strictEqual(normalizeChange({ type: 'number', fieldId: 'customfield_16133
 const option = normalizeChange({ type: 'option', fieldId: 'customfield_13116', optionId: '10001' });
 assert.deepStrictEqual(option.fields.customfield_13116, { id: '10001' });
 assert.strictEqual(normalizeChange({ type: 'option', fieldId: 'customfield_17017', optionId: null }).fields.customfield_17017, null);
+assert.deepStrictEqual(
+  normalizeChange({ type: 'option', fieldId: 'customfield_13981', optionId: '10001', multiple: true }).fields.customfield_13981,
+  [{ id: '10001' }]
+);
+assert.deepStrictEqual(
+  normalizeChange({ type: 'option', fieldId: 'customfield_13981', optionId: null, multiple: true }).fields.customfield_13981,
+  []
+);
 
 assert.deepStrictEqual(normalizeChange({ type: 'priority', priorityId: '3' }).fields.priority, { id: '3' });
 assert.deepStrictEqual(
@@ -326,6 +334,9 @@ const writeUi = fs.readFileSync(path.join(root, 'lib', 'jira-write-ui.js'), 'utf
 assert.ok(dashboard.includes('JiraWrite.daysField') || writeUi.includes('function daysField'));
 assert.ok(writeUi.includes('function beginInline'));
 assert.ok(writeUi.includes('function choiceField'));
+assert.ok(writeUi.includes('function choiceEntries'));
+assert.ok(writeUi.includes('class="jw-multi"'));
+assert.ok(writeUi.includes('data-multiple="1"'));
 assert.ok(writeUi.includes('class="jw-choice"'));
 assert.ok(dashboard.includes('JiraWrite.choiceField'));
 assert.ok(writeUi.includes('is-inline'));
