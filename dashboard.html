@@ -73,12 +73,55 @@ body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sa
 #main { flex: 1; display: flex; flex-direction: column; overflow: hidden; min-width: 0; }
 #topbar { height: var(--header-h); background: var(--bg); border-bottom: 0.5px solid var(--border); display: flex; align-items: center; padding: 0 20px; gap: 10px; flex-shrink: 0; }
 #topbar h1 { font-size: 15px; font-weight: 600; flex: 1; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.topbar-account { display: flex; align-items: center; gap: 8px; flex-shrink: 0; }
+#auth-role-indicator { font-size: 12px; color: var(--text2); white-space: nowrap; }
+.theme-switch { display: inline-flex; align-items: center; border: 1px solid #111; border-radius: 999px; overflow: hidden; background: #fff; flex-shrink: 0; }
+.theme-switch-btn { width: 28px; height: 26px; display: inline-flex; align-items: center; justify-content: center; border: 0; background: transparent; color: #111; cursor: pointer; padding: 0; }
+.theme-switch-btn svg { width: 14px; height: 14px; }
+.theme-switch-btn.is-on { background: #111; color: #fff; }
+.theme-switch-btn:focus-visible { outline: 2px solid #111; outline-offset: -2px; }
+body.theme-dark .theme-switch { border-color: #fff; background: #000; }
+body.theme-dark .theme-switch-btn { color: #fff; }
+body.theme-dark .theme-switch-btn.is-on { background: #fff; color: #000; }
+body.theme-dark .theme-switch-btn:focus-visible { outline-color: #fff; }
 #global-release-wrap { display:flex; align-items:center; gap:6px; flex-shrink:0; color:var(--text2); font-size:12px; position:relative; z-index:40; }
 #global-release-wrap .ms-btn { min-width:168px; max-width:260px; }
 #global-release-dropdown { left:auto; right:0; min-width:240px; z-index:500; }
-#sync-status-btn { min-width:190px; justify-content:center; }
-#sync-status-btn.sync-stale { border-color:var(--amber); color:var(--amber); background:var(--amber-bg); }
-#sync-status-btn.sync-scheduled { border-color:var(--green); color:var(--green); background:var(--green-bg); }
+.sync-dock { position:relative; width:34px; height:34px; flex-shrink:0; display:inline-flex; align-items:center; justify-content:center; padding:0; border:0.5px solid var(--border2); border-radius:999px; background:var(--bg); color:var(--text); cursor:pointer; }
+.sync-dock[hidden] { display:none !important; }
+.sync-dock:hover { background:var(--bg2); }
+.sync-dock:focus-visible { outline:2px solid var(--blue); outline-offset:2px; }
+.sync-dock.is-landing { opacity:0; }
+.sync-dock.is-out { opacity:0; transform:scale(.6); transition:opacity .35s ease, transform .35s ease; }
+.sync-dock-ring { width:22px; height:22px; }
+.sync-dock-ring circle { fill:none; stroke-width:2; }
+.sync-dock-track { stroke:var(--border2); }
+.sync-dock-arc { stroke:var(--blue); stroke-linecap:round; transform:rotate(-90deg); transform-origin:10px 10px; stroke-dasharray:43.98; stroke-dashoffset:40; transition:stroke-dashoffset .28s cubic-bezier(.2,.8,.2,1); }
+.sync-dock-count { position:absolute; font-size:9px; font-weight:700; font-variant-numeric:tabular-nums; letter-spacing:-.03em; }
+.sync-dock.is-run .sync-dock-count, .sync-dock.is-done .sync-dock-count, .sync-dock.is-fail .sync-dock-count { display:none; }
+.sync-dock-mark { display:none; position:absolute; font-size:14px; font-weight:700; line-height:1; }
+.sync-dock.is-soon { animation:sync-dock-soon 1.6s ease-in-out infinite; }
+.sync-dock.is-soon .sync-dock-arc { stroke:var(--green); }
+.sync-dock.is-run { animation:sync-dock-run 1.3s ease-in-out infinite; }
+.sync-dock.is-done { animation:sync-dock-pop .45s cubic-bezier(.2,.8,.2,1); }
+.sync-dock.is-done .sync-dock-arc { stroke:var(--green); opacity:.35; }
+.sync-dock.is-done .sync-dock-mark { display:block; color:var(--green); }
+.sync-dock.is-done .sync-dock-mark::before { content:'✓'; }
+.sync-dock.is-fail .sync-dock-arc { stroke:var(--red); opacity:.35; }
+.sync-dock.is-fail .sync-dock-mark { display:block; color:var(--red); }
+.sync-dock.is-fail .sync-dock-mark::before { content:'!'; }
+@keyframes sync-dock-soon { 0%,100% { box-shadow:0 0 0 0 transparent; } 50% { box-shadow:0 0 0 4px var(--green-bg); } }
+@keyframes sync-dock-run { 0%,100% { box-shadow:0 0 0 0 transparent; } 50% { box-shadow:0 0 0 4px var(--blue-bg); } }
+@keyframes sync-dock-pop { 0% { transform:scale(.86); } 60% { transform:scale(1.12); } 100% { transform:scale(1); } }
+#refresh-overlay.is-minimizing, #sync-soon.is-minimizing { background:transparent; backdrop-filter:none; pointer-events:none; }
+#sync-soon { position:fixed; inset:0; z-index:997; background:rgba(0,0,0,.28); display:flex; align-items:center; justify-content:center; }
+#sync-soon.hidden { display:none; }
+.sync-soon-card { background:var(--bg); border:0.5px solid var(--border2); border-radius:var(--radius-lg); padding:22px 26px; width:min(360px, calc(100vw - 32px)); box-shadow:0 12px 40px rgba(0,0,0,.28); text-align:center; }
+.sync-soon-card h3 { font-size:15px; font-weight:600; margin:0 0 6px; }
+.sync-soon-card p { font-size:13px; color:var(--text2); margin:0; }
+@media (prefers-reduced-motion: reduce) {
+  .sync-dock, .sync-dock-arc, #refresh-overlay.is-minimizing .refresh-modal, #sync-soon.is-minimizing .sync-soon-card { animation:none; transition:none; }
+}
 #auth-gate { position:fixed; inset:0; z-index:3000; display:flex; align-items:center; justify-content:center; background:var(--bg3); }
 #auth-gate.hidden { display:none; }
 .auth-card { width:380px; max-width:calc(100vw - 32px); padding:32px; background:var(--bg2); border:0.5px solid var(--border); border-radius:var(--radius-lg); box-shadow:0 18px 50px rgba(0,0,0,.18); }
@@ -93,12 +136,14 @@ body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sa
 .auth-extra { display:none; }
 .auth-card.register-mode .auth-extra { display:block; }
 .auth-error { color:var(--red); background:var(--red-bg); font-size:12px; padding:9px 10px; border-radius:var(--radius); margin-top:12px; }
-#connector-page { max-width:1000px; }
-.connector-grid { display:grid; grid-template-columns:1fr 1fr; gap:16px; }
+#connector-page { max-width:none; }
+.pc-page { max-width:none; }
+.connector-grid { display:grid; grid-template-columns:minmax(0, 1.2fr) minmax(320px, 0.8fr); gap:16px; align-items:start; }
 .connector-card { background:var(--bg2); border:0.5px solid var(--border); border-radius:var(--radius-lg); padding:18px; }
 .connector-card h3 { font-size:14px; font-weight:600; margin-bottom:5px; }
 .connector-card .desc { font-size:12px; color:var(--text2); line-height:1.5; margin-bottom:14px; }
-.connector-options { display:flex; flex-direction:column; gap:7px; max-height:320px; overflow-y:auto; }
+.connector-options { display:flex; flex-direction:column; gap:7px; }
+#connector-manual-projects { display:grid; grid-template-columns:repeat(auto-fill, minmax(260px, 1fr)); gap:8px 16px; }
 .connector-option { display:flex; align-items:flex-start; gap:8px; min-height:28px; font-size:13px; }
 .connector-option input { accent-color:var(--blue); margin-top:4px; flex-shrink:0; }
 .connector-option-copy { display:flex; flex-direction:column; gap:1px; min-width:0; flex:1; }
@@ -111,7 +156,7 @@ body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sa
 .connector-preview { margin-top:16px; }
 .connector-preview-head { display:flex; align-items:baseline; justify-content:space-between; gap:12px; margin-bottom:10px; flex-wrap:wrap; }
 .connector-preview-count { font-size:12px; color:var(--text2); }
-.connector-preview-list { display:flex; flex-direction:column; gap:8px; max-height:380px; overflow-y:auto; }
+.connector-preview-list { display:grid; grid-template-columns:repeat(auto-fill, minmax(320px, 1fr)); gap:8px; }
 .connector-job { padding:10px 12px; border:0.5px solid var(--border); border-radius:var(--radius); background:var(--bg); }
 .connector-job.fetch { border-color:rgba(124,184,66,.4); }
 .connector-job.skip { background:var(--bg2); }
@@ -120,7 +165,8 @@ body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sa
 .connector-job.fetch .connector-job-status { color:var(--green); }
 .connector-job.skip .connector-job-status { color:var(--text3); }
 .connector-job-versions { font-size:11px; color:var(--text2); margin-top:4px; line-height:1.45; font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace; }
-@media (max-width:700px) { .connector-grid { grid-template-columns:1fr; } #global-release-wrap > span { display:none; } #global-release-wrap .ms-btn { min-width:120px; max-width:180px; } }
+@media (max-width:900px) { .connector-grid { grid-template-columns:1fr; } #connector-manual-projects, .connector-preview-list { grid-template-columns:1fr; } }
+@media (max-width:700px) { #global-release-wrap > span { display:none; } #global-release-wrap .ms-btn { min-width:120px; max-width:180px; } }
 #content { flex: 1; overflow-y: auto; padding: 24px; background: var(--bg3); }
 
 /* ── Sidebar ── */
@@ -1044,7 +1090,11 @@ body.phase-chart-fs-active { overflow: hidden; }
 #refresh-overlay { position:fixed; inset:0; z-index:999; background:rgba(0,0,0,.45); display:flex; align-items:center; justify-content:center; backdrop-filter:blur(3px); }
 #refresh-overlay.hidden { display:none; }
 .refresh-modal { background:var(--bg); border:0.5px solid var(--border2); border-radius:var(--radius-lg); padding:20px 22px 16px; width:min(680px, calc(100vw - 32px)); max-height:min(85vh, 760px); display:flex; flex-direction:column; box-shadow:0 12px 40px rgba(0,0,0,.35); }
-.refresh-modal h3 { font-size:15px; font-weight:600; margin:0 0 12px; flex-shrink:0; }
+.refresh-head { display:flex; align-items:center; justify-content:space-between; gap:12px; margin:0 0 12px; flex-shrink:0; }
+.refresh-modal h3 { font-size:15px; font-weight:600; margin:0; flex-shrink:0; }
+.sync-soon-head { display:flex; align-items:center; justify-content:space-between; gap:16px; text-align:left; }
+.sync-soon-head h3 { margin:0 0 6px; }
+.sync-soon-head p { margin:0; }
 #refresh-rows { overflow-y:auto; flex:1; min-height:0; margin:0 -4px 4px; padding:0 4px; }
 .refresh-release-head { position:sticky; top:0; z-index:1; background:var(--bg); font-size:11px; font-weight:700; letter-spacing:.04em; text-transform:uppercase; color:var(--text3); padding:10px 4px 4px; }
 .refresh-proj-row { display:grid; grid-template-columns:10px minmax(0,1fr) auto; gap:8px; align-items:start; padding:8px 4px; font-size:13px; border-bottom:0.5px solid var(--border); }
@@ -1384,8 +1434,6 @@ code { font-family: monospace; font-size: 12px; background: var(--bg3); padding:
     <div id="topbar">
       <h1 id="topbar-title">Jira Dashboard</h1>
       <div id="proxy-indicator"></div>
-      <span id="auth-role-indicator" style="font-size:12px;color:var(--text2)"></span>
-      <button class="btn btn-sm" id="auth-btn" onclick="submitDashboardAuth()">Sign in</button>
       <div id="global-release-wrap">
         <span id="global-release-scope">Market release</span>
         <div class="ms-wrap">
@@ -1404,27 +1452,60 @@ code { font-family: monospace; font-size: 12px; background: var(--bg3); padding:
           </div>
         </div>
       </div>
-      <button class="btn btn-sm" id="theme-btn" onclick="toggleTheme()" title="Switch between light and dark theme">
-        Theme: Light
-      </button>
       <button class="btn btn-sm" onclick="exportCSV()" title="Export the current page after filters as an HTML ticket list">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
         Export HTML
       </button>
-      <button class="btn btn-sm" id="sync-status-btn" onclick="handleSyncStatusAction()" title="Sync status">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="1 4 1 10 7 10"/><path d="M3.51 15a9 9 0 1 0 .49-3.56"/></svg>
-        <span id="sync-status-label">Sync status</span>
+      <button type="button" id="sync-dock" class="sync-dock" hidden aria-live="polite" aria-label="Sync progress" onclick="openSyncDock()">
+        <svg class="sync-dock-ring" viewBox="0 0 20 20" aria-hidden="true"><circle class="sync-dock-track" cx="10" cy="10" r="7"></circle><circle class="sync-dock-arc" cx="10" cy="10" r="7"></circle></svg>
+        <span class="sync-dock-count"></span>
+        <span class="sync-dock-mark" aria-hidden="true"></span>
       </button>
+      <div class="topbar-account">
+        <div class="theme-switch" role="group" aria-label="Theme">
+          <button type="button" class="theme-switch-btn is-on" data-theme="light" aria-pressed="true" title="Light" aria-label="Light theme" onclick="applyTheme('light')">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/></svg>
+          </button>
+          <button type="button" class="theme-switch-btn" data-theme="dark" aria-pressed="false" title="Dark" aria-label="Dark theme" onclick="applyTheme('dark')">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 14.5A8.5 8.5 0 1 1 9.5 3 7 7 0 0 0 21 14.5z"/></svg>
+          </button>
+        </div>
+        <span id="auth-role-indicator"></span>
+        <button class="btn btn-sm" id="auth-btn" onclick="submitDashboardAuth()">Sign in</button>
+      </div>
     </div>
 
     <div id="refresh-overlay" class="hidden">
       <div class="refresh-modal">
-        <h3 id="refresh-title">Refreshing all projects…</h3>
+        <div class="refresh-head">
+          <h3 id="refresh-title">Refreshing all projects…</h3>
+          <button type="button" class="sync-dock" aria-label="Minimize" title="Minimize" onclick="minimizeSyncPopup()">
+            <svg class="sync-dock-ring" viewBox="0 0 20 20" aria-hidden="true"><circle class="sync-dock-track" cx="10" cy="10" r="7"></circle><circle class="sync-dock-arc" cx="10" cy="10" r="7"></circle></svg>
+            <span class="sync-dock-count"></span>
+            <span class="sync-dock-mark" aria-hidden="true"></span>
+          </button>
+        </div>
         <div id="refresh-rows"></div>
         <div class="refresh-bar-wrap"><div class="refresh-bar" id="refresh-bar" style="width:0%"></div></div>
         <div class="refresh-foot">
           <div id="refresh-summary" class="refresh-stats" aria-label="Sync counts"></div>
           <button class="btn btn-sm" id="refresh-cancel-btn" onclick="cancelRefresh()" style="display:none;">Cancel</button>
+        </div>
+      </div>
+    </div>
+
+    <div id="sync-soon" class="hidden" role="status">
+      <div class="sync-soon-card">
+        <div class="sync-soon-head">
+          <div>
+            <h3 id="sync-soon-title">Next sync</h3>
+            <p id="sync-soon-detail">Starts in about a minute.</p>
+          </div>
+          <button type="button" class="sync-dock" aria-label="Minimize" title="Minimize" onclick="minimizeSyncPopup()">
+            <svg class="sync-dock-ring" viewBox="0 0 20 20" aria-hidden="true"><circle class="sync-dock-track" cx="10" cy="10" r="7"></circle><circle class="sync-dock-arc" cx="10" cy="10" r="7"></circle></svg>
+            <span class="sync-dock-count"></span>
+            <span class="sync-dock-mark" aria-hidden="true"></span>
+          </button>
         </div>
       </div>
     </div>
@@ -1776,7 +1857,7 @@ code { font-family: monospace; font-size: 12px; background: var(--bg3); padding:
 
       <!-- Projects Config -->
       <div class="page" id="page-projects-config">
-        <div style="max-width:860px">
+        <div class="pc-page">
           <h2 style="font-size:18px;font-weight:600;margin-bottom:6px">Project Configuration</h2>
           <p style="font-size:13px;color:var(--text2);line-height:1.65;margin-bottom:16px">
             Enable/disable projects, remove/restore built-ins, and edit JQL per project. Each project can include market releases with their patches, market releases only, or patch releases only. Custom projects can also be added, edited, and deleted.
@@ -3939,7 +4020,6 @@ function qualityInsightRedirectBox(kind) {
 
 let _connectorScheduleTimer = null;
 let _syncStatusTimer = null;
-const SYNC_STALE_MS = 15 * 60 * 1000;
 
 function getConnectorProjects() {
   return getAllProjects();
@@ -4053,6 +4133,274 @@ async function updateConnectorScheduleEnabled(enabled) {
 }
 
 let _connectorSyncing = false;
+let _syncDockMode = '';
+let _syncDockTimer = null;
+let _syncDockHideTimer = null;
+let _syncSoonTimer = null;
+let _syncPreviewFor = 0;
+let _syncDockBound = false;
+const SYNC_DOCK_RING = 43.98;
+const SYNC_DOCK_FLY_MS = 480;
+const SYNC_DOCK_HOLD_MS = 4000;
+const SYNC_SOON_MS = 60000;
+
+function syncDockButton() {
+  return document.getElementById('sync-dock');
+}
+
+function setSyncDockArc(done, total) {
+  const ratio = total > 0 ? done / total : 0;
+  const shown = done === 0 ? 0.08 : ratio;
+  const offset = String(SYNC_DOCK_RING * (1 - Math.max(0, Math.min(1, shown))));
+  document.querySelectorAll('.sync-dock-arc').forEach(arc => { arc.style.strokeDashoffset = offset; });
+}
+
+function setSyncDock(mode, info) {
+  const btn = syncDockButton();
+  if (!btn) return;
+  const detail = info || {};
+  const changed = _syncDockMode !== mode;
+  _syncDockMode = mode;
+  btn.hidden = false;
+  const remain = Math.max(0, detail.remain || 0);
+  const sec = Math.ceil(remain / 1000);
+  const countText = mode === 'soon' ? (sec >= 60 ? '1m' : String(sec)) : '';
+  document.querySelectorAll('.sync-dock').forEach(dock => {
+    if (changed) {
+      dock.classList.remove('is-soon', 'is-run', 'is-done', 'is-fail', 'is-out');
+      dock.classList.add('is-' + mode);
+    }
+    const count = dock.querySelector('.sync-dock-count');
+    if (count) count.textContent = countText;
+  });
+  if (mode === 'soon') setSyncDockArc(0, 1);
+  else if (mode === 'run') setSyncDockArc(detail.done || 0, detail.total || 1);
+  else setSyncDockArc(1, 1);
+  const title = detail.title || (mode === 'run' ? 'Syncing' : mode === 'soon' ? 'Next sync soon' : 'Sync finished');
+  btn.title = title;
+  btn.setAttribute('aria-label', title);
+}
+
+function setSyncDockProgress(done, total) {
+  if (_syncDockMode !== 'run') return;
+  const btn = syncDockButton();
+  setSyncDockArc(done, total);
+  if (!btn) return;
+  const title = 'Syncing ' + Math.min(done, total) + ' of ' + total;
+  btn.title = title;
+  btn.setAttribute('aria-label', title);
+}
+
+function hideSyncDock() {
+  const btn = syncDockButton();
+  if (!btn || btn.hidden) {
+    _syncDockMode = '';
+    return;
+  }
+  btn.classList.add('is-out');
+  setTimeout(() => {
+    if (!btn.classList.contains('is-out')) return;
+    btn.hidden = true;
+    btn.classList.remove('is-out', 'is-soon', 'is-run', 'is-done', 'is-fail', 'is-landing');
+    _syncDockMode = '';
+  }, 380);
+}
+
+function flyToSyncDock(overlay, card, onDone) {
+  const dock = syncDockButton();
+  if (!overlay || !card || !dock || overlay.classList.contains('hidden')) {
+    if (onDone) onDone();
+    return;
+  }
+  dock.hidden = false;
+  dock.classList.add('is-landing');
+  const from = card.getBoundingClientRect();
+  const to = dock.getBoundingClientRect();
+  overlay.classList.add('is-minimizing');
+  if (!to.width || !from.width) {
+    overlay.classList.add('hidden');
+    overlay.classList.remove('is-minimizing');
+    dock.classList.remove('is-landing');
+    if (onDone) onDone();
+    return;
+  }
+  const dx = (to.left + to.width / 2) - (from.left + from.width / 2);
+  const dy = (to.top + to.height / 2) - (from.top + from.height / 2);
+  const scale = Math.max(0.06, Math.min(0.22, to.width / from.width));
+  card.style.transition = 'transform ' + SYNC_DOCK_FLY_MS + 'ms cubic-bezier(.2,.8,.2,1), opacity ' + SYNC_DOCK_FLY_MS + 'ms ease';
+  card.style.transform = 'translate(' + dx + 'px, ' + dy + 'px) scale(' + scale + ')';
+  card.style.opacity = '0.15';
+  setTimeout(() => {
+    overlay.classList.add('hidden');
+    overlay.classList.remove('is-minimizing');
+    card.style.transition = '';
+    card.style.transform = '';
+    card.style.opacity = '';
+    dock.classList.remove('is-landing');
+    if (onDone) onDone();
+  }, SYNC_DOCK_FLY_MS + 40);
+}
+
+function bindSyncDockHover() {
+  if (_syncDockBound) return;
+  _syncDockBound = true;
+  const modal = document.querySelector('#refresh-overlay .refresh-modal');
+  if (modal) {
+    modal.addEventListener('mouseenter', () => clearTimeout(_syncDockTimer));
+    modal.addEventListener('mouseleave', () => {
+      const overlay = document.getElementById('refresh-overlay');
+      if (_syncDockMode === 'run' && overlay && !overlay.classList.contains('hidden')) armSyncDockMinimize(800);
+    });
+  }
+  const soon = document.querySelector('#sync-soon .sync-soon-card');
+  if (soon) {
+    soon.addEventListener('mouseenter', () => clearTimeout(_syncSoonTimer));
+    soon.addEventListener('mouseleave', () => {
+      const root = document.getElementById('sync-soon');
+      if (root && !root.classList.contains('hidden')) _syncSoonTimer = setTimeout(minimizeSoonPopup, 700);
+    });
+  }
+}
+
+function armSyncDockMinimize(delay) {
+  clearTimeout(_syncDockTimer);
+  _syncDockTimer = setTimeout(minimizeRefreshOverlay, delay == null ? 1600 : delay);
+}
+
+function minimizeRefreshOverlay(onDone) {
+  const overlay = document.getElementById('refresh-overlay');
+  const card = overlay && overlay.querySelector('.refresh-modal');
+  flyToSyncDock(overlay, card, onDone);
+}
+
+function minimizeSyncPopup() {
+  clearTimeout(_syncDockTimer);
+  clearTimeout(_syncSoonTimer);
+  const soon = document.getElementById('sync-soon');
+  if (soon && !soon.classList.contains('hidden') && !soon.classList.contains('is-minimizing')) {
+    minimizeSoonPopup();
+    return;
+  }
+  const overlay = document.getElementById('refresh-overlay');
+  if (overlay && !overlay.classList.contains('hidden') && !overlay.classList.contains('is-minimizing')) {
+    minimizeRefreshOverlay();
+  }
+}
+
+function beginSyncDock() {
+  bindSyncDockHover();
+  const soon = document.getElementById('sync-soon');
+  if (soon) {
+    soon.classList.add('hidden');
+    soon.classList.remove('is-minimizing');
+  }
+  clearTimeout(_syncSoonTimer);
+  clearTimeout(_syncDockHideTimer);
+  setSyncDock('run', { done: 0, total: 1, title: 'Syncing' });
+  armSyncDockMinimize(1600);
+}
+
+function releaseSyncOverlayChrome() {
+  const cancelBtn = document.getElementById('refresh-cancel-btn');
+  if (cancelBtn) cancelBtn.style.display = 'none';
+}
+
+function finishSyncDock(info) {
+  const detail = info || {};
+  clearTimeout(_syncDockTimer);
+  const overlay = document.getElementById('refresh-overlay');
+  const showing = overlay && !overlay.classList.contains('hidden');
+  const apply = () => {
+    const mode = detail.cancelled || detail.failed ? 'fail' : 'done';
+    setSyncDock(mode, { title: detail.title || (mode === 'done' ? 'Sync complete' : 'Sync finished with errors') });
+    clearTimeout(_syncDockHideTimer);
+    _syncDockHideTimer = setTimeout(() => {
+      if (_syncDockMode === 'done' || _syncDockMode === 'fail') hideSyncDock();
+    }, SYNC_DOCK_HOLD_MS);
+  };
+  releaseSyncOverlayChrome();
+  if (showing) minimizeRefreshOverlay(apply);
+  else apply();
+}
+
+function openSyncDock() {
+  if (_syncDockMode === 'run') {
+    const overlay = document.getElementById('refresh-overlay');
+    if (!overlay || !overlay.classList.contains('hidden')) return;
+    overlay.classList.remove('hidden');
+    armSyncDockMinimize(2200);
+    return;
+  }
+  if (_syncDockMode !== 'soon') return;
+  const next = nextConnectorSync();
+  if (next) showSyncSoonPopup(next);
+}
+
+function minimizeSoonPopup() {
+  const root = document.getElementById('sync-soon');
+  const card = root && root.querySelector('.sync-soon-card');
+  flyToSyncDock(root, card);
+}
+
+function showSyncSoonPopup(next) {
+  if (_syncDockMode === 'run' || _syncDockMode === 'done' || _syncDockMode === 'fail') return;
+  bindSyncDockHover();
+  const root = document.getElementById('sync-soon');
+  const title = document.getElementById('sync-soon-title');
+  const detail = document.getElementById('sync-soon-detail');
+  if (!root || !title || !detail || !next) return;
+  const remain = Math.max(0, next.dueAt - Date.now());
+  title.textContent = 'Next sync';
+  detail.textContent = next.release + ' starts ' + (remain <= 0 ? 'now' : ('in ' + formatSyncCountdown(remain))) + '.';
+  const card = root.querySelector('.sync-soon-card');
+  if (card) {
+    card.style.transition = '';
+    card.style.transform = '';
+    card.style.opacity = '';
+  }
+  root.classList.remove('hidden', 'is-minimizing');
+  setSyncDock('soon', {
+    remain,
+    title: 'Next ' + next.release + ' sync ' + (remain <= 0 ? 'now' : ('in ' + formatSyncCountdown(remain))),
+  });
+  const dock = syncDockButton();
+  if (dock) dock.classList.add('is-landing');
+  clearTimeout(_syncSoonTimer);
+  _syncSoonTimer = setTimeout(minimizeSoonPopup, 1500);
+}
+
+function nextConnectorSync() {
+  const state = getConnectorState();
+  if (!state.scheduleEnabled || !S.creds.url) return null;
+  const releases = state.scheduleReleases || [];
+  if (!releases.length || !getConnectorProjectCount()) return null;
+  return releases.map(release => ({
+    release,
+    dueAt: (state.lastRun[release] || 0) + (state.intervals[release] || 60) * 60 * 1000,
+  })).sort((a, b) => a.dueAt - b.dueAt)[0];
+}
+
+function updateSyncDockPreview() {
+  if (_connectorSyncing || _syncDockMode === 'run' || _syncDockMode === 'done' || _syncDockMode === 'fail') return;
+  const next = nextConnectorSync();
+  const remain = next ? next.dueAt - Date.now() : Infinity;
+  if (!next || remain > SYNC_SOON_MS) {
+    const soon = document.getElementById('sync-soon');
+    if (soon && !soon.classList.contains('hidden')) soon.classList.add('hidden');
+    if (_syncDockMode === 'soon') hideSyncDock();
+    _syncPreviewFor = 0;
+    return;
+  }
+  if (_syncPreviewFor !== next.dueAt) {
+    _syncPreviewFor = next.dueAt;
+    showSyncSoonPopup(next);
+    return;
+  }
+  setSyncDock('soon', {
+    remain,
+    title: 'Next ' + next.release + ' sync ' + (remain <= 0 ? 'now' : ('in ' + formatSyncCountdown(remain))),
+  });
+}
 
 const REFRESH_STAT_LABELS = [
   ['total', 'Total'],
@@ -4143,7 +4491,6 @@ async function runConnectorSyncBatch(releases, projectKeys, mode = 'manual', opt
   const rowsEl = document.getElementById('refresh-rows');
   const barEl = document.getElementById('refresh-bar');
   const summEl = document.getElementById('refresh-summary');
-  const btn = document.getElementById('sync-status-btn');
   const cancelBtn = document.getElementById('refresh-cancel-btn');
   const titleEl = document.getElementById('refresh-title');
   const originalRelease = S.activeRelease;
@@ -4184,10 +4531,11 @@ async function runConnectorSyncBatch(releases, projectKeys, mode = 'manual', opt
     paintRefreshStats(summEl, tally);
     setRefreshBar(barEl, tally.skipped.length, tally.total);
     overlay.classList.remove('hidden');
-    btn.disabled = true;
     cancelBtn.disabled = false;
     cancelBtn.textContent = 'Cancel';
     cancelBtn.style.display = 'inline-flex';
+    beginSyncDock();
+    setSyncDockProgress(tally.skipped.length, tally.total);
   }
   reportProgress();
 
@@ -4225,7 +4573,9 @@ async function runConnectorSyncBatch(releases, projectKeys, mode = 'manual', opt
       }
       if (!background) {
         paintRefreshStats(summEl, tally);
-        setRefreshBar(barEl, tally.skipped.length + tally.synced.length + tally.failed.length, tally.total);
+        const finished = tally.skipped.length + tally.synced.length + tally.failed.length;
+        setRefreshBar(barEl, finished, tally.total);
+        setSyncDockProgress(finished, tally.total);
       }
       reportProgress();
     }
@@ -4239,10 +4589,12 @@ async function runConnectorSyncBatch(releases, projectKeys, mode = 'manual', opt
       paintRefreshStats(summEl, tally);
       const current = getAllProjects().find(project => project.id === S.page);
       if (current) renderProject(current);
-      await new Promise(resolve => setTimeout(resolve, 500));
-      if (overlay) overlay.classList.add('hidden');
-      if (btn) btn.disabled = false;
-      if (cancelBtn) cancelBtn.style.display = 'none';
+      const cancelledNow = !!window._refreshCancelled;
+      finishSyncDock({
+        failed: tally.failed.length,
+        cancelled: cancelledNow,
+        title: cancelledNow ? 'Sync cancelled' : (tally.failed.length ? 'Sync finished with errors' : 'Sync complete'),
+      });
     }
     const cancelled = !!window._refreshCancelled;
     window._refreshCancelled = false;
@@ -4405,47 +4757,13 @@ function getConnectorProjectCount() {
 }
 
 function updateSyncStatus() {
-  const button = document.getElementById('sync-status-btn');
-  const label = document.getElementById('sync-status-label');
-  if (!button || !label) return;
-  const state = getConnectorState();
-  const scheduledReleases = state.scheduleReleases || [];
-  button.classList.remove('sync-stale', 'sync-scheduled');
-  if (state.scheduleEnabled && scheduledReleases.length && getConnectorProjectCount()) {
-    const now = Date.now();
-    const next = scheduledReleases.map(release => ({
-      release,
-      dueAt: (state.lastRun[release] || 0) + (state.intervals[release] || 60) * 60 * 1000
-    })).sort((a, b) => a.dueAt - b.dueAt)[0];
-    const countdown = next.dueAt <= now ? 'now' : `in ${formatSyncCountdown(next.dueAt - now)}`;
-    label.textContent = `Next ${next.release} ${countdown} · ${getConnectorProjectCount()} projects`;
-    button.title = `Syncing ${next.release} · ${getConnectorProjectCount()} projects`;
-    button.classList.add('sync-scheduled');
-    return;
-  }
-  const lastSync = S.lastSyncAt && S.lastSyncAt[S.activeRelease || ''];
-  const age = lastSync ? Date.now() - lastSync : Infinity;
-  if (age >= SYNC_STALE_MS) {
-    label.textContent = 'Data stale · Open Connector';
-    button.title = 'Open Jira Connector to sync data';
-    button.classList.add('sync-stale');
-  } else {
-    label.textContent = `Data current · ${formatSyncCountdown(age)} old`;
-    button.title = 'Data is up to date';
-  }
+  updateSyncDockPreview();
 }
 
 function startSyncStatusTimer() {
   if (_syncStatusTimer) clearInterval(_syncStatusTimer);
   updateSyncStatus();
   _syncStatusTimer = setInterval(updateSyncStatus, 1000);
-}
-
-function handleSyncStatusAction() {
-  const state = getConnectorState();
-  const scheduled = state.scheduleEnabled && state.scheduleReleases.length && getConnectorProjectCount();
-  const lastSync = S.lastSyncAt && S.lastSyncAt[S.activeRelease || ''];
-  if (!scheduled && (!lastSync || Date.now() - lastSync >= SYNC_STALE_MS)) nav('connector');
 }
 
 function getDefaultProjectPage() {
@@ -4648,8 +4966,11 @@ async function applyTheme(theme, shouldPersist = true) {
   S.theme = t;
   document.body.classList.remove('theme-light', 'theme-dark');
   document.body.classList.add('theme-' + t);
-  const btn = document.getElementById('theme-btn');
-  if (btn) btn.textContent = 'Theme: ' + (t === 'dark' ? 'Dark' : 'Light');
+  document.querySelectorAll('.theme-switch-btn').forEach(btn => {
+    const on = btn.dataset.theme === t;
+    btn.classList.toggle('is-on', on);
+    btn.setAttribute('aria-pressed', on ? 'true' : 'false');
+  });
   if (shouldPersist) await persistNow();
 }
 
@@ -5336,7 +5657,6 @@ async function refreshAll() {
   const rowsEl  = document.getElementById('refresh-rows');
   const barEl   = document.getElementById('refresh-bar');
   const summEl  = document.getElementById('refresh-summary');
-  const btn     = document.getElementById('sync-status-btn');
   const cancelBtn = document.getElementById('refresh-cancel-btn');
   const titleEl = document.getElementById('refresh-title');
 
@@ -5377,11 +5697,12 @@ async function refreshAll() {
   paintRefreshStats(summEl, tally);
   setRefreshBar(barEl, tally.skipped.length, tally.total);
   overlay.classList.remove('hidden');
-  btn.disabled = true;
   cancelBtn.disabled = false;
   cancelBtn.textContent = 'Cancel';
   cancelBtn.style.display = 'inline-flex';
   titleEl.textContent = 'Refreshing projects…';
+  beginSyncDock();
+  setSyncDockProgress(tally.skipped.length, tally.total);
 
   // Flag to track cancellation
   let cancelled = false;
@@ -5481,7 +5802,9 @@ async function refreshAll() {
       statusEl.textContent = '✗ ' + err.slice(0, 40);
     }
     paintRefreshStats(summEl, tally);
-    setRefreshBar(barEl, tally.skipped.length + tally.synced.length + tally.failed.length, tally.total);
+    const finished = tally.skipped.length + tally.synced.length + tally.failed.length;
+    setRefreshBar(barEl, finished, tally.total);
+    setSyncDockProgress(finished, tally.total);
   }
 
   // Update title if cancelled
@@ -5504,11 +5827,11 @@ async function refreshAll() {
   persist();
   updateSyncStatus();
 
-  // Brief pause so user sees 100%, then close
-  await new Promise(r => setTimeout(r, 900));
-  overlay.classList.add('hidden');
-  btn.disabled = false;
-  cancelBtn.style.display = 'none';
+  finishSyncDock({
+    failed: tally.failed.length,
+    cancelled,
+    title: cancelled ? 'Refresh cancelled' : (tally.failed.length ? 'Refresh finished with errors' : 'Refresh complete'),
+  });
   window._refreshCancelled = false;
 
   // Re-render current view
