@@ -1,5 +1,0 @@
-# Strips the Jira API token, password hash, and session token on git add.
-# One-time setup in this clone:
-#   git config filter.strip-store-secrets.clean "node scripts/strip-store-secrets.js"
-#   git config filter.strip-store-secrets.required true
-data/store.json filter=strip-store-secrets

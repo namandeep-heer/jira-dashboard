@@ -5,3 +5,4 @@ dist/
 config/.env
 data/user-preferences.json
 data/workspaces.json
+data/store.json
