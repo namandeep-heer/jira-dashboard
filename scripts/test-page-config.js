@@ -16,7 +16,7 @@ const pageConfig = createPageConfig({ configDir: tmpDir });
 
 assert.deepStrictEqual(
   PAGE_CONFIGS.map(page => page.file),
-  ['setup.json', 'connector.json', 'projects.json', 'releases.json', 'fields.json', 'menu.json']
+  ['connector.json', 'projects.json', 'releases.json', 'fields.json', 'menu.json']
 );
 
 const state = {
@@ -28,7 +28,7 @@ const state = {
   milestones: [{ id: 'sc', label: 'Scope Complete' }],
   enabled: ['key', 'summary'],
   customIds: { cf_devest: 'customfield_10204' },
-  connector: { releases: ['N2026.R1'], scheduleEnabled: true, intervals: { 'N2026.R1': 60 } },
+  connector: { releases: ['N2026.R1'], scheduleEnabled: true, intervals: { 'N2026.R1': 60 }, lastRun: { 'N2026.R1': 123 } },
   menuGroups: [
     { id: 'delivery', label: 'Products', categories: [], catchAll: true, pages: ['velocity', 'analytics'] },
     { id: 'quality', label: 'Quality', categories: ['Quality'], catchAll: false, pages: ['quality-insights'] },
@@ -47,10 +47,8 @@ const projects = JSON.parse(projectsRaw);
 assert.strictEqual(projects.customProjects[0].key, 'NEW');
 assert.strictEqual(projects.projectSettings.NFS.jql, 'project = NFS AND issuetype = Bug');
 
-const setup = JSON.parse(fs.readFileSync(path.join(tmpDir, 'setup.json'), 'utf8'));
-assert.strictEqual(setup.jiraEmail, 'admin@example.com');
-assert.ok(!('token' in setup));
-assert.ok(!JSON.stringify(setup).includes('secret-token'));
+assert.ok(!fs.existsSync(path.join(tmpDir, 'setup.json')));
+assert.ok(!JSON.stringify(projects).includes('secret-token'));
 
 const fields = JSON.parse(fs.readFileSync(path.join(tmpDir, 'fields.json'), 'utf8'));
 assert.deepStrictEqual(fields.enabled, ['key', 'summary']);
@@ -59,6 +57,7 @@ assert.strictEqual(fields.customIds.cf_devest, 'customfield_10204');
 const connector = JSON.parse(fs.readFileSync(path.join(tmpDir, 'connector.json'), 'utf8'));
 assert.strictEqual(connector.scheduleEnabled, true);
 assert.deepStrictEqual(connector.releases, ['N2026.R1']);
+assert.ok(!('lastRun' in connector));
 assert.ok(!('connector' in connector));
 
 const stripped = pageConfig.stripFromState(state);
@@ -78,6 +77,7 @@ const merged = pageConfig.mergeIntoState(stripped);
 assert.strictEqual(merged.projectSettings.NFS.jql, 'project = NFS AND issuetype = Bug');
 assert.strictEqual(merged.releases[0].name, 'N2026.R1');
 assert.strictEqual(merged.connector.scheduleEnabled, true);
+assert.ok(!merged.connector.lastRun);
 assert.strictEqual(merged.menuGroups[0].label, 'Products');
 assert.deepStrictEqual(merged.menuGroups[1].pages, ['quality-insights']);
 assert.strictEqual(merged.creds.email, 'admin@example.com');

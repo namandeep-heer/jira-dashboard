@@ -80,7 +80,6 @@ FIRST TIME USE
   -----------------
   Each Config sidebar page saves to its own JSON file in `config/`:
 
-    config/setup.json       Jira Setup (email only; API token is not stored here)
     config/connector.json   Jira Connector selections and schedule
     config/projects.json    Projects, JQL overrides, enable/disable
     config/releases.json    Market releases, patches, milestones

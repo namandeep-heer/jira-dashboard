@@ -22,8 +22,20 @@ assert.throws(() => notes.addComment('NFS-1', { body: '   ', author: 'a@example.
 const noted = notes.setNote('nfs-12', { note: '  Waiting on design\n', author: 'a@example.com' });
 assert.strictEqual(noted.key, 'NFS-12');
 assert.strictEqual(noted.note, 'Waiting on design');
+assert.strictEqual(noted.noteCreatedBy, 'a@example.com');
 assert.strictEqual(noted.noteUpdatedBy, 'a@example.com');
 assert.ok(noted.noteUpdatedAt);
+assert.throws(
+  () => notes.setNote('NFS-12', { note: 'Taken over', author: 'b@example.com' }),
+  /only your own notes/
+);
+assert.throws(
+  () => notes.setNote('NFS-12', { note: '', author: 'b@example.com' }),
+  /only your own notes/
+);
+const revised = notes.setNote('NFS-12', { note: 'Still waiting', author: 'A@example.com' });
+assert.strictEqual(revised.note, 'Still waiting');
+assert.strictEqual(revised.noteCreatedBy, 'a@example.com');
 
 const withComment = notes.addComment('NFS-12', { body: 'Checked the spec.', author: 'a@example.com' });
 assert.strictEqual(withComment.comments.length, 1);
@@ -34,42 +46,45 @@ const other = notes.addComment('NFS-12', { body: 'Second thought.', author: 'b@e
 assert.strictEqual(other.comments.length, 2);
 
 assert.throws(
-  () => notes.deleteComment('NFS-12', commentId, { author: 'b@example.com', isAdmin: false }),
+  () => notes.deleteComment('NFS-12', commentId, { author: 'b@example.com', isAdmin: true }),
   /only your own/
 );
 
-const afterOwn = notes.deleteComment('NFS-12', commentId, { author: 'a@example.com', isAdmin: false });
+const afterOwn = notes.deleteComment('NFS-12', commentId, { author: 'a@example.com' });
 assert.strictEqual(afterOwn.comments.length, 1);
 assert.strictEqual(afterOwn.comments[0].author, 'b@example.com');
 
 const remainingId = afterOwn.comments[0].id;
 assert.throws(
-  () => notes.updateComment('NFS-12', remainingId, { body: 'Changed.', author: 'a@example.com', isAdmin: false }),
+  () => notes.updateComment('NFS-12', remainingId, { body: 'Changed.', author: 'a@example.com', isAdmin: true }),
   /only your own/
 );
 assert.throws(
-  () => notes.updateComment('NFS-12', remainingId, { body: '   ', author: 'b@example.com', isAdmin: false }),
+  () => notes.updateComment('NFS-12', remainingId, { body: '   ', author: 'b@example.com' }),
   /Write a comment/
 );
-const unchanged = notes.updateComment('NFS-12', remainingId, { body: 'Second thought.', author: 'b@example.com', isAdmin: false });
+const unchanged = notes.updateComment('NFS-12', remainingId, { body: 'Second thought.', author: 'b@example.com' });
 assert.strictEqual(unchanged.comments[0].updatedAt, null);
 
-const edited = notes.updateComment('NFS-12', remainingId, { body: ' Revised thought. ', author: 'b@example.com', isAdmin: false });
+const edited = notes.updateComment('NFS-12', remainingId, { body: ' Revised thought. ', author: 'b@example.com' });
 assert.strictEqual(edited.comments[0].body, 'Revised thought.');
 assert.strictEqual(edited.comments[0].author, 'b@example.com');
 assert.strictEqual(edited.comments[0].createdAt, other.comments[1].createdAt);
 assert.strictEqual(edited.comments[0].updatedBy, 'b@example.com');
 assert.ok(edited.comments[0].updatedAt);
 
-const adminEdit = notes.updateComment('NFS-12', remainingId, { body: 'Admin revision.', author: 'a@example.com', isAdmin: true });
-assert.strictEqual(adminEdit.comments[0].body, 'Admin revision.');
-assert.strictEqual(adminEdit.comments[0].updatedBy, 'a@example.com');
-
-const afterAdmin = notes.deleteComment('NFS-12', remainingId, { author: 'a@example.com', isAdmin: true });
-assert.strictEqual(afterAdmin.comments.length, 0);
-assert.strictEqual(afterAdmin.note, 'Waiting on design');
+assert.throws(
+  () => notes.deleteComment('NFS-12', remainingId, { author: 'a@example.com', isAdmin: true }),
+  /only your own/
+);
+const afterOwner = notes.deleteComment('NFS-12', remainingId, { author: 'B@example.com' });
+assert.strictEqual(afterOwner.comments.length, 0);
+assert.strictEqual(afterOwner.note, 'Still waiting');
 
 notes.setNote('NFS-12', { note: '   ', author: 'a@example.com' });
+const claimed = notes.setNote('NFS-12', { note: 'New owner', author: 'b@example.com' });
+assert.strictEqual(claimed.noteCreatedBy, 'b@example.com');
+notes.setNote('NFS-12', { note: '', author: 'b@example.com' });
 assert.deepStrictEqual(notes.list().tickets, {});
 assert.strictEqual(fs.existsSync(filePath), true);
 
@@ -83,14 +98,26 @@ assert.throws(
   () => notes.setNote('NFS-1', { note: 'x'.repeat(8001), author: 'a@example.com' }),
   /too long/
 );
-assert.throws(() => notes.deleteComment('NFS-1', 'missing', { author: 'a@example.com', isAdmin: true }), /not found/);
+assert.throws(() => notes.deleteComment('NFS-1', 'missing', { author: 'a@example.com' }), /not found/);
 assert.throws(
-  () => notes.updateComment('NFS-1', 'missing', { body: 'Nope.', author: 'a@example.com', isAdmin: true }),
+  () => notes.updateComment('NFS-1', 'missing', { body: 'Nope.', author: 'a@example.com' }),
   /not found/
 );
 assert.throws(
-  () => fromDisk.updateComment('ABC-9', fromDisk.get('ABC-9').comments[0].id, { body: 'x'.repeat(4001), author: 'a@example.com', isAdmin: false }),
+  () => fromDisk.updateComment('ABC-9', fromDisk.get('ABC-9').comments[0].id, { body: 'x'.repeat(4001), author: 'a@example.com' }),
   /too long/
+);
+
+const legacyPath = path.join(tmpDir, 'legacy.json');
+fs.writeFileSync(legacyPath, JSON.stringify({
+  version: 1,
+  tickets: { 'NFS-7': { note: 'Legacy note', noteUpdatedBy: 'owner@example.com', comments: [] } },
+}), 'utf8');
+const legacy = createTicketNotes({ filePath: legacyPath });
+assert.strictEqual(legacy.get('NFS-7').noteCreatedBy, 'owner@example.com');
+assert.throws(
+  () => legacy.setNote('NFS-7', { note: 'Changed', author: 'other@example.com' }),
+  /only your own notes/
 );
 
 const corruptPath = path.join(tmpDir, 'corrupt.json');

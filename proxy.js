@@ -33,6 +33,7 @@ const { createWorkspaces } = require('./lib/workspaces');
 const { createUserPreferences } = require('./lib/user-preferences');
 const { slimDashboardState, dashboardStateForClient } = require('./lib/slim-cache');
 const { createPageConfig } = require('./lib/page-config');
+const { createConnectorLastRun } = require('./lib/connector-last-run');
 const { ensureStatusPipelineFile, loadStatusPipeline } = require('./lib/status-pipeline');
 const { createJiraWriteApi } = require('./lib/jira-write');
 if (!fs.existsSync(CONFIG_DIR)) {
@@ -63,18 +64,27 @@ const ticketNotes = createTicketNotes({ filePath: path.join(DATA_DIR, 'ticket-no
 const workspaces = createWorkspaces({ filePath: path.join(DATA_DIR, 'workspaces.json') });
 const userPreferences = createUserPreferences({ filePath: path.join(DATA_DIR, 'user-preferences.json') });
 const pageConfig = createPageConfig({ configDir: CONFIG_DIR });
+const connectorLastRun = createConnectorLastRun({
+  filePath: path.join(DATA_DIR, 'connector-last-run.json'),
+});
+try {
+  connectorLastRun.migrateFromConnectorFile(path.join(CONFIG_DIR, 'connector.json'));
+} catch (err) {
+  console.warn('[connector] Could not move lastRun out of connector.json:', err.message);
+}
 try { ensureStatusPipelineFile(CONFIG_DIR); } catch (err) {
   console.warn('[status-pipeline] Could not create config/status-pipeline.json:', err.message);
 }
 
 function persistDashboardState(state, opts) {
   const slimmed = slimDashboardState(state);
+  connectorLastRun.rememberFromState(slimmed);
   if (!opts || opts.pages !== false) pageConfig.writeFromState(slimmed);
   store.setSharedState(pageConfig.stripFromState(slimmed));
 }
 
 function loadDashboardState() {
-  const merged = pageConfig.mergeIntoState(store.getSharedState());
+  const merged = connectorLastRun.attach(pageConfig.mergeIntoState(store.getSharedState()));
   if (Array.isArray(merged._pageConfigErrors) && merged._pageConfigErrors.length) {
     merged._pageConfigErrors.forEach(message => console.warn('[page-config]', message));
   }
@@ -386,7 +396,6 @@ app.put('/api/ticket-notes/:key/comments/:commentId', (req, res) => {
     res.json(ticketNotes.updateComment(req.params.key, req.params.commentId, {
       body: req.body?.body,
       author: user.email,
-      isAdmin: user.role === 'admin',
     }));
   } catch (err) {
     sendStoreError(res, err);
@@ -399,7 +408,6 @@ app.delete('/api/ticket-notes/:key/comments/:commentId', (req, res) => {
   try {
     res.json(ticketNotes.deleteComment(req.params.key, req.params.commentId, {
       author: user.email,
-      isAdmin: user.role === 'admin',
     }));
   } catch (err) {
     sendStoreError(res, err);
