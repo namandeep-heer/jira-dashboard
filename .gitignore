@@ -3,3 +3,5 @@ package-lock.json
 .vscode/settings.json
 dist/
 config/.env
+data/user-preferences.json
+data/workspaces.json
