@@ -38,6 +38,12 @@ fs.writeFileSync(connectorPath, JSON.stringify({
 }, null, 2) + '\n', 'utf8');
 assert.deepStrictEqual(kept.migrateFromConnectorFile(connectorPath), { 'N2026.R2': 999 });
 assert.ok(!('lastRun' in JSON.parse(fs.readFileSync(connectorPath, 'utf8'))));
+fs.writeFileSync(connectorPath, JSON.stringify({
+  releases: ['N2026.R2'],
+  lastRun: { 'N2026.R2': 1500, 'N2027.R1': 40 },
+}, null, 2) + '\n', 'utf8');
+assert.deepStrictEqual(kept.migrateFromConnectorFile(connectorPath), { 'N2026.R2': 1500, 'N2027.R1': 40 });
+assert.ok(!('lastRun' in JSON.parse(fs.readFileSync(connectorPath, 'utf8'))));
 
 const state = { connector: { releases: ['N2026.R2'], lastRun: { 'N2026.R2': 50 } } };
 kept.rememberFromState(state);
