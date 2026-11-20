@@ -104,4 +104,55 @@ fs.writeFileSync(badPath, '{', 'utf8');
 assert.throws(() => createWorkspaces({ filePath: badPath }), /unreadable/);
 assert.ok(fs.readdirSync(tmpDir).some(name => name.startsWith('bad.json.corrupt-')));
 
+const dashboard = fs.readFileSync(path.join(__dirname, '../dashboard.html'), 'utf8');
+const writeUi = fs.readFileSync(path.join(__dirname, '../lib/jira-write-ui.js'), 'utf8');
+const fnStart = dashboard.indexOf('const WORKSPACE_COLOR');
+const fnEnd = dashboard.indexOf('function refreshWorkspaceListing()');
+assert.ok(fnStart > 0 && fnEnd > fnStart);
+const vm = require('vm');
+const live = { key: 'NFS-1', fields: { summary: 'Live summary', status: { name: 'Open' }, issuetype: { name: 'Enhancement' } } };
+const sandbox = {
+  getAllProjects() {
+    return [
+      { key: 'NFS', name: 'NetSuite', color: '#111', category: 'Delivery' },
+      { key: 'BUGS', name: 'Bugs', color: '#222', category: 'Quality' },
+    ];
+  },
+  filterIssuesToActiveRelease(issues) { return { issues: issues || [] }; },
+  S: {
+    cache: { NFS: { issues: [live] }, BUGS: { issues: [] } },
+    releaseCache: {},
+  },
+  workspaceById(id) {
+    return id === 'w12345678' ? { id, name: 'Watch', items: [{ key: 'NFS-1' }, { key: 'GL-9' }] } : null;
+  },
+  workspacePageId(id) { return 'ws_' + id; },
+  getSelectedReleaseNames() { return ['N2026.R2']; },
+  formatSelectedReleasesLabel(names) { return (names || []).join(', '); },
+  esc(value) { return String(value == null ? '' : value); },
+};
+vm.createContext(sandbox);
+vm.runInContext(dashboard.slice(fnStart, fnEnd), sandbox);
+const listed = sandbox.workspaceListingIssues({ items: [{ key: 'nfs-1' }, { key: 'GL-9' }, { key: 'NFS-1' }] });
+assert.strictEqual(listed.issues.length, 2);
+assert.strictEqual(listed.issues[0], live);
+assert.strictEqual(listed.issues[0].fields.summary, 'Live summary');
+assert.strictEqual(listed.issues[1]._workspaceMissing, true);
+assert.strictEqual(listed.missing.join(','), 'GL-9');
+assert.strictEqual(listed.source['NFS-1'].name, 'NetSuite');
+assert.strictEqual(listed.source['NFS-1'].key, 'NFS');
+const asProject = sandbox.listingProject('w12345678');
+assert.strictEqual(asProject.workspace, true);
+assert.strictEqual(asProject.name, 'Watch');
+assert.strictEqual(asProject.key, 'w12345678');
+assert.strictEqual(sandbox.listingProject('NFS').name, 'NetSuite');
+assert.strictEqual(sandbox.dashboardProjectForTicketKey('NFS-1').key, 'NFS');
+assert.strictEqual(sandbox.dashboardProjectForTicketKey('BUGS-3').key, 'BUGS');
+assert.strictEqual(sandbox.dashboardProjectForTicketKey('GL-9'), null);
+assert.ok(dashboard.includes('renderIssueTable(proj, resolved.issues'));
+assert.ok(dashboard.includes("id: 'sourceProject'"));
+assert.ok(!dashboard.includes('refreshWorkspaceFromJira'));
+assert.ok(!dashboard.includes('class="issues ws-issue-grid"'));
+assert.ok(writeUi.includes('refreshWorkspaceListing'));
+
 console.log('workspaces ok');

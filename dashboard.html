@@ -4672,6 +4672,7 @@ async function runConnectorSyncBatch(releases, projectKeys, mode = 'manual', opt
       paintRefreshStats(summEl, tally);
       const current = getAllProjects().find(project => project.id === S.page);
       if (current) renderProject(current);
+      else if (isWorkspacePageId(S.page)) renderWorkspacePage();
       const cancelledNow = !!window._refreshCancelled;
       finishSyncDock({
         failed: tally.failed.length,
@@ -4683,6 +4684,7 @@ async function runConnectorSyncBatch(releases, projectKeys, mode = 'manual', opt
     window._refreshCancelled = false;
     _connectorSyncing = false;
     tally.cancelled = cancelled;
+    if (background && isWorkspacePageId(S.page)) renderWorkspacePage();
   }
   const issues = tally.synced.reduce((sum, row) => sum + (row.issues || 0), 0);
   return { synced, skipped: tally.skipped.length, failed: tally.failed.length, issues, cancelled: !!tally.cancelled };
@@ -4802,6 +4804,7 @@ async function runConnectorManualSync() {
   status.textContent = bits.join('; ') + '.';
   const current = getAllProjects().find(project => project.id === S.page);
   if (current) renderProject(current);
+  else if (isWorkspacePageId(S.page)) renderWorkspacePage();
 }
 
 async function runDueConnectorSchedules() {
@@ -5943,6 +5946,7 @@ async function refreshAll() {
   // Re-render current view
   const proj = getAllProjects().find(p => p.id === S.page);
   if (proj) renderProject(proj);
+  else if (isWorkspacePageId(S.page)) renderWorkspacePage();
   else if (S.page === 'analytics') renderAnalytics();
   else if (S.page === 'velocity') renderVelocity();
   else if (S.page === 'data-gaps') renderDataGaps();
@@ -6588,7 +6592,7 @@ function issueMatchesListingSearchAndCols(proj, issue) {
 function issuesForProjectListingContext(projKey) {
   const d = S._projData && S._projData[projKey];
   if (!d) return [];
-  const proj = getAllProjects().find(p => p.key === projKey);
+  const proj = listingProject(projKey);
   return issuesForProjectStatCardsOriginal(projKey).filter(issue => issueMatchesListingSearchAndCols(proj, issue));
 }
 
@@ -6801,6 +6805,7 @@ function projectCellMatchesSelected(issue, field, selected) {
 
 function listingFieldById(fieldId) {
   if (fieldId === 'jiraProject') return { id: 'jiraProject', label: 'Project' };
+  if (fieldId === 'sourceProject') return { id: 'sourceProject', label: 'Project' };
   return ALL_FIELDS.find(f => f.id === fieldId);
 }
 
@@ -6812,7 +6817,12 @@ function qualityListingFields(proj, enabledFields) {
 
 function availableListingFields(proj) {
   const enabled = (S.enabled || []).map(id => ALL_FIELDS.find(f => f.id === id)).filter(Boolean);
-  return qualityListingFields(proj, enabled);
+  const fields = qualityListingFields(proj, enabled);
+  if (!proj || !proj.workspace || fields.some(field => field.id === 'sourceProject')) return fields;
+  const col = { id: 'sourceProject', label: 'Project' };
+  const keyIdx = fields.findIndex(field => field.id === 'key');
+  if (keyIdx < 0) return [col].concat(fields);
+  return fields.slice(0, keyIdx + 1).concat([col], fields.slice(keyIdx + 1));
 }
 
 function projectColumnViews(projKey) {
@@ -6868,7 +6878,7 @@ function listingFieldsForProject(proj) {
 }
 
 function getFilteredProjectIssues(projKey) {
-  const proj = getAllProjects().find(p => p.key === projKey);
+  const proj = listingProject(projKey);
   const jiraSelected = (proj && isQualityDashboardProject(proj)) ? getSelectedJiraProjects() : new Set();
   return getPhaseFilteredProjectIssues(projKey).filter(issue => {
     if (jiraSelected.size && !issueInSelectedJiraProjects(issue)) return false;
@@ -7190,7 +7200,7 @@ function projectSortFields(proj) {
   return listingFieldsForProject(proj);
 }
 
-const SORT_VALUE_FIELDS = new Set(['priority', 'status', 'issuetype', 'cf_scope', 'cf_scopesc', 'cf_clarity', 'jiraProject', 'fixVersions', 'cf_custcom']);
+const SORT_VALUE_FIELDS = new Set(['priority', 'status', 'issuetype', 'cf_scope', 'cf_scopesc', 'cf_clarity', 'jiraProject', 'sourceProject', 'fixVersions', 'cf_custcom']);
 
 function projectSortScalar(fieldId, raw) {
   if (raw === '' || raw == null) return null;
@@ -7333,7 +7343,7 @@ function renderProjectSortDialog() {
   const editor = document.getElementById('proj-sort-editor');
   const addBtn = document.getElementById('proj-sort-add');
   if (!host || !editor) return;
-  const proj = getAllProjects().find(p => p.key === _projSortDialogKey);
+  const proj = listingProject(_projSortDialogKey);
   const fields = projectSortFields(proj);
   const known = new Map(fields.map(field => [field.id, field]));
   _projSortDraft.forEach(level => {
@@ -7454,7 +7464,7 @@ function restoreProjectSortSnapshot() {
 
 function openProjectSortDialog(projKey) {
   closeProjectColFilter();
-  const proj = getAllProjects().find(p => p.key === projKey);
+  const proj = listingProject(projKey);
   _projSortDialogKey = projKey;
   _projSortActive = 0;
   _projSortSnapshot = getProjectSortLevels(projKey).map(cloneSortLevel);
@@ -7519,7 +7529,7 @@ function removeProjectSortLevel(index) {
 }
 
 function addProjectSortLevel() {
-  const proj = getAllProjects().find(p => p.key === _projSortDialogKey);
+  const proj = listingProject(_projSortDialogKey);
   const used = new Set(_projSortDraft.map(level => level.col));
   const next = projectSortFields(proj).find(field => !used.has(field.id));
   if (!next || _projSortDraft.length >= MAX_PROJECT_SORT_LEVELS) return;
@@ -9183,7 +9193,7 @@ async function commitColumnViews(projKey, spec) {
 
 function moveProjectColumn(projKey, fromId, toId) {
   const dialog = _columnViewDialog && _columnViewDialog.projKey === projKey ? _columnViewDialog : null;
-  const proj = getAllProjects().find(item => item.key === projKey);
+  const proj = listingProject(projKey);
   const spec = dialog ? dialog.draft : projectColumnViews(projKey);
   const ids = draftVisibleIds(spec, proj);
   const from = ids.indexOf(fromId);
@@ -9250,7 +9260,7 @@ function columnViewStatus(message, isError) {
 function renderColumnViewsDialog() {
   const dialog = _columnViewDialog;
   if (!dialog) return;
-  const proj = getAllProjects().find(item => item.key === dialog.projKey);
+  const proj = listingProject(dialog.projKey);
   const spec = dialog.draft;
   const list = document.getElementById('proj-views-list');
   const editor = document.getElementById('proj-views-editor');
@@ -9293,7 +9303,7 @@ function renderColumnViewsDialog() {
 function openColumnViewsDialog(projKey) {
   if (_projSortDialogKey) closeProjectSortDialog();
   closeProjectColFilter();
-  const proj = getAllProjects().find(item => item.key === projKey);
+  const proj = listingProject(projKey);
   const draft = projectColumnViews(projKey);
   _columnViewDialog = { projKey, draft };
   _columnViewSnapshot = copyColumnViews(draft);
@@ -9342,7 +9352,7 @@ function addColumnView() {
     columnViewStatus('Save up to 12 views.', true);
     return;
   }
-  const proj = getAllProjects().find(item => item.key === dialog.projKey);
+  const proj = listingProject(dialog.projKey);
   const columns = draftVisibleIds(dialog.draft, proj);
   const id = newColumnViewId(dialog.draft);
   const used = new Set(dialog.draft.views.map(view => String(view.name || '').trim().toLowerCase()));
@@ -9391,7 +9401,7 @@ function deleteColumnView() {
 function moveColumnViewColumn(index, delta) {
   const dialog = _columnViewDialog;
   if (!dialog) return;
-  const proj = getAllProjects().find(item => item.key === dialog.projKey);
+  const proj = listingProject(dialog.projKey);
   const ids = draftVisibleIds(dialog.draft, proj);
   const next = index + delta;
   if (index < 0 || next < 0 || next >= ids.length || index >= ids.length) return;
@@ -9425,7 +9435,7 @@ function toggleColumnViewColumn(id, checked) {
 function resetColumnViewOrder() {
   const dialog = _columnViewDialog;
   if (!dialog) return;
-  const proj = getAllProjects().find(item => item.key === dialog.projKey);
+  const proj = listingProject(dialog.projKey);
   const natural = availableListingFields(proj).map(field => field.id);
   if (dialog.draft.active === 'default') dialog.draft.order = [];
   else writeColumnViewOrder(dialog.draft, natural);
@@ -9463,7 +9473,7 @@ function columnViewDrop(event, row) {
   const fromId = _columnViewDragId;
   _columnViewDragId = null;
   if (!_columnViewDialog || !fromId || !toId || fromId === toId) return;
-  const proj = getAllProjects().find(item => item.key === _columnViewDialog.projKey);
+  const proj = listingProject(_columnViewDialog.projKey);
   const ids = draftVisibleIds(_columnViewDialog.draft, proj);
   moveColumnViewColumn(ids.indexOf(fromId), ids.indexOf(toId) - ids.indexOf(fromId));
 }
@@ -9683,7 +9693,7 @@ function openBulkEdit(projKey) {
   const selected = _bulkSelected[projKey];
   if (!selected || !selected.size) return;
   _bulkMode[projKey] = true;
-  const proj = getAllProjects().find(item => item.key === projKey) || { key: projKey };
+  const proj = listingProject(projKey) || { key: projKey };
   const fields = bulkEditableFields(listingFieldsForProject(proj));
   const allowed = new Set(fields.map(field => field.id));
   _bulkColumns[projKey] = (_bulkColumns[projKey] || []).filter(col => allowed.has(col.field));
@@ -10047,7 +10057,7 @@ async function applyBulkEdit(projKey) {
     return;
   }
   captureBulkColumns(projKey);
-  const proj = getAllProjects().find(item => item.key === projKey) || { key: projKey };
+  const proj = listingProject(projKey) || { key: projKey };
   const fields = bulkEditableFields(listingFieldsForProject(proj));
   const stored = (_bulkColumns[projKey] || []).filter(col => col.enabled);
   if (!stored.length) {
@@ -10177,7 +10187,7 @@ async function applyBulkEdit(projKey) {
 }
 
 function renderIssueTable(proj, issues, activeFilter) {
-  proj = getAllProjects().find(p => p.key === proj.key) || proj;
+  proj = listingProject(proj.key) || proj;
   const issuesEl = document.getElementById('issues-' + proj.key);
   if (!issuesEl) return;
 
@@ -10355,7 +10365,7 @@ function renderIssueTable(proj, issues, activeFilter) {
   setExportSnapshot({
     page: S.page,
     title: proj.name || proj.key,
-    kicker: `${S.activeRelease || 'Release'} · filtered ticket list`,
+    kicker: proj.workspace ? 'Workspace · tickets from project pages' : `${S.activeRelease || 'Release'} · filtered ticket list`,
     tickets: sorted.map(issue => exportTicketFromIssue(issue, proj)),
     filename: `${proj.key}-tickets.html`,
     toolbarMeta: [S.activeRelease, colSt.q && ('search: ' + colSt.q), projectSortSummary(sortLevels) && ('sort: ' + projectSortSummary(sortLevels))].filter(Boolean).join(' · '),
@@ -10447,6 +10457,10 @@ function extractUserName(val) {
 
 function getCellValue(issue, f) {
   if (f.id==='jiraProject') return qualityModuleFromKey(issue.key);
+  if (f.id==='sourceProject') {
+    const src = S._wsSource && issue && S._wsSource[String(issue.key || '').toUpperCase()];
+    return (src && src.name) || '';
+  }
   if (f.id==='key') return issue.key||'';
   if (f.id==='parent') {
     const p = (issue.fields||{}).parent;
@@ -10496,7 +10510,12 @@ function renderCell(f, issue) {
     html = `<span class="${cl}">${esc(s)}</span>`;
   } else if (f.id==='jiraProject') {
     html = `<span style="display:inline-flex;align-items:center;gap:6px"><span style="width:8px;height:8px;border-radius:50%;background:${jiraProjectColor(s)};display:inline-block"></span>${esc(s)}</span>`;
+  } else if (f.id==='sourceProject') {
+    const src = S._wsSource && issue && S._wsSource[String(issue.key || '').toUpperCase()];
+    const color = (src && src.color) || '#888780';
+    html = s ? `<span style="display:inline-flex;align-items:center;gap:6px"><span style="width:8px;height:8px;border-radius:50%;background:${esc(color)};display:inline-block"></span>${esc(s)}</span>` : '';
   } else html = esc(s);
+  if (issue && issue._workspaceMissing) return html;
   if (window.JiraWrite && JiraWrite.canEdit(f.id)) {
     const kind = JiraWrite.fieldKind(f.id);
     if (kind === 'number') {
@@ -15779,6 +15798,7 @@ function exportTicketFromIssue(issue, proj) {
   const dev = getDev(issue);
   const jiraKey = qualityModuleFromKey(issue && issue.key);
   const quality = proj && isQualityDashboardProject(proj);
+  const src = proj && proj.workspace && S._wsSource && issue && S._wsSource[String(issue.key || '').toUpperCase()];
   return {
     key: (issue && issue.key) || '',
     summary: f.summary || '',
@@ -15788,8 +15808,8 @@ function exportTicketFromIssue(issue, proj) {
     phase: phase ? phase.label : '',
     assignee: (dev && dev !== 'Unassigned') ? dev : (f.assignee?.displayName || ''),
     estimate: getIssueDays(issue, 'cf_devest', 'customfield_10204'),
-    projectKey: jiraKey || (proj && proj.key) || '',
-    projectName: quality ? (jiraKey || (proj && proj.name) || '') : ((proj && proj.name) || jiraKey || ''),
+    projectKey: src ? (src.key || '') : (jiraKey || (proj && proj.key) || ''),
+    projectName: src ? (src.name || '') : (quality ? (jiraKey || (proj && proj.name) || '') : ((proj && proj.name) || jiraKey || '')),
   };
 }
 
@@ -21705,18 +21725,6 @@ function onWorkspaceQueryInput(id, value) {
   _wsSearch[id].query = value;
 }
 
-function onWorkspaceFilterInput(id, value, caret) {
-  _wsFilter[id] = value;
-  renderWorkspacePage();
-  const input = document.getElementById('ws-filter');
-  if (input) {
-    input.focus();
-    if (caret != null) {
-      try { input.setSelectionRange(caret, caret); } catch (err) { /* ignore */ }
-    }
-  }
-}
-
 function toggleWorkspaceSearchHit(id, key, checked) {
   const state = _wsSearch[id];
   if (!state) return;
@@ -21809,121 +21817,194 @@ async function removeWorkspaceItem(id, key) {
   }
 }
 
-async function refreshWorkspaceFromJira(id) {
-  const ws = workspaceById(id);
+const WORKSPACE_COLOR = '#4F46E5';
+
+function workspaceAsProject(ws) {
+  return {
+    id: workspacePageId(ws.id),
+    key: ws.id,
+    name: ws.name,
+    color: WORKSPACE_COLOR,
+    category: 'Workspace',
+    workspace: true,
+  };
+}
+
+function listingProject(key) {
+  if (!key) return null;
+  const found = getAllProjects().find(proj => proj.key === key);
+  if (found) return found;
+  const ws = workspaceById(key);
+  return ws ? workspaceAsProject(ws) : null;
+}
+
+function projectPageIssueIndex() {
+  const index = new Map();
+  getAllProjects().forEach(proj => {
+    const data = S.cache && S.cache[proj.key];
+    if (!data || data.err || !Array.isArray(data.issues)) return;
+    const filtered = filterIssuesToActiveRelease(data.issues, proj);
+    (filtered.issues || []).forEach(issue => {
+      const key = String(issue && issue.key || '').toUpperCase();
+      if (!key || index.has(key)) return;
+      index.set(key, { issue, project: proj });
+    });
+  });
+  return index;
+}
+
+function workspaceListingIssues(ws) {
+  const index = projectPageIssueIndex();
+  const issues = [];
+  const missing = [];
+  const source = {};
+  const seen = new Set();
+  (ws.items || []).forEach(item => {
+    const key = String(item && item.key || '').toUpperCase();
+    if (!key || seen.has(key)) return;
+    seen.add(key);
+    const hit = index.get(key);
+    if (hit) {
+      source[key] = {
+        name: hit.project.name,
+        key: hit.project.key,
+        color: hit.project.color || WORKSPACE_COLOR,
+        missing: false,
+      };
+      issues.push(hit.issue);
+      return;
+    }
+    source[key] = { name: '', key: '', color: '', missing: true };
+    missing.push(key);
+    issues.push({
+      key,
+      _workspaceMissing: true,
+      fields: {
+        summary: '',
+        status: { name: 'Not on a project page' },
+        issuetype: { name: '' },
+      },
+    });
+  });
+  return { issues, missing, source };
+}
+
+function dashboardProjectForTicketKey(key) {
+  const want = String(key || '').toUpperCase();
+  if (!want) return null;
+  const projects = getAllProjects();
+  const buckets = [];
+  if (S.releaseCache && typeof S.releaseCache === 'object') {
+    Object.keys(S.releaseCache).forEach(name => {
+      const bucket = S.releaseCache[name];
+      if (bucket && typeof bucket === 'object') buckets.push(bucket);
+    });
+  }
+  if (S.cache && typeof S.cache === 'object' && buckets.indexOf(S.cache) < 0) buckets.push(S.cache);
+  for (let b = 0; b < buckets.length; b++) {
+    for (let p = 0; p < projects.length; p++) {
+      const issues = buckets[b][projects[p].key] && buckets[b][projects[p].key].issues;
+      if (!Array.isArray(issues)) continue;
+      for (let i = 0; i < issues.length; i++) {
+        if (String(issues[i] && issues[i].key || '').toUpperCase() === want) return projects[p];
+      }
+    }
+  }
+  const prefix = want.split('-')[0];
+  return projects.find(proj => String(proj.key || '').toUpperCase() === prefix) || null;
+}
+
+function workspaceMissingNote(missing) {
+  if (!missing.length) return '';
+  const label = formatSelectedReleasesLabel(getSelectedReleaseNames());
+  const shown = missing.slice(0, 12).map(key => esc(key)).join(', ');
+  const more = missing.length > 12 ? '…' : '';
+  const noun = missing.length === 1 ? 'ticket is' : 'tickets are';
+  return `<div class="info-box">${missing.length} referenced ${noun} not on a project page for <strong>${esc(label)}</strong>. Sync loads the projects that own them. ${shown}${more}</div>`;
+}
+
+async function syncWorkspacePage(wsId) {
+  const ws = workspaceById(wsId);
   if (!ws) return;
-  const keys = (ws.items || []).map(item => item.key);
-  if (!keys.length) {
-    setWorkspaceStatus(id, 'Add a ticket before refreshing.', true);
+  if (_connectorSyncing) {
+    setProjectSyncStatus(wsId, 'A sync is already running.');
+    return;
+  }
+  if (!S.creds.url) {
+    setProjectSyncStatus(wsId, 'Configure Jira credentials first.');
+    return;
+  }
+  const releases = getSelectedReleaseNames();
+  if (!releases.length) {
+    setProjectSyncStatus(wsId, 'Select a release in the top bar first.');
+    return;
+  }
+  const projectKeys = [];
+  const seen = new Set();
+  (ws.items || []).forEach(item => {
+    const proj = dashboardProjectForTicketKey(item.key);
+    if (!proj || seen.has(proj.key)) return;
+    seen.add(proj.key);
+    projectKeys.push(proj.key);
+  });
+  if (!projectKeys.length) {
+    setProjectSyncStatus(wsId, 'These tickets are not on a project page yet.');
+    return;
+  }
+  setProjectSyncStatus(wsId, '');
+  _pageSync = { key: wsId, done: 0, total: 1 };
+  setProjectSyncRing(wsId, 0, 1);
+  let result;
+  try {
+    result = await runConnectorSyncBatch(releases, projectKeys, 'manual', {
+      background: true,
+      onProgress(info) {
+        _pageSync = { key: wsId, done: info.done, total: info.total };
+        setProjectSyncRing(wsId, info.done, info.total);
+      },
+    });
+  } catch (err) {
+    _pageSync = null;
+    showProjectSyncNotice(ws.name + ' sync failed', err.message || 'Could not reach Jira.');
     renderWorkspacePage();
     return;
   }
-  setWorkspaceStatus(id, 'Refreshing from Jira…');
-  renderWorkspacePage();
-  try {
-    const issues = [];
-    for (let i = 0; i < keys.length; i += 50) {
-      const slice = keys.slice(i, i + 50);
-      const jql = slice.length === 1 ? ('key = ' + slice[0]) : ('key in (' + slice.join(', ') + ')');
-      const result = await fetchJiraByJql(jql, slice.length);
-      result.issues.forEach(issue => issues.push(issue));
-    }
-    const found = new Set(issues.map(issue => String(issue.key || '').toUpperCase()));
-    _wsMissing[id] = keys.filter(key => !found.has(key));
-    if (issues.length) {
-      const data = await addWorkspaceItems(id, issues.map(workspaceSnapshotFromIssue));
-      const missing = _wsMissing[id].length;
-      setWorkspaceStatus(id, missing
-        ? ('Refreshed ' + issues.length + '. ' + missing + ' not found in Jira.')
-        : ('Refreshed ' + issues.length + ' ticket' + (issues.length === 1 ? '' : 's') + '.'));
-      applyWorkspacesPayload(data);
-      return;
-    }
-    setWorkspaceStatus(id, 'None of these tickets were found in Jira.', true);
-    renderWorkspacePage();
-  } catch (err) {
-    setWorkspaceStatus(id, err.message, true);
-    renderWorkspacePage();
-  }
+  _pageSync = null;
+  const issues = result.issues || 0;
+  const failed = result.failed || 0;
+  const parts = [];
+  if (issues) parts.push(issues + ' issue' + (issues === 1 ? '' : 's'));
+  if (result.skipped) parts.push(result.skipped + ' skipped');
+  if (failed) parts.push(failed + ' failed');
+  const summary = parts.length ? parts.join(' · ') : 'Nothing new to fetch';
+  showProjectSyncNotice(
+    failed ? ws.name + ' sync finished with errors' : ws.name + ' synced',
+    summary + '. Refreshing this page…'
+  );
+  await new Promise(resolve => setTimeout(resolve, 1400));
+  if (S.page === workspacePageId(wsId)) renderWorkspacePage();
+  const notice = document.getElementById('proj-sync-notice');
+  const detail = notice && notice.querySelector('.proj-sync-notice-detail');
+  if (detail && !notice.hidden) detail.textContent = summary + '. This page is up to date.';
 }
 
-function workspaceStatusBadge(status) {
-  const text = String(status || '');
-  if (!text) return '';
-  const sl = text.toLowerCase();
-  const cls = /progress|active|dev/i.test(sl) ? 'b-ip'
-    : /done|closed|resolved|complete|groomed/i.test(sl) ? 'b-done'
-    : /block/i.test(sl) ? 'b-blocked'
-    : /review|test|qa/i.test(sl) ? 'b-review'
-    : 'b-todo';
-  return `<span class="badge ${cls}">${esc(text)}</span>`;
-}
-
-function openWorkspaceRename() {
-  const ws = workspaceByPage(S.page);
-  const root = document.getElementById('ws-rename-root');
-  const input = document.getElementById('ws-rename');
-  const error = document.getElementById('ws-rename-error');
-  if (!ws || !root || !input) return;
-  if (error) error.textContent = '';
-  input.value = ws.name;
-  root.hidden = false;
-  input.focus();
-  input.select();
-}
-
-function closeWorkspaceRename() {
-  const root = document.getElementById('ws-rename-root');
-  if (root) root.hidden = true;
-}
-
-async function commitWorkspaceRename() {
+function refreshWorkspaceListing() {
   const id = workspaceIdFromPage(S.page);
-  const input = document.getElementById('ws-rename');
-  const error = document.getElementById('ws-rename-error');
-  const button = document.getElementById('ws-rename-submit');
   const ws = workspaceById(id);
-  if (!input || !ws) return;
-  const name = input.value.trim();
-  if (!name || name === ws.name) { closeWorkspaceRename(); return; }
-  if (button) button.disabled = true;
-  try {
-    const data = await workspaceRequest('/api/workspaces/' + encodeURIComponent(id), {
-      method: 'PUT',
-      body: JSON.stringify({ name }),
-    });
-    closeWorkspaceRename();
-    if (workspaceById(id)) setWorkspaceStatus(id, 'Renamed to ' + name + '.');
-    applyWorkspacesPayload(data);
-    if (S.page === workspacePageId(id)) document.getElementById('topbar-title').textContent = name;
-  } catch (err) {
-    if (error) error.textContent = err.message;
-  } finally {
-    if (button) button.disabled = false;
-  }
-}
-
-function onWorkspaceRenameKey(event) {
-  if (event.key === 'Enter') { event.preventDefault(); commitWorkspaceRename(); }
-  if (event.key === 'Escape') { event.preventDefault(); closeWorkspaceRename(); }
-}
-
-async function deleteWorkspace(id) {
-  const ws = workspaceById(id);
-  if (!ws) return;
-  if (!confirm('Delete workspace "' + ws.name + '"? Tickets stay in Jira.')) return;
-  try {
-    const data = await workspaceRequest('/api/workspaces/' + encodeURIComponent(id), { method: 'DELETE' });
-    delete _wsSearch[id];
-    _wsAddOpen = false;
-    delete _wsFilter[id];
-    delete _wsStatus[id];
-    delete _wsMissing[id];
-    applyWorkspacesPayload(data);
-  } catch (err) {
-    setWorkspaceStatus(id, err.message, true);
+  if (!ws || !getSelectedReleaseNames().length) {
     renderWorkspacePage();
+    return;
   }
+  const resolved = workspaceListingIssues(ws);
+  S._wsSource = resolved.source;
+  if (!S._projData) S._projData = {};
+  const prev = S._projData[id] || {};
+  S._projData[id] = Object.assign({}, prev, {
+    issues: resolved.issues,
+    partialWarning: workspaceMissingNote(resolved.missing),
+    PHASES: prev.PHASES || PHASES,
+  });
+  refreshProjectListing(id);
 }
 
 function renderWorkspacePage() {
@@ -21940,14 +22021,7 @@ function renderWorkspacePage() {
     setExportSnapshot({ page: S.page, title: 'Workspace', tickets: [], filename: 'workspace.html', emptyMessage: 'Nothing to export.' });
     return;
   }
-  const filter = _wsFilter[id] || '';
-  const terms = filter.trim().toLowerCase().split(/\s+/).filter(Boolean);
-  const missing = new Set(_wsMissing[id] || []);
-  const items = (ws.items || []).slice().reverse().filter(item => {
-    if (!terms.length) return true;
-    const hay = [item.key, item.summary, item.status, item.type, item.project, item.priority, item.assignee].join(' ').toLowerCase();
-    return terms.every(term => hay.indexOf(term) >= 0);
-  });
+  const proj = workspaceAsProject(ws);
   const status = _wsStatus[id] || {};
   const search = _wsSearch[id] || { query: '', issues: [], selected: new Set() };
   const have = new Set((ws.items || []).map(item => item.key));
@@ -21962,23 +22036,6 @@ function renderWorkspacePage() {
       <span class="meta">${esc([snap.status, snap.type, already ? 'In workspace' : ''].filter(Boolean).join(' · '))}</span>
     </label>`;
   }).join('');
-  const memberRows = items.map(item => {
-    const href = S.creds.url ? S.creds.url + '/browse/' + item.key : '';
-    const open = href ? ` onclick='if(!event.target.closest("button,a")) window.open(${JSON.stringify(href)},"_blank")' style="cursor:pointer"` : '';
-    const statusText = missing.has(item.key) ? 'Not in Jira' : (item.status || '');
-    const typeName = String(item.type || '');
-    const typeClass = typeName.toLowerCase() === 'epic' ? 'type-epic' : typeName.toLowerCase() === 'enhancement' ? 'type-enh' : 'type-other';
-    return `<tr${open}>
-      <td>${href ? `<a class="key-link" href="${esc(href)}" target="_blank" rel="noopener">${esc(item.key)}</a>` : esc(item.key)}</td>
-      <td class="ws-summary" title="${esc(item.summary || '')}">${esc(item.summary || '')}</td>
-      <td>${typeName ? `<span class="${typeClass}">${esc(typeName)}</span>` : ''}</td>
-      <td>${workspaceStatusBadge(statusText)}</td>
-      <td>${renderPriorityCell(item.priority || '')}</td>
-      <td title="${esc(item.assignee || '')}">${esc(item.assignee || '')}</td>
-      <td title="${esc(item.project || '')}">${esc(item.project || '')}</td>
-      <td><button type="button" class="bulk-pick-remove" aria-label="Remove ${esc(item.key)}" title="Remove ${esc(item.key)}" onclick='event.stopPropagation();removeWorkspaceItem(${JSON.stringify(id)}, ${JSON.stringify(item.key)})'>×</button></td>
-    </tr>`;
-  }).join('');
   const searchNote = search.loading
     ? 'Searching Jira…'
     : (search.truncated ? 'Showing the first 100 matches. Add all fetches up to 500.' : '');
@@ -21989,7 +22046,7 @@ function renderWorkspacePage() {
         <h2 id="ws-search-title">Add tickets</h2>
         <button type="button" class="btn btn-sm" onclick="closeWorkspaceSearch()">Close</button>
       </div>
-      <p class="ws-kicker">Search a key such as NFS-123, several keys, or a JQL query. Words without JQL operators search Jira text.</p>
+      <p class="ws-kicker">Search a key such as NFS-123, several keys, or a JQL query. Adding a ticket stores a reference. The table shows that ticket from its project page.</p>
       <input id="ws-query" class="ws-query" type="search" placeholder="NFS-123 or project = NFS AND status = Open" aria-label="Search tickets" value="${esc(search.query || '')}" oninput="onWorkspaceQueryInput('${esc(id)}', this.value)" onkeydown="onWorkspaceQueryKey(event, '${esc(id)}')">
       <div class="ws-search-actions">
         <button type="button" class="btn btn-sm primary" onclick="searchWorkspaceTickets('${esc(id)}')" ${search.loading ? 'disabled' : ''}>Search</button>
@@ -22000,51 +22057,65 @@ function renderWorkspacePage() {
       ${resultRows ? `<div class="ws-results">${resultRows}</div>` : ''}
     </div>` : '';
   const total = (ws.items || []).length;
-  const countLabel = items.length === total ? `${total} issue${total === 1 ? '' : 's'}` : `${items.length} of ${total} issues`;
+  const selectedReleases = getSelectedReleaseNames();
+  const releaseLabel = formatSelectedReleasesLabel(selectedReleases);
+  const resolved = selectedReleases.length ? workspaceListingIssues(ws) : { issues: [], missing: [], source: {} };
+  const ownerKeys = [...new Set(Object.values(resolved.source).map(row => row && row.key).filter(Boolean))];
+  const newTicket = ownerKeys.length === 1
+    ? `<button class="btn btn-sm primary proj-new-ticket" type="button" onclick='JiraWrite.openCreate(${JSON.stringify(ownerKeys[0])})'>New ticket</button>`
+    : '';
+  const addClass = newTicket ? 'btn btn-sm' : 'btn btn-sm primary';
   page.innerHTML = `
     <div class="proj-page-top">
       <div class="proj-header">
         <div class="proj-title">
+          <span class="proj-dot" style="background:${WORKSPACE_COLOR};width:12px;height:12px"></span>
           <h2>${esc(ws.name)}</h2>
           <button type="button" class="ws-edit-btn" onclick="openWorkspaceRename()" aria-label="Rename workspace" title="Rename workspace"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M12 20h9"/><path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4 12.5-12.5z"/></svg></button>
           <span class="proj-title-actions">
-            <button type="button" class="btn btn-sm primary" onclick="openWorkspaceSearch()">Add tickets</button>
-            <button type="button" class="btn btn-sm" onclick="refreshWorkspaceFromJira('${esc(id)}')">Refresh from Jira</button>
+            <span class="proj-sync-status" id="proj-sync-status-${esc(id)}"></span>
+            <button class="btn btn-sm proj-sync-btn" id="proj-sync-btn-${esc(id)}" type="button" onclick='syncWorkspacePage(${JSON.stringify(id)})' title="Sync the project pages that hold these tickets, for the releases selected in the top bar">
+              <svg class="proj-sync-ring" viewBox="0 0 20 20" aria-hidden="true" hidden><circle class="proj-sync-track" cx="10" cy="10" r="7"></circle><circle class="proj-sync-arc" cx="10" cy="10" r="7"></circle></svg>
+              Sync
+            </button>
+            ${newTicket}
+            <button type="button" class="${addClass}" onclick="openWorkspaceSearch()">Add tickets</button>
             <button type="button" class="btn btn-sm" style="color:var(--red)" onclick="deleteWorkspace('${esc(id)}')">Delete</button>
           </span>
         </div>
+        <div class="jql-box" title="Click to expand/collapse" onclick="this.classList.toggle('expanded')">Folder of ${total} ticket reference${total === 1 ? '' : 's'} from any project. Columns, notes, sort, views, and edits are the project page for ${esc(releaseLabel || 'the selected releases')}.</div>
       </div>
       ${status.message ? `<p class="ws-status${status.error ? ' is-error' : ''}">${esc(status.message)}</p>` : ''}
+      <div id="stats-${esc(id)}"></div>
     </div>
-    <div class="proj-issues">
-      <div class="proj-table-tools">
-        <input id="ws-filter" class="proj-search" type="search" placeholder="Search issues…" aria-label="Filter tickets in this workspace" value="${esc(filter)}" oninput="onWorkspaceFilterInput('${esc(id)}', this.value, this.selectionStart)">
-        <span class="proj-count">${countLabel}</span>
-      </div>
-      ${memberRows
-        ? `<div class="table-wrap"><table class="issues ws-issue-grid" aria-label="${esc(ws.name)} issues"><thead><tr><th>Key</th><th class="ws-summary">Summary</th><th>Type</th><th>Status</th><th>Priority</th><th>Assignee</th><th>Project</th><th></th></tr></thead><tbody>${memberRows}</tbody></table></div>`
-        : `<div class="state-box"><span>${filter ? 'No issues match the current filters.' : 'No issues yet. Add one from a project, or use Add tickets.'}</span></div>`}
-    </div>
+    <div id="issues-${esc(id)}" class="proj-issues"></div>
     ${addPopup}`;
-  setExportSnapshot({
-    page: S.page,
-    title: ws.name,
-    kicker: 'Workspace',
-    tickets: items.map(item => ({
-      key: item.key,
-      summary: item.summary || '',
-      type: item.type || '',
-      priority: item.priority || '',
-      status: item.status || '',
-      phase: '',
-      assignee: item.assignee || '',
-      estimate: '',
-      projectKey: item.project || '',
-      projectName: item.project || '',
-    })),
-    filename: (ws.name || 'workspace').replace(/[^\w.-]+/g, '-').replace(/^-|-$/g, '') + '.html',
-    emptyMessage: 'This workspace has no tickets to export.',
-  });
+  if (_pageSync && _pageSync.key === id) setProjectSyncRing(id, _pageSync.done, _pageSync.total);
+  const issuesEl = document.getElementById('issues-' + id);
+  if (!selectedReleases.length) {
+    if (issuesEl) issuesEl.innerHTML = `<div class="info-box">No release selected. Select a release from the top bar. This folder shows the tickets already on project pages for that release.</div>`;
+    setExportSnapshot({ page: S.page, title: ws.name, tickets: [], filename: 'workspace.html', emptyMessage: 'Nothing to export.' });
+    return;
+  }
+  S._wsSource = resolved.source;
+  if (!S._projData) S._projData = {};
+  if (!S.activeFilter) S.activeFilter = {};
+  if (!Object.prototype.hasOwnProperty.call(S.activeFilter, id)) S.activeFilter[id] = null;
+  S._projData[id] = {
+    issues: resolved.issues,
+    vf: null,
+    cardDefs: [],
+    sm: {},
+    PHASES,
+    partialWarning: workspaceMissingNote(resolved.missing),
+  };
+  if (!resolved.issues.length) {
+    if (issuesEl) issuesEl.innerHTML = '<div class="state-box"><span>No issues yet. Add one from a project page, or use Add tickets.</span></div>';
+    setExportSnapshot({ page: S.page, title: ws.name, kicker: 'Workspace', tickets: [], filename: (ws.name || 'workspace').replace(/[^\w.-]+/g, '-').replace(/^-|-$/g, '') + '.html', emptyMessage: 'This workspace has no tickets to export.' });
+  } else {
+    renderProjectStatCards(id);
+    renderIssueTable(proj, resolved.issues, S.activeFilter[id]);
+  }
   if (queryFocused) {
     const next = document.getElementById('ws-query');
     if (next) {
