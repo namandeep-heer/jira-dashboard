@@ -1,0 +1,504 @@
+{
+  "version": 1,
+  "tickets": {
+    "NFS-19403": {
+      "note": "",
+      "comments": [
+        {
+          "id": "752e61fc-b2b8-465c-996d-abdb73deba34",
+          "body": "AI Goal. Must Do",
+          "author": "namandeep.heer@nakisa.com",
+          "createdAt": "2026-10-09T15:12:24.379Z"
+        }
+      ]
+    },
+    "NFS-19418": {
+      "note": "",
+      "comments": [
+        {
+          "id": "16fe483c-1189-4beb-ba8e-6fab24f967bc",
+          "body": "Must Do",
+          "author": "namandeep.heer@nakisa.com",
+          "createdAt": "2026-10-09T15:13:25.746Z"
+        }
+      ]
+    },
+    "NFS-18260": {
+      "note": "",
+      "comments": [
+        {
+          "id": "bec9b4a1-5b44-4cda-9747-3cde7d537849",
+          "body": "Must Release",
+          "author": "namandeep.heer@nakisa.com",
+          "createdAt": "2026-10-09T15:13:55.802Z"
+        }
+      ]
+    },
+    "NFS-18901": {
+      "note": "",
+      "comments": [
+        {
+          "id": "40c5fc08-7355-4c5e-bc55-3da14d5ce8d9",
+          "body": "Technical Debt",
+          "author": "namandeep.heer@nakisa.com",
+          "createdAt": "2026-10-09T15:40:27.010Z"
+        },
+        {
+          "id": "5ef9673d-84e1-4a32-98f2-060cd6a35c9e",
+          "body": "Review: May be this for all services not just NLA and need to be done in common.",
+          "author": "namandeep.heer@nakisa.com",
+          "createdAt": "2026-10-29T18:18:26.695Z"
+        },
+        {
+          "id": "522309e6-1a17-4604-bae9-fe9499c60bf6",
+          "body": "Too big, Change it to Opportunistic or Move it to R2 or another team",
+          "author": "namandeep.heer@nakisa.com",
+          "createdAt": "2026-11-19T21:44:38.062Z"
+        }
+      ]
+    },
+    "NFS-4034": {
+      "note": "Which customer needs it?\nSee it in 5.x and get some test cases. \n- Not a migration blocker.\n- But pops up in few RFPs",
+      "comments": [
+        {
+          "id": "d08b9d51-0558-4969-bce1-24f0f929a274",
+          "body": "5x Dependency",
+          "author": "namandeep.heer@nakisa.com",
+          "createdAt": "2026-10-09T17:38:30.423Z"
+        }
+      ],
+      "noteUpdatedAt": "2026-10-09T19:13:36.129Z",
+      "noteUpdatedBy": "namandeep.heer@nakisa.com"
+    },
+    "NFS-18087": {
+      "note": "- Not a migration blocker\n- VOC: requested by few",
+      "comments": [
+        {
+          "id": "3a97337a-1bc4-493c-b07c-d39e2c91a3b4",
+          "body": "5x: Is this Parity?",
+          "author": "namandeep.heer@nakisa.com",
+          "createdAt": "2026-10-09T18:01:30.734Z"
+        }
+      ],
+      "noteUpdatedAt": "2026-10-09T19:16:26.837Z",
+      "noteUpdatedBy": "namandeep.heer@nakisa.com"
+    },
+    "NFS-19737": {
+      "note": "- Not a migration blocker\n- VOC: request by few",
+      "comments": [
+        {
+          "id": "717c6c5f-5e9c-43f6-b09f-f7ae8b73adab",
+          "body": "Must: Parity Gap? Which customers asked for it?",
+          "author": "namandeep.heer@nakisa.com",
+          "createdAt": "2026-10-09T18:02:31.903Z"
+        },
+        {
+          "id": "8ddc2bf8-ac52-4c30-93b8-ec45b8869d9e",
+          "body": "ExxonMobil. Do we still need it.",
+          "author": "namandeep.heer@nakisa.com",
+          "createdAt": "2026-10-29T18:38:01.610Z"
+        }
+      ],
+      "noteUpdatedAt": "2026-10-09T19:17:07.942Z",
+      "noteUpdatedBy": "namandeep.heer@nakisa.com"
+    },
+    "NFS-19525": {
+      "note": "",
+      "comments": [
+        {
+          "id": "1164b2e9-05e9-4d88-acad-dd5966970720",
+          "body": "If Apple requested this, why this is not committed?",
+          "author": "namandeep.heer@nakisa.com",
+          "createdAt": "2026-10-27T17:09:44.623Z"
+        }
+      ]
+    },
+    "NFS-19527": {
+      "note": "",
+      "comments": [
+        {
+          "id": "e32a4dcc-bf2c-422c-a600-e075ba029c41",
+          "body": "If Apple requested this, why this is not committed?",
+          "author": "namandeep.heer@nakisa.com",
+          "createdAt": "2026-10-27T17:09:48.799Z"
+        }
+      ]
+    },
+    "NFS-19531": {
+      "note": "",
+      "comments": [
+        {
+          "id": "476fd06d-132a-4608-8b23-b95bdfa92c00",
+          "body": "This is missed, meet with NDO",
+          "author": "namandeep.heer@nakisa.com",
+          "createdAt": "2026-10-29T18:36:43.364Z"
+        },
+        {
+          "id": "0a5e7d41-cc47-4f09-920f-74e1ae51f283",
+          "body": "We should move it to R2. Also, Whole NDO should solidify with Ap first, once we are happy we move to other products.",
+          "author": "namandeep.heer@nakisa.com",
+          "createdAt": "2026-11-19T22:01:06.235Z"
+        }
+      ]
+    },
+    "NFS-19494": {
+      "note": "",
+      "comments": [
+        {
+          "id": "9a4d095c-95d1-45a2-932c-b0f28d59d3dc",
+          "body": "Siva Team",
+          "author": "namandeep.heer@nakisa.com",
+          "createdAt": "2026-10-29T19:00:12.824Z"
+        }
+      ]
+    },
+    "NFS-19491": {
+      "note": "",
+      "comments": [
+        {
+          "id": "87a54f27-b6d6-44b4-b9b9-016f7dd7ac44",
+          "body": "Discuss with Faraz, wait for Zubair's meeting. Expecting Zubair meeting on 03/Nov/2026",
+          "author": "namandeep.heer@nakisa.com",
+          "createdAt": "2026-10-29T19:01:15.256Z",
+          "updatedAt": "2026-10-29T19:01:38.668Z",
+          "updatedBy": "namandeep.heer@nakisa.com"
+        }
+      ]
+    },
+    "NFS-19791": {
+      "note": "",
+      "comments": [
+        {
+          "id": "d447059a-67d0-42bd-80dd-230829015d09",
+          "body": "NCP team - Notification service. Like reminder of overdue actions",
+          "author": "namandeep.heer@nakisa.com",
+          "createdAt": "2026-10-29T19:03:21.349Z"
+        }
+      ]
+    },
+    "NFS-15492": {
+      "note": "",
+      "comments": [
+        {
+          "id": "77a33f03-3905-4dcf-b145-c88b2e527cba",
+          "body": "Where are we with this. Sync with Minh Vu",
+          "author": "namandeep.heer@nakisa.com",
+          "createdAt": "2026-11-19T21:45:49.362Z"
+        }
+      ]
+    },
+    "NFS-19799": {
+      "note": "1. Turn on Manual Ids in FOS\n2. New Object on NLA should accept manual Unique Display Id.",
+      "comments": [
+        {
+          "id": "88da9f37-9839-4cc9-b01f-6b1bf9a586e0",
+          "body": "Check feasibility of doing what is proposed with Habib and if not confirm with Kaveh",
+          "author": "namandeep.heer@nakisa.com",
+          "createdAt": "2026-11-19T21:52:09.275Z"
+        }
+      ],
+      "noteUpdatedAt": "2026-11-19T21:51:39.124Z",
+      "noteUpdatedBy": "namandeep.heer@nakisa.com"
+    },
+    "NFS-19903": {
+      "note": "",
+      "comments": [
+        {
+          "id": "c129a6c7-c022-43c1-a40d-788fbe5effa9",
+          "body": "AG without any term. Discuss this with MInh and Habib and Kaveh. Because this is not just NPM to handle Owned Assets but in Future HOW we will manage Owned Assets. Example with this NLA is not just lease management but Contract Management as well for Owned Asssets",
+          "author": "namandeep.heer@nakisa.com",
+          "createdAt": "2026-11-19T22:09:15.102Z",
+          "updatedAt": "2026-11-19T22:14:34.734Z",
+          "updatedBy": "namandeep.heer@nakisa.com"
+        }
+      ]
+    },
+    "P2P-2063": {
+      "note": "Effort for Form Management: 2-3 fields",
+      "comments": [
+        {
+          "id": "e4e6f28e-fff6-45b5-a096-f7797da2ec1e",
+          "body": "We cant do form management because NDO does not support dynamic fields. Talk to Siva.",
+          "author": "namandeep.heer@nakisa.com",
+          "createdAt": "2026-11-20T16:34:12.123Z"
+        },
+        {
+          "id": "0ca31c41-5e03-4c05-b8f6-0fc99ee7c61d",
+          "body": "This release will be hardcoded but confirm with Apples the fields and their needs",
+          "author": "namandeep.heer@nakisa.com",
+          "createdAt": "2026-11-20T16:39:31.320Z"
+        }
+      ],
+      "noteUpdatedAt": "2026-11-20T16:34:10.933Z",
+      "noteUpdatedBy": "namandeep.heer@nakisa.com"
+    },
+    "P2P-2062": {
+      "note": "",
+      "comments": [
+        {
+          "id": "f517bcd5-0a24-4f36-824f-f2c5491ba892",
+          "body": "I don't see this on the Apple list of Go Live blockers. Confirm with Zeina",
+          "author": "namandeep.heer@nakisa.com",
+          "createdAt": "2026-11-20T16:44:12.399Z"
+        }
+      ]
+    },
+    "P2P-413": {
+      "note": "",
+      "comments": [
+        {
+          "id": "068a4e6a-a28a-4d33-af5d-c0382d972f3b",
+          "body": "Deep Dive on Technical & Business Overview",
+          "author": "namandeep.heer@nakisa.com",
+          "createdAt": "2026-11-20T16:46:32.058Z"
+        }
+      ]
+    },
+    "P2P-2096": {
+      "note": "",
+      "comments": [
+        {
+          "id": "94146be5-6168-4bd1-b40c-93062c9c3914",
+          "body": "Read the tickets: P2P-2096, P2P-2119, P2P-2120, P2P-2121, P2P-2045",
+          "author": "namandeep.heer@nakisa.com",
+          "createdAt": "2026-11-20T16:49:07.552Z",
+          "updatedAt": "2026-11-20T16:50:22.759Z",
+          "updatedBy": "namandeep.heer@nakisa.com"
+        }
+      ]
+    },
+    "P2P-1595": {
+      "note": "",
+      "comments": [
+        {
+          "id": "1f93add7-332b-4916-9862-e1a38ab20b11",
+          "body": "Punt this out to R2, Discuss with Faraz",
+          "author": "namandeep.heer@nakisa.com",
+          "createdAt": "2026-11-20T16:53:16.411Z"
+        }
+      ]
+    },
+    "P2P-1752": {
+      "note": "",
+      "comments": [
+        {
+          "id": "f3ee6462-c65e-4a63-8f8c-4427e3779925",
+          "body": "Punt to R2",
+          "author": "namandeep.heer@nakisa.com",
+          "createdAt": "2026-11-20T16:54:58.302Z"
+        }
+      ]
+    },
+    "P2P-373": {
+      "note": "",
+      "comments": [
+        {
+          "id": "4933007f-688b-4cd2-ae75-b6e11995eb9a",
+          "body": "Punt to R2",
+          "author": "namandeep.heer@nakisa.com",
+          "createdAt": "2026-11-20T16:55:09.881Z"
+        }
+      ]
+    },
+    "P2P-2075": {
+      "note": "",
+      "comments": [
+        {
+          "id": "dbe89c4f-bc20-4635-9e59-6549f21c865a",
+          "body": "punt to R2",
+          "author": "namandeep.heer@nakisa.com",
+          "createdAt": "2026-11-20T16:55:21.567Z"
+        }
+      ]
+    },
+    "FCO-441": {
+      "note": "",
+      "comments": [
+        {
+          "id": "16486944-1f5d-4104-8fe0-5245d8638d93",
+          "body": "Requirements not clear. What is the ask and then decide based on its severity",
+          "author": "namandeep.heer@nakisa.com",
+          "createdAt": "2026-11-20T20:23:50.907Z"
+        }
+      ]
+    },
+    "FCO-676": {
+      "note": "",
+      "comments": [
+        {
+          "id": "9f4a99f0-10d0-42f4-89b8-799a0f4b16a2",
+          "body": "Punt to 2027.R2. We will not NDO integration on any product other than AP and only after Ap's iterations are complete we will scale it to other products",
+          "author": "namandeep.heer@nakisa.com",
+          "createdAt": "2026-11-20T20:24:56.107Z"
+        }
+      ]
+    },
+    "FCO-685": {
+      "note": "",
+      "comments": [
+        {
+          "id": "ae34d62c-81db-4eaa-9f1b-2e503d3401e0",
+          "body": "Requirements not clear. Check with Zeina and priority for Apple",
+          "author": "namandeep.heer@nakisa.com",
+          "createdAt": "2026-11-20T20:25:35.780Z"
+        }
+      ]
+    },
+    "FCO-672": {
+      "note": "",
+      "comments": [
+        {
+          "id": "1dfc42d5-3d8d-4a4d-88b3-61400dc7d62f",
+          "body": "Requirements not clear. Check with Zeina and priority for Apple",
+          "author": "namandeep.heer@nakisa.com",
+          "createdAt": "2026-11-20T20:27:31.831Z"
+        }
+      ]
+    },
+    "FCO-616": {
+      "note": "",
+      "comments": [
+        {
+          "id": "d1d90f1d-2049-43a2-91c4-25ef54b99711",
+          "body": "Potential punt to 2027.R2. May be this release we brainstorm and gather requirements",
+          "author": "namandeep.heer@nakisa.com",
+          "createdAt": "2026-11-20T20:28:20.654Z"
+        }
+      ]
+    },
+    "FCO-686": {
+      "note": "",
+      "comments": [
+        {
+          "id": "01ac80d6-d7bb-4377-ba00-61d6b6c83251",
+          "body": "Sync up with Bhavin.",
+          "author": "namandeep.heer@nakisa.com",
+          "createdAt": "2026-11-20T20:29:09.385Z"
+        }
+      ]
+    },
+    "FCO-547": {
+      "note": "",
+      "comments": [
+        {
+          "id": "8b4fb448-570e-485b-bbb4-7f19411faaba",
+          "body": "Potential punt to 2027.R2 / Bhavin might want to reject this ticket",
+          "author": "namandeep.heer@nakisa.com",
+          "createdAt": "2026-11-20T20:29:53.317Z"
+        }
+      ]
+    },
+    "FCO-698": {
+      "note": "",
+      "comments": [
+        {
+          "id": "f4b3b9d1-7974-4944-8218-ceb2c26334d1",
+          "body": "ERP, Nakisa configs are done, Determination IN-progress but file ended too big and does not load in NDI. ticket created and linked.",
+          "author": "namandeep.heer@nakisa.com",
+          "createdAt": "2026-11-20T20:35:27.583Z"
+        }
+      ]
+    },
+    "FCO-322": {
+      "note": "",
+      "comments": [
+        {
+          "id": "58de80bd-4b77-4877-bbd9-50d8771c878a",
+          "body": "FOS side is done, Changes needed on NLA, GL, AP team. Assad to book a call with all team leads to present what is done and inform them to assess on their side and create tickets and link them. Also invite Namandeep and Bhavin as optional.",
+          "author": "namandeep.heer@nakisa.com",
+          "createdAt": "2026-11-20T20:38:48.251Z"
+        }
+      ]
+    },
+    "FCO-461": {
+      "note": "",
+      "comments": [
+        {
+          "id": "158f61ce-fc84-4d1b-9dab-df8f872d7cc1",
+          "body": "This issue is on all apps, once FOS is done do it for other apps if effort is  not large.",
+          "author": "namandeep.heer@nakisa.com",
+          "createdAt": "2026-11-20T20:42:34.326Z"
+        }
+      ]
+    },
+    "FCO-513": {
+      "note": "",
+      "comments": [
+        {
+          "id": "e747833c-7dea-4a0a-b0bb-48c8413d13c7",
+          "body": "Need Bhavin",
+          "author": "namandeep.heer@nakisa.com",
+          "createdAt": "2026-11-20T20:47:16.757Z"
+        }
+      ]
+    },
+    "FCO-635": {
+      "note": "",
+      "comments": [
+        {
+          "id": "6e50c484-0fbc-4b67-9db5-a4292315af79",
+          "body": "Part of Re-vamp",
+          "author": "namandeep.heer@nakisa.com",
+          "createdAt": "2026-11-20T20:47:58.849Z"
+        }
+      ]
+    },
+    "FCO-565": {
+      "note": "",
+      "comments": [
+        {
+          "id": "78a3092b-9ee0-4f6a-94ee-e189809e5c16",
+          "body": "Meeting, invite all Prod owners, Zeina, Arun, Vanessa and inform all",
+          "author": "namandeep.heer@nakisa.com",
+          "createdAt": "2026-11-20T20:50:14.965Z",
+          "updatedAt": "2026-11-20T20:51:04.032Z",
+          "updatedBy": "namandeep.heer@nakisa.com"
+        }
+      ]
+    },
+    "FCO-665": {
+      "note": "",
+      "comments": [
+        {
+          "id": "bb98d278-0bcf-428b-b51a-d4d50deb08eb",
+          "body": "Namandeep to be provide a solution",
+          "author": "namandeep.heer@nakisa.com",
+          "createdAt": "2026-11-20T20:52:37.558Z"
+        }
+      ]
+    },
+    "FCO-666": {
+      "note": "",
+      "comments": [
+        {
+          "id": "201d7b11-334e-4e2b-8aa6-c2634293e206",
+          "body": "Do we really need this in FOS, may be it make sense in NLA, AP but FOS is not as active",
+          "author": "namandeep.heer@nakisa.com",
+          "createdAt": "2026-11-20T20:55:24.110Z"
+        }
+      ]
+    },
+    "FCO-683": {
+      "note": "",
+      "comments": [
+        {
+          "id": "d7d3eb39-e1ba-48bb-9999-865d05357d70",
+          "body": "Punt to R2",
+          "author": "namandeep.heer@nakisa.com",
+          "createdAt": "2026-11-20T20:56:42.681Z"
+        }
+      ]
+    },
+    "FCO-628": {
+      "note": "",
+      "comments": [
+        {
+          "id": "5574373f-adbb-46ee-8d4e-24c99401d723",
+          "body": "In General, we should do it.\nDiscuss with Zeina, how important is this.",
+          "author": "namandeep.heer@nakisa.com",
+          "createdAt": "2026-11-20T21:04:40.737Z"
+        }
+      ]
+    }
+  }
+}

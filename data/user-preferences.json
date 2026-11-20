@@ -1,0 +1,222 @@
+{
+  "version": 1,
+  "users": {
+    "6a31348c-5a84-4b17-9425-a2ca0bc3f0be": {
+      "projectSorts": {
+        "GL": [
+          {
+            "col": "priority",
+            "dir": 1
+          }
+        ],
+        "FCO": [
+          {
+            "col": "cf_clarity",
+            "dir": 1
+          }
+        ],
+        "P2P": [
+          {
+            "col": "status",
+            "dir": -1
+          }
+        ],
+        "NFS": [
+          {
+            "col": "issuetype",
+            "dir": -1,
+            "order": [
+              "Epic",
+              "Enhancement"
+            ]
+          }
+        ]
+      },
+      "groupByEpic": false,
+      "columnWidths": {
+        "NFS": {
+          "notes": 92,
+          "issuetype": 155,
+          "key": 122,
+          "summary": 347,
+          "parent": 124,
+          "priority": 104,
+          "fixVersions": 121,
+          "cf_scope": 162,
+          "cf_scopesc": 192,
+          "status": 193,
+          "cf_clarity": 116,
+          "cf_devact": 151,
+          "cf_devest": 162,
+          "assignee": 172,
+          "cf_devpart": 220,
+          "cf_dev": 180,
+          "cf_product": 152,
+          "cf_custcom": 180
+        },
+        "P2P": {
+          "notes": 93,
+          "issuetype": 183,
+          "key": 81,
+          "summary": 320,
+          "parent": 95,
+          "priority": 104,
+          "fixVersions": 121,
+          "cf_scope": 162,
+          "cf_scopesc": 192,
+          "status": 200,
+          "cf_clarity": 116,
+          "cf_devact": 151,
+          "cf_devest": 162,
+          "assignee": 147,
+          "cf_devpart": 220,
+          "cf_dev": 180,
+          "cf_product": 152,
+          "cf_custcom": 180
+        },
+        "FAA": {
+          "notes": 93,
+          "issuetype": 114,
+          "key": 81,
+          "summary": 420,
+          "parent": 95,
+          "priority": 104,
+          "fixVersions": 121,
+          "cf_scope": 162,
+          "cf_scopesc": 192,
+          "status": 143,
+          "cf_clarity": 116,
+          "cf_devact": 151,
+          "cf_devest": 162,
+          "assignee": 130,
+          "cf_devpart": 220,
+          "cf_dev": 180,
+          "cf_product": 152,
+          "cf_custcom": 180
+        },
+        "GL": {
+          "notes": 93,
+          "issuetype": 114,
+          "key": 81,
+          "summary": 200,
+          "parent": 95,
+          "priority": 99,
+          "fixVersions": 121,
+          "cf_scope": 162,
+          "cf_scopesc": 192,
+          "status": 175,
+          "cf_clarity": 116,
+          "cf_devact": 151,
+          "cf_devest": 162,
+          "assignee": 125,
+          "cf_devpart": 220,
+          "cf_dev": 180,
+          "cf_product": 152,
+          "cf_custcom": 180
+        },
+        "INC": {
+          "notes": 93,
+          "issuetype": 114,
+          "key": 81,
+          "summary": 200,
+          "parent": 95,
+          "priority": 99,
+          "fixVersions": 121,
+          "cf_scope": 162,
+          "cf_scopesc": 192,
+          "status": 155,
+          "cf_clarity": 116,
+          "cf_devact": 151,
+          "cf_devest": 162,
+          "assignee": 112,
+          "cf_devpart": 220,
+          "cf_dev": 180,
+          "cf_product": 152,
+          "cf_custcom": 180
+        }
+      },
+      "columnFreeze": {
+        "GL": "summary",
+        "NFS": {
+          "start": "notes",
+          "end": "summary"
+        },
+        "FCO": {
+          "start": "notes",
+          "end": "key"
+        },
+        "FAA": {
+          "start": "notes",
+          "end": "summary"
+        },
+        "P2P": {
+          "start": "notes",
+          "end": "summary"
+        }
+      },
+      "columnViews": {
+        "FCO": {
+          "active": "default",
+          "order": [],
+          "views": [
+            {
+              "id": "vmvzo8fqcmoepgl",
+              "name": "View 1",
+              "columns": [
+                "issuetype",
+                "key",
+                "parent",
+                "fixVersions"
+              ]
+            }
+          ]
+        },
+        "NFS": {
+          "active": "default",
+          "order": [
+            "issuetype",
+            "key",
+            "summary",
+            "parent",
+            "priority",
+            "fixVersions",
+            "cf_scope",
+            "cf_scopesc",
+            "status",
+            "cf_clarity",
+            "cf_devact",
+            "cf_devest",
+            "assignee",
+            "cf_devpart",
+            "cf_dev",
+            "cf_product",
+            "cf_custcom"
+          ],
+          "views": [],
+          "freeze": {
+            "start": "notes",
+            "end": "summary"
+          }
+        },
+        "FAA": {
+          "active": "default",
+          "order": [],
+          "views": [],
+          "freeze": {
+            "start": "notes",
+            "end": "summary"
+          }
+        },
+        "P2P": {
+          "active": "default",
+          "order": [],
+          "views": [],
+          "freeze": {
+            "start": "notes",
+            "end": "summary"
+          }
+        }
+      }
+    }
+  }
+}
