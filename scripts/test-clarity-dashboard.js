@@ -146,6 +146,7 @@ assert.ok(dashboard.includes('id="breakdown-list-search"'));
 assert.ok(dashboard.includes('function setBreakdownListSearch('));
 assert.ok(dashboard.includes('id="breakdown-list-count"'));
 assert.ok(dashboard.includes('function setBreakdownListSort('));
+assert.ok(dashboard.includes('S._breakdownListFilter[col] = [BREAKDOWN_NONE]'));
 assert.ok(dashboard.includes('function ticketRowTools('));
 assert.ok(dashboard.includes('ticketRowTools(row.key, row.summary)'));
 assert.ok(!dashboard.includes('toggleClarityGridFullscreen'));

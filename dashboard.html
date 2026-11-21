@@ -15566,7 +15566,6 @@ function breakdownListSorted(rows, state) {
 }
 
 function breakdownListFiltered(state) {
-  const filters = S._breakdownListFilter || {};
   const query = breakdownListQuery(state);
   return (state.tickets || []).filter(row => {
     if (query) {
@@ -15574,9 +15573,9 @@ function breakdownListFiltered(state) {
       if (hay.indexOf(query) === -1) return false;
     }
     return breakdownListColumns(state.multi).every(col => {
-      const selected = filters[col.id];
-      if (!selected || !selected.length) return true;
-      return selected.indexOf(breakdownListCell(row, col.id, state.multi)) !== -1;
+      const selected = breakdownListSelection(col.id);
+      if (!selected) return true;
+      return selected.has(breakdownListCell(row, col.id, state.multi));
     });
   });
 }
@@ -15595,10 +15594,17 @@ function breakdownListValueList(col) {
   });
 }
 
+function breakdownListSelection(col) {
+  const selected = S._breakdownListFilter && S._breakdownListFilter[col];
+  if (!selected || !selected.length) return null;
+  if (selected.length === 1 && selected[0] === BREAKDOWN_NONE) return new Set();
+  return new Set(selected);
+}
+
 function breakdownListFilterButton(col) {
-  const selected = (S._breakdownListFilter && S._breakdownListFilter[col.id]) || [];
+  const filtering = !!breakdownListSelection(col.id);
   const open = S._breakdownListFilterOpen && S._breakdownListFilterOpen.col === col.id;
-  return `<button type="button" class="th-filter breakdown-list-filter${selected.length ? ' has-filter' : ''}${open ? ' active' : ''}" data-col="${esc(col.id)}" title="Filter ${esc(col.label)}" aria-label="Filter ${esc(col.label)}"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" aria-hidden="true"><polygon points="4 5 20 5 14 13 14 19 10 21 10 13 4 5"/></svg></button>`;
+  return `<button type="button" class="th-filter breakdown-list-filter${filtering ? ' has-filter' : ''}${open ? ' active' : ''}" data-col="${esc(col.id)}" title="Filter ${esc(col.label)}" aria-label="Filter ${esc(col.label)}"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" aria-hidden="true"><polygon points="4 5 20 5 14 13 14 19 10 21 10 13 4 5"/></svg></button>`;
 }
 
 function syncBreakdownListMaxBtn(expanded) {
@@ -15684,11 +15690,11 @@ function positionBreakdownListFilter(anchor) {
 function renderBreakdownListFilterOptions(col, query) {
   const opts = document.getElementById('breakdown-list-filter-opts');
   if (!opts) return;
-  const selected = new Set((S._breakdownListFilter && S._breakdownListFilter[col]) || []);
+  const selected = breakdownListSelection(col);
   const q = String(query || '').toLowerCase();
   opts.innerHTML = breakdownListValueList(col).map(item => {
     const hide = q && item.value.toLowerCase().indexOf(q) === -1;
-    const on = !selected.size || selected.has(item.value);
+    const on = !selected || selected.has(item.value);
     return `<label class="ms-option" data-value="${esc(item.value)}"${hide ? ' style="display:none"' : ''}>
       <input type="checkbox" ${on ? 'checked' : ''} />
       <span class="ms-option-label" title="${esc(item.value)}">${esc(item.value)}</span>
@@ -15744,26 +15750,34 @@ function filterBreakdownListOptions(query) {
   });
 }
 
+let _breakdownListHoldFilter = false;
+
 function writeBreakdownListSelection(col, values) {
   if (!S._breakdownListFilter) S._breakdownListFilter = {};
   const all = breakdownListValueList(col).map(item => item.value);
-  const unique = [...new Set(values)];
-  if (!unique.length || (all.length && unique.length === all.length && all.every(value => unique.indexOf(value) !== -1))) delete S._breakdownListFilter[col];
+  const unique = [...new Set(values)].filter(value => value !== BREAKDOWN_NONE);
+  if (!unique.length) S._breakdownListFilter[col] = [BREAKDOWN_NONE];
+  else if (all.length && unique.length === all.length && all.every(value => unique.indexOf(value) !== -1)) delete S._breakdownListFilter[col];
   else S._breakdownListFilter[col] = unique;
-  paintBreakdownList();
-  const open = S._breakdownListFilterOpen;
-  if (!open || open.col !== col) return;
+  const hold = S._breakdownListFilterOpen && S._breakdownListFilterOpen.col === col
+    ? { col, query: S._breakdownListFilterOpen.query || '' }
+    : null;
+  _breakdownListHoldFilter = true;
+  try { paintBreakdownList(); }
+  finally { _breakdownListHoldFilter = false; }
+  if (!hold) return;
   let anchor = null;
   document.querySelectorAll('.breakdown-list-filter').forEach(btn => {
     if (btn.getAttribute('data-col') === col) anchor = btn;
   });
+  S._breakdownListFilterOpen = hold;
   openBreakdownListFilter(col, anchor, true);
 }
 
 function toggleBreakdownListValue(col, value, checked) {
-  const current = S._breakdownListFilter && S._breakdownListFilter[col];
+  const current = breakdownListSelection(col);
   const all = breakdownListValueList(col).map(item => item.value);
-  const selected = new Set(current && current.length ? current : all);
+  const selected = new Set(current || all);
   if (checked) selected.add(value);
   else selected.delete(value);
   writeBreakdownListSelection(col, [...selected]);
@@ -15773,12 +15787,14 @@ function selectVisibleBreakdownListValues() {
   const open = S._breakdownListFilterOpen;
   const opts = document.getElementById('breakdown-list-filter-opts');
   if (!open || !opts) return;
-  const values = [];
+  const current = breakdownListSelection(open.col);
+  const all = breakdownListValueList(open.col).map(item => item.value);
+  const selected = new Set(current || all);
   opts.querySelectorAll('.ms-option').forEach(el => {
     if (el.style.display === 'none') return;
-    values.push(el.getAttribute('data-value') || '');
+    selected.add(el.getAttribute('data-value') || '');
   });
-  writeBreakdownListSelection(open.col, values);
+  writeBreakdownListSelection(open.col, [...selected]);
 }
 
 function clearBreakdownListFilter() {
@@ -16034,7 +16050,7 @@ document.addEventListener('scroll', e => {
   if (S._openColFilter) {
     if (!(e.target && e.target.closest && e.target.closest('#proj-col-filter-pop'))) closeProjectColFilter();
   }
-  if (S._breakdownListFilterOpen) {
+  if (S._breakdownListFilterOpen && !_breakdownListHoldFilter) {
     if (!(e.target && e.target.closest && e.target.closest('#breakdown-list-filter-pop'))) closeBreakdownListFilter();
   }
 }, true);
