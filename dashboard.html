@@ -693,6 +693,11 @@ table.issues tr.is-just-created td { background: var(--bg2); }
 .ticket-notes-btn:hover { color: var(--text); background: var(--bg2); }
 .ticket-notes-btn:focus-visible { outline: 2px solid var(--blue); outline-offset: 1px; }
 .ticket-notes-btn.has-notes { color: var(--blue); background: var(--blue-bg); border-color: transparent; }
+.ticket-row-tools { display: inline-flex; align-items: center; gap: 4px; margin-right: 6px; vertical-align: middle; flex-shrink: 0; }
+.ticket-key-cell { white-space: nowrap; }
+.plan-name-cell .ticket-row-tools { margin-right: 2px; }
+.jw-created-tools { display: flex; align-items: center; flex-shrink: 0; padding-right: 4px; }
+.jw-created-tools .ticket-row-tools { margin-right: 0; }
 .ws-add-btn { display: inline-flex; align-items: center; justify-content: center; width: 24px; height: 24px; padding: 0; border-radius: 999px; border: 0.5px solid var(--border2); background: var(--bg); color: var(--text3); cursor: pointer; }
 .ws-add-btn svg { width: 13px; height: 13px; }
 .ws-add-btn:hover { color: var(--text); background: var(--bg2); }
@@ -701,7 +706,7 @@ table.issues tr.is-just-created td { background: var(--bg2); }
 .ws-add-btn.has-workspace svg { fill: currentColor; }
 .ws-count { margin-left: auto; font-size: 10px; font-weight: 600; color: var(--text3); }
 .nav-item.active .ws-count { color: var(--text2); }
-#ws-picker { position: fixed; z-index: 80; width: 280px; max-width: calc(100vw - 16px); background: var(--bg); border: 0.5px solid var(--border); border-radius: var(--radius-lg); box-shadow: 0 12px 32px rgba(0,0,0,.16); padding: 10px; }
+#ws-picker { position: fixed; z-index: 1500; width: 280px; max-width: calc(100vw - 16px); background: var(--bg); border: 0.5px solid var(--border); border-radius: var(--radius-lg); box-shadow: 0 12px 32px rgba(0,0,0,.16); padding: 10px; }
 .ws-picker-title { font-size: 12px; font-weight: 600; margin-bottom: 8px; }
 .ws-picker-list { display: flex; flex-direction: column; gap: 2px; max-height: 260px; overflow-y: auto; }
 .ws-picker-row { display: flex; align-items: center; gap: 8px; padding: 6px 4px; border-radius: 6px; font-size: 13px; cursor: pointer; }
@@ -709,8 +714,8 @@ table.issues tr.is-just-created td { background: var(--bg2); }
 .ws-picker-row span { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .ws-picker-empty { font-size: 12px; color: var(--text2); line-height: 1.45; margin-bottom: 8px; }
 .ws-picker-error { font-size: 12px; color: var(--red); margin-top: 8px; min-height: 0; }
-.ws-create-backdrop { position: fixed; inset: 0; background: rgba(0,0,0,.35); z-index: 90; }
-.ws-create-panel { position: fixed; z-index: 91; top: 18vh; left: 50%; transform: translateX(-50%); width: 420px; max-width: calc(100vw - 32px); background: var(--bg); border: 0.5px solid var(--border); border-radius: var(--radius-lg); padding: 18px; box-shadow: 0 18px 50px rgba(0,0,0,.18); }
+.ws-create-backdrop { position: fixed; inset: 0; background: rgba(0,0,0,.35); z-index: 1600; }
+.ws-create-panel { position: fixed; z-index: 1601; top: 18vh; left: 50%; transform: translateX(-50%); width: 420px; max-width: calc(100vw - 32px); background: var(--bg); border: 0.5px solid var(--border); border-radius: var(--radius-lg); padding: 18px; box-shadow: 0 18px 50px rgba(0,0,0,.18); }
 .ws-search-panel { position: fixed; z-index: 91; top: 10vh; left: 50%; transform: translateX(-50%); width: 720px; max-width: calc(100vw - 32px); max-height: calc(100vh - 14vh); overflow: auto; background: var(--bg); border: 0.5px solid var(--border); border-radius: var(--radius-lg); padding: 18px; box-shadow: 0 18px 50px rgba(0,0,0,.18); }
 .ws-search-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; margin-bottom: 8px; }
 .ws-create-panel h2, .ws-search-panel h2 { font-size: 16px; margin-bottom: 6px; }
@@ -725,7 +730,8 @@ table.issues tr.is-just-created td { background: var(--bg2); }
 .ws-card h3 { font-size: 13px; font-weight: 600; margin-bottom: 4px; }
 .ws-search-actions { margin-top: 10px; }
 .ws-results { margin-top: 12px; display: flex; flex-direction: column; gap: 4px; max-height: 320px; overflow-y: auto; }
-.ws-result { display: grid; grid-template-columns: 20px 92px minmax(0,1fr) auto; gap: 8px; align-items: center; padding: 6px 4px; border-radius: 6px; font-size: 13px; }
+.ws-result { display: grid; grid-template-columns: 20px max-content minmax(0,1fr) auto; gap: 8px; align-items: center; padding: 6px 4px; border-radius: 6px; font-size: 13px; }
+.ws-result-key { display: inline-flex; align-items: center; gap: 6px; white-space: nowrap; }
 .ws-result:hover { background: var(--bg3); }
 .ws-result .sum { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .ws-result .meta { font-size: 11px; color: var(--text3); white-space: nowrap; }
@@ -747,7 +753,7 @@ table.issues tr.is-just-created td { background: var(--bg2); }
 .proj-issues table.ws-issue-grid th.ws-summary,
 .proj-issues table.ws-issue-grid td.ws-summary { max-width: 520px; }
 .ticket-notes-count { font-size: 11px; font-weight: 600; font-variant-numeric: tabular-nums; }
-#ticket-notes-preview { position: fixed; z-index: 720; width: min(320px, calc(100vw - 16px)); max-height: min(340px, calc(100vh - 16px)); overflow: auto; padding: 12px 14px 14px; background: var(--bg); color: var(--text); border: 0.5px solid var(--border2); border-radius: var(--radius-lg); box-shadow: 0 16px 40px rgba(0,0,0,.16); opacity: 0; transform: translateY(6px) scale(0.98); transform-origin: left center; transition: opacity .18s cubic-bezier(.2,.8,.2,1), transform .22s cubic-bezier(.2,.8,.2,1); }
+#ticket-notes-preview { position: fixed; z-index: 1410; width: min(320px, calc(100vw - 16px)); max-height: min(340px, calc(100vh - 16px)); overflow: auto; padding: 12px 14px 14px; background: var(--bg); color: var(--text); border: 0.5px solid var(--border2); border-radius: var(--radius-lg); box-shadow: 0 16px 40px rgba(0,0,0,.16); opacity: 0; transform: translateY(6px) scale(0.98); transform-origin: left center; transition: opacity .18s cubic-bezier(.2,.8,.2,1), transform .22s cubic-bezier(.2,.8,.2,1); }
 #ticket-notes-preview.open { opacity: 1; transform: none; }
 #ticket-notes-preview[hidden] { display: none !important; }
 .ticket-notes-preview-key { font-family: monospace; font-size: 11px; font-weight: 600; color: var(--blue); margin-bottom: 8px; }
@@ -761,7 +767,7 @@ table.issues tr.is-just-created td { background: var(--bg2); }
 .ticket-notes-preview-comment .when { font-size: 11px; color: var(--text3); flex-shrink: 0; }
 .ticket-notes-preview-comment p { font-size: 13px; line-height: 1.45; white-space: pre-wrap; word-break: break-word; }
 .ticket-notes-preview-more { margin-top: 8px; font-size: 12px; color: var(--text3); }
-#ticket-notes-root { position: fixed; inset: 0; z-index: 800; }
+#ticket-notes-root { position: fixed; inset: 0; z-index: 1400; }
 #ticket-notes-root[hidden] { display: none !important; }
 .ticket-notes-backdrop { position: absolute; inset: 0; background: rgba(0,0,0,.28); opacity: 0; transition: opacity .18s ease; }
 .ticket-notes-drawer { position: absolute; top: 0; right: 0; width: min(420px, 100vw); height: 100%; background: var(--bg); border-left: 0.5px solid var(--border); box-shadow: -12px 0 40px rgba(0,0,0,.12); display: flex; flex-direction: column; transform: translateX(16px); opacity: 0; transition: transform .22s cubic-bezier(.2,.8,.2,1), opacity .18s ease; }
@@ -879,9 +885,10 @@ table.issues tr.is-just-created td { background: var(--bg2); }
 .rr-card strong { display:block; font-size:13px; margin-bottom:4px; }
 .rr-card p { font-size:12px; color:var(--text2); line-height:1.5; }
 .rr-card .keys { font-size:11px; color:var(--blue); margin-top:6px; font-family:monospace; }
-.rr-item { display:grid; grid-template-columns:88px 1fr auto; gap:10px; padding:10px 0; border-bottom:0.5px solid var(--border); align-items:start; }
+.rr-item { display:grid; grid-template-columns:max-content 1fr auto; gap:10px; padding:10px 0; border-bottom:0.5px solid var(--border); align-items:start; }
 .rr-item:last-child { border-bottom:none; }
-.rr-item .key { font-family:monospace; font-size:12px; font-weight:600; color:var(--blue); }
+.rr-item .key { display:flex; align-items:center; gap:6px; font-family:monospace; font-size:12px; font-weight:600; color:var(--blue); white-space:nowrap; }
+.rr-risk .keys { display:flex; flex-wrap:wrap; gap:8px 12px; }
 .rr-item .sum { font-size:13px; font-weight:500; }
 .rr-item .why { font-size:12px; color:var(--text2); margin-top:3px; }
 .rr-risk { display:grid; grid-template-columns:64px 1fr; gap:10px; padding:10px 0; border-bottom:0.5px solid var(--border); }
@@ -7771,6 +7778,13 @@ function ticketNotesButton(key, summary) {
   </button>`;
 }
 
+function ticketRowTools(key, summary) {
+  const notes = ticketNotesButton(key, summary);
+  const mark = workspaceAddButton(key);
+  if (!notes && !mark) return '';
+  return `<span class="ticket-row-tools" onclick="event.preventDefault();event.stopPropagation()">${notes}${mark}</span>`;
+}
+
 function rememberTicketNotes(payload) {
   if (!payload || !payload.key) return;
   const key = String(payload.key).toUpperCase();
@@ -9918,6 +9932,7 @@ function paintBulkPickList(projKey) {
   list.innerHTML = shown.map(key => {
     const summary = summaries.get(key) || '';
     return `<div class="bulk-pick-row">
+      ${ticketRowTools(key, summary)}
       <span class="bulk-pick-key">${esc(key)}</span>
       <span class="bulk-pick-summary" title="${esc(summary)}">${esc(summary)}</span>
       <button type="button" class="bulk-pick-remove" aria-label="Remove ${esc(key)}" title="Remove ${esc(key)}" onclick='removeBulkTicket(${JSON.stringify(projKey)}, ${JSON.stringify(key)})' ${busy ? 'disabled' : ''}>×</button>
@@ -11759,6 +11774,7 @@ function renderVelocity() {
       velocityTable += `
         <div class="velocity-ticket" data-bucket="${ticket.bucket}">
           <div class="velocity-ticket-header">
+            ${ticketRowTools(ticket.key, ticket.summary)}
             <a href="${jiraUrl}/browse/${esc(ticket.key)}" target="_blank" class="key-link">${esc(ticket.key)}</a>
             <span class="velocity-ticket-project" style="color:${ticket.projectColor}">${esc(ticket.project)}</span>
             <span class="velocity-ticket-phase">${esc(ticket.phase)}</span>
@@ -12044,7 +12060,7 @@ function renderDataGapsTable(section, tickets) {
 
   const rows = sorted.map(ticket => `
     <tr onclick="window.open('${jiraUrl}/browse/${esc(ticket.key)}','_blank')" style="cursor:pointer">
-      <td><a class="key-link" href="${jiraUrl}/browse/${esc(ticket.key)}" target="_blank" onclick="event.stopPropagation()">${esc(ticket.key)}</a></td>
+      <td class="ticket-key-cell">${ticketRowTools(ticket.key, ticket.summary)}<a class="key-link" href="${jiraUrl}/browse/${esc(ticket.key)}" target="_blank" onclick="event.stopPropagation()">${esc(ticket.key)}</a></td>
       <td title="${esc(ticket.summary)}">${esc(ticket.summary)}</td>
       <td><span style="color:${ticket.projectColor}">${esc(ticket.project)}</span></td>
       <td>${esc(ticket.devName)}</td>
@@ -12739,7 +12755,7 @@ function renderReleaseReportPreview(report) {
     : [];
   const hvHtml = hvItems.map(t => `
     <div class="rr-item">
-      <div class="key">${esc(t.key)}</div>
+      <div class="key">${ticketRowTools(t.key, t.summary)}<span>${esc(t.key)}</span></div>
       <div>
         <div class="sum">${esc(t.summary)}</div>
         <div class="why">${multi && t.projectName ? esc(t.projectName) + ' · ' : ''}${esc(t.impact || t.whyItMatters || '')}</div>
@@ -12752,7 +12768,7 @@ function renderReleaseReportPreview(report) {
     : [];
   const mustFixHtml = mustFixItems.map(t => `
     <div class="rr-item">
-      <div class="key">${esc(t.key)}</div>
+      <div class="key">${ticketRowTools(t.key, t.summary)}<span>${esc(t.key)}</span></div>
       <div>
         <div class="sum">${esc(t.summary)}</div>
         <div class="why">${multi && t.projectName ? esc(t.projectName) + ' · ' : ''}${esc(t.impact || t.whyItMatters || '')}</div>
@@ -12772,7 +12788,7 @@ function renderReleaseReportPreview(report) {
       <div>
         <div style="font-weight:600;font-size:13px">${esc(r.title)}</div>
         <div style="font-size:12px;color:var(--text2);margin-top:3px">${esc(r.detail)}</div>
-        ${(r.ticketKeys || []).length ? `<div class="keys" style="margin-top:6px">${esc(r.ticketKeys.slice(0, 8).join('  '))}</div>` : ''}
+        ${(r.ticketKeys || []).length ? `<div class="keys" style="margin-top:6px">${r.ticketKeys.slice(0, 8).map(key => `<span class="ticket-key-cell">${ticketRowTools(key, '')}<span class="key-link">${esc(key)}</span></span>`).join('')}</div>` : ''}
       </div>
     </div>`).join('') || `<p style="font-size:13px;color:var(--green)">${qualityOnly ? 'No material quality risks identified from current ticket data.' : 'No material risks identified from current ticket data.'}</p>`;
 
@@ -13683,7 +13699,7 @@ function renderQualityTicketTable(rows, emptyText) {
     <thead><tr><th>Key</th><th>Summary</th><th>Project</th><th>Queue</th><th>Priority</th><th>Status</th><th>Owner</th><th>Age</th><th>Bounces</th><th>Fix Version</th></tr></thead>
     <tbody>${rows.map(r => `
       <tr>
-        <td>${qualityJiraLink(r.key)}</td>
+        <td class="ticket-key-cell">${ticketRowTools(r.key, r.summary)}${qualityJiraLink(r.key)}</td>
         <td>${esc(r.summary)}</td>
         <td><span style="display:inline-flex;align-items:center;gap:6px"><span style="width:8px;height:8px;border-radius:50%;background:${jiraProjectColor(r.module)};display:inline-block"></span>${esc(r.module)}</span></td>
         <td><span style="display:inline-flex;align-items:center;gap:6px"><span style="width:8px;height:8px;border-radius:50%;background:${r.color};display:inline-block"></span>${esc(r.projectName)}</span></td>
@@ -14026,7 +14042,7 @@ function historyPointListHtml(periodLabel, seriesLabel, rows) {
   if (!list.length) return head + '<p class="qi-history-list-empty">No tickets in this count.</p>';
   return head + `<div class="qi-history-list-scroll"><table class="qi-table"><thead><tr><th>Key</th><th>Summary</th><th>Project</th><th>Type</th><th>Priority</th><th>Status</th>${hasMove ? '<th>Move</th>' : ''}</tr></thead><tbody>${list.map(row => `
     <tr>
-      <td>${qualityJiraLink(row.key)}</td>
+      <td class="ticket-key-cell">${ticketRowTools(row.key, row.summary)}${qualityJiraLink(row.key)}</td>
       <td>${esc(row.summary)}</td>
       <td>${esc(row.project)}</td>
       <td>${esc(row.type)}</td>
@@ -15632,7 +15648,7 @@ function paintBreakdownList() {
   const head = cols.map(col => `<th class="${sort.col === col.id ? 'sorted' : ''}" aria-sort="${sort.col === col.id ? (sort.dir === 1 ? 'ascending' : 'descending') : 'none'}"><span class="breakdown-list-h">${breakdownListSortButton(col)}${breakdownListFilterButton(col)}</span></th>`).join('');
   const rows = shown.length
     ? shown.map(row => `<tr>
-        <td>${qualityJiraLink(row.key)}</td>
+        <td class="ticket-key-cell">${ticketRowTools(row.key, row.summary)}${qualityJiraLink(row.key)}</td>
         <td>${esc(row.summary)}</td>
         <td><button type="button" class="breakdown-list-proj" data-breakdown-open-project="${esc(row.projectKey)}">${esc(row.projectName)}</button></td>
         <td>${esc(breakdownListCell(row, 'scope', state.multi))}</td>
@@ -16381,6 +16397,7 @@ function renderReleasePlan(opts) {
     columns: state.cols,
     freezeThrough: planEffectiveFreeze(state),
     linkBase: String((S.creds && S.creds.url) || _jiraBaseUrl || '').replace(/\/+$/, ''),
+    ticketActions: function (ticket) { return ticketRowTools(ticket.key, ticket.summary); },
   });
   const releaseEl = document.getElementById('plan-title-release');
   if (releaseEl) releaseEl.textContent = horizon.releaseName || 'No market release selected';
@@ -16843,7 +16860,7 @@ function renderTeam() {
       }
       
       return `<tr onclick="window.open('${esc(link)}','_blank')">
-        <td><a class="log-key-link" href="${esc(link)}" target="_blank" onclick="event.stopPropagation()">${esc(issue.key || '')}</a></td>
+        <td class="ticket-key-cell">${ticketRowTools(issue.key, issue.fields?.summary || '')}<a class="log-key-link" href="${esc(link)}" target="_blank" onclick="event.stopPropagation()">${esc(issue.key || '')}</a></td>
         <td style="max-width:460px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${esc(issue.fields?.summary || '')}">${esc(issue.fields?.summary || '')}</td>
         <td><span style="display:inline-flex;align-items:center;gap:5px"><span class="team-proj-dot" style="background:${proj.color}"></span>${esc(proj.name)}</span></td>
         <td><span class="log-badge-to" style="background:${phColor}20;color:${phColor}">${esc(phLabel)}</span></td>
@@ -17740,7 +17757,7 @@ function renderPhaseTimeline() {
       <table class="issues" style="width:100%;font-size:11px">
         <thead>
           <tr>
-            <th style="width:110px">Key</th>
+            <th>Key</th>
             <th>Summary</th>
             ${showJiraProject ? '<th style="width:80px">Project</th>' : ''}
             ${showProjectCol ? `<th style="width:140px">${showJiraProject ? 'Queue' : 'Project'}</th>` : ''}
@@ -17755,7 +17772,7 @@ function renderPhaseTimeline() {
             const link = S.creds.url ? S.creds.url + '/browse/' + t.key : '#';
             const jiraKey = qualityModuleFromKey(t.key);
             return `<tr onclick="window.open('${link}','_blank');event.stopPropagation()" style="cursor:pointer">
-              <td><span class="key-link">${esc(t.key)}</span></td>
+              <td class="ticket-key-cell">${ticketRowTools(t.key, t.summary)}<span class="key-link">${esc(t.key)}</span></td>
               <td style="max-width:280px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(t.summary)}</td>
               ${showJiraProject ? `<td><span style="display:inline-flex;align-items:center;gap:5px"><span style="width:7px;height:7px;border-radius:50%;background:${jiraProjectColor(jiraKey)}"></span>${esc(jiraKey)}</span></td>` : ''}
               ${showProjectCol ? `<td><span style="display:inline-flex;align-items:center;gap:5px"><span style="width:7px;height:7px;border-radius:50%;background:${t.proj.color}"></span>${esc(t.proj.name)}</span></td>` : ''}
@@ -18871,7 +18888,7 @@ function renderLogMovementsTable(items, options = {}) {
     <table class="issues" style="width:100%;font-size:12px">
       <thead>
         <tr>
-          <th style="width:120px">Key</th>
+          <th>Key</th>
           <th>Summary</th>
           ${showJiraProject ? '<th style="width:80px">Project</th>' : ''}
           ${showProjectCol ? `<th style="width:140px">${showJiraProject ? 'Queue' : 'Project'}</th>` : ''}
@@ -18895,7 +18912,7 @@ function renderLogMovementsTable(items, options = {}) {
             : 'var(--text3)';
           const jiraKey = qualityModuleFromKey(m.key);
           return `<tr onclick="window.open('${link}','_blank');event.stopPropagation()" style="cursor:pointer">
-            <td><span class="key-link">${esc(m.key)}</span></td>
+            <td class="ticket-key-cell">${ticketRowTools(m.key, m.summary)}<span class="key-link">${esc(m.key)}</span></td>
             <td style="max-width:280px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(m.summary)}</td>
             ${showJiraProject ? `<td><span style="display:inline-flex;align-items:center;gap:6px"><span style="width:8px;height:8px;border-radius:50%;background:${jiraProjectColor(jiraKey)}"></span>${esc(jiraKey)}</span></td>` : ''}
             ${showProjectCol ? `<td><span style="display:inline-flex;align-items:center;gap:6px"><span style="width:8px;height:8px;border-radius:50%;background:${m.proj.color}"></span>${esc(m.proj.name)}</span></td>` : ''}
@@ -22076,7 +22093,7 @@ function renderWorkspacePage() {
     const already = have.has(snap.key);
     return `<label class="ws-result">
       <input type="checkbox" ${checked ? 'checked' : ''} onchange="toggleWorkspaceSearchHit('${esc(id)}', '${esc(snap.key)}', this.checked)" aria-label="Select ${esc(snap.key)}">
-      <a class="key-link" href="${esc(S.creds.url ? S.creds.url + '/browse/' + snap.key : '#')}" target="_blank" rel="noopener">${esc(snap.key)}</a>
+      <span class="ws-result-key">${ticketRowTools(snap.key, snap.summary)}<a class="key-link" href="${esc(S.creds.url ? S.creds.url + '/browse/' + snap.key : '#')}" target="_blank" rel="noopener">${esc(snap.key)}</a></span>
       <span class="sum" title="${esc(snap.summary)}">${esc(snap.summary)}</span>
       <span class="meta">${esc([snap.status, snap.type, already ? 'In workspace' : ''].filter(Boolean).join(' · '))}</span>
     </label>`;

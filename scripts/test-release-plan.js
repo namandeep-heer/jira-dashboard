@@ -221,6 +221,9 @@ assert.match(dashboard, /planResetOrder/);
 assert.match(dashboard, /ReleasePlan\.movedKeys/);
 assert.match(dashboard, /planClearPinsFor/);
 assert.match(dashboard, /planSetFreeze/);
+assert.match(dashboard, /ticketActions: function \(ticket\) \{ return ticketRowTools\(ticket\.key, ticket\.summary\); \}/);
+const planSrc = fs.readFileSync(path.join(root, 'lib', 'release-plan.js'), 'utf8');
+assert.match(planSrc, /view\.ticketActions/);
 assert.match(writeUi, /S\.page === 'release-plan'/);
 
 console.log('release-plan: ok');

@@ -146,6 +146,8 @@ assert.ok(dashboard.includes('id="breakdown-list-search"'));
 assert.ok(dashboard.includes('function setBreakdownListSearch('));
 assert.ok(dashboard.includes('id="breakdown-list-count"'));
 assert.ok(dashboard.includes('function setBreakdownListSort('));
+assert.ok(dashboard.includes('function ticketRowTools('));
+assert.ok(dashboard.includes('ticketRowTools(row.key, row.summary)'));
 assert.ok(!dashboard.includes('toggleClarityGridFullscreen'));
 assert.ok(dashboard.includes('Click a total to list those tickets.'));
 assert.ok(dashboard.includes("setAnalyticsView('${spec.id}', this.value)"));
