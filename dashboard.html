@@ -1078,6 +1078,26 @@ body.qi-history-fs-active { overflow:hidden; }
 .pipeline-table td { padding:12px 14px; border-bottom:0.5px solid var(--border); vertical-align:middle; }
 .pipeline-table tr:last-child td { border-bottom:none; }
 .pipeline-table tr:hover td { background:var(--bg2); }
+.pipeline-table tr.scope-grid-group td { border-top: 0.5px solid var(--border); }
+.scope-matrix-wrap { overflow-x: auto; margin-top: 16px; }
+.pipeline-table.scope-matrix { width: 100%; margin: 0; table-layout: fixed; }
+.scope-matrix > thead > tr > th,
+.scope-matrix > tbody > tr.period-summary-row > td,
+.scope-matrix > tfoot > tr > td { white-space: nowrap; }
+.scope-matrix > thead > tr > th { font-size: 13px; letter-spacing: 0.02em; padding: 8px 14px; }
+.scope-matrix > tbody > tr.period-summary-row > td,
+.scope-matrix > tfoot > tr > td { font-size: 14px; padding: 8px 14px; }
+.scope-matrix-net { font-weight: 600; font-size: 15px; font-variant-numeric: tabular-nums; }
+.scope-matrix-detail { margin-left: 8px; color: var(--text2); font-size: 13px; font-variant-numeric: tabular-nums; }
+.scope-matrix-empty { color: var(--text3); }
+.scope-matrix thead th:first-child,
+.scope-matrix tbody tr.period-summary-row td:first-child,
+.scope-matrix tfoot td:first-child { text-align: left; position: sticky; left: 0; background: var(--bg); z-index: 1; }
+.scope-matrix > thead > tr > th:not(:first-child),
+.scope-matrix > tbody > tr.period-summary-row > td:not(:first-child),
+.scope-matrix > tfoot > tr > td:not(:first-child) { text-align: right; }
+.scope-matrix tfoot td { font-weight: 600; }
+.scope-matrix tr:hover td:first-child { background: var(--bg2); }
 .proj-name-cell { display:flex; align-items:center; gap:8px; font-size:13px; font-weight:600; white-space:nowrap; }
 .proj-name-cell .expand-icon { transition:transform .2s; cursor:pointer; width:14px; height:14px; flex-shrink:0; }
 .proj-name-cell .expand-icon.expanded { transform:rotate(90deg); }
@@ -1132,6 +1152,26 @@ body.qi-history-fs-active { overflow:hidden; }
   height: auto !important;
 }
 body.phase-chart-fs-active { overflow: hidden; }
+.scope-chart-card.is-fullscreen {
+  position: fixed;
+  inset: 0;
+  z-index: 1000;
+  margin: 0 !important;
+  border-radius: 0;
+  overflow: auto;
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+  height: 100%;
+  max-width: none;
+  background: var(--bg);
+}
+.scope-chart-card.is-fullscreen .scope-chart-plot {
+  flex: 1;
+  min-height: 320px;
+  height: auto !important;
+}
+body.scope-chart-fs-active { overflow: hidden; }
 /* ── Refresh overlay ── */
 #refresh-overlay { position:fixed; inset:0; z-index:999; background:rgba(0,0,0,.45); display:flex; align-items:center; justify-content:center; backdrop-filter:blur(3px); }
 #refresh-overlay.hidden { display:none; }
@@ -1195,6 +1235,11 @@ body.phase-chart-fs-active { overflow: hidden; }
 .ms-badge { background:var(--blue); color:#fff; border-radius:10px; font-size:10px; font-weight:700; padding:1px 5px; margin-left:2px; }
 .ms-dropdown { position:absolute; top:calc(100% + 4px); left:0; min-width:200px; max-width:280px; background:var(--bg); border:0.5px solid var(--border2); border-radius:var(--radius-lg); box-shadow:0 8px 24px rgba(0,0,0,.18); z-index:200; display:none; overflow:hidden; }
 .ms-dropdown.open { display:block; }
+.ms-dropdown.scope-chart-menu { left:auto; right:0; min-width:300px; max-width:340px; max-height:min(70vh, 520px); overflow-y:auto; }
+.scope-chart-menu .scope-chart-row { display:flex; align-items:center; justify-content:space-between; gap:10px; padding:5px 12px; }
+.scope-chart-menu .scope-chart-row > span { font-size:12px; color:var(--text2); }
+.scope-chart-menu .section-control { min-width:148px; max-width:180px; }
+.scope-chart-menu .scope-chart-hint { padding:0 12px 6px; font-size:11px; color:var(--text3); line-height:1.4; }
 .ms-dropdown-search { padding:8px 10px 6px; border-bottom:0.5px solid var(--border); }
 .ms-dropdown-search input { width:100%; padding:5px 8px; border:0.5px solid var(--border2); border-radius:var(--radius); background:var(--bg2); color:var(--text); font-size:12px; font-family:inherit; }
 .ms-dropdown-search input:focus { outline:2px solid var(--blue); outline-offset:-1px; }
@@ -2762,7 +2807,7 @@ code { font-family: monospace; font-size: 12px; background: var(--bg3); padding:
         <div style="display:flex;align-items:flex-start;justify-content:space-between;margin-bottom:18px;gap:20px">
           <div style="flex:1">
             <h2 style="font-size:18px;font-weight:600;margin-bottom:3px">Scope change</h2>
-            <p style="font-size:13px;color:var(--text2)">Tickets added to or removed from the selected release, by day, week, or month. Milestone lines sit on the chart, and the summary counts added and removed scope between those milestones. Effort uses Dev Actual days, or Dev Estimate when actual is not set.</p>
+            <p style="font-size:13px;color:var(--text2)">Tickets added to or removed from the selected release, by day, week, or month. Below the period list, one chart splits that change across milestone spans by customer commitment, scope commitment, priority, or project. Effort uses Dev Actual days, or Dev Estimate when actual is not set.</p>
           </div>
           <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;justify-content:flex-end">
             <div class="ms-wrap">
@@ -2793,6 +2838,12 @@ code { font-family: monospace; font-size: 12px; background: var(--bg3); padding:
             <select id="scope-measure" class="section-control" onchange="renderScopeChange()">
               <option value="count" selected>By count</option>
               <option value="effort">By effort</option>
+            </select>
+            <select id="scope-breakdown" class="section-control" title="Break down added and removed scope" onchange="renderScopeChange()">
+              <option value="custcom" selected>Customer commitment</option>
+              <option value="scope">Scope commitment</option>
+              <option value="priority">Priority</option>
+              <option value="project">Project</option>
             </select>
             <button class="btn btn-sm" type="button" onclick="exportCSV()" title="Export tickets added or removed in this range">Export HTML</button>
           </div>
@@ -3358,12 +3409,21 @@ const phaseReleaseTimelinePlugin = {
       ctx.lineTo(px, chartArea.bottom);
       ctx.stroke();
       ctx.setLineDash([]);
-
-      ctx.font = '600 10px ui-sans-serif, system-ui, sans-serif';
-      ctx.textAlign = 'center';
-      ctx.textBaseline = 'bottom';
+    });
+    ctx.font = '600 10px ui-sans-serif, system-ui, sans-serif';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'bottom';
+    const rowRight = [-Infinity, -Infinity];
+    markers.forEach(marker => {
+      const px = x.getPixelForValue(marker.idx);
+      const text = String(marker.id || marker.label || '');
+      if (!text) return;
+      const width = ctx.measureText(text).width;
+      const left = px - width / 2;
+      const row = opts.stackLabels && left < rowRight[0] + 4 ? 1 : 0;
       ctx.fillStyle = marker.color;
-      ctx.fillText(marker.id || marker.label, px, chartArea.top - 3);
+      ctx.fillText(text, px, chartArea.top - 3 - row * 12);
+      rowRight[row] = px + width / 2;
     });
 
     if (burndownVisible && releaseDataset) {
@@ -5435,8 +5495,49 @@ function applyPendingRouteState(page) {
       const el = document.getElementById('scope-measure');
       if (el) el.value = measure;
     }
+    const breakdown = params.get('breakdown');
+    if (breakdown === 'custcom' || breakdown === 'scope' || breakdown === 'priority' || breakdown === 'project') {
+      const el = document.getElementById('scope-breakdown');
+      if (el) el.value = breakdown;
+    }
+    const scopeFs = params.get('fullscreen');
+    S.scopeChartFullscreen = scopeFs === 'trend' || scopeFs === 'breakdown' ? scopeFs : '';
     const expand = params.get('expand');
     if (expand) S._expandedPeriods = new Set(expand.split(',').map(s => decodeURIComponent(s.trim())).filter(Boolean));
+    if (!S.scopeChartFilters) S.scopeChartFilters = { breakdown: 'custcom', spans: null, groups: null };
+    if (params.has('chartSpans')) {
+      const raw = params.get('chartSpans');
+      S.scopeChartFilters.spans = !raw || raw === '-' ? [] : raw.split('|').map(item => decodeURIComponent(item)).filter(Boolean);
+    }
+    if (params.has('chartGroups')) {
+      const raw = params.get('chartGroups');
+      S.scopeChartFilters.groups = !raw || raw === '-' ? [] : raw.split('|').map(item => decodeURIComponent(item)).filter(Boolean);
+    }
+    if (!S.scopeChartOptions) S.scopeChartOptions = {};
+    const chartValue = params.get('chartValue');
+    if (chartValue === 'added' || chartValue === 'removed' || chartValue === 'net' || chartValue === 'both') {
+      S.scopeChartOptions.value = chartValue;
+    }
+    const chartLayout = params.get('chartLayout');
+    if (chartLayout === 'stacked' || chartLayout === 'bar100' || chartLayout === 'grouped') {
+      S.scopeChartOptions.layout = chartLayout;
+    }
+    const chartAxis = params.get('chartAxis');
+    if (chartAxis === 'x' || chartAxis === 'y') S.scopeChartOptions.axis = chartAxis;
+    if (params.get('chartAlong') === 'span' || params.get('chartAlong') === 'group') {
+      S.scopeChartOptions.along = params.get('chartAlong');
+    }
+    const chartType = params.get('chartType');
+    if (chartType === 'bar' || chartType === 'line' || chartType === 'doughnut' || chartType === 'pie') {
+      S.scopeChartOptions.type = chartType;
+    }
+    const chartTop = params.get('chartTop');
+    if (chartTop === '5' || chartTop === '8' || chartTop === '12' || chartTop === 'all') S.scopeChartOptions.top = chartTop;
+    if (params.get('chartSort') === 'name' || params.get('chartSort') === 'size') S.scopeChartOptions.sort = params.get('chartSort');
+    if (params.get('chartOther') === '1' || params.get('chartOther') === '0') S.scopeChartOptions.other = params.get('chartOther') === '1';
+    if (params.get('chartLegend') === '1' || params.get('chartLegend') === '0') S.scopeChartOptions.legend = params.get('chartLegend') === '1';
+    if (params.get('chartValues') === '1' || params.get('chartValues') === '0') S.scopeChartOptions.values = params.get('chartValues') === '1';
+    if (params.get('chartTable') === 'matrix' || params.get('chartTable') === 'list') S.scopeChartOptions.table = params.get('chartTable');
   }
 
   if (page === 'log' || page === 'quality-progress') {
@@ -5658,14 +5759,41 @@ function collectRouteParams() {
     // Default detail hierarchy is direction→phase; persist alternate view only
     if (S.logDetailsView === 'project') params.set('detailsView', 'project');
   } else if (page === 'scope-change') {
-    const projects = csvParam(getSelectedScopeProjects());
-    if (projects) params.set('projects', projects);
+    if (Array.isArray(S.scopeProjects)) {
+      params.set('projects', S.scopeProjects.length ? S.scopeProjects.map(item => encodeURIComponent(item)).join(',') : 'none');
+    }
     const period = document.getElementById('scope-period')?.value;
     const range = document.getElementById('scope-range')?.value;
     const measure = document.getElementById('scope-measure')?.value;
     if (period && period !== 'week') params.set('period', period);
     if (range && range !== '90') params.set('range', range);
     if (measure === 'effort') params.set('measure', 'effort');
+    const breakdown = document.getElementById('scope-breakdown')?.value;
+    if (breakdown && breakdown !== 'custcom') params.set('breakdown', breakdown);
+    const chartFilters = S.scopeChartFilters || {};
+    if (chartFilters.breakdown === breakdown || (!breakdown && chartFilters.breakdown === 'custcom')) {
+      if (Array.isArray(chartFilters.spans)) {
+        params.set('chartSpans', chartFilters.spans.length ? chartFilters.spans.map(item => encodeURIComponent(item)).join('|') : '-');
+      }
+      if (Array.isArray(chartFilters.groups)) {
+        params.set('chartGroups', chartFilters.groups.length ? chartFilters.groups.map(item => encodeURIComponent(item)).join('|') : '-');
+      }
+    }
+    const chartView = scopeChartView();
+    if (chartView.value !== 'added') params.set('chartValue', chartView.value);
+    if (chartView.layout !== 'stacked') params.set('chartLayout', chartView.layout);
+    if (chartView.axis === 'x') params.set('chartAxis', 'x');
+    if (chartView.along === 'group') params.set('chartAlong', 'group');
+    if (chartView.type !== 'bar') params.set('chartType', chartView.type);
+    if (chartView.top !== '8') params.set('chartTop', chartView.top);
+    if (chartView.sort !== 'size') params.set('chartSort', chartView.sort);
+    if (chartView.other) params.set('chartOther', '1');
+    if (!chartView.legend) params.set('chartLegend', '0');
+    if (chartView.values) params.set('chartValues', '1');
+    if (chartView.table === 'matrix') params.set('chartTable', 'matrix');
+    if (S.scopeChartFullscreen === 'trend' || S.scopeChartFullscreen === 'breakdown') {
+      params.set('fullscreen', S.scopeChartFullscreen);
+    }
     if (S._expandedPeriods?.size) params.set('expand', [...S._expandedPeriods].join(','));
   } else if (page === 'projects-config') {
     if (S._routeModalOpen === 'jql' && S._routeModalKey) {
@@ -17106,7 +17234,8 @@ function formatScopeMeasure(value, measure) {
   return (n < 0 ? '-' : '') + text + 'd';
 }
 
-function scopeEventTableHtml(events) {
+function scopeEventTableHtml(events, collapseKey) {
+  const showSpan = (events || []).some(event => event && event.spanLabel);
   const detail = (events || []).slice().sort((a, b) => b.time - a.time).map(event => {
     const link = S.creds.url ? S.creds.url + '/browse/' + event.key : '#';
     const kindColor = event.kind === 'removed' ? '#A32D2D' : '#2d6a10';
@@ -17116,18 +17245,22 @@ function scopeEventTableHtml(events) {
       : formatScopeMeasure(event.days, 'effort') + (event.source === 'estimate' ? ' est' : '');
     return `<tr onclick="window.open('${link}','_blank');event.stopPropagation()" style="cursor:pointer">
       <td class="ticket-key-cell">${ticketRowTools(event.key, event.summary)}<span class="key-link">${esc(event.key)}</span></td>
-      <td style="max-width:280px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(event.summary)}</td>
+      <td style="max-width:360px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;text-align:left">${esc(event.summary)}</td>
       <td><span style="display:inline-flex;align-items:center;gap:6px"><span style="width:8px;height:8px;border-radius:50%;background:${event.projectColor || '#888780'}"></span>${esc(event.projectName || '')}</span></td>
       <td style="color:${kindColor};font-weight:600">${kindLabel}</td>
+      ${showSpan ? `<td style="font-size:11px">${esc(event.spanLabel || '')}</td>` : ''}
       <td style="font-size:11px">${esc(formatScopeMove(event))}</td>
       <td style="text-align:right;font-variant-numeric:tabular-nums">${esc(effortLabel)}</td>
       <td style="font-size:11px;color:var(--text3)">${formatDateTime(new Date(event.time))}</td>
     </tr>`;
   }).join('');
   if (!detail) return '<div style="font-size:12px;color:var(--text3)">No changes</div>';
-  return `<table class="issues" style="width:100%;font-size:12px">
+  const collapse = collapseKey
+    ? `<div style="display:flex;justify-content:flex-end;margin-bottom:8px"><button type="button" class="btn btn-sm" onclick="event.stopPropagation();togglePeriodDetails('${collapseKey}')">Collapse</button></div>`
+    : '';
+  return `${collapse}<table class="issues" style="width:100%;font-size:12px">
     <thead><tr>
-      <th>Key</th><th>Summary</th><th>Project</th><th>Change</th><th>Fix versions</th><th style="text-align:right">Effort</th><th>When</th>
+      <th>Key</th><th style="text-align:left">Summary</th><th>Project</th><th>Change</th>${showSpan ? '<th>Span</th>' : ''}<th>Fix versions</th><th style="text-align:right">Effort</th><th>When</th>
     </tr></thead>
     <tbody>${detail}</tbody>
   </table>`;
@@ -17171,6 +17304,622 @@ function scopeMilestoneChartMarkers(milestones, periods, period) {
   return [...byIdx.values()].sort((a, b) => a.idx - b.idx);
 }
 
+function scopeBreakdownLabels(event, breakdown) {
+  if (breakdown === 'project') return [event.projectName || 'Not set'];
+  if (breakdown === 'priority') {
+    const name = event.issue && event.issue.fields && event.issue.fields.priority && event.issue.fields.priority.name;
+    return [name || 'Not set'];
+  }
+  const fieldId = breakdown === 'scope' ? 'cf_scope' : 'cf_custcom';
+  const field = ALL_FIELDS.find(item => item.id === fieldId);
+  const raw = field && event.issue && event.issue.fields ? event.issue.fields[jiraId(field)] : null;
+  if (raw == null || raw === '') return ['Not set'];
+  const list = Array.isArray(raw) ? raw : [raw];
+  const labels = list.map(item => {
+    if (item == null) return '';
+    if (typeof item === 'string') return item.trim();
+    return String(item.value || item.name || '').trim();
+  }).filter(Boolean);
+  return labels.length ? labels : ['Not set'];
+}
+
+const SCOPE_BREAKDOWN_COLORS = ['#185FA5', '#3B6D11', '#c47a0f', '#533AB7', '#993556', '#0F6E56', '#7C3085', '#0F7070', '#A33B1A', '#1A6B4A', '#854F0B', '#5F5E5A'];
+
+function scopeBreakdownAmount(row, measure, kind) {
+  if (!row) return 0;
+  if (measure === 'effort') return kind === 'removed' ? row.removedDays : row.addedDays;
+  return kind === 'removed' ? row.removedCount : row.addedCount;
+}
+
+function scopeSpanShortName(span, marks) {
+  const from = (marks || []).find(mark => mark.time === span.from);
+  const to = (marks || []).find(mark => mark.time === span.to);
+  if (from && to) return from.id + '→' + to.id;
+  if (from) return 'After ' + from.id;
+  if (to) return 'Before ' + to.id;
+  return span.label;
+}
+
+function scopeMilestoneBreakdown(spans, marks, breakdownKey, measure) {
+  const perSpan = (spans || []).map(span => {
+    const rows = ScopeChange.summarizeScopeBreakdown(span.events || [], event => scopeBreakdownLabels(event, breakdownKey));
+    return {
+      span,
+      short: scopeSpanShortName(span, marks),
+      byLabel: new Map(rows.map(row => [row.label, row])),
+    };
+  });
+  const volume = new Map();
+  perSpan.forEach(item => {
+    item.byLabel.forEach((row, label) => {
+      volume.set(label, (volume.get(label) || 0) + row.addedCount + row.removedCount);
+    });
+  });
+  const ranked = [...volume.entries()]
+    .sort((a, b) => b[1] - a[1] || String(a[0]).localeCompare(String(b[0])))
+    .map(entry => entry[0]);
+  const head = ranked.slice(0, 5);
+  const rest = ranked.slice(5);
+  const series = rest.length ? head.concat(['Other']) : head.slice();
+  function amount(item, label, kind) {
+    if (label === 'Other') {
+      return rest.reduce((sum, name) => sum + scopeBreakdownAmount(item.byLabel.get(name), measure, kind), 0);
+    }
+    return scopeBreakdownAmount(item.byLabel.get(label), measure, kind);
+  }
+  return {
+    perSpan,
+    ranked,
+    series,
+    added: series.map(label => perSpan.map(item => amount(item, label, 'added'))),
+    removed: series.map(label => perSpan.map(item => amount(item, label, 'removed'))),
+    marks: marks || [],
+  };
+}
+
+function scopeLinePeriodPoints(perSpan, period) {
+  const periodKind = period === 'day' || period === 'month' ? period : 'week';
+  let from = Infinity;
+  let to = -Infinity;
+  (perSpan || []).forEach(item => {
+    const span = item && item.span;
+    if (!span) return;
+    if (Number.isFinite(span.from)) from = Math.min(from, span.from);
+    if (Number.isFinite(span.to)) to = Math.max(to, span.to - 1);
+    (span.events || []).forEach(event => {
+      if (!Number.isFinite(event.time)) return;
+      from = Math.min(from, event.time);
+      to = Math.max(to, event.time);
+    });
+  });
+  if (!Number.isFinite(from) || !Number.isFinite(to) || to < from || !window.ScopeChange) return [];
+  const start = ScopeChange.periodStartMs(ScopeChange.periodKey(from, periodKind), periodKind);
+  const end = ScopeChange.periodStartMs(ScopeChange.periodKey(to, periodKind), periodKind);
+  if (!Number.isFinite(start) || !Number.isFinite(end)) return [];
+  const points = [];
+  let cursor = new Date(start);
+  let guard = 0;
+  while (cursor.getTime() <= end && guard < (periodKind === 'day' ? 420 : 240)) {
+    const key = ScopeChange.periodKey(cursor, periodKind);
+    points.push({
+      time: cursor.getTime(),
+      key,
+      label: formatPeriodLabel(key, periodKind),
+    });
+    cursor = ScopeChange.nextPeriodStart(cursor, periodKind);
+    guard += 1;
+  }
+  return points;
+}
+
+function scopeLineLabelBuckets(perSpan, labelNames, measure, period) {
+  const wanted = new Set(labelNames);
+  const byKey = new Map();
+  (perSpan || []).forEach(item => {
+    if (!item || !item.byLabel) return;
+    item.byLabel.forEach((row, name) => {
+      if (!wanted.has(name) || !row || !row.events) return;
+      row.events.forEach(event => {
+        if (!event || !Number.isFinite(event.time)) return;
+        const key = ScopeChange.periodKey(event.time, period);
+        if (!key) return;
+        if (!byKey.has(key)) byKey.set(key, { added: 0, removed: 0 });
+        const bucket = byKey.get(key);
+        const amount = measure === 'effort' ? (Number(event.days) || 0) : 1;
+        if (event.kind === 'removed') bucket.removed += amount;
+        else bucket.added += amount;
+      });
+    });
+  });
+  return byKey;
+}
+
+function scopeLineTrimToActivity(points, datasets, markers) {
+  let first = -1;
+  let last = -1;
+  (points || []).forEach((point, index) => {
+    const hit = (datasets || []).some(dataset => dataset.data[index] && dataset.data[index].y);
+    if (!hit) return;
+    if (first < 0) first = index;
+    last = index;
+  });
+  if (first < 0) return { points: points || [], datasets: datasets || [], markers: markers || [] };
+  const start = Math.max(0, first - 1);
+  const end = Math.min(points.length - 1, last + 1);
+  const trimmed = points.slice(start, end + 1);
+  const from = trimmed[0].time;
+  const to = trimmed[trimmed.length - 1].time;
+  return {
+    points: trimmed,
+    datasets: datasets.map(dataset => Object.assign({}, dataset, { data: dataset.data.slice(start, end + 1) })),
+    markers: (markers || []).filter(marker => marker.idx >= from && marker.idx <= to),
+  };
+}
+
+function scopeLineMilestonePoints(perSpan, marks) {
+  const byTime = new Map((marks || []).map(mark => [mark.time, mark]));
+  const points = [];
+  const seen = new Set();
+  function push(mark, spanIndex, fallback) {
+    const id = mark ? mark.id : fallback;
+    const time = mark ? mark.time : fallback;
+    if (seen.has(time)) {
+      const existing = points.find(point => point.time === time);
+      if (existing && spanIndex != null) existing.spanIndex = spanIndex;
+      return;
+    }
+    seen.add(time);
+    points.push({
+      id,
+      time,
+      date: mark && mark.dateLabel,
+      color: (mark && mark.color) || '#185FA5',
+      tip: mark && spanIndex == null ? (mark.label || mark.id) : fallback,
+      spanIndex,
+    });
+  }
+  (perSpan || []).forEach((item, index) => {
+    const from = byTime.get(item.span && item.span.from);
+    const to = byTime.get(item.span && item.span.to);
+    if (!points.length && from) push(from, null, from.id);
+    if (to) push(to, index, item.short);
+    else push(null, index, item.short);
+  });
+  return points;
+}
+
+function scopeChartFilterActive(selected, available) {
+  if (selected == null) return null;
+  const picked = selected.filter(value => available.includes(value));
+  if (available.length && picked.length >= available.length) return null;
+  return picked;
+}
+
+function applyScopeChartFilters(model, breakdown) {
+  if (!S.scopeChartFilters) S.scopeChartFilters = { breakdown, spans: null, groups: null };
+  if (S.scopeChartFilters.breakdown !== breakdown) {
+    S.scopeChartFilters.breakdown = breakdown;
+    S.scopeChartFilters.groups = null;
+  }
+  const spanOptions = (model.perSpan || []).map(item => item.short);
+  const groupOptions = model.ranked || [];
+  const spans = scopeChartFilterActive(S.scopeChartFilters.spans, spanOptions);
+  const groups = scopeChartFilterActive(S.scopeChartFilters.groups, groupOptions);
+  const spanSet = spans == null ? null : new Set(spans);
+  const groupSet = groups == null ? null : new Set(groups);
+  const perSpan = spanSet ? model.perSpan.filter(item => spanSet.has(item.short)) : model.perSpan.slice();
+  const volume = new Map();
+  perSpan.forEach(item => {
+    item.byLabel.forEach((row, label) => {
+      if (groupSet && !groupSet.has(label)) return;
+      volume.set(label, (volume.get(label) || 0) + row.addedCount + row.removedCount);
+    });
+  });
+  const ranked = [...volume.entries()]
+    .sort((a, b) => b[1] - a[1] || String(a[0]).localeCompare(String(b[0])))
+    .map(entry => entry[0]);
+  return { perSpan, ranked, spanOptions, groupOptions, spans, groups, marks: model.marks || [] };
+}
+
+function scopeChartFilterControl(id, allLabel, activeLabel, options, selected) {
+  const open = S._scopeFilterOpen === id ? ' open' : '';
+  const allOn = selected == null;
+  const noneOn = !allOn && selected.length === 0;
+  const optionsHtml = options.map(value => {
+    const checked = allOn || selected.includes(value);
+    return `<label class="ms-option" data-value="${esc(value)}">
+      <input type="checkbox" value="${esc(value)}" ${checked ? 'checked' : ''} onchange="updateScopeChartFilter('${id}')">
+      <span class="ms-option-label">${esc(value)}</span>
+    </label>`;
+  }).join('');
+  const label = allOn ? allLabel : noneOn ? 'None' : activeLabel;
+  return `<div class="ms-wrap">
+    <button class="ms-btn${!allOn ? ' has-selection' : ''}" type="button" onclick="toggleScopeChartFilter('${id}')">
+      <span>${esc(label)}</span>
+      ${allOn ? '' : `<span class="ms-badge">${selected.length}</span>`}
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"/></svg>
+    </button>
+    <div class="ms-dropdown${open}" id="scope-filter-${id}">
+      <div class="ms-dropdown-search"><input type="text" placeholder="Search…" oninput="filterScopeChartOptions('${id}', this.value)"></div>
+      <div class="ms-options" id="scope-filter-opts-${id}">${optionsHtml}</div>
+      <div class="ms-footer">
+        <button type="button" onclick="setScopeChartFilter('${id}', false)">Clear</button>
+        <button type="button" onclick="setScopeChartFilter('${id}', true)">Select All</button>
+      </div>
+    </div>
+  </div>`;
+}
+
+function scopeChartView() {
+  const raw = S.scopeChartOptions || {};
+  const tops = ['5', '12', 'all'];
+  return {
+    value: ['removed', 'net', 'both'].includes(raw.value) ? raw.value : 'added',
+    type: ['line', 'doughnut', 'pie'].includes(raw.type) ? raw.type : 'bar',
+    layout: ['bar100', 'grouped'].includes(raw.layout) ? raw.layout : 'stacked',
+    axis: raw.axis === 'x' ? 'x' : 'y',
+    along: raw.along === 'group' ? 'group' : 'span',
+    top: tops.includes(String(raw.top)) ? String(raw.top) : '8',
+    sort: raw.sort === 'name' ? 'name' : 'size',
+    other: raw.other === true || raw.other === 'true' || raw.other === '1',
+    legend: raw.legend !== false && raw.legend !== 'false' && raw.legend !== '0',
+    values: raw.values === true || raw.values === 'true' || raw.values === '1',
+    table: raw.table === 'matrix' ? 'matrix' : 'list',
+  };
+}
+
+function scopeChartLimit(top) {
+  if (top === 'all') return 24;
+  return top === '5' || top === '12' ? Number(top) : 8;
+}
+
+function scopeChartOptionsControl(view, axisNoun) {
+  const noun = axisNoun || 'Group';
+  const custom = view.value !== 'added' || view.type !== 'bar' || view.layout !== 'stacked' || view.axis !== 'y'
+    || view.along === 'group'
+    || view.top !== '8' || view.sort !== 'size' || view.other || !view.legend || view.values
+    || view.table === 'matrix';
+  const open = S._scopeFilterOpen === 'chart-options' ? ' open' : '';
+  const barOnly = view.type === 'bar' ? '' : 'disabled';
+  const axisOn = view.type === 'bar' ? '' : 'disabled';
+  const choice = (key, current, pairs) => pairs.map(([value, label]) =>
+    `<option value="${value}" ${current === value ? 'selected' : ''}>${label}</option>`).join('');
+  const row = (label, control) => `<div class="scope-chart-row"><span>${label}</span>${control}</div>`;
+  return `<div class="ms-wrap">
+    <button class="ms-btn${custom ? ' has-selection' : ''}" type="button" onclick="toggleScopeChartFilter('chart-options')">
+      <span>Chart options</span>
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"/></svg>
+    </button>
+    <div class="ms-dropdown scope-chart-menu${open}" id="scope-filter-chart-options">
+      ${row('Show', `<select class="section-control" aria-label="Chart value" onchange="setScopeChartOption('value', this.value)">${choice('value', view.value, [['added', 'Added'], ['removed', 'Removed'], ['net', 'Net'], ['both', 'Added and removed']])}</select>`)}
+      ${row('Chart', `<select class="section-control" aria-label="Chart type" onchange="setScopeChartOption('type', this.value)">${choice('type', view.type, [['bar', 'Bar'], ['line', 'Line'], ['doughnut', 'Doughnut'], ['pie', 'Pie']])}</select>`)}
+      ${row('Arrange', `<select class="section-control" aria-label="Chart layout" ${barOnly} onchange="setScopeChartOption('layout', this.value)">${choice('layout', view.layout, [['stacked', 'Stacked'], ['bar100', '100% stacked'], ['grouped', 'Grouped']])}</select>`)}
+      ${row('Axis', `<select class="section-control" aria-label="Chart axis" ${axisOn} onchange="setScopeChartOption('axis', this.value)">${choice('axis', view.axis, [['y', 'Rows'], ['x', 'Columns']])}</select>`)}
+      ${row('On axis', `<select class="section-control" aria-label="What the axis lists" ${view.type === 'line' ? 'disabled' : ''} onchange="setScopeChartOption('along', this.value)">${choice('along', view.along, [['span', 'Milestone'], ['group', noun]])}</select>`)}
+      ${view.type === 'line' ? '<div class="scope-chart-hint">The line uses the day, week, or month control. Milestones stay on their dates.</div>' : view.type === 'bar' ? '' : '<div class="scope-chart-hint">Arrange and rows or columns apply to bar charts.</div>'}
+      ${row('Groups', `<select class="section-control" aria-label="How many groups" onchange="setScopeChartOption('top', this.value)">${choice('top', view.top, [['5', 'Top 5'], ['8', 'Top 8'], ['12', 'Top 12'], ['all', 'All, up to 24']])}</select>`)}
+      ${row('Sort', `<select class="section-control" aria-label="Sort" onchange="setScopeChartOption('sort', this.value)">${choice('sort', view.sort, [['size', 'By size'], ['name', 'By name']])}</select>`)}
+      ${row('Table', `<select class="section-control" aria-label="Table layout" onchange="setScopeChartOption('table', this.value)">${choice('table', view.table, [['list', 'List'], ['matrix', 'Matrix']])}</select>`)}
+      ${view.table === 'matrix' ? '<div class="scope-chart-hint">Each column is a milestone that has a change. The number is net, then added / removed.</div>' : ''}
+      <label class="ms-option"><input type="checkbox" ${view.other ? 'checked' : ''} onchange="setScopeChartOption('other', this.checked)"> Group the rest as Other</label>
+      <label class="ms-option"><input type="checkbox" ${view.legend ? 'checked' : ''} onchange="setScopeChartOption('legend', this.checked)"> Legend</label>
+      <label class="ms-option"><input type="checkbox" ${view.values ? 'checked' : ''} onchange="setScopeChartOption('values', this.checked)"> Values on the chart</label>
+      ${custom ? '<div class="ms-footer"><button type="button" onclick="resetScopeChartOptions()">Reset</button></div>' : ''}
+    </div>
+  </div>`;
+}
+
+function scopeBreakdownAddedChart(model, measure, view, period) {
+  const options = view || scopeChartView();
+  const perSpan = model.perSpan || [];
+  const scored = (model.ranked || []).map(label => {
+    let added = 0;
+    let removed = 0;
+    perSpan.forEach(item => {
+      added += scopeBreakdownAmount(item.byLabel.get(label), measure, 'added');
+      removed += scopeBreakdownAmount(item.byLabel.get(label), measure, 'removed');
+    });
+    const net = added - removed;
+    let score = added;
+    if (options.value === 'removed') score = removed;
+    else if (options.value === 'net') score = Math.abs(net);
+    else if (options.value === 'both') score = added + removed;
+    return { label, score };
+  }).filter(row => row.score > 0);
+  if (options.sort === 'name') scored.sort((a, b) => a.label.localeCompare(b.label) || b.score - a.score);
+  else scored.sort((a, b) => b.score - a.score || a.label.localeCompare(b.label));
+  const shown = scored.slice(0, scopeChartLimit(options.top));
+  const rest = scored.slice(scopeChartLimit(options.top));
+  const names = shown.map(row => row.label);
+  if (options.other && rest.length) names.push('Other');
+  const restNames = rest.map(row => row.label);
+  function cell(label, spanIndex, kind) {
+    const namesForCell = label === 'Other' ? restNames : [label];
+    return namesForCell.reduce((sum, name) => {
+      const item = perSpan[spanIndex];
+      const added = scopeBreakdownAmount(item && item.byLabel.get(name), measure, 'added');
+      const removed = scopeBreakdownAmount(item && item.byLabel.get(name), measure, 'removed');
+      if (kind === 'net') return sum + added - removed;
+      if (kind === 'removed') return sum + removed;
+      return sum + added;
+    }, 0);
+  }
+  function colorAt(index, label) {
+    return label === 'Other' ? '#888780' : SCOPE_BREAKDOWN_COLORS[index % SCOPE_BREAKDOWN_COLORS.length];
+  }
+  const roundKind = options.value === 'removed' ? 'removed' : (options.value === 'added' ? 'added' : 'net');
+  if (options.type === 'doughnut' || options.type === 'pie') {
+    const rows = options.along === 'group'
+      ? names.map(label => ({
+        label,
+        value: perSpan.reduce((sum, item, index) => sum + cell(label, index, roundKind), 0),
+      }))
+      : perSpan.map((item, index) => ({
+        label: item.short,
+        value: names.reduce((sum, label) => sum + cell(label, index, roundKind), 0),
+      }));
+    const slices = rows.filter(row => row.value);
+    return {
+      labels: slices.map(row => row.label),
+      datasets: [{
+        data: slices.map(row => Math.abs(row.value)),
+        signed: slices.map(row => row.value),
+        backgroundColor: slices.map((row, index) => colorAt(index, row.label)),
+        borderWidth: 0,
+      }],
+    };
+  }
+  if (options.type === 'line') {
+    const periodKind = period === 'day' || period === 'month' ? period : 'week';
+    const points = scopeLinePeriodPoints(perSpan, periodKind);
+    const milestonePoints = scopeLineMilestonePoints(perSpan, model.marks)
+      .filter(point => typeof point.time === 'number');
+    const markers = milestonePoints.map((point, idx) => ({
+      idx: point.time,
+      id: point.id,
+      label: point.tip || point.id,
+      date: point.date,
+      color: point.color,
+      role: idx === 0 ? 'start' : (idx === milestonePoints.length - 1 ? 'end' : 'mid'),
+    }));
+    const datasets = names.map((label, index) => {
+      const buckets = scopeLineLabelBuckets(
+        perSpan,
+        label === 'Other' ? restNames : [label],
+        measure,
+        periodKind,
+      );
+      return {
+        label,
+        data: points.map(point => {
+          const bucket = buckets.get(point.key) || { added: 0, removed: 0 };
+          const y = roundKind === 'removed'
+            ? bucket.removed
+            : roundKind === 'net'
+              ? bucket.added - bucket.removed
+              : bucket.added;
+          return { x: point.time, y };
+        }),
+        borderColor: colorAt(index, label),
+        backgroundColor: colorAt(index, label),
+        borderWidth: 2,
+        tension: 0,
+        pointRadius(ctx) {
+          if (periodKind === 'day') return 0;
+          return ctx.parsed && ctx.parsed.y ? 3 : 0;
+        },
+        pointHoverRadius: 5,
+        pointHitRadius: 8,
+        fill: false,
+      };
+    }).filter(dataset => dataset.data.some(point => point.y));
+    const trimmed = scopeLineTrimToActivity(points, datasets, markers);
+    return {
+      labels: trimmed.points.map(point => point.label),
+      points: trimmed.points,
+      markers: trimmed.markers,
+      datasets: trimmed.datasets,
+    };
+  }
+  const stacked = options.layout !== 'grouped';
+  const milestonesOnAxis = options.along === 'span';
+  function shareWithin(rows) {
+    if (options.layout !== 'bar100') return rows;
+    return rows.map(row => {
+      const total = row.reduce((sum, value) => sum + Math.abs(value), 0);
+      if (!total) return row.map(() => 0);
+      return row.map(value => value / total * 100);
+    });
+  }
+  function shareAcross(rows) {
+    if (options.layout !== 'bar100') return rows;
+    const width = rows.reduce((max, row) => Math.max(max, row.length), 0);
+    const totals = Array.from({ length: width }, (_, col) =>
+      rows.reduce((sum, row) => sum + Math.abs(row[col] || 0), 0));
+    return rows.map(row => row.map((value, col) => totals[col] ? value / totals[col] * 100 : 0));
+  }
+  function barDataset(label, color, data, kind, stack) {
+    return {
+      label,
+      kind: kind === 'net' ? '' : kind,
+      data,
+      backgroundColor: kind === 'removed' && options.value === 'both' ? color + '99' : color,
+      borderWidth: 0,
+      stack,
+      hideFromLegend: kind === 'removed' && options.value === 'both' && stacked,
+    };
+  }
+  const kinds = options.value === 'removed' ? ['removed']
+    : options.value === 'net' ? ['net']
+    : options.value === 'both' ? ['added', 'removed']
+    : ['added'];
+  if (milestonesOnAxis) {
+    const spanIndexes = perSpan.map((_, index) => index).filter(index =>
+      kinds.some(kind => names.some(label => cell(label, index, kind))));
+    const datasets = [];
+    kinds.forEach(kind => {
+      const matrix = shareAcross(names.map(label => spanIndexes.map(spanIndex => cell(label, spanIndex, kind))));
+      names.forEach((label, index) => {
+        const row = matrix[index] || [];
+        if (!row.some(value => value)) return;
+        datasets.push(barDataset(
+          label,
+          colorAt(index, label),
+          row,
+          kind,
+          stacked ? (kind === 'removed' ? 'removed' : 'value') : label + '-' + kind,
+        ));
+      });
+    });
+    return { labels: spanIndexes.map(index => perSpan[index].short), datasets };
+  }
+  function datasetsFor(kind) {
+    const rows = shareWithin(names.map(label => perSpan.map((item, spanIndex) => cell(label, spanIndex, kind))));
+    return perSpan.map((item, index) => barDataset(
+      item.short,
+      SCOPE_BREAKDOWN_COLORS[index % SCOPE_BREAKDOWN_COLORS.length],
+      rows.map(row => row[index] || 0),
+      kind,
+      stacked ? (kind === 'removed' ? 'removed' : 'value') : item.short + '-' + kind,
+    )).filter(dataset => dataset.data.some(value => value));
+  }
+  return { labels: names, datasets: kinds.reduce((list, kind) => list.concat(datasetsFor(kind)), []) };
+}
+
+function scopeBreakdownMeasureParts(added, removed, measure) {
+  const net = added - removed;
+  const netColor = net < 0 ? '#A32D2D' : net > 0 ? '#2d6a10' : 'var(--text3)';
+  return {
+    net,
+    netColor,
+    netText: formatScopeMeasure(net, measure),
+    detail: formatScopeMeasure(added, measure) + ' / ' + formatScopeMeasure(removed, measure),
+  };
+}
+
+function scopeBreakdownListHtml(model, measure, title) {
+  const perSpan = model.perSpan || [];
+  const rows = (model.ranked || []).map((label, index) => {
+    const spanCells = perSpan.map((item, spanIndex) => {
+      const row = item.byLabel.get(label);
+      const added = scopeBreakdownAmount(row, measure, 'added');
+      const removed = scopeBreakdownAmount(row, measure, 'removed');
+      return { item, spanIndex, added, removed };
+    }).filter(cell => cell.added || cell.removed);
+    return spanCells.map((cell, cellIndex) => {
+      const parts = scopeBreakdownMeasureParts(cell.added, cell.removed, measure);
+      const rowId = 'scope-bd-' + index + '-' + cell.spanIndex;
+      const groupClass = index > 0 && cellIndex === 0 ? ' scope-grid-group' : '';
+      return `<tr class="period-summary-row${groupClass}" onclick="togglePeriodDetails('${rowId}')" style="cursor:pointer">
+      <td style="font-weight:600">${cellIndex === 0 ? esc(label) : ''}</td>
+      <td style="font-weight:600">${esc(cell.item.short)}</td>
+      <td style="text-align:right;color:#2d6a10;font-weight:600;font-variant-numeric:tabular-nums">${esc(formatScopeMeasure(cell.added, measure))}</td>
+      <td style="text-align:right;color:#A32D2D;font-weight:600;font-variant-numeric:tabular-nums">${esc(formatScopeMeasure(cell.removed, measure))}</td>
+      <td style="text-align:right;font-weight:600;font-variant-numeric:tabular-nums;color:${parts.netColor}">${esc(parts.netText)}</td>
+      <td style="text-align:center">
+        <svg class="expand-icon period-expand-${rowId}" style="width:14px;height:14px;transition:transform .2s" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="9 18 15 12 9 6"/></svg>
+      </td>
+    </tr>
+    <tr class="period-details period-details-${rowId} hidden">
+      <td colspan="6" style="padding:0;background:var(--bg3)">
+        <div style="padding:14px 20px">
+          ${scopeEventTableHtml(scopeBreakdownEventsForLabel(perSpan, label, cell.item.short), rowId)}
+        </div>
+      </td>
+    </tr>`;
+    }).join('');
+  }).join('');
+  if (!rows) return '';
+  return `<table class="pipeline-table" style="margin:16px 0 0">
+    <thead><tr>
+      <th>${esc(title)}</th>
+      <th>Milestone</th>
+      <th style="text-align:right">Added</th>
+      <th style="text-align:right">Removed</th>
+      <th style="text-align:right">Net</th>
+      <th></th>
+    </tr></thead>
+    <tbody>${rows}</tbody>
+  </table>`;
+}
+
+function scopeMatrixAmountCell(added, removed, measure, rowId) {
+  if (!added && !removed) return '<td class="scope-matrix-empty">–</td>';
+  const parts = scopeBreakdownMeasureParts(added, removed, measure);
+  const click = rowId ? ` style="cursor:pointer" onclick="togglePeriodDetails('${rowId}')"` : '';
+  return `<td${click}>
+    <span class="scope-matrix-net" style="color:${parts.netColor}">${esc(parts.netText)}</span>
+    <span class="scope-matrix-detail">${esc(parts.detail)}</span>
+  </td>`;
+}
+
+function scopeBreakdownMatrixHtml(model, measure, title) {
+  const perSpan = model.perSpan || [];
+  const labels = model.ranked || [];
+  if (!labels.length || !perSpan.length) return '';
+  const spans = perSpan.filter(item => labels.some(label => {
+    const row = item.byLabel.get(label);
+    return scopeBreakdownAmount(row, measure, 'added') || scopeBreakdownAmount(row, measure, 'removed');
+  }));
+  if (!spans.length) return '';
+  const colspan = spans.length + 2;
+  const totals = spans.map(() => ({ added: 0, removed: 0 }));
+  let grandAdded = 0;
+  let grandRemoved = 0;
+  const body = labels.map((label, index) => {
+    let rowAdded = 0;
+    let rowRemoved = 0;
+    const details = [];
+    const cells = spans.map((item, spanIndex) => {
+      const row = item.byLabel.get(label);
+      const added = scopeBreakdownAmount(row, measure, 'added');
+      const removed = scopeBreakdownAmount(row, measure, 'removed');
+      rowAdded += added;
+      rowRemoved += removed;
+      totals[spanIndex].added += added;
+      totals[spanIndex].removed += removed;
+      if (!added && !removed) return '<td class="scope-matrix-empty">–</td>';
+      const rowId = 'scope-bd-' + index + '-' + spanIndex;
+      details.push(`<tr class="period-details period-details-${rowId} hidden"><td colspan="${colspan}" style="padding:0;background:var(--bg3)"><div style="padding:14px 20px">${scopeEventTableHtml(scopeBreakdownEventsForLabel(perSpan, label, item.short), rowId)}</div></td></tr>`);
+      return scopeMatrixAmountCell(added, removed, measure, rowId);
+    }).join('');
+    grandAdded += rowAdded;
+    grandRemoved += rowRemoved;
+    return `<tr class="period-summary-row">
+      <td style="font-weight:600">${esc(label)}</td>
+      ${cells}
+      ${scopeMatrixAmountCell(rowAdded, rowRemoved, measure)}
+    </tr>${details.join('')}`;
+  }).join('');
+  const foot = totals.map(cell => scopeMatrixAmountCell(cell.added, cell.removed, measure)).join('');
+  return `<div class="scope-matrix-wrap"><table class="pipeline-table scope-matrix">
+    <thead><tr>
+      <th>${esc(title)}</th>
+      ${spans.map(item => `<th>${esc(item.short)}</th>`).join('')}
+      <th>Total</th>
+    </tr></thead>
+    <tbody>${body}</tbody>
+    <tfoot><tr>
+      <td>Total</td>
+      ${foot}
+      ${scopeMatrixAmountCell(grandAdded, grandRemoved, measure)}
+    </tr></tfoot>
+  </table></div>`;
+}
+
+function scopeBreakdownEventsForLabel(perSpan, label, spanShort) {
+  const events = [];
+  (perSpan || []).forEach(item => {
+    const short = item.short || (item.span && item.span.label);
+    if (spanShort && short !== spanShort) return;
+    const row = item.byLabel.get(label);
+    (row ? row.events : []).forEach(event => {
+      events.push(Object.assign({}, event, { spanLabel: short }));
+    });
+  });
+  return events;
+}
+
 function formatScopeSpanWhen(span) {
   const from = span.from == null ? null : new Date(span.from);
   const to = span.to == null ? null : new Date(span.to);
@@ -17191,7 +17940,48 @@ function formatScopeMove(event) {
   return from + ' → ' + (to || 'none');
 }
 
+function scopeChartFsIcon(on) {
+  const path = on
+    ? 'M8 3v3a2 2 0 0 1-2 2H3m18 0h-3a2 2 0 0 1-2-2V3m0 18v-3a2 2 0 0 1 2-2h3M3 16h3a2 2 0 0 1 2 2v3'
+    : 'M8 3H5a2 2 0 0 0-2 2v3m18 0V5a2 2 0 0 0-2-2h-3m0 18h3a2 2 0 0 0 2-2v-3M3 16v3a2 2 0 0 0 2 2h3';
+  return `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="${path}"/></svg>`;
+}
+
+function scopeChartFsButton(which) {
+  const on = S.scopeChartFullscreen === which;
+  const label = on ? 'Exit full screen' : 'Full screen';
+  return `<button class="btn btn-sm" type="button" data-scope-fs="${which}" onclick="toggleScopeChartFullscreen('${which}')" title="${label}" aria-label="${label}" aria-pressed="${on ? 'true' : 'false'}">${scopeChartFsIcon(on)}</button>`;
+}
+
+function toggleScopeChartFullscreen(which) {
+  const cardId = which === 'trend' ? 'scope-trend-card' : 'scope-breakdown-card';
+  const card = document.getElementById(cardId);
+  if (!card) return;
+  const next = S.scopeChartFullscreen === which ? '' : which;
+  document.querySelectorAll('.scope-chart-card.is-fullscreen').forEach(el => el.classList.remove('is-fullscreen'));
+  S.scopeChartFullscreen = next;
+  if (next) card.classList.add('is-fullscreen');
+  document.body.classList.toggle('scope-chart-fs-active', !!next);
+  document.querySelectorAll('[data-scope-fs]').forEach(btn => {
+    const on = btn.getAttribute('data-scope-fs') === next;
+    const label = on ? 'Exit full screen' : 'Full screen';
+    btn.title = label;
+    btn.setAttribute('aria-label', label);
+    btn.setAttribute('aria-pressed', on ? 'true' : 'false');
+    btn.innerHTML = scopeChartFsIcon(on);
+  });
+  requestAnimationFrame(() => {
+    ['scopeChange', 'scopeBreakdown'].forEach(name => {
+      const chart = S.charts && S.charts[name];
+      if (!chart) return;
+      try { chart.resize(); chart.update('none'); } catch (e) {}
+    });
+  });
+  if (!_routeNavigating) syncRoute();
+}
+
 function finishScopeChangeRender() {
+  document.body.classList.toggle('scope-chart-fs-active', !!S.scopeChartFullscreen);
   applyExpandedPeriodsFromRoute();
   if (!_routeNavigating) syncRoute();
 }
@@ -17204,11 +17994,19 @@ function renderScopeChange() {
     try { S.charts.scopeChange.destroy(); } catch (err) { /* chart already gone */ }
     delete S.charts.scopeChange;
   }
+  ['scopeBreakdown', 'scopeMilestoneAdded', 'scopeMilestoneRemoved'].forEach(chartKey => {
+    if (!S.charts[chartKey]) return;
+    try { S.charts[chartKey].destroy(); } catch (err) { /* chart already gone */ }
+    delete S.charts[chartKey];
+  });
   buildScopeProjectFilterOptions(getDeliveryProjects());
 
   const period = document.getElementById('scope-period')?.value || 'week';
   const range = parseInt(document.getElementById('scope-range')?.value || '90', 10);
   const measure = document.getElementById('scope-measure')?.value === 'effort' ? 'effort' : 'count';
+  const breakdown = ['scope', 'priority', 'project'].includes(document.getElementById('scope-breakdown')?.value)
+    ? document.getElementById('scope-breakdown').value
+    : 'custcom';
   const releaseLabel = getSelectedReleaseNames().join(', ') || 'Release';
 
   function emptySnapshot() {
@@ -17229,9 +18027,14 @@ function renderScopeChange() {
     return;
   }
 
-  const selectedProjects = getSelectedScopeProjects();
   let rows = scopeChangeRows();
-  if (selectedProjects.size) rows = rows.filter(row => selectedProjects.has(row.proj.key));
+  if (Array.isArray(S.scopeProjects)) rows = rows.filter(row => S.scopeProjects.includes(row.proj.key));
+  if (Array.isArray(S.scopeProjects) && !S.scopeProjects.length) {
+    emptySnapshot();
+    contentEl.innerHTML = '<div class="info-box">No projects selected. Use Select All in the project list.</div>';
+    finishScopeChangeRender();
+    return;
+  }
   if (!rows.length) {
     emptySnapshot();
     contentEl.innerHTML = '<div class="info-box">No data loaded yet. Sync market-release projects from Jira Connector.</div>';
@@ -17267,6 +18070,8 @@ function renderScopeChange() {
   const milestoneMarks = milestoneCtx.milestones.map(milestone => ({
     id: milestone.id,
     label: milestone.label,
+    color: milestone.color || '#185FA5',
+    dateLabel: formatMilestoneShortDate(milestone.date),
     time: new Date(milestone.date.getFullYear(), milestone.date.getMonth(), milestone.date.getDate()).getTime(),
   }));
   const discovery = milestoneMarks.find(mark => mark.id === 'DA');
@@ -17344,7 +18149,7 @@ function renderScopeChange() {
     <tr class="period-details period-details-${rowId} hidden">
       <td colspan="5" style="padding:0;background:var(--bg3)">
         <div style="padding:14px 20px">
-          ${scopeEventTableHtml(row.events)}
+          ${scopeEventTableHtml(row.events, rowId)}
         </div>
       </td>
     </tr>`;
@@ -17373,11 +18178,75 @@ function renderScopeChange() {
     <tr class="period-details period-details-${rowId} hidden">
       <td colspan="6" style="padding:0;background:var(--bg3)">
         <div style="padding:14px 20px">
-          ${scopeEventTableHtml(span.events)}
+          ${scopeEventTableHtml(span.events, rowId)}
         </div>
       </td>
     </tr>`;
   }).join('');
+  const breakdownTitles = {
+    custcom: 'Customer commitment',
+    scope: 'Scope commitment',
+    priority: 'Priority',
+    project: 'Project',
+  };
+  const breakdownTitle = breakdownTitles[breakdown] || breakdownTitles.custcom;
+  const milestoneBreakdown = scopeMilestoneBreakdown(visibleSpans, milestoneMarks, breakdown, measure);
+  const chartFiltered = applyScopeChartFilters(milestoneBreakdown, breakdown);
+  const chartView = scopeChartView();
+  const breakdownTableHtml = chartView.table === 'matrix'
+    ? scopeBreakdownMatrixHtml(chartFiltered, measure, breakdownTitle)
+    : scopeBreakdownListHtml(chartFiltered, measure, breakdownTitle);
+  const breakdownChart = scopeBreakdownAddedChart(chartFiltered, measure, chartView, period);
+  const groupNouns = { custcom: 'Customers', scope: 'Scope', priority: 'Priorities', project: 'Projects' };
+  const groupNoun = groupNouns[breakdown] || 'Groups';
+  const chartValueLabel = { added: 'Added', removed: 'Removed', net: 'Net', both: 'Added and removed' };
+  const chartLayoutLabel = { stacked: 'stacked', bar100: '100% stacked', grouped: 'grouped' };
+  const chartTypeLabel = { bar: 'Bar', line: 'Line', doughnut: 'Doughnut', pie: 'Pie' };
+  const chartFiltersHtml = `<div style="display:flex;gap:8px;flex-wrap:wrap;justify-content:flex-end">
+        ${scopeChartOptionsControl(chartView, { custcom: 'Customer', scope: 'Scope', priority: 'Priority', project: 'Project' }[breakdown] || 'Group')}
+        ${chartFiltered.spanOptions.length ? scopeChartFilterControl('spans', 'All milestones', 'Milestones', chartFiltered.spanOptions, chartFiltered.spans) : ''}
+        ${chartFiltered.groupOptions.length ? scopeChartFilterControl('groups', 'All ' + groupNoun.toLowerCase(), groupNoun, chartFiltered.groupOptions, chartFiltered.groups) : ''}
+        ${scopeChartFsButton('breakdown')}
+      </div>`;
+  const groupedBars = chartView.type === 'bar' && chartView.layout === 'grouped';
+  const seriesCount = Math.max(1, breakdownChart.datasets.length);
+  const rowHeight = groupedBars
+    ? Math.min(112, 20 + seriesCount * 16)
+    : chartView.along === 'span'
+      ? (chartView.value === 'both' && chartView.layout !== 'bar100' ? 72 : 56)
+      : (chartView.value === 'both' && chartView.layout !== 'bar100' ? 48 : 36);
+  const breakdownHeight = chartView.type === 'doughnut' || chartView.type === 'pie'
+    ? 320
+    : (chartView.type === 'bar' && chartView.axis !== 'x'
+      ? Math.min(groupedBars ? 720 : 520, Math.max(chartView.along === 'span' ? 280 : 220, breakdownChart.labels.length * rowHeight + 64))
+      : 300);
+  const breakdownNote = breakdown === 'custcom' ? ' A ticket with several customers counts in each.' : '';
+  const groupNote = (chartView.top === 'all' ? 'Showing up to 24 groups' : 'Showing the top ' + chartView.top)
+    + (chartView.sort === 'name' ? ', A to Z' : ', largest first')
+    + (chartView.other ? '. The rest is grouped as Other' : '');
+  const axisNoun = { custcom: 'customer', scope: 'scope value', priority: 'priority', project: 'project' }[breakdown] || 'group';
+  const groupedNote = groupedBars
+    ? (chartView.along === 'span'
+      ? ' Each bar is one ' + axisNoun + ', and its label is only that ' + axisNoun + '. The second line under the milestone is the total.'
+      : ' Each bar is one milestone span, and its label is that span only. The second line under the name is the total.')
+    : '';
+  const colorNote = chartView.type !== 'bar'
+    ? ''
+    : chartView.along === 'span'
+      ? ' Color is the ' + axisNoun + '.'
+      : ' Color is the milestone span.';
+  const shapeNote = chartView.type === 'bar'
+    ? ', ' + (chartLayoutLabel[chartView.layout] || 'stacked') + '.' + colorNote
+    : chartView.type === 'line'
+      ? '. Each point is one ' + (period === 'day' ? 'day' : period === 'month' ? 'month' : 'week') + ', from the first change to the last. Milestones in that stretch stay on their dates. One line per ' + axisNoun + '.'
+      : (chartView.along === 'group'
+        ? '. One slice per ' + axisNoun + '.'
+        : '. One slice per milestone span.');
+  const chartCaption = (chartTypeLabel[chartView.type] || 'Bar') + ' of ' + (chartValueLabel[chartView.value] || 'Added').toLowerCase()
+    + shapeNote
+    + groupedNote
+    + ' ' + groupNote + '.'
+    + breakdownNote;
   const releaseName = milestoneCtx.release && milestoneCtx.release.name;
   const milestoneCaption = markers.length
     ? ` Colored lines are ${releaseName ? esc(releaseName) + ' ' : ''}milestones.`
@@ -17391,10 +18260,13 @@ function renderScopeChange() {
     </div>
     ${historyNote ? `<div class="info-box" style="margin-bottom:12px">${esc(historyNote)}</div>` : ''}
     ${estimateNote ? `<div class="info-box" style="margin-bottom:12px">${esc(estimateNote)}</div>` : ''}
-    ${periods.length ? `<div class="card" style="margin-bottom:20px">
-      <h3 style="font-size:15px;font-weight:600;margin-bottom:4px">Added and removed scope</h3>
+    ${periods.length ? `<div class="card scope-chart-card${S.scopeChartFullscreen === 'trend' ? ' is-fullscreen' : ''}" id="scope-trend-card" style="margin-bottom:20px">
+      <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:12px;margin-bottom:4px">
+        <h3 style="font-size:15px;font-weight:600;margin:0">Added and removed scope</h3>
+        ${scopeChartFsButton('trend')}
+      </div>
       <p style="font-size:12px;color:var(--text3);margin-bottom:14px">By ${measure === 'effort' ? 'effort' : 'ticket count'}. A ticket that left this release is included when another synced release still has it.${milestoneCaption}</p>
-      <div style="position:relative;width:100%;height:280px">
+      <div class="scope-chart-plot" style="position:relative;width:100%;height:280px">
         <canvas id="scope-change-chart" role="img" aria-label="Added and removed scope"></canvas>
       </div>
     </div>` : ''}
@@ -17413,7 +18285,7 @@ function renderScopeChange() {
         <tbody>${spanRowsHtml}</tbody>
       </table>
     </div>` : ''}
-    ${rowsHtml ? `<div class="card">
+    ${rowsHtml ? `<div class="card" style="margin-bottom:20px">
       <h3 style="font-size:15px;font-weight:600;margin:0 0 12px">Periods</h3>
       <table class="pipeline-table" style="margin-bottom:0">
         <thead><tr>
@@ -17425,6 +18297,17 @@ function renderScopeChange() {
         </tr></thead>
         <tbody>${rowsHtml}</tbody>
       </table>
+    </div>` : ''}
+    ${(breakdownTableHtml || chartFiltered.ranked.length || chartFiltered.spanOptions.length) ? `<div class="card scope-chart-card${S.scopeChartFullscreen === 'breakdown' ? ' is-fullscreen' : ''}" id="scope-breakdown-card" style="margin-bottom:20px">
+      <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:12px;flex-wrap:wrap;margin-bottom:4px">
+        <h3 style="font-size:15px;font-weight:600;margin:0">${esc(breakdownTitle)} by milestone</h3>
+        ${chartFiltersHtml}
+      </div>
+      <p style="font-size:12px;color:var(--text3);margin-bottom:14px">${esc(chartCaption)}</p>
+      ${breakdownChart.labels.length ? `<div class="scope-chart-plot" style="position:relative;width:100%;height:${breakdownHeight}px">
+        <canvas id="scope-breakdown-chart" role="img" aria-label="${esc(breakdownTitle)} added by milestone"></canvas>
+      </div>` : ''}
+      ${breakdownTableHtml || '<p style="font-size:12px;color:var(--text3);margin:0">Nothing matches these filters.</p>'}
     </div>` : ''}`;
 
   const canvas = document.getElementById('scope-change-chart');
@@ -17476,28 +18359,194 @@ function renderScopeChange() {
       },
     });
   }
+  const breakdownCanvas = document.getElementById('scope-breakdown-chart');
+  if (breakdownCanvas && window.Chart && breakdownChart.labels.length && breakdownChart.datasets.length) {
+    const round = chartView.type === 'doughnut' || chartView.type === 'pie';
+    const horizontal = chartView.type === 'bar' && chartView.axis !== 'x';
+    const stacked = chartView.type === 'bar' && chartView.layout !== 'grouped';
+    const valueTitle = chartView.layout === 'bar100' ? 'Share' : (measure === 'effort' ? 'Days' : 'Tickets');
+    const categoryScale = {
+      stacked,
+      ticks: {
+        autoSkip: false,
+        maxRotation: horizontal ? 0 : 40,
+        callback: chartView.type === 'line' && breakdownChart.points
+          ? function(value) {
+            const point = breakdownChart.points[Number(value)];
+            if (!point) return this.getLabelForValue(value);
+            return point.date ? [point.id, point.date] : point.id;
+          }
+          : groupedBars && chartView.layout !== 'bar100'
+            ? function(value) { return scopeGroupedCategoryTick(this, value, breakdownChart, chartView, measure); }
+            : undefined,
+      },
+    };
+    const valueScale = {
+      stacked,
+      beginAtZero: true,
+      grace: chartView.values ? '14%' : 0,
+      title: { display: true, text: valueTitle },
+      ticks: chartView.type === 'bar' && chartView.layout === 'bar100'
+        ? { callback(value) { return value + '%'; } }
+        : { precision: measure === 'effort' ? 1 : 0 },
+    };
+    const chartOptions = {
+      animation: false,
+      responsive: true,
+      maintainAspectRatio: false,
+      plugins: {
+        legend: {
+          display: chartView.legend,
+          position: 'bottom',
+          labels: {
+            boxWidth: 12,
+            filter(item) {
+              const dataset = breakdownChart.datasets[item.datasetIndex];
+              return !dataset || !dataset.hideFromLegend;
+            },
+          },
+        },
+        tooltip: {
+          filter(item) {
+            if (round) return Number(item.raw);
+            const axis = chartView.type === 'line' || !horizontal ? 'y' : 'x';
+            return item.parsed && item.parsed[axis];
+          },
+          callbacks: {
+            label(ctx) {
+              const signed = ctx.dataset.signed && ctx.dataset.signed[ctx.dataIndex];
+              const value = round
+                ? (signed == null ? Number(ctx.raw) || 0 : signed)
+                : ctx.parsed[chartView.type === 'line' || !horizontal ? 'y' : 'x'];
+              const kind = ctx.dataset.kind ? ' ' + ctx.dataset.kind : '';
+              const text = chartView.type === 'bar' && chartView.layout === 'bar100'
+                ? (Math.round(Math.abs(value) * 10) / 10) + '%'
+                : formatScopeMeasure(value, measure);
+              const name = round ? ctx.label : ctx.dataset.label;
+              return name + kind + ': ' + (value < 0 && chartView.layout === 'bar100' ? '-' : '') + text;
+            },
+          },
+        },
+      },
+    };
+    if (chartView.type === 'line' && breakdownChart.points && breakdownChart.points.length) {
+      const linePoints = breakdownChart.points;
+      const tickTimes = (breakdownChart.markers || []).map(marker => marker.idx).filter(time => typeof time === 'number');
+      const times = linePoints.map(point => point.time).concat(tickTimes);
+      const minTime = Math.min.apply(null, times);
+      const maxTime = Math.max.apply(null, times);
+      const span = Math.max(maxTime - minTime, 86400000);
+      const edge = span * 0.03;
+      chartOptions.indexAxis = 'x';
+      chartOptions.interaction = { mode: 'index', intersect: false };
+      chartOptions.scales = {
+        x: {
+          type: 'linear',
+          min: minTime - edge,
+          max: maxTime + edge,
+          grid: { display: false },
+          afterBuildTicks(scale) {
+            const source = tickTimes.length ? tickTimes : [linePoints[0].time, linePoints[linePoints.length - 1].time];
+            const ticks = source.map(time => ({ value: time }));
+            scale.ticks = ticks;
+            return ticks;
+          },
+          ticks: {
+            autoSkip: true,
+            autoSkipPadding: 12,
+            maxRotation: 0,
+            callback(value) {
+              const index = tickTimes.indexOf(value);
+              const when = new Date(value);
+              if (Number.isNaN(when.getTime())) return '';
+              const month = when.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+              const year = when.getFullYear();
+              const previous = index > 0 ? new Date(tickTimes[index - 1]).getFullYear() : year;
+              return index <= 0 || year !== previous ? month + " '" + String(year).slice(2) : month;
+            },
+          },
+        },
+        y: valueScale,
+      };
+    } else if (!round) {
+      chartOptions.indexAxis = horizontal ? 'y' : 'x';
+      chartOptions.scales = horizontal
+        ? { x: valueScale, y: categoryScale }
+        : { x: categoryScale, y: valueScale };
+    }
+    if (chartView.type === 'bar') {
+      chartOptions.datasets = {
+        bar: {
+          categoryPercentage: groupedBars ? 0.86 : 0.9,
+          barPercentage: groupedBars ? 0.92 : 1,
+          maxBarThickness: groupedBars ? 18 : 28,
+        },
+      };
+    }
+    if (chartView.values) {
+      chartOptions.layout = {
+        padding: {
+          top: !round && !horizontal ? 16 : 4,
+          right: horizontal ? 48 : 8,
+          bottom: 4,
+          left: horizontal ? 8 : 4,
+        },
+      };
+    }
+    const lineMarkers = chartView.type === 'line' && breakdownChart.markers && breakdownChart.markers.length
+      ? breakdownChart.markers
+      : [];
+    if (lineMarkers.length) {
+      chartOptions.plugins.phaseReleaseTimeline = { markers: lineMarkers, stackLabels: true };
+      const padding = (chartOptions.layout && chartOptions.layout.padding) || { top: 4, right: 8, bottom: 4, left: 4 };
+      chartOptions.layout = { padding: Object.assign({}, padding, { top: Math.max(padding.top || 0, 34) }) };
+    }
+    if (chartView.type === 'line' && breakdownChart.points) {
+      chartOptions.plugins.tooltip.callbacks.title = items => {
+        const point = items.length ? breakdownChart.points[items[0].dataIndex] : null;
+        return point && point.label ? point.label : (items.length ? items[0].label : '');
+      };
+    }
+    S.charts.scopeBreakdown = new Chart(breakdownCanvas, {
+      type: chartView.type,
+      plugins: (chartView.values ? [scopeBreakdownValuesPlugin(chartView, horizontal, measure)] : []).concat(lineMarkers.length ? [phaseReleaseTimelinePlugin] : []),
+      data: { labels: breakdownChart.labels, datasets: breakdownChart.datasets },
+      options: chartOptions,
+    });
+  }
   finishScopeChangeRender();
 }
 
 function buildScopeProjectFilterOptions(projects) {
   const optionsEl = document.getElementById('scope-project-filter-options');
   if (!optionsEl) return;
-  const signature = (projects || []).map(proj => proj.key).join('|');
+  const list = projects || [];
+  const keys = list.map(proj => proj.key);
   const pending = consumePendingRouteParam('projects');
+  if (pending === 'none' || pending === '-') S.scopeProjects = [];
+  else if (pending) {
+    S.scopeProjects = pending.split(',').map(item => {
+      try { return decodeURIComponent(item.trim()); } catch (e) { return item.trim(); }
+    }).filter(key => keys.includes(key));
+  }
+  if (Array.isArray(S.scopeProjects) && keys.length && S.scopeProjects.length >= keys.length) S.scopeProjects = null;
+  const allOn = S.scopeProjects == null;
+  const picked = new Set(allOn ? keys : S.scopeProjects);
+  const signature = keys.join('|');
   if (!(optionsEl.dataset.signature === signature && optionsEl.children.length)) {
-    const selected = getSelectedScopeProjects();
     optionsEl.dataset.signature = signature;
-    optionsEl.innerHTML = (projects || []).map(proj => `
+    optionsEl.innerHTML = list.map(proj => `
       <label class="ms-option">
-        <input type="checkbox" value="${esc(proj.key)}" ${selected.has(proj.key) ? 'checked' : ''} onchange="updateScopeProjectFilter()">
+        <input type="checkbox" value="${esc(proj.key)}" ${picked.has(proj.key) ? 'checked' : ''} onchange="updateScopeProjectFilter()">
         <span class="ms-option-label">
           <span style="width:8px;height:8px;border-radius:50%;background:${proj.color};display:inline-block;margin-right:6px"></span>
           ${esc(proj.name)}
         </span>
       </label>
     `).join('');
+  } else {
+    optionsEl.querySelectorAll('input[type="checkbox"]').forEach(cb => { cb.checked = picked.has(cb.value); });
   }
-  if (pending) setCheckboxFilterFromCsv('scope-project-filter-options', pending);
   updateScopeProjectFilterLabel();
 }
 
@@ -17529,40 +18578,189 @@ function getSelectedScopeProjects() {
 }
 
 function updateScopeProjectFilterLabel() {
-  const selected = getSelectedScopeProjects();
   const btn = document.getElementById('scope-project-filter-btn');
   const label = document.getElementById('scope-project-filter-label');
   const badge = document.getElementById('scope-project-filter-count');
-  const boxes = document.querySelectorAll('#scope-project-filter-options input[type="checkbox"]');
   if (!label || !badge || !btn) return;
-  if (!selected.size || selected.size === boxes.length) {
+  if (S.scopeProjects == null) {
     label.textContent = 'All Projects';
     badge.style.display = 'none';
     btn.classList.remove('has-selection');
     return;
   }
-  label.textContent = 'Projects';
-  badge.textContent = selected.size;
+  label.textContent = S.scopeProjects.length ? 'Projects' : 'None';
+  badge.textContent = S.scopeProjects.length;
   badge.style.display = '';
   btn.classList.add('has-selection');
 }
 
 function updateScopeProjectFilter() {
-  updateScopeProjectFilterLabel();
+  const selected = [...getSelectedScopeProjects()];
+  const total = document.querySelectorAll('#scope-project-filter-options input[type="checkbox"]').length;
+  S.scopeProjects = !selected.length ? [] : selected.length === total ? null : selected;
   renderScopeChange();
 }
 
 function clearScopeProjectFilter() {
-  const optionsEl = document.getElementById('scope-project-filter-options');
-  if (optionsEl) optionsEl.querySelectorAll('input[type="checkbox"]').forEach(cb => { cb.checked = false; });
-  updateScopeProjectFilter();
+  S.scopeProjects = [];
+  renderScopeChange();
 }
 
 function selectAllScopeProjects() {
-  const optionsEl = document.getElementById('scope-project-filter-options');
-  if (!optionsEl) return;
-  optionsEl.querySelectorAll('input[type="checkbox"]').forEach(cb => { cb.checked = true; });
-  updateScopeProjectFilter();
+  S.scopeProjects = null;
+  renderScopeChange();
+}
+
+function toggleScopeChartFilter(id) {
+  const dropdown = document.getElementById('scope-filter-' + id);
+  if (!dropdown) return;
+  const willOpen = !dropdown.classList.contains('open');
+  document.querySelectorAll('#scope-change-content .ms-dropdown.open').forEach(el => el.classList.remove('open'));
+  S._scopeFilterOpen = willOpen ? id : '';
+  if (willOpen) dropdown.classList.add('open');
+}
+
+function filterScopeChartOptions(id, query) {
+  const box = document.getElementById('scope-filter-opts-' + id);
+  if (!box) return;
+  const text = String(query || '').toLowerCase();
+  box.querySelectorAll('.ms-option').forEach(el => {
+    const value = String(el.dataset.value || '').toLowerCase();
+    el.style.display = value.includes(text) ? '' : 'none';
+  });
+}
+
+function setScopeChartFilter(id, checked) {
+  const box = document.getElementById('scope-filter-opts-' + id);
+  if (!box) return;
+  box.querySelectorAll('input[type="checkbox"]').forEach(cb => { cb.checked = checked; });
+  updateScopeChartFilter(id);
+}
+
+function setScopeChartOption(key, value) {
+  if (!S.scopeChartOptions) S.scopeChartOptions = {};
+  S.scopeChartOptions[key] = value === 'true' ? true : value === 'false' ? false : value;
+  S._scopeFilterOpen = 'chart-options';
+  renderScopeChange();
+}
+
+function scopeGroupedCategoryTick(scale, value, chartData, chartView, measure) {
+  const label = scale.getLabelForValue(value);
+  const index = Number(value);
+  let added = 0;
+  let removed = 0;
+  let other = 0;
+  (chartData.datasets || []).forEach(dataset => {
+    const amount = Number(dataset.data[index]) || 0;
+    if (dataset.kind === 'removed') removed += amount;
+    else if (dataset.kind === 'added') added += amount;
+    else other += amount;
+  });
+  const total = chartView.value === 'both'
+    ? formatScopeMeasure(added, measure) + ' / ' + formatScopeMeasure(removed, measure)
+    : formatScopeMeasure(other || added || removed, measure);
+  return total ? [label, total] : label;
+}
+
+function resetScopeChartOptions() {
+  S.scopeChartOptions = {};
+  S._scopeFilterOpen = 'chart-options';
+  renderScopeChange();
+}
+
+function scopeBreakdownValuesPlugin(chartView, horizontal, measure) {
+  return {
+    id: 'scopeBreakdownValues',
+    afterDatasetsDraw(chart) {
+      const ctx = chart.ctx;
+      const area = chart.chartArea;
+      if (!ctx || !area) return;
+      ctx.save();
+      ctx.font = '600 11px ui-sans-serif, system-ui, sans-serif';
+      ctx.fillStyle = '#5c5852';
+      const round = chartView.type === 'doughnut' || chartView.type === 'pie';
+      if (round) {
+        const dataset = chart.data.datasets[0] || {};
+        const data = dataset.data || [];
+        const signed = dataset.signed || data;
+        const absTotal = data.reduce((sum, n) => sum + (Number(n) || 0), 0);
+        const signedTotal = signed.reduce((sum, n) => sum + (Number(n) || 0), 0);
+        const meta = chart.getDatasetMeta(0);
+        (meta && meta.data || []).forEach((el, index) => {
+          const value = Number(data[index]) || 0;
+          if (!value || !el || !el.tooltipPosition || !absTotal) return;
+          const pct = value / absTotal * 100;
+          if (pct < 6) return;
+          const pos = el.tooltipPosition();
+          ctx.textAlign = 'center';
+          ctx.textBaseline = 'middle';
+          ctx.fillText(Math.round(pct) + '%', pos.x, pos.y);
+        });
+        if (chartView.type === 'doughnut') {
+          ctx.textAlign = 'center';
+          ctx.textBaseline = 'middle';
+          ctx.fillText(formatScopeMeasure(signedTotal, measure), (area.left + area.right) / 2, (area.top + area.bottom) / 2);
+        }
+        ctx.restore();
+        return;
+      }
+      if (chartView.type !== 'bar') { ctx.restore(); return; }
+      const stacked = chartView.layout !== 'grouped';
+      const buckets = new Map();
+      chart.data.datasets.forEach((dataset, dsIndex) => {
+        const meta = chart.getDatasetMeta(dsIndex);
+        if (!meta || meta.hidden || !meta.data) return;
+        dataset.data.forEach((raw, index) => {
+          const value = Number(raw) || 0;
+          if (!value) return;
+          const el = meta.data[index];
+          if (!el || !el.tooltipPosition) return;
+          const key = (stacked ? (dataset.stack || 'value') : 'ds' + dsIndex) + ':' + index;
+          const bucket = buckets.get(key) || { total: 0, tips: [] };
+          bucket.total += value;
+          bucket.tips.push({ value, pos: el.tooltipPosition() });
+          buckets.set(key, bucket);
+        });
+      });
+      buckets.forEach(bucket => {
+        if (!bucket.total || !bucket.tips.length) return;
+        const negative = bucket.total < 0;
+        const tip = bucket.tips.reduce((best, item) => {
+          const coord = horizontal ? item.pos.x : item.pos.y;
+          const bestCoord = horizontal ? best.pos.x : best.pos.y;
+          const further = horizontal
+            ? (negative ? coord < bestCoord : coord > bestCoord)
+            : (negative ? coord > bestCoord : coord < bestCoord);
+          return further ? item : best;
+        });
+        const text = chartView.layout === 'bar100'
+          ? Math.round(bucket.total) + '%'
+          : formatScopeMeasure(bucket.total, measure);
+        ctx.textAlign = horizontal ? (negative ? 'right' : 'left') : 'center';
+        ctx.textBaseline = horizontal ? 'middle' : (negative ? 'top' : 'bottom');
+        ctx.fillText(
+          text,
+          tip.pos.x + (horizontal ? (negative ? -6 : 6) : 0),
+          tip.pos.y + (horizontal ? 0 : (negative ? 4 : -4)),
+        );
+      });
+      ctx.restore();
+    },
+  };
+}
+
+function updateScopeChartFilter(id) {
+  const box = document.getElementById('scope-filter-opts-' + id);
+  if (!box) return;
+  const checked = [];
+  box.querySelectorAll('input[type="checkbox"]').forEach(cb => { if (cb.checked) checked.push(cb.value); });
+  const total = box.querySelectorAll('input[type="checkbox"]').length;
+  if (!S.scopeChartFilters) S.scopeChartFilters = { breakdown: 'custcom', spans: null, groups: null };
+  const key = id === 'spans' ? 'spans' : 'groups';
+  S.scopeChartFilters[key] = !checked.length ? [] : checked.length === total ? null : checked.slice();
+  S.scopeChartFilters.breakdown = document.getElementById('scope-breakdown')?.value || 'custcom';
+  S._scopeFilterOpen = id;
+  renderScopeChange();
 }
 
 function updateLogBadge() {
@@ -18003,6 +19201,10 @@ if (!S._phaseChartFsBound) {
     if (historyCard) {
       const canvas = historyCard.querySelector('canvas');
       if (canvas) toggleQualityHistoryMaximize(canvas.id, false);
+      return;
+    }
+    if (S.scopeChartFullscreen) {
+      toggleScopeChartFullscreen(S.scopeChartFullscreen);
       return;
     }
     if (S.phaseChartFullscreen) togglePhaseChartFullscreen(false);

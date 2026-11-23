@@ -202,6 +202,24 @@ assert.strictEqual(oneMark[0].addedCount, 0);
 assert.strictEqual(oneMark[1].label, 'After SC');
 assert.strictEqual(oneMark[1].addedCount, 1);
 
+const breakdown = ScopeChange.summarizeScopeBreakdown([
+  { kind: 'added', time: 1, days: 2 },
+  { kind: 'removed', time: 2, days: 1 },
+  { kind: 'added', time: 3, days: 4 },
+], event => {
+  if (event.time === 1) return ['Acme', 'Acme'];
+  if (event.time === 2) return ['Acme', 'Northwind'];
+  return [];
+});
+assert.deepStrictEqual(breakdown.map(row => row.label), ['Acme', 'Northwind', 'Not set']);
+assert.strictEqual(breakdown[0].addedCount, 1);
+assert.strictEqual(breakdown[0].removedCount, 1);
+assert.strictEqual(breakdown[0].addedDays, 2);
+assert.strictEqual(breakdown[0].removedDays, 1);
+assert.strictEqual(breakdown[1].removedCount, 1);
+assert.strictEqual(breakdown[2].addedCount, 1);
+assert.strictEqual(breakdown[2].addedDays, 4);
+
 const page = Menu.insightPage('scope-change');
 assert.ok(page && page.label === 'Scope change');
 assert.ok(Menu.defaultMenuGroups()[0].pages.includes('scope-change'));
@@ -218,6 +236,39 @@ assert.ok(html.includes('_includesFixVersions'));
 assert.ok(html.includes('Between milestones'));
 assert.ok(html.includes('index === 0 && discovery'));
 assert.ok(html.includes('phaseReleaseTimelinePlugin'));
+assert.ok(html.includes('id="scope-breakdown"'));
+assert.ok(html.includes('id="scope-breakdown-chart"'));
+assert.ok(html.includes('updateScopeChartFilter'));
+assert.ok(html.includes("!checked.length ? []"));
+assert.ok(html.includes('S.scopeProjects = []'));
+assert.ok(html.includes('toggleScopeChartFullscreen'));
+assert.ok(html.includes('scope-chart-card'));
+assert.ok(html.includes("scopeChartFilterControl('spans'"));
+assert.ok(html.includes('setScopeChartOption'));
+assert.ok(html.includes('resetScopeChartOptions'));
+assert.ok(html.includes('scope-chart-menu'));
+assert.ok(html.includes('scopeBreakdownValuesPlugin'));
+assert.ok(html.includes('scopeGroupedCategoryTick'));
+assert.ok(html.includes('Each bar is one milestone span'));
+assert.ok(html.includes('scopeLineMilestonePoints'));
+assert.ok(html.includes('scopeLinePeriodPoints'));
+assert.ok(html.includes('scopeLineTrimToActivity'));
+assert.ok(html.includes('Each point is one '));
+assert.ok(html.includes('<th>Milestone</th>'));
+assert.ok(html.includes('scopeBreakdownMatrixHtml'));
+assert.ok(html.includes('scope-matrix-net'));
+assert.ok(html.includes('>Collapse</button>'));
+assert.ok(html.includes("chartTable', 'matrix'"));
+assert.ok(html.includes('afterBuildTicks'));
+assert.ok(html.includes('stackLabels'));
+assert.ok(html.includes('chartAlong'));
+assert.ok(html.includes("['span', 'Milestone'], ['group', noun]"));
+assert.ok(html.includes('Chart options'));
+assert.ok(html.includes('100% stacked'));
+assert.ok(html.includes("['line', 'doughnut', 'pie']"));
+assert.ok(html.includes('All, up to 24'));
+assert.ok(!html.includes('id="scope-milestone-added"'));
+assert.ok(html.indexOf('>Periods<') < html.indexOf('id="scope-breakdown-chart"'));
 
 const proxy = fs.readFileSync(path.join(root, 'proxy.js'), 'utf8');
 assert.ok(proxy.includes('/lib/scope-change.js'));
