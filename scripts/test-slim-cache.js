@@ -38,6 +38,7 @@ const fatIssue = {
         created: '2026-08-01T12:00:00.000Z',
         items: [
           { field: 'status', fieldId: 'status', fromString: 'Dev-Developing', toString: 'Closed' },
+          { field: 'Fix Version', fieldId: 'fixVersions', fromString: 'N2026.R2', toString: 'N2027.R1' },
           { field: 'description', fieldId: 'description', fromString: 'old', toString: 'new' },
         ],
       },
@@ -60,12 +61,20 @@ assert.ok(!slimmedIssue.fields.assignee.avatarUrls);
 assert.ok(!slimmedIssue.fields.assignee.self);
 assert.ok(!slimmedIssue.fields.status.self);
 assert.strictEqual(slimmedIssue.changelog.histories.length, 1);
-assert.deepStrictEqual(slimmedIssue.changelog.histories[0].items, [{
-  field: 'status',
-  fieldId: 'status',
-  fromString: 'Dev-Developing',
-  toString: 'Closed',
-}]);
+assert.deepStrictEqual(slimmedIssue.changelog.histories[0].items, [
+  {
+    field: 'status',
+    fieldId: 'status',
+    fromString: 'Dev-Developing',
+    toString: 'Closed',
+  },
+  {
+    field: 'Fix Version',
+    fieldId: 'fixVersions',
+    fromString: 'N2026.R2',
+    toString: 'N2027.R1',
+  },
+]);
 assert.ok(!slimmedIssue.changelog.histories[0].author);
 
 const changelog = slimChangelog({
@@ -74,6 +83,22 @@ const changelog = slimChangelog({
 });
 assert.strictEqual(changelog._source, 'bulkfetch');
 assert.strictEqual(changelog.histories[0].items[0].toString, 'QA');
+
+const flagged = slimChangelog({
+  _includesFixVersions: true,
+  _source: 'bulkfetch',
+  histories: [{
+    created: 'x',
+    items: [
+      { field: 'Fix Version', fieldId: 'fixVersions', fromString: 'N2026.R2', toString: '' },
+      { field: 'summary', toString: 'nope' },
+    ],
+  }],
+});
+assert.strictEqual(flagged._includesFixVersions, true);
+assert.strictEqual(flagged.histories.length, 1);
+assert.strictEqual(flagged.histories[0].items[0].fieldId, 'fixVersions');
+assert.strictEqual(flagged.histories[0].items[0].toString, '');
 
 const state = slimDashboardState({
   page: 'overview',

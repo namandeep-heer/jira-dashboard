@@ -195,6 +195,12 @@ app.get('/lib/quality-history.js', (req, res) => {
   res.sendFile(path.join(ROOT, 'lib', 'quality-history.js'));
 });
 
+app.get('/lib/scope-change.js', (req, res) => {
+  res.setHeader('Cache-Control', 'no-store');
+  res.type('application/javascript');
+  res.sendFile(path.join(ROOT, 'lib', 'scope-change.js'));
+});
+
 app.get('/lib/epic-groups.js', (req, res) => {
   res.setHeader('Cache-Control', 'no-store');
   res.type('application/javascript');

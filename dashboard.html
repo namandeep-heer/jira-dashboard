@@ -10,6 +10,7 @@
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js"></script>
 <script src="/lib/release-milestones.js"></script>
 <script src="/lib/quality-history.js"></script>
+<script src="/lib/scope-change.js"></script>
 <script src="/lib/epic-groups.js"></script>
 <script src="/lib/jira-write-ui.js"></script>
 <script src="/lib/release-plan.js"></script>
@@ -2756,6 +2757,49 @@ code { font-family: monospace; font-size: 12px; background: var(--bg3); padding:
         <div id="log-content"></div>
       </div>
 
+      <!-- Scope change -->
+      <div class="page" id="page-scope-change">
+        <div style="display:flex;align-items:flex-start;justify-content:space-between;margin-bottom:18px;gap:20px">
+          <div style="flex:1">
+            <h2 style="font-size:18px;font-weight:600;margin-bottom:3px">Scope change</h2>
+            <p style="font-size:13px;color:var(--text2)">Tickets added to or removed from the selected release, by day, week, or month. Milestone lines sit on the chart, and the summary counts added and removed scope between those milestones. Effort uses Dev Actual days, or Dev Estimate when actual is not set.</p>
+          </div>
+          <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;justify-content:flex-end">
+            <div class="ms-wrap">
+              <button class="ms-btn" id="scope-project-filter-btn" type="button" onclick="toggleScopeProjectFilter()">
+                <span id="scope-project-filter-label">All Projects</span>
+                <span class="ms-badge" id="scope-project-filter-count" style="display:none">0</span>
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"/></svg>
+              </button>
+              <div class="ms-dropdown" id="scope-project-filter-dropdown">
+                <div class="ms-options" id="scope-project-filter-options"></div>
+                <div class="ms-footer">
+                  <button type="button" onclick="clearScopeProjectFilter()">Clear</button>
+                  <button type="button" onclick="selectAllScopeProjects()">Select All</button>
+                </div>
+              </div>
+            </div>
+            <select id="scope-period" class="section-control" onchange="renderScopeChange()">
+              <option value="day">By Day</option>
+              <option value="week" selected>By Week</option>
+              <option value="month">By Month</option>
+            </select>
+            <select id="scope-range" class="section-control" onchange="renderScopeChange()">
+              <option value="30">Last 30 days</option>
+              <option value="90" selected>Last 90 days</option>
+              <option value="180">Last 6 months</option>
+              <option value="365">Last year</option>
+            </select>
+            <select id="scope-measure" class="section-control" onchange="renderScopeChange()">
+              <option value="count" selected>By count</option>
+              <option value="effort">By effort</option>
+            </select>
+            <button class="btn btn-sm" type="button" onclick="exportCSV()" title="Export tickets added or removed in this range">Export HTML</button>
+          </div>
+        </div>
+        <div id="scope-change-content"></div>
+      </div>
+
       <!-- Project pages -->
       <div class="page proj-page" id="page-p0"></div>
       <div class="page proj-page" id="page-p1"></div>
@@ -4887,13 +4931,8 @@ function slimIssueForCache(issue) {
   });
   const histories = (issue.changelog?.histories || []).map(history => {
     const items = (history.items || [])
-      .filter(item => item && (item.field === 'status' || item.fieldId === 'status'))
-      .map(item => ({
-        field: item.field || 'status',
-        fieldId: item.fieldId || 'status',
-        fromString: item.fromString || '',
-        toString: item.toString || '',
-      }));
+      .filter(item => isKeptChangelogItem(item))
+      .map(item => slimKeptChangelogItem(item));
     return items.length ? { created: history.created, items } : null;
   }).filter(Boolean);
   const out = { key: issue.key, fields };
@@ -4906,8 +4945,31 @@ function slimIssueForCache(issue) {
       histories,
     };
     if (issue.changelog._source) out.changelog._source = issue.changelog._source;
+    if (issue.changelog._includesFixVersions) out.changelog._includesFixVersions = true;
   }
   return out;
+}
+
+function isKeptChangelogItem(item) {
+  if (window.ScopeChange && typeof ScopeChange.isKeptChangelogItem === 'function') {
+    return ScopeChange.isKeptChangelogItem(item);
+  }
+  if (!item) return false;
+  const id = String(item.fieldId || '');
+  const field = String(item.field || '');
+  return id === 'status' || field === 'status' || id === 'fixVersions' || /fix\s*version/i.test(field);
+}
+
+function slimKeptChangelogItem(item) {
+  if (window.ScopeChange && typeof ScopeChange.slimChangelogItem === 'function') {
+    return ScopeChange.slimChangelogItem(item);
+  }
+  return {
+    field: item.field || '',
+    fieldId: item.fieldId || '',
+    fromString: item.fromString || '',
+    toString: item.toString || '',
+  };
 }
 
 function getStoredState() {
@@ -5118,7 +5180,7 @@ async function checkProxy() {
 
 // ── Deep linking (History API) ───────────────────────────────────────────────
 const STATIC_PAGES = new Set([
-  'setup', 'velocity', 'data-gaps', 'analytics', 'release-report', 'quality-insights', 'quality-phase', 'quality-progress', 'team', 'release-plan', 'phase-timeline', 'log',
+  'setup', 'velocity', 'data-gaps', 'analytics', 'release-report', 'quality-insights', 'quality-phase', 'quality-progress', 'team', 'release-plan', 'phase-timeline', 'log', 'scope-change',
   'connector', 'projects-config', 'menu', 'releases-config', 'milestones-config', 'fields'
 ]);
 
@@ -5363,6 +5425,20 @@ function applyPendingRouteState(page) {
     if (!detailsView && params.get('groupByProject') === '0') S.phaseDetailsView = 'phase';
   }
 
+  if (page === 'scope-change') {
+    const period = params.get('period');
+    const range = params.get('range');
+    const measure = params.get('measure');
+    if (period) { const el = document.getElementById('scope-period'); if (el) el.value = period; }
+    if (range) { const el = document.getElementById('scope-range'); if (el) el.value = range; }
+    if (measure === 'effort' || measure === 'count') {
+      const el = document.getElementById('scope-measure');
+      if (el) el.value = measure;
+    }
+    const expand = params.get('expand');
+    if (expand) S._expandedPeriods = new Set(expand.split(',').map(s => decodeURIComponent(s.trim())).filter(Boolean));
+  }
+
   if (page === 'log' || page === 'quality-progress') {
     const period = params.get('period');
     const range = params.get('range');
@@ -5581,6 +5657,16 @@ function collectRouteParams() {
     if (S._expandedPeriods?.size) params.set('expand', [...S._expandedPeriods].join(','));
     // Default detail hierarchy is direction→phase; persist alternate view only
     if (S.logDetailsView === 'project') params.set('detailsView', 'project');
+  } else if (page === 'scope-change') {
+    const projects = csvParam(getSelectedScopeProjects());
+    if (projects) params.set('projects', projects);
+    const period = document.getElementById('scope-period')?.value;
+    const range = document.getElementById('scope-range')?.value;
+    const measure = document.getElementById('scope-measure')?.value;
+    if (period && period !== 'week') params.set('period', period);
+    if (range && range !== '90') params.set('range', range);
+    if (measure === 'effort') params.set('measure', 'effort');
+    if (S._expandedPeriods?.size) params.set('expand', [...S._expandedPeriods].join(','));
   } else if (page === 'projects-config') {
     if (S._routeModalOpen === 'jql' && S._routeModalKey) {
       params.set('modal', 'jql');
@@ -5702,6 +5788,9 @@ function nav(id, opts = {}) {
   } else if (id === 'log') {
     document.getElementById('topbar-title').textContent = 'Daily Progress';
     renderDailyProgress();
+  } else if (id === 'scope-change') {
+    document.getElementById('topbar-title').textContent = 'Scope change';
+    renderScopeChange();
   } else if (id === 'projects-config') {
     document.getElementById('topbar-title').textContent = 'Projects';
     renderProjectsConfig();
@@ -5963,6 +6052,7 @@ async function refreshAll() {
   else if (S.page === 'quality-phase') renderPhaseTimeline();
   else if (S.page === 'quality-progress') renderDailyProgress();
   else if (S.page === 'log') renderDailyProgress();
+  else if (S.page === 'scope-change') renderScopeChange();
   else if (S.page === 'release-plan') renderReleasePlan({ keepScroll: true });
 }
 
@@ -6344,12 +6434,12 @@ async function fetchBulkChangelogs(baseUrl, auth, issueIdsOrKeys, fieldIds = ['s
       const id = String(block.issueId);
       if (!byIssueId.has(id)) byIssueId.set(id, []);
       let histories = (block.changeHistories || []).map(normalizeChangelogHistory);
-      // If we requested all fields, keep only status items (plus empty-item-free histories)
+      // If we requested all fields, keep status and fix version items.
       if (!fieldIds || !fieldIds.length) {
         histories = histories
           .map(h => ({
             ...h,
-            items: (h.items || []).filter(it => it.field === 'status' || it.fieldId === 'status'),
+            items: (h.items || []).filter(it => isKeptChangelogItem(it)).map(it => slimKeptChangelogItem(it)),
           }))
           .filter(h => h.items && h.items.length);
       }
@@ -6402,7 +6492,7 @@ async function hydrateTruncatedChangelogs(issues, baseUrl, auth) {
   try {
     for (let i = 0; i < keys.length; i += BATCH) {
       const batchKeys = keys.slice(i, i + BATCH);
-      let byIssueId = await fetchBulkChangelogs(baseUrl, auth, batchKeys, ['status']);
+      let byIssueId = await fetchBulkChangelogs(baseUrl, auth, batchKeys, ['status', 'fixVersions']);
       // Some sites reject/ignore fieldIds — retry without filter if empty
       if (byIssueId.size === 0) {
         console.warn('[changelog] bulkfetch status filter returned empty; retrying without fieldIds');
@@ -6422,6 +6512,7 @@ async function hydrateTruncatedChangelogs(issues, baseUrl, auth) {
             total: histories.length,
             histories,
             _source: 'bulkfetch',
+            _includesFixVersions: true,
           };
           hydrated++;
         } else {
@@ -6452,19 +6543,19 @@ async function hydrateTruncatedChangelogs(issues, baseUrl, auth) {
       try {
         const histories = await fetchFullIssueChangelog(baseUrl, auth, issue.key);
         if (!histories) { failed++; return; }
-        // Keep only status items for parity with bulk path
-        const statusHistories = histories
+        const keptHistories = histories
           .map(h => ({
             ...h,
-            items: (h.items || []).filter(it => it.field === 'status' || it.fieldId === 'status'),
+            items: (h.items || []).filter(it => isKeptChangelogItem(it)).map(it => slimKeptChangelogItem(it)),
           }))
           .filter(h => h.items.length);
         issue.changelog = {
           startAt: 0,
-          maxResults: statusHistories.length,
-          total: statusHistories.length,
-          histories: statusHistories,
+          maxResults: keptHistories.length,
+          total: keptHistories.length,
+          histories: keptHistories,
           _source: 'issue-changelog',
+          _includesFixVersions: true,
         };
         hydrated++;
       } catch (err) {
@@ -16948,6 +17039,532 @@ function onTeamSearchInput() {
   if (!_routeNavigating) syncRoute();
 }
 
+function scopeIssueIsNewer(next, prev) {
+  const nextReady = !!(next.changelog && next.changelog._includesFixVersions);
+  const prevReady = !!(prev.changelog && prev.changelog._includesFixVersions);
+  if (nextReady !== prevReady) return nextReady;
+  const nextUpdated = parseJiraDate(next.fields && next.fields.updated).getTime();
+  const prevUpdated = parseJiraDate(prev.fields && prev.fields.updated).getTime();
+  if (Number.isFinite(nextUpdated) && Number.isFinite(prevUpdated) && nextUpdated !== prevUpdated) {
+    return nextUpdated > prevUpdated;
+  }
+  const nextLen = ((next.changelog && next.changelog.histories) || []).length;
+  const prevLen = ((prev.changelog && prev.changelog.histories) || []).length;
+  return nextLen >= prevLen;
+}
+
+function scopeChangeRows() {
+  const projects = new Map(getDeliveryProjects().map(proj => [proj.key, proj]));
+  const byKey = new Map();
+  const buckets = [];
+  if (S.releaseCache && typeof S.releaseCache === 'object') {
+    Object.keys(S.releaseCache).forEach(name => buckets.push(S.releaseCache[name]));
+  }
+  if (S.cache) buckets.push(S.cache);
+  buckets.forEach(bucket => {
+    if (!bucket || typeof bucket !== 'object') return;
+    Object.keys(bucket).forEach(projKey => {
+      const proj = projects.get(projKey);
+      const data = bucket[projKey];
+      if (!proj || !data || data.err || !Array.isArray(data.issues)) return;
+      data.issues.forEach(issue => {
+        if (!issue || !issue.key) return;
+        const prev = byKey.get(issue.key);
+        if (!prev || scopeIssueIsNewer(issue, prev.issue)) byKey.set(issue.key, { proj, issue });
+      });
+    });
+  });
+  return [...byKey.values()];
+}
+
+function scopeChangeTarget(proj) {
+  const names = [];
+  let blank = false;
+  getSelectedReleaseNames().forEach(name => {
+    if (name === BLANK_RELEASE) { blank = true; return; }
+    if (name === UNPLANNED_RELEASE) { names.push(UNPLANNED_RELEASE); return; }
+    getFixVersionsForRelease(name, proj && proj.key, proj).forEach(version => names.push(version));
+  });
+  return { scopeNames: names, blank };
+}
+
+function scopeEffortFromIssue(issue) {
+  const actualPresent = hasIssueDays(issue, 'cf_devact', 'customfield_10203');
+  const estimatePresent = hasIssueDays(issue, 'cf_devest', 'customfield_10204');
+  return {
+    actual: actualPresent ? getIssueDays(issue, 'cf_devact', 'customfield_10203') : null,
+    estimate: estimatePresent ? getIssueDays(issue, 'cf_devest', 'customfield_10204') : null,
+  };
+}
+
+function formatScopeMeasure(value, measure) {
+  const n = Number(value) || 0;
+  if (measure !== 'effort') return String(n);
+  const rounded = Math.round(Math.abs(n) * 10) / 10;
+  if (!rounded) return '0d';
+  const text = Number.isInteger(rounded) ? String(rounded) : rounded.toFixed(1);
+  return (n < 0 ? '-' : '') + text + 'd';
+}
+
+function scopeEventTableHtml(events) {
+  const detail = (events || []).slice().sort((a, b) => b.time - a.time).map(event => {
+    const link = S.creds.url ? S.creds.url + '/browse/' + event.key : '#';
+    const kindColor = event.kind === 'removed' ? '#A32D2D' : '#2d6a10';
+    const kindLabel = event.kind === 'removed' ? 'Removed' : 'Added';
+    const effortLabel = event.source === 'missing'
+      ? '—'
+      : formatScopeMeasure(event.days, 'effort') + (event.source === 'estimate' ? ' est' : '');
+    return `<tr onclick="window.open('${link}','_blank');event.stopPropagation()" style="cursor:pointer">
+      <td class="ticket-key-cell">${ticketRowTools(event.key, event.summary)}<span class="key-link">${esc(event.key)}</span></td>
+      <td style="max-width:280px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(event.summary)}</td>
+      <td><span style="display:inline-flex;align-items:center;gap:6px"><span style="width:8px;height:8px;border-radius:50%;background:${event.projectColor || '#888780'}"></span>${esc(event.projectName || '')}</span></td>
+      <td style="color:${kindColor};font-weight:600">${kindLabel}</td>
+      <td style="font-size:11px">${esc(formatScopeMove(event))}</td>
+      <td style="text-align:right;font-variant-numeric:tabular-nums">${esc(effortLabel)}</td>
+      <td style="font-size:11px;color:var(--text3)">${formatDateTime(new Date(event.time))}</td>
+    </tr>`;
+  }).join('');
+  if (!detail) return '<div style="font-size:12px;color:var(--text3)">No changes</div>';
+  return `<table class="issues" style="width:100%;font-size:12px">
+    <thead><tr>
+      <th>Key</th><th>Summary</th><th>Project</th><th>Change</th><th>Fix versions</th><th style="text-align:right">Effort</th><th>When</th>
+    </tr></thead>
+    <tbody>${detail}</tbody>
+  </table>`;
+}
+
+function scopeMilestoneContext() {
+  const release = getPhaseChartRelease(getDeliveryProjects());
+  if (!release || isVirtualRelease(release.name)) return { release: null, milestones: [] };
+  const dated = getDatedReleaseMilestones(release);
+  const ids = new Set(defaultPhaseMilestoneIds(dated, releaseMilestoneOrder(release)));
+  return { release, milestones: dated.filter(milestone => ids.has(milestone.id)) };
+}
+
+function scopeMilestoneChartMarkers(milestones, periods, period) {
+  const byIdx = new Map();
+  (milestones || []).forEach((milestone, index) => {
+    const day = new Date(milestone.date.getFullYear(), milestone.date.getMonth(), milestone.date.getDate()).getTime();
+    const idx = periods.findIndex(row => {
+      const start = ScopeChange.periodStartMs(row.key, period);
+      if (!Number.isFinite(start)) return false;
+      const next = ScopeChange.nextPeriodStart(new Date(start), period).getTime();
+      return day >= start && day < next;
+    });
+    if (idx < 0) return;
+    const role = index === 0 ? 'start' : (index === milestones.length - 1 ? 'end' : 'mid');
+    const prev = byIdx.get(idx);
+    if (prev) {
+      prev.id += '/' + milestone.id;
+      prev.label += ' / ' + milestone.label;
+      if (role === 'end') prev.role = role;
+      return;
+    }
+    byIdx.set(idx, {
+      idx,
+      id: milestone.id,
+      label: milestone.label,
+      color: milestone.color || '#185FA5',
+      role,
+    });
+  });
+  return [...byIdx.values()].sort((a, b) => a.idx - b.idx);
+}
+
+function formatScopeSpanWhen(span) {
+  const from = span.from == null ? null : new Date(span.from);
+  const to = span.to == null ? null : new Date(span.to);
+  if (from && to) {
+    if (to.getTime() <= from.getTime()) return formatMilestoneShortDate(from);
+    const end = new Date(to.getFullYear(), to.getMonth(), to.getDate() - 1);
+    return formatMilestoneShortDate(from) + ' – ' + formatMilestoneShortDate(end);
+  }
+  if (to) return 'Before ' + formatMilestoneShortDate(to);
+  if (from) return 'From ' + formatMilestoneShortDate(from);
+  return '';
+}
+
+function formatScopeMove(event) {
+  const to = (event.to || []).join(', ');
+  if (event.initial) return 'Created in ' + (to || 'no fix version');
+  const from = (event.from || []).join(', ') || 'none';
+  return from + ' → ' + (to || 'none');
+}
+
+function finishScopeChangeRender() {
+  applyExpandedPeriodsFromRoute();
+  if (!_routeNavigating) syncRoute();
+}
+
+function renderScopeChange() {
+  const contentEl = document.getElementById('scope-change-content');
+  if (!contentEl) return;
+  if (!S.charts) S.charts = {};
+  if (S.charts.scopeChange) {
+    try { S.charts.scopeChange.destroy(); } catch (err) { /* chart already gone */ }
+    delete S.charts.scopeChange;
+  }
+  buildScopeProjectFilterOptions(getDeliveryProjects());
+
+  const period = document.getElementById('scope-period')?.value || 'week';
+  const range = parseInt(document.getElementById('scope-range')?.value || '90', 10);
+  const measure = document.getElementById('scope-measure')?.value === 'effort' ? 'effort' : 'count';
+  const releaseLabel = getSelectedReleaseNames().join(', ') || 'Release';
+
+  function emptySnapshot() {
+    setExportSnapshot({
+      page: 'scope-change',
+      title: 'Scope change',
+      kicker: `${releaseLabel} · added and removed scope`,
+      tickets: [],
+      filename: 'scope-change-tickets.html',
+      emptyMessage: 'No scope changes match the current filters.',
+    });
+  }
+
+  if (!window.ScopeChange) {
+    emptySnapshot();
+    contentEl.innerHTML = '<div class="info-box">Scope change is unavailable. Restart the dashboard server so it can serve scope-change.js.</div>';
+    finishScopeChangeRender();
+    return;
+  }
+
+  const selectedProjects = getSelectedScopeProjects();
+  let rows = scopeChangeRows();
+  if (selectedProjects.size) rows = rows.filter(row => selectedProjects.has(row.proj.key));
+  if (!rows.length) {
+    emptySnapshot();
+    contentEl.innerHTML = '<div class="info-box">No data loaded yet. Sync market-release projects from Jira Connector.</div>';
+    finishScopeChangeRender();
+    return;
+  }
+
+  const events = [];
+  let unready = 0;
+  rows.forEach(({ proj, issue }) => {
+    if (!ScopeChange.hasFixVersionHistory(issue)) unready += 1;
+    const target = scopeChangeTarget(proj);
+    if (!target.blank && !target.scopeNames.length) return;
+    ScopeChange.collectScopeEvents(issue, {
+      scopeNames: target.scopeNames,
+      blank: target.blank,
+      effort: scopeEffortFromIssue(issue),
+    }).forEach(event => {
+      event.key = issue.key;
+      event.summary = (issue.fields && issue.fields.summary) || '';
+      event.projectName = proj.name;
+      event.projectColor = proj.color || '#888780';
+      event.issue = issue;
+      event.proj = proj;
+      events.push(event);
+    });
+  });
+
+  const now = new Date();
+  const chartFrom = now.getTime() - range * 24 * 60 * 60 * 1000;
+  const chartTo = now.getTime() + 2 * 60 * 60 * 1000;
+  const milestoneCtx = scopeMilestoneContext();
+  const milestoneMarks = milestoneCtx.milestones.map(milestone => ({
+    id: milestone.id,
+    label: milestone.label,
+    time: new Date(milestone.date.getFullYear(), milestone.date.getMonth(), milestone.date.getDate()).getTime(),
+  }));
+  const discovery = milestoneMarks.find(mark => mark.id === 'DA');
+  const axisFrom = discovery && discovery.time > chartFrom ? discovery.time : chartFrom;
+  const periods = axisFrom <= chartTo
+    ? ScopeChange.summarizeScopeChange(events, {
+      period,
+      from: axisFrom,
+      to: chartTo,
+      fill: true,
+    })
+    : [];
+  const milestoneSpans = ScopeChange.summarizeBetweenMilestones(events, milestoneMarks);
+  const markers = scopeMilestoneChartMarkers(milestoneCtx.milestones, periods, period);
+  const visibleEvents = periods.reduce((list, row) => list.concat(row.events), []);
+  const seen = new Set();
+  const tickets = [];
+  visibleEvents.forEach(event => {
+    if (!event.key || seen.has(event.key)) return;
+    seen.add(event.key);
+    tickets.push(exportTicketFromIssue(event.issue, event.proj));
+  });
+  setExportSnapshot({
+    page: 'scope-change',
+    title: 'Scope change',
+    kicker: `${releaseLabel} · added and removed scope`,
+    tickets,
+    filename: 'scope-change-tickets.html',
+    emptyMessage: 'No scope changes match the current filters.',
+  });
+
+  if (events.length === 0 && unready === rows.length) {
+    contentEl.innerHTML = '<div class="info-box">Fix version history is not in this cache yet. Sync the selected release to load added and removed scope. A ticket that already left this release appears only when another synced release still has it.</div>';
+    finishScopeChangeRender();
+    return;
+  }
+
+  const hasBars = periods.some(row => row.addedCount || row.removedCount);
+  const hasSpanChanges = milestoneSpans.some((span, index) => {
+    if (index === 0 && discovery) return false;
+    return span.addedCount || span.removedCount;
+  });
+  if (!hasBars && !markers.length && !hasSpanChanges) {
+    contentEl.innerHTML = '<div class="info-box">No scope changes in the selected time range.</div>';
+    finishScopeChangeRender();
+    return;
+  }
+
+  const addedTotal = periods.reduce((sum, row) => sum + (measure === 'effort' ? row.addedDays : row.addedCount), 0);
+  const removedTotal = periods.reduce((sum, row) => sum + (measure === 'effort' ? row.removedDays : row.removedCount), 0);
+  const net = addedTotal - removedTotal;
+  const estimated = visibleEvents.filter(event => event.source === 'estimate').length;
+  const historyNote = unready
+    ? `${unready} ticket${unready === 1 ? '' : 's'} still ha${unready === 1 ? 's' : 've'} no fix version history. Sync to include them.`
+    : '';
+  const estimateNote = measure === 'effort' && estimated
+    ? `${estimated} change${estimated === 1 ? '' : 's'} use Dev Estimate because Dev Actual is missing.`
+    : '';
+
+  const periodRows = periods.filter(row => row.addedCount || row.removedCount);
+  const rowsHtml = periodRows.map(row => {
+    const added = measure === 'effort' ? row.addedDays : row.addedCount;
+    const removed = measure === 'effort' ? row.removedDays : row.removedCount;
+    const rowNet = added - removed;
+    const rowId = 'scope-' + row.key;
+    return `<tr class="period-summary-row" onclick="togglePeriodDetails('${rowId}')" style="cursor:pointer">
+      <td style="font-weight:600">${esc(formatPeriodLabel(row.key, period))}</td>
+      <td style="text-align:right;color:#2d6a10;font-weight:600;font-variant-numeric:tabular-nums">${esc(formatScopeMeasure(added, measure))}</td>
+      <td style="text-align:right;color:#A32D2D;font-weight:600;font-variant-numeric:tabular-nums">${esc(formatScopeMeasure(removed, measure))}</td>
+      <td style="text-align:right;font-weight:600;font-variant-numeric:tabular-nums;color:${rowNet < 0 ? '#A32D2D' : rowNet > 0 ? '#2d6a10' : 'var(--text2)'}">${esc(formatScopeMeasure(rowNet, measure))}</td>
+      <td style="text-align:center">
+        <svg class="expand-icon period-expand-${rowId}" style="width:14px;height:14px;transition:transform .2s" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="9 18 15 12 9 6"/></svg>
+      </td>
+    </tr>
+    <tr class="period-details period-details-${rowId} hidden">
+      <td colspan="5" style="padding:0;background:var(--bg3)">
+        <div style="padding:14px 20px">
+          ${scopeEventTableHtml(row.events)}
+        </div>
+      </td>
+    </tr>`;
+  }).join('');
+
+  const visibleSpans = milestoneSpans.filter((span, index) => {
+    if (index === 0 && discovery) return false;
+    const between = index > 0 && index < milestoneSpans.length - 1;
+    return between || span.addedCount || span.removedCount;
+  });
+  const spanRowsHtml = visibleSpans.map((span, index) => {
+    const added = measure === 'effort' ? span.addedDays : span.addedCount;
+    const removed = measure === 'effort' ? span.removedDays : span.removedCount;
+    const rowNet = added - removed;
+    const rowId = 'scope-ms-' + index;
+    return `<tr class="period-summary-row" onclick="togglePeriodDetails('${rowId}')" style="cursor:pointer">
+      <td style="font-weight:600">${esc(span.label)}</td>
+      <td style="font-size:12px;color:var(--text3)">${esc(formatScopeSpanWhen(span))}</td>
+      <td style="text-align:right;color:#2d6a10;font-weight:600;font-variant-numeric:tabular-nums">${esc(formatScopeMeasure(added, measure))}</td>
+      <td style="text-align:right;color:#A32D2D;font-weight:600;font-variant-numeric:tabular-nums">${esc(formatScopeMeasure(removed, measure))}</td>
+      <td style="text-align:right;font-weight:600;font-variant-numeric:tabular-nums;color:${rowNet < 0 ? '#A32D2D' : rowNet > 0 ? '#2d6a10' : 'var(--text2)'}">${esc(formatScopeMeasure(rowNet, measure))}</td>
+      <td style="text-align:center">
+        <svg class="expand-icon period-expand-${rowId}" style="width:14px;height:14px;transition:transform .2s" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="9 18 15 12 9 6"/></svg>
+      </td>
+    </tr>
+    <tr class="period-details period-details-${rowId} hidden">
+      <td colspan="6" style="padding:0;background:var(--bg3)">
+        <div style="padding:14px 20px">
+          ${scopeEventTableHtml(span.events)}
+        </div>
+      </td>
+    </tr>`;
+  }).join('');
+  const releaseName = milestoneCtx.release && milestoneCtx.release.name;
+  const milestoneCaption = markers.length
+    ? ` Colored lines are ${releaseName ? esc(releaseName) + ' ' : ''}milestones.`
+    : '';
+
+  contentEl.innerHTML = `
+    <div class="stat-strip" style="margin-bottom:16px">
+      <div class="stat-card"><div class="sl">Added</div><div class="sv" style="color:#2d6a10">${esc(formatScopeMeasure(addedTotal, measure))}</div></div>
+      <div class="stat-card"><div class="sl">Removed</div><div class="sv" style="color:#A32D2D">${esc(formatScopeMeasure(removedTotal, measure))}</div></div>
+      <div class="stat-card"><div class="sl">Net</div><div class="sv">${esc(formatScopeMeasure(net, measure))}</div></div>
+    </div>
+    ${historyNote ? `<div class="info-box" style="margin-bottom:12px">${esc(historyNote)}</div>` : ''}
+    ${estimateNote ? `<div class="info-box" style="margin-bottom:12px">${esc(estimateNote)}</div>` : ''}
+    ${periods.length ? `<div class="card" style="margin-bottom:20px">
+      <h3 style="font-size:15px;font-weight:600;margin-bottom:4px">Added and removed scope</h3>
+      <p style="font-size:12px;color:var(--text3);margin-bottom:14px">By ${measure === 'effort' ? 'effort' : 'ticket count'}. A ticket that left this release is included when another synced release still has it.${milestoneCaption}</p>
+      <div style="position:relative;width:100%;height:280px">
+        <canvas id="scope-change-chart" role="img" aria-label="Added and removed scope"></canvas>
+      </div>
+    </div>` : ''}
+    ${spanRowsHtml ? `<div class="card" style="margin-bottom:20px">
+      <h3 style="font-size:15px;font-weight:600;margin:0 0 4px">Between milestones</h3>
+      <p style="font-size:12px;color:var(--text3);margin:0 0 12px">Each row starts on that milestone's date and runs until the next. This counts every loaded change, not only the chart range.${releaseName ? ' Release ' + esc(releaseName) + '.' : ''}</p>
+      <table class="pipeline-table" style="margin-bottom:0">
+        <thead><tr>
+          <th>Span</th>
+          <th>When</th>
+          <th style="text-align:right">Added</th>
+          <th style="text-align:right">Removed</th>
+          <th style="text-align:right">Net</th>
+          <th></th>
+        </tr></thead>
+        <tbody>${spanRowsHtml}</tbody>
+      </table>
+    </div>` : ''}
+    ${rowsHtml ? `<div class="card">
+      <h3 style="font-size:15px;font-weight:600;margin:0 0 12px">Periods</h3>
+      <table class="pipeline-table" style="margin-bottom:0">
+        <thead><tr>
+          <th>Period</th>
+          <th style="text-align:right">Added</th>
+          <th style="text-align:right">Removed</th>
+          <th style="text-align:right">Net</th>
+          <th></th>
+        </tr></thead>
+        <tbody>${rowsHtml}</tbody>
+      </table>
+    </div>` : ''}`;
+
+  const canvas = document.getElementById('scope-change-chart');
+  if (canvas && window.Chart) {
+    S.charts.scopeChange = new Chart(canvas, {
+      type: 'bar',
+      plugins: markers.length ? [phaseReleaseTimelinePlugin] : [],
+      data: {
+        labels: periods.map(row => formatPeriodLabel(row.key, period)),
+        datasets: [
+          {
+            label: 'Added',
+            data: periods.map(row => measure === 'effort' ? row.addedDays : row.addedCount),
+            backgroundColor: '#2d6a10',
+            borderWidth: 0,
+          },
+          {
+            label: 'Removed',
+            data: periods.map(row => measure === 'effort' ? row.removedDays : row.removedCount),
+            backgroundColor: '#A32D2D',
+            borderWidth: 0,
+          },
+        ],
+      },
+      options: {
+        animation: false,
+        responsive: true,
+        maintainAspectRatio: false,
+        layout: { padding: { top: markers.length ? 22 : 4, right: 8, bottom: 4 } },
+        plugins: {
+          legend: { position: 'bottom' },
+          tooltip: {
+            callbacks: {
+              label(ctx) {
+                return ctx.dataset.label + ': ' + formatScopeMeasure(ctx.parsed.y, measure);
+              },
+            },
+          },
+          ...(markers.length ? { phaseReleaseTimeline: { markers } } : {}),
+        },
+        scales: {
+          x: { ticks: { maxRotation: 50, minRotation: 0 } },
+          y: {
+            beginAtZero: true,
+            title: { display: true, text: measure === 'effort' ? 'Days' : 'Tickets' },
+            ticks: { precision: measure === 'effort' ? 1 : 0 },
+          },
+        },
+      },
+    });
+  }
+  finishScopeChangeRender();
+}
+
+function buildScopeProjectFilterOptions(projects) {
+  const optionsEl = document.getElementById('scope-project-filter-options');
+  if (!optionsEl) return;
+  const signature = (projects || []).map(proj => proj.key).join('|');
+  const pending = consumePendingRouteParam('projects');
+  if (!(optionsEl.dataset.signature === signature && optionsEl.children.length)) {
+    const selected = getSelectedScopeProjects();
+    optionsEl.dataset.signature = signature;
+    optionsEl.innerHTML = (projects || []).map(proj => `
+      <label class="ms-option">
+        <input type="checkbox" value="${esc(proj.key)}" ${selected.has(proj.key) ? 'checked' : ''} onchange="updateScopeProjectFilter()">
+        <span class="ms-option-label">
+          <span style="width:8px;height:8px;border-radius:50%;background:${proj.color};display:inline-block;margin-right:6px"></span>
+          ${esc(proj.name)}
+        </span>
+      </label>
+    `).join('');
+  }
+  if (pending) setCheckboxFilterFromCsv('scope-project-filter-options', pending);
+  updateScopeProjectFilterLabel();
+}
+
+function toggleScopeProjectFilter() {
+  const dropdown = document.getElementById('scope-project-filter-dropdown');
+  if (!dropdown) return;
+  dropdown.classList.toggle('open');
+  if (dropdown.classList.contains('open')) {
+    setTimeout(() => document.addEventListener('click', closeScopeProjectFilterOnOutside), 0);
+  }
+}
+
+function closeScopeProjectFilterOnOutside(e) {
+  const dropdown = document.getElementById('scope-project-filter-dropdown');
+  const btn = document.getElementById('scope-project-filter-btn');
+  if (!dropdown || !btn) return;
+  if (!dropdown.contains(e.target) && !btn.contains(e.target)) {
+    dropdown.classList.remove('open');
+    document.removeEventListener('click', closeScopeProjectFilterOnOutside);
+  }
+}
+
+function getSelectedScopeProjects() {
+  const optionsEl = document.getElementById('scope-project-filter-options');
+  const selected = new Set();
+  if (!optionsEl) return selected;
+  optionsEl.querySelectorAll('input[type="checkbox"]:checked').forEach(cb => selected.add(cb.value));
+  return selected;
+}
+
+function updateScopeProjectFilterLabel() {
+  const selected = getSelectedScopeProjects();
+  const btn = document.getElementById('scope-project-filter-btn');
+  const label = document.getElementById('scope-project-filter-label');
+  const badge = document.getElementById('scope-project-filter-count');
+  const boxes = document.querySelectorAll('#scope-project-filter-options input[type="checkbox"]');
+  if (!label || !badge || !btn) return;
+  if (!selected.size || selected.size === boxes.length) {
+    label.textContent = 'All Projects';
+    badge.style.display = 'none';
+    btn.classList.remove('has-selection');
+    return;
+  }
+  label.textContent = 'Projects';
+  badge.textContent = selected.size;
+  badge.style.display = '';
+  btn.classList.add('has-selection');
+}
+
+function updateScopeProjectFilter() {
+  updateScopeProjectFilterLabel();
+  renderScopeChange();
+}
+
+function clearScopeProjectFilter() {
+  const optionsEl = document.getElementById('scope-project-filter-options');
+  if (optionsEl) optionsEl.querySelectorAll('input[type="checkbox"]').forEach(cb => { cb.checked = false; });
+  updateScopeProjectFilter();
+}
+
+function selectAllScopeProjects() {
+  const optionsEl = document.getElementById('scope-project-filter-options');
+  if (!optionsEl) return;
+  optionsEl.querySelectorAll('input[type="checkbox"]').forEach(cb => { cb.checked = true; });
+  updateScopeProjectFilter();
+}
+
 function updateLogBadge() {
   const today = new Date().toLocaleDateString();
   const total = (S.log || []).reduce((a, e) => {
@@ -19694,6 +20311,7 @@ const MENU_PAGE_ICONS = {
   'release-plan': '<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 5h16M4 12h10M4 19h7"/><path d="M15 10h5v4h-5z"/></svg>',
   'phase-timeline': '<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 3v18h18"/><path d="M18 17V9"/><path d="M13 17V5"/><path d="M8 17v-3"/></svg>',
   log: '<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><polyline points="10 9 9 9 8 9"/></svg>',
+  'scope-change': '<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 19V5"/><path d="M5 12l7-7 7 7"/><path d="M5 19h14"/></svg>',
   'quality-insights': '<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>',
   'quality-phase': '<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 3v18h18"/><path d="M18 17V9"/><path d="M13 17V5"/><path d="M8 17v-3"/></svg>',
   'quality-progress': '<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><polyline points="10 9 9 9 8 9"/></svg>',

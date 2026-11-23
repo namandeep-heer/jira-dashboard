@@ -13,7 +13,8 @@
         "team",
         "release-plan",
         "phase-timeline",
-        "log"
+        "log",
+        "scope-change"
       ]
     },
     {
