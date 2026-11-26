@@ -15,7 +15,7 @@ const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'jira-dashboard-prefs-'));
 const filePath = path.join(tmpDir, 'user-preferences.json');
 const prefs = createUserPreferences({ filePath });
 
-assert.deepStrictEqual(prefs.get('user-a'), { version: 1, projectSorts: {}, groupByEpic: true, showBounced: true, hiddenPhases: [], columnWidths: {}, columnFreeze: {}, columnViews: {}, sortConfigs: {} });
+assert.deepStrictEqual(prefs.get('user-a'), { version: 1, projectSorts: {}, groupByEpic: true, ticketViewer: true, showBounced: true, hiddenPhases: [], columnWidths: {}, columnFreeze: {}, columnViews: {}, sortConfigs: {} });
 
 const saved = prefs.setProjectSort('user-a', 'NFS', [
   { col: 'priority', dir: 'asc' },
@@ -91,7 +91,7 @@ assert.deepStrictEqual(prefs.get('user-a').projectSorts, {});
 assert.deepStrictEqual(createUserPreferences({ filePath }).get('user-a').groupByEpic, false);
 
 prefs.setGroupByEpic('user-a', true);
-assert.deepStrictEqual(prefs.get('user-a'), { version: 1, projectSorts: {}, groupByEpic: true, showBounced: true, hiddenPhases: [], columnWidths: {}, columnFreeze: {}, columnViews: {}, sortConfigs: {} });
+assert.deepStrictEqual(prefs.get('user-a'), { version: 1, projectSorts: {}, groupByEpic: true, ticketViewer: true, showBounced: true, hiddenPhases: [], columnWidths: {}, columnFreeze: {}, columnViews: {}, sortConfigs: {} });
 assert.throws(() => prefs.setGroupByEpic('user-a', 'no'), /on or off/);
 
 const hiddenBounced = prefs.setShowBounced('user-a', false);
@@ -257,5 +257,19 @@ assert.ok(dashboard.includes('function issueHiddenFromListing'));
 assert.ok(dashboard.includes('class="phase-visibility"'));
 assert.ok(dashboard.includes('phaseTicketsShown(label)'));
 assert.ok(proxy.includes("app.put('/api/user-preferences/phase-visibility'"));
+assert.ok(proxy.includes("app.put('/api/user-preferences/ticket-viewer'"));
+assert.ok(dashboard.includes('id="ticket-viewer-toggle"'));
+assert.ok(dashboard.includes('function openTicketViewer'));
+assert.ok(dashboard.includes('id="page-ticket"'));
+assert.ok(dashboard.includes('function renderTicketPage'));
+assert.ok(dashboard.includes('function toggleTicketViewer'));
+
+const viewerOff = prefs.setTicketViewer('user-a', false);
+assert.deepStrictEqual(viewerOff, { version: 1, ticketViewer: false });
+assert.strictEqual(prefs.get('user-a').ticketViewer, false);
+assert.strictEqual(createUserPreferences({ filePath }).get('user-a').ticketViewer, false);
+prefs.setTicketViewer('user-a', true);
+assert.strictEqual(prefs.get('user-a').ticketViewer, true);
+assert.throws(() => prefs.setTicketViewer('user-a', 'no'), /on or off/);
 
 console.log('user preferences ok');

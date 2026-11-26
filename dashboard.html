@@ -18,6 +18,7 @@
 <script src="/lib/clarity-dashboard.js"></script>
 <script src="/lib/ticket-search.js"></script>
 <script src="/lib/workspace-query.js"></script>
+<script src="/lib/jira-search.js"></script>
 <style>
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 :root {
@@ -86,7 +87,27 @@ body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sa
 #menu-config .nav-group-body { max-height: min(420px, 46vh); overflow-y: auto; }
 #main { flex: 1; display: flex; flex-direction: column; overflow: hidden; min-width: 0; }
 #topbar { height: var(--header-h); background: var(--bg); border-bottom: 0.5px solid var(--border); display: flex; align-items: center; padding: 0 20px; gap: 10px; flex-shrink: 0; }
-#topbar h1 { font-size: 15px; font-weight: 600; flex: 1; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+#topbar h1 { font-size: 15px; font-weight: 600; flex: 1; min-width: 80px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.jira-search { position: relative; flex: 0 1 380px; width: 380px; min-width: 180px; z-index: 50; }
+.jira-search input { width: 100%; padding: 6px 10px; border: 0.5px solid var(--border2); border-radius: var(--radius); background: var(--bg); color: var(--text); font-size: 13px; font-family: inherit; }
+.jira-search input:focus { outline: 2px solid var(--blue); outline-offset: -1px; }
+.jira-search.is-loading input { color: var(--text2); }
+.jira-search-list { position: absolute; top: calc(100% + 6px); left: 0; width: max(100%, 420px); max-width: min(520px, 70vw); max-height: min(420px, 60vh); overflow: auto; background: var(--bg); border: 0.5px solid var(--border2); border-radius: var(--radius-lg); box-shadow: 0 12px 32px rgba(0,0,0,.16); z-index: 80; padding: 4px; }
+.jira-search-hit { display: grid; grid-template-columns: auto minmax(0, 1fr); column-gap: 10px; row-gap: 2px; width: 100%; text-align: left; border: 0; background: transparent; color: var(--text); font: inherit; padding: 8px 10px; border-radius: 8px; cursor: pointer; }
+.jira-search-hit.is-active, .jira-search-hit:hover { background: var(--bg2); }
+.jira-search-key { grid-column: 1; grid-row: 1 / span 2; align-self: center; font-weight: 600; font-size: 12px; color: var(--blue); }
+.jira-search-summary { grid-column: 2; font-size: 13px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.jira-search-meta { grid-column: 2; display: flex; gap: 6px; align-items: center; min-width: 0; font-size: 11px; color: var(--text3); }
+.jira-search-empty { padding: 10px 12px; font-size: 12px; color: var(--text2); }
+.jira-search-empty.is-error { color: var(--red); }
+.jira-loaded-backdrop { position: fixed; inset: 0; background: rgba(0,0,0,.35); z-index: 1200; }
+.jira-loaded-panel { position: fixed; z-index: 1201; top: 18vh; left: 50%; transform: translateX(-50%); width: 480px; max-width: calc(100vw - 32px); background: var(--bg); border: 0.5px solid var(--border); border-radius: var(--radius-lg); padding: 18px; box-shadow: 0 18px 50px rgba(0,0,0,.18); }
+.jira-loaded-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 8px; }
+.jira-loaded-head h2 { font-size: 16px; }
+.jira-loaded-summary { font-size: 14px; line-height: 1.4; margin: 8px 0; }
+.jira-loaded-meta { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; font-size: 12px; color: var(--text2); margin-bottom: 10px; }
+.jira-loaded-note { font-size: 12px; color: var(--text3); line-height: 1.4; margin-bottom: 12px; }
+.jira-loaded-actions { display: flex; gap: 8px; align-items: center; }
 .topbar-account { display: flex; align-items: center; gap: 8px; flex-shrink: 0; }
 #auth-role-indicator { font-size: 12px; color: var(--text2); white-space: nowrap; }
 .theme-switch { display: inline-flex; align-items: center; border: 1px solid #111; border-radius: 999px; overflow: hidden; background: #fff; flex-shrink: 0; }
@@ -234,6 +255,116 @@ html.sidebar-collapsed .nav-group.is-collapsed .nav-group-body { display: block;
 html.sidebar-collapsed .nav-group .nav-item { padding-left: 0; }
 html.sidebar-collapsed .sidebar-brand { padding: 10px 6px; flex-direction: column; gap: 8px; }
 html.sidebar-collapsed .nav-item { width: calc(100% - 8px); margin: 1px 4px; padding: 8px 0; justify-content: center; gap: 0; }
+#menu-tools { flex: 0 0 auto; border-top: 0.5px solid var(--border); padding: 6px 0 4px; }
+.ticket-viewer-toggle svg { flex-shrink: 0; }
+.ticket-viewer-toggle .ticket-viewer-state { margin-left: auto; font-size: 10px; font-weight: 700; letter-spacing: .04em; text-transform: uppercase; color: var(--text3); }
+.ticket-viewer-toggle.is-on { color: var(--text); background: var(--blue-bg); }
+.ticket-viewer-toggle.is-on svg, .ticket-viewer-toggle.is-on .ticket-viewer-state { color: var(--blue); }
+html.sidebar-collapsed .ticket-viewer-state { display: none; }
+#content:has(#page-ticket.active) { padding: 0; background: var(--bg); }
+.ticket-page { max-width: 1120px; margin: 0 auto; padding: 22px 32px 56px; }
+.ticket-page ::selection { background: var(--blue-bg); color: var(--text); }
+.ticket-mast-bar { display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; }
+.ticket-back { display: inline-flex; align-items: center; gap: 2px; border: 0; background: none; color: var(--text2); font: inherit; font-size: 13px; font-weight: 600; padding: 4px 6px 4px 2px; margin-left: -2px; border-radius: 6px; cursor: pointer; }
+.ticket-back svg { width: 16px; height: 16px; }
+.ticket-back:hover { color: var(--text); background: var(--bg2); }
+.ticket-back:focus-visible { outline: 2px solid var(--blue); outline-offset: 2px; }
+.ticket-actions { display: flex; align-items: center; gap: 8px; flex-shrink: 0; }
+.ticket-identity { margin-top: 18px; }
+.ticket-id { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
+.ticket-key { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; font-size: 12px; font-weight: 600; letter-spacing: 0.01em; color: var(--blue); font-variant-numeric: tabular-nums; }
+.ticket-pri { font-size: 12px; font-weight: 650; }
+.ticket-live { font-size: 11px; font-weight: 650; color: var(--amber); background: var(--amber-bg); border-radius: 999px; padding: 2px 8px; }
+.ticket-summary { font-size: 28px; font-weight: 650; line-height: 1.22; letter-spacing: -0.03em; max-width: 22em; margin-top: 10px; text-wrap: balance; }
+.ticket-alert { margin-top: 16px; padding: 12px 14px; border-radius: var(--radius); background: var(--red-bg); color: var(--red); font-size: 13px; line-height: 1.45; }
+.ticket-alert strong { display: block; font-weight: 650; margin-bottom: 2px; }
+.ticket-layout { display: grid; grid-template-columns: minmax(0, 1fr) 332px; gap: 36px; align-items: start; margin-top: 22px; padding-top: 22px; border-top: 0.5px solid var(--border); }
+.ticket-rail { position: sticky; top: 0; display: flex; flex-direction: column; gap: 16px; }
+.ticket-sheet { background: var(--bg2); border-radius: var(--radius-lg); padding: 14px 14px 6px; }
+.ticket-sheet > h3 { font-size: 13px; font-weight: 650; letter-spacing: -0.01em; margin-bottom: 12px; }
+.ticket-group + .ticket-group { margin-top: 14px; padding-top: 12px; border-top: 0.5px solid var(--border); }
+.ticket-group h4 { font-size: 12px; font-weight: 650; color: var(--text2); margin-bottom: 8px; }
+.ticket-dl { display: grid; grid-template-columns: minmax(0, max-content) minmax(0, 1fr); column-gap: 16px; row-gap: 8px; align-items: baseline; margin: 0 0 8px; }
+.ticket-dl dt { font-size: 12px; font-weight: 500; color: var(--text2); }
+.ticket-dl dd { margin: 0; font-size: 13px; font-weight: 600; text-align: right; min-width: 0; overflow-wrap: anywhere; font-variant-numeric: tabular-nums; }
+.ticket-person { display: inline-flex; align-items: center; justify-content: flex-end; gap: 8px; max-width: 100%; text-align: left; font-weight: 600; }
+.ticket-person span:last-child { min-width: 0; }
+.ticket-avatar { width: 22px; height: 22px; border-radius: 50%; background: var(--blue-bg); color: var(--blue); font-size: 11px; font-weight: 700; letter-spacing: 0.02em; display: inline-flex; align-items: center; justify-content: center; flex-shrink: 0; }
+.ticket-sec { margin: 0 0 32px; }
+.ticket-sec-head { display: flex; align-items: baseline; gap: 8px; margin: 0 0 12px; }
+.ticket-sec h3 { font-size: 15px; font-weight: 650; letter-spacing: -0.015em; }
+.ticket-count { font-size: 12px; font-weight: 600; color: var(--text2); font-variant-numeric: tabular-nums; }
+.ticket-prose { font-size: 15px; line-height: 1.6; color: var(--text); max-width: 68ch; }
+.ticket-prose p { margin: 0 0 12px; }
+.ticket-prose h3, .ticket-prose h4 { letter-spacing: -0.015em; text-transform: none; color: var(--text); }
+.ticket-prose h3 { font-size: 16px; font-weight: 650; margin: 20px 0 8px; }
+.ticket-prose h4 { font-size: 14px; font-weight: 650; margin: 16px 0 6px; }
+.ticket-prose > h3:first-child, .ticket-prose > h4:first-child { margin-top: 0; }
+.ticket-prose ul, .ticket-prose ol { margin: 0 0 12px 1.2em; }
+.ticket-prose li { margin: 0 0 6px; }
+.ticket-prose li > p { margin: 0; }
+.ticket-prose li > p + p { margin-top: 4px; }
+.ticket-prose ol ol { list-style: lower-alpha; margin-top: 4px; }
+.ticket-prose ul ul, .ticket-prose ol ul, .ticket-prose ul ol { margin-top: 4px; }
+.ticket-prose blockquote, .ticket-prose .ticket-panel { margin: 0 0 12px; padding: 8px 12px; border-radius: 8px; background: var(--bg2); color: var(--text2); }
+.ticket-prose hr { border: 0; border-top: 0.5px solid var(--border); margin: 16px 0; }
+.ticket-prose pre { margin: 0 0 12px; padding: 10px 12px; background: var(--bg2); border-radius: 8px; overflow: auto; font-size: 12px; }
+.ticket-prose code { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; font-size: 0.92em; }
+.ticket-prose a { color: var(--blue); text-underline-offset: 2px; overflow-wrap: anywhere; }
+.ticket-prose a:hover { text-decoration-thickness: 2px; }
+.ticket-prose .ticket-table-wrap { overflow-x: auto; margin: 0 0 14px; }
+.ticket-prose table { width: 100%; border-collapse: collapse; font-size: 14px; }
+.ticket-prose th, .ticket-prose td { border: 0.5px solid var(--border); padding: 6px 8px; vertical-align: top; text-align: left; }
+.ticket-prose th { font-weight: 650; background: var(--bg2); }
+.ticket-prose td p, .ticket-prose th p { margin: 0; }
+.ticket-mention { margin-inline-start: 0.25em; }
+.ticket-clarity { display: inline-flex; align-items: center; justify-content: flex-end; gap: 6px; }
+.ticket-clarity-dot { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
+.ticket-empty { font-size: 14px; color: var(--text2); }
+.ticket-rel { display: grid; grid-template-columns: 92px minmax(0, 1fr); gap: 2px 10px; width: calc(100% + 12px); margin: 0 -6px; padding: 8px 6px; border: 0; border-radius: 8px; background: transparent; color: inherit; font: inherit; text-align: left; cursor: pointer; }
+.ticket-rel:hover { background: var(--bg); }
+.ticket-rel:focus-visible { outline: 2px solid var(--blue); outline-offset: 1px; }
+.ticket-rel-role { align-self: center; font-size: 12px; font-weight: 600; color: var(--text2); }
+.ticket-rel-main { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.ticket-rel-line { display: flex; align-items: center; gap: 6px; min-width: 0; }
+.ticket-rel-key { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; font-size: 12px; font-weight: 600; color: var(--blue); }
+.ticket-rel-sum { display: block; font-size: 13px; font-weight: 500; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.ticket-timeline { list-style: none; }
+.ticket-act { display: grid; grid-template-columns: 156px minmax(0, 1fr); gap: 16px; padding: 11px 0; border-top: 0.5px solid var(--border); font-size: 13px; }
+.ticket-act:first-child { border-top: 0; padding-top: 0; }
+.ticket-act time { color: var(--text2); font-size: 12px; font-variant-numeric: tabular-nums; }
+.ticket-act-body { min-width: 0; }
+.ticket-act-body strong { font-weight: 650; }
+.ticket-shift { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; margin-top: 3px; }
+.ticket-from, .ticket-to { font-weight: 600; }
+.ticket-from { color: var(--text2); text-decoration: line-through; text-decoration-color: var(--text3); }
+.ticket-arrow { width: 14px; height: 14px; color: var(--text3); flex-shrink: 0; }
+.ticket-who { display: block; margin-top: 2px; font-size: 12px; color: var(--text2); }
+.ticket-comment { display: grid; grid-template-columns: 28px minmax(0, 1fr); gap: 10px; padding: 14px 0; border-top: 0.5px solid var(--border); }
+.ticket-comment:first-child { border-top: 0; padding-top: 0; }
+.ticket-comment .ticket-avatar { width: 28px; height: 28px; font-size: 11px; margin-top: 1px; }
+.ticket-comment-head { display: flex; flex-wrap: wrap; align-items: baseline; gap: 8px; font-size: 13px; margin-bottom: 4px; }
+.ticket-comment-head strong { font-weight: 650; }
+.ticket-comment-head time { font-size: 12px; color: var(--text2); font-variant-numeric: tabular-nums; }
+.ticket-notes { background: var(--bg2); border-radius: var(--radius-lg); padding: 4px 16px 8px; }
+.ticket-local { font-size: 14px; line-height: 1.55; white-space: pre-wrap; }
+.ticket-skel-block { display: flex; flex-direction: column; gap: 10px; max-width: 520px; padding: 4px 0 8px; }
+.ticket-skel { display: block; height: 12px; border-radius: 6px; background: linear-gradient(90deg, var(--bg2) 25%, var(--bg3) 50%, var(--bg2) 75%); background-size: 200% 100%; animation: ticket-shimmer 1.15s ease-in-out infinite; }
+.ticket-skel.w1 { width: 94%; } .ticket-skel.w2 { width: 78%; } .ticket-skel.w3 { width: 62%; }
+.ticket-sheet .ticket-skel { height: 10px; margin-bottom: 10px; }
+@keyframes ticket-shimmer { from { background-position: 100% 0; } to { background-position: -100% 0; } }
+@media (prefers-reduced-motion: reduce) { .ticket-skel { animation: none; } }
+@media (max-width: 980px) {
+  .ticket-page { padding: 16px 16px 40px; }
+  .ticket-layout { grid-template-columns: 1fr; gap: 24px; }
+  .ticket-rail { position: static; }
+  .ticket-summary { font-size: 22px; }
+  .ticket-act { grid-template-columns: 1fr; gap: 4px; }
+  .ticket-dl { grid-template-columns: 1fr; row-gap: 2px; }
+  .ticket-dl dt { margin-top: 10px; }
+  .ticket-dl dd { text-align: left; }
+  .ticket-person { justify-content: flex-start; }
+}
 html.sidebar-collapsed #log-badge { position: absolute; top: 3px; right: 3px; margin-left: 0; min-width: 7px; width: 7px; height: 7px; padding: 0; font-size: 0; line-height: 0; overflow: hidden; }
 
 /* ── Buttons ── */
@@ -1622,6 +1753,14 @@ code { font-family: monospace; font-size: 12px; background: var(--bg3); padding:
 
     <div id="menu-groups"></div>
 
+    <div id="menu-tools">
+      <button type="button" id="ticket-viewer-toggle" class="nav-item ticket-viewer-toggle is-on" aria-pressed="true" title="Ticket viewer is on. Ticket clicks open the viewer." onclick="toggleTicketViewer()">
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M4 5a2 2 0 0 1 2-2h9l5 5v11a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2z"/><path d="M14 3v5h5"/><path d="M8 13h8M8 17h5"/></svg>
+        <span class="nav-label">Ticket viewer</span>
+        <span class="ticket-viewer-state">On</span>
+      </button>
+    </div>
+
     <div id="menu-config">
       <div class="nav-group is-collapsed" data-group="config">
         <button type="button" class="nav-group-toggle" data-group="config" aria-expanded="false" aria-controls="nav-group-config">
@@ -1666,6 +1805,10 @@ code { font-family: monospace; font-size: 12px; background: var(--bg3); padding:
   <div id="main">
     <div id="topbar">
       <h1 id="topbar-title">Jira Dashboard</h1>
+      <div id="jira-search" class="jira-search">
+        <input id="jira-search-input" type="search" placeholder="Search any Jira ticket…" autocomplete="off" spellcheck="false" role="combobox" aria-autocomplete="list" aria-expanded="false" aria-controls="jira-search-list" aria-label="Search any Jira ticket" oninput="onJiraSearchInput(this.value)" onkeydown="onJiraSearchKey(event)" onfocus="onJiraSearchFocus()" />
+        <div id="jira-search-list" class="jira-search-list" role="listbox" hidden></div>
+      </div>
       <div id="proxy-indicator"></div>
       <div id="global-release-wrap">
         <span id="global-release-scope">Market release</span>
@@ -1740,6 +1883,17 @@ code { font-family: monospace; font-size: 12px; background: var(--bg3); padding:
             <span class="sync-dock-mark" aria-hidden="true"></span>
           </button>
         </div>
+      </div>
+    </div>
+
+    <div id="jira-loaded-root" hidden>
+      <div class="jira-loaded-backdrop" onclick="closeJiraLoadedTicket()"></div>
+      <div class="jira-loaded-panel" role="dialog" aria-modal="true" aria-labelledby="jira-loaded-title">
+        <div class="jira-loaded-head">
+          <h2 id="jira-loaded-title">Ticket</h2>
+          <button type="button" class="btn btn-sm" onclick="closeJiraLoadedTicket()">Close</button>
+        </div>
+        <div id="jira-loaded-body"></div>
       </div>
     </div>
 
@@ -2054,6 +2208,8 @@ code { font-family: monospace; font-size: 12px; background: var(--bg3); padding:
     </div>
 
     <div id="content">
+
+      <div class="page" id="page-ticket"></div>
 
       <!-- Setup -->
       <div class="page active" id="page-setup">
@@ -5447,7 +5603,7 @@ async function checkProxy() {
 
 // ── Deep linking (History API) ───────────────────────────────────────────────
 const STATIC_PAGES = new Set([
-  'setup', 'velocity', 'data-gaps', 'analytics', 'release-report', 'quality-insights', 'quality-phase', 'quality-progress', 'team', 'release-plan', 'phase-timeline', 'log', 'scope-change',
+  'setup', 'ticket', 'velocity', 'data-gaps', 'analytics', 'release-report', 'quality-insights', 'quality-phase', 'quality-progress', 'team', 'release-plan', 'phase-timeline', 'log', 'scope-change',
   'connector', 'projects-config', 'menu', 'releases-config', 'milestones-config', 'fields'
 ]);
 
@@ -5500,6 +5656,17 @@ function applyPendingRouteState(page) {
   if (page) S.page = page;
   const params = _pendingRouteParams;
   if (!params) return;
+  if (page === 'ticket') {
+    const key = String(params.get('key') || '');
+    if (/^[A-Z][A-Z0-9]+-\d+$/i.test(key)) {
+      const normalized = key.toUpperCase();
+      if (S._ticketKey !== normalized) {
+        S._ticketIssue = null;
+        S._ticketError = '';
+      }
+      S._ticketKey = normalized;
+    }
+  }
 
   if (page === 'team') {
     if (!S._msState) S._msState = { project: new Set(), phase: new Set(), dev: new Set(), product: new Set(), assignee: new Set(), scope: new Set() };
@@ -5799,6 +5966,10 @@ function applyPendingRouteState(page) {
 function collectRouteParams() {
   const params = new URLSearchParams();
   const page = S.page || 'setup';
+  if (page === 'ticket') {
+    if (S._ticketKey) params.set('key', S._ticketKey);
+    return params;
+  }
 
   if (isProjectPageId(page)) {
     const proj = getAllProjects().find(p => p.id === page);
@@ -6144,6 +6315,10 @@ function nav(id, opts = {}) {
   } else if (id === 'fields') {
     document.getElementById('topbar-title').textContent = 'Field Configuration';
     renderFields();
+  } else if (id === 'ticket') {
+    document.getElementById('topbar-title').textContent = S._ticketKey || 'Ticket';
+    renderTicketPage();
+    if (S._ticketKey && !(S._ticketIssue && String(S._ticketIssue.key || '').toUpperCase() === S._ticketKey)) loadTicketPage(S._ticketKey);
   } else if (id === 'setup') {
     document.getElementById('topbar-title').textContent = 'Jira Setup';
     document.getElementById('inp-email').value = S.creds.email;
@@ -6924,9 +7099,70 @@ function getViewSkipReason(proj) {
   return getProjectSyncSkipReason(proj, selected[0]);
 }
 
+function pinnedSearchIssues(projKey) {
+  const list = S._pinnedSearchIssues && S._pinnedSearchIssues[projKey];
+  return Array.isArray(list) ? list : [];
+}
+
+function refreshPinnedSearchIssues(projKey) {
+  const pins = pinnedSearchIssues(projKey);
+  const data = S._projData && S._projData[projKey];
+  if (!pins.length || !data) return;
+  const byKey = new Map();
+  (data.issues || []).forEach(issue => {
+    const key = String(issue && issue.key || '').toUpperCase();
+    if (key) byKey.set(key, issue);
+  });
+  S._pinnedSearchIssues[projKey] = pins.map(pin => byKey.get(String(pin.key || '').toUpperCase()) || pin);
+}
+
+function mergePinnedSearchIssues(projKey, issues) {
+  const pins = pinnedSearchIssues(projKey);
+  const merged = (issues || []).slice();
+  const seen = new Set(merged.map(issue => String(issue && issue.key || '').toUpperCase()));
+  for (let i = pins.length - 1; i >= 0; i--) {
+    const pin = pins[i];
+    const key = String(pin && pin.key || '').toUpperCase();
+    if (!key || seen.has(key)) continue;
+    seen.add(key);
+    merged.unshift(pin);
+  }
+  return merged;
+}
+
+function pinnedSearchNote(projKey, cachedIssues) {
+  const have = new Set((cachedIssues || []).map(issue => String(issue && issue.key || '').toUpperCase()));
+  const extra = pinnedSearchIssues(projKey).filter(pin => !have.has(String(pin.key || '').toUpperCase()));
+  if (!extra.length) return '';
+  const keys = extra.map(pin => pin.key).join(', ');
+  return `<div class="info-box">Loaded ${esc(keys)} from Jira. ${extra.length === 1 ? 'It is' : 'They are'} outside the tickets already on this page.</div>`;
+}
+
+function rememberPinnedSearchIssue(projKey, issue) {
+  if (!S._pinnedSearchIssues) S._pinnedSearchIssues = {};
+  const key = String(issue && issue.key || '').toUpperCase();
+  const next = pinnedSearchIssues(projKey).filter(pin => String(pin.key || '').toUpperCase() !== key);
+  next.unshift(issue);
+  S._pinnedSearchIssues[projKey] = next.slice(0, 15);
+}
+
+function renderPinnedProject(proj, issuesEl) {
+  const pins = pinnedSearchIssues(proj.key);
+  if (!pins.length || !issuesEl) return false;
+  if (!S._projData) S._projData = {};
+  if (!S.activeFilter) S.activeFilter = {};
+  S.activeFilter[proj.key] = null;
+  const note = pinnedSearchNote(proj.key, []);
+  S._projData[proj.key] = { issues: pins.slice(), vf: null, cardDefs: [], sm: {}, PHASES, partialWarning: note };
+  renderProjectStatCards(proj.key);
+  renderIssueTable(proj, pins.slice(), null);
+  return true;
+}
+
 function renderProject(proj) {
   const el = document.getElementById('page-' + proj.id);
   if (el) el.classList.add('proj-page');
+  refreshPinnedSearchIssues(proj.key);
   const selectedReleases = getSelectedReleaseNames();
   const skipReason = selectedReleases.length ? getViewSkipReason(proj) : 'not-enabled';
   const effJql = skipReason && skipReason !== 'not-enabled' && skipReason !== 'no-versions'
@@ -6961,21 +7197,39 @@ function renderProject(proj) {
   const statsEl  = document.getElementById('stats-'  + proj.key);
   const issuesEl = document.getElementById('issues-' + proj.key);
 
-  if (!selectedReleases.length) { issuesEl.innerHTML = `<div class="info-box">No release selected. Select a release from the top bar, then use <button class="btn btn-sm" onclick="nav('connector')">Jira Connector</button> to sync it.</div>`; return; }
+  if (!selectedReleases.length) {
+    if (renderPinnedProject(proj, issuesEl)) return;
+    issuesEl.innerHTML = `<div class="info-box">No release selected. Select a release from the top bar, then use <button class="btn btn-sm" onclick="nav('connector')">Jira Connector</button> to sync it.</div>`;
+    return;
+  }
   if (skipReason === 'not-enabled') {
+    if (renderPinnedProject(proj, issuesEl)) return;
     issuesEl.innerHTML = `<div class="info-box">This project is not enabled for <strong>${esc(releaseLabel)}</strong>. Open <button class="btn btn-sm" onclick="nav('projects-config')">Projects</button> to add that market release, or pick a different release in the top bar.</div>`;
     return;
   }
   if (skipReason === 'no-versions') {
+    if (renderPinnedProject(proj, issuesEl)) return;
     issuesEl.innerHTML = `<div class="info-box">This project is set to patch releases only, and <strong>${esc(releaseLabel)}</strong> has no patch names. Add patches in <button class="btn btn-sm" onclick="nav('releases-config')">Releases</button>, or change the include mode in Projects.</div>`;
     return;
   }
-  if (!data) { issuesEl.innerHTML = `<div class="info-box">No synced data for ${esc(releaseLabel)}. Use <strong>Sync</strong> above to load this project.</div>`; return; }
-  if (data.err === 'not_configured') { issuesEl.innerHTML = `<div class="err-box">No synced data is available. Open <button class="btn btn-sm" onclick="nav('connector')">Jira Connector</button> to sync it.</div>`; return; }
-  if (data.err) { issuesEl.innerHTML = `<div class="err-box">Error: ${esc(data.err)}</div>`; return; }
+  if (!data) {
+    if (renderPinnedProject(proj, issuesEl)) return;
+    issuesEl.innerHTML = `<div class="info-box">No synced data for ${esc(releaseLabel)}. Use <strong>Sync</strong> above to load this project.</div>`;
+    return;
+  }
+  if (data.err === 'not_configured') {
+    if (renderPinnedProject(proj, issuesEl)) return;
+    issuesEl.innerHTML = `<div class="err-box">No synced data is available. Open <button class="btn btn-sm" onclick="nav('connector')">Jira Connector</button> to sync it.</div>`;
+    return;
+  }
+  if (data.err) {
+    if (renderPinnedProject(proj, issuesEl)) return;
+    issuesEl.innerHTML = `<div class="err-box">Error: ${esc(data.err)}</div>`;
+    return;
+  }
 
   const filtered = filterIssuesToActiveRelease(data.issues || [], proj);
-  const issues = filtered.issues;
+  const issues = mergePinnedSearchIssues(proj.key, filtered.issues);
 
   let partialWarning = '';
   if (data.partial) {
@@ -6985,6 +7239,7 @@ function renderProject(proj) {
   if (filtered.mismatched) {
     partialWarning += `<div class="info-box">Hidden ${filtered.mismatched} cached issue${filtered.mismatched === 1 ? '' : 's'} whose Fix Version is not ${esc(formatAllowedFixVersionsLabel(proj))}. Re-sync this release from <button class="btn btn-sm" onclick="nav('connector')">Jira Connector</button>.</div>`;
   }
+  partialWarning += pinnedSearchNote(proj.key, filtered.issues);
 
   if (!S.activeFilter) S.activeFilter = {};
   S.activeFilter[proj.key] = null;
@@ -7379,7 +7634,7 @@ function compareProjectSortValues(a, b, dir) {
 }
 
 const MAX_PROJECT_SORT_LEVELS = 8;
-let _userPrefs = { projectSorts: {}, groupByEpic: true, showBounced: true, hiddenPhases: [], columnWidths: {}, columnFreeze: {}, columnViews: {}, sortConfigs: {} };
+let _userPrefs = { projectSorts: {}, groupByEpic: true, ticketViewer: true, showBounced: true, hiddenPhases: [], columnWidths: {}, columnFreeze: {}, columnViews: {}, sortConfigs: {} };
 let _phaseVisibilityError = '';
 let _columnWidthTimers = {};
 let _epicCollapsed = {};
@@ -7526,6 +7781,7 @@ function rememberUserPreferences(data) {
   _userPrefs = {
     projectSorts,
     groupByEpic: !data || data.groupByEpic !== false,
+    ticketViewer: !data || data.ticketViewer !== false,
     showBounced: !normalizeHiddenPhases(data && data.hiddenPhases, data && data.showBounced).includes('Rejected / Replied'),
     hiddenPhases: normalizeHiddenPhases(data && data.hiddenPhases, data && data.showBounced),
     columnWidths,
@@ -7533,6 +7789,7 @@ function rememberUserPreferences(data) {
     columnViews,
     sortConfigs,
   };
+  paintTicketViewerToggle();
   if (!S._projSort) S._projSort = {};
   Object.entries(projectSorts).forEach(([key, levels]) => {
     const clean = normalizeClientSortLevels(levels);
@@ -24846,15 +25103,17 @@ function jiraAuthHeader() {
   };
 }
 
-async function fetchJiraByJql(jql, limit) {
+async function fetchJiraByJql(jql, limit, fields) {
   const creds = jiraAuthHeader();
   const cap = Math.max(1, Math.min(500, limit || 100));
-  const fields = ['summary', 'status', 'issuetype', 'priority', 'assignee', 'project', 'updated'];
+  const fieldList = Array.isArray(fields) && fields.length
+    ? fields
+    : ['summary', 'status', 'issuetype', 'priority', 'assignee', 'project', 'updated'];
   const issues = [];
   let nextPageToken = null;
   let isLast = false;
   while (issues.length < cap) {
-    const payload = { jql, fields, maxResults: Math.min(100, cap - issues.length) };
+    const payload = { jql, fields: fieldList, maxResults: Math.min(100, cap - issues.length) };
     if (nextPageToken) payload.nextPageToken = nextPageToken;
     const proxyUrl = PROXY + '?target=' + encodeURIComponent(creds.url + '/rest/api/3/search/jql');
     const response = await fetch(proxyUrl, {
@@ -24875,6 +25134,858 @@ async function fetchJiraByJql(jql, limit) {
     if (isLast || !nextPageToken) { isLast = true; break; }
   }
   return { issues: issues.slice(0, cap), truncated: !isLast };
+}
+
+let _jiraSearchTimer = null;
+let _jiraSearchSeq = 0;
+let _jiraSearchHits = [];
+let _jiraSearchIndex = -1;
+let _jiraSearchOpen = false;
+let _jiraSearchError = '';
+let _jiraSearchLoading = false;
+let _jiraSearchBound = false;
+
+function bindJiraSearch() {
+  if (_jiraSearchBound) return;
+  _jiraSearchBound = true;
+  document.addEventListener('click', event => {
+    const root = document.getElementById('jira-search');
+    if (!root || root.contains(event.target)) return;
+    closeJiraSearchList();
+  });
+  document.addEventListener('keydown', event => {
+    if (event.key !== 'Escape') return;
+    const loaded = document.getElementById('jira-loaded-root');
+    if (loaded && !loaded.hidden) closeJiraLoadedTicket();
+  });
+  document.addEventListener('click', onTicketViewerClick, true);
+}
+
+function closeJiraSearchList() {
+  _jiraSearchOpen = false;
+  const list = document.getElementById('jira-search-list');
+  const input = document.getElementById('jira-search-input');
+  if (list) list.hidden = true;
+  if (input) {
+    input.setAttribute('aria-expanded', 'false');
+    input.removeAttribute('aria-activedescendant');
+  }
+}
+
+function plainJiraText(value) {
+  return String(value || '').replace(/<[^>]+>/g, '').replace(/\s+/g, ' ').trim();
+}
+
+function jiraSearchExplicitJql(text) {
+  if (!window.WorkspaceQuery) return '';
+  let jql = '';
+  try { jql = WorkspaceQuery.workspaceSearchJql(text); }
+  catch (err) { return ''; }
+  if (/^key (=|in )/.test(jql) || /^text ~ /.test(jql)) return '';
+  return jql;
+}
+
+async function fetchJiraIssuePicker(query) {
+  const creds = jiraAuthHeader();
+  const target = creds.url + '/rest/api/3/issue/picker?query=' + encodeURIComponent(query) + '&showSubTasks=true';
+  const response = await fetch(PROXY + '?target=' + encodeURIComponent(target), {
+    headers: { Authorization: creds.auth, Accept: 'application/json' },
+  });
+  const text = await response.text();
+  let json = {};
+  try { json = text ? JSON.parse(text) : {}; } catch (err) { json = {}; }
+  if (!response.ok) {
+    const detail = (json.errorMessages && json.errorMessages.join(' ')) || json.message || String(text || '').slice(0, 240);
+    throw new Error(detail || ('Jira returned HTTP ' + response.status));
+  }
+  const issues = [];
+  const seen = new Set();
+  (json.sections || []).forEach(section => {
+    (section.issues || []).forEach(issue => {
+      const key = String(issue && issue.key || '').toUpperCase();
+      if (!key || seen.has(key)) return;
+      seen.add(key);
+      issues.push({
+        key,
+        fields: { summary: plainJiraText(issue.summaryText || issue.summary || '') },
+      });
+    });
+  });
+  return issues.slice(0, 12);
+}
+
+async function searchJiraTicketsLive(text) {
+  const explicit = jiraSearchExplicitJql(text);
+  if (explicit) {
+    const result = await fetchJiraByJql(explicit, 12);
+    return result.issues || [];
+  }
+  try {
+    const picked = await fetchJiraIssuePicker(text);
+    if (picked.length) return picked;
+  } catch (err) {
+    if (!window.WorkspaceQuery) throw err;
+  }
+  if (!window.WorkspaceQuery) return [];
+  const result = await fetchJiraByJql(WorkspaceQuery.workspaceSearchJql(text), 12);
+  return result.issues || [];
+}
+
+function paintJiraSearchList() {
+  const list = document.getElementById('jira-search-list');
+  const input = document.getElementById('jira-search-input');
+  const root = document.getElementById('jira-search');
+  if (!list || !input) return;
+  if (root) root.classList.toggle('is-loading', _jiraSearchLoading);
+  if (!_jiraSearchOpen) {
+    list.hidden = true;
+    input.setAttribute('aria-expanded', 'false');
+    return;
+  }
+  list.hidden = false;
+  input.setAttribute('aria-expanded', 'true');
+  if (_jiraSearchLoading && !_jiraSearchHits.length) {
+    list.innerHTML = '<div class="jira-search-empty">Searching Jira…</div>';
+    return;
+  }
+  if (_jiraSearchError) {
+    list.innerHTML = '<div class="jira-search-empty is-error">' + esc(_jiraSearchError) + '</div>';
+    return;
+  }
+  if (!_jiraSearchHits.length) {
+    list.innerHTML = '<div class="jira-search-empty">No tickets in Jira.</div>';
+    return;
+  }
+  list.innerHTML = _jiraSearchHits.map((issue, index) => {
+    const fields = issue.fields || {};
+    const status = fields.status && fields.status.name || '';
+    const type = fields.issuetype && fields.issuetype.name || '';
+    const summary = fields.summary || '';
+    const active = index === _jiraSearchIndex;
+    const meta = (type ? `<span>${esc(type)}</span>` : '') + (status ? `<span class="badge ${statusBadgeClass(status)}">${esc(status)}</span>` : '');
+    const metaHtml = meta || `<span>${esc(qualityModuleFromKey(issue.key))}</span>`;
+    return `<button type="button" class="jira-search-hit${active ? ' is-active' : ''}" role="option" id="jira-search-hit-${index}" data-key="${esc(issue.key)}" aria-selected="${active ? 'true' : 'false'}" onmousedown="event.preventDefault();loadJiraSearchIssue(this.dataset.key)">
+      <span class="jira-search-key">${esc(issue.key)}</span>
+      <span class="jira-search-summary">${esc(summary)}</span>
+      <span class="jira-search-meta">${metaHtml}</span>
+    </button>`;
+  }).join('');
+  if (_jiraSearchIndex >= 0) {
+    input.setAttribute('aria-activedescendant', 'jira-search-hit-' + _jiraSearchIndex);
+    const active = document.getElementById('jira-search-hit-' + _jiraSearchIndex);
+    if (active && active.scrollIntoView) active.scrollIntoView({ block: 'nearest' });
+  }
+}
+
+function onJiraSearchInput(value) {
+  clearTimeout(_jiraSearchTimer);
+  const text = String(value || '').trim();
+  const seq = ++_jiraSearchSeq;
+  _jiraSearchError = '';
+  if (text.length < 2) {
+    _jiraSearchHits = [];
+    _jiraSearchIndex = -1;
+    _jiraSearchLoading = false;
+    closeJiraSearchList();
+    return;
+  }
+  _jiraSearchOpen = true;
+  _jiraSearchLoading = true;
+  _jiraSearchHits = [];
+  _jiraSearchIndex = -1;
+  paintJiraSearchList();
+  _jiraSearchTimer = setTimeout(() => runJiraSearch(text, seq), 220);
+}
+
+function onJiraSearchFocus() {
+  const input = document.getElementById('jira-search-input');
+  const text = input ? String(input.value || '').trim() : '';
+  if (text.length < 2) return;
+  if (_jiraSearchHits.length || _jiraSearchError) {
+    _jiraSearchOpen = true;
+    paintJiraSearchList();
+  }
+}
+
+async function runJiraSearch(text, seq) {
+  if (seq !== _jiraSearchSeq) return;
+  _jiraSearchLoading = true;
+  _jiraSearchError = '';
+  _jiraSearchOpen = true;
+  paintJiraSearchList();
+  try {
+    const issues = await searchJiraTicketsLive(text);
+    if (seq !== _jiraSearchSeq) return;
+    _jiraSearchHits = issues;
+    _jiraSearchIndex = issues.length ? 0 : -1;
+    _jiraSearchLoading = false;
+  } catch (err) {
+    if (seq !== _jiraSearchSeq) return;
+    _jiraSearchHits = [];
+    _jiraSearchIndex = -1;
+    _jiraSearchLoading = false;
+    _jiraSearchError = err.message || 'Jira search failed.';
+  }
+  paintJiraSearchList();
+}
+
+function onJiraSearchKey(event) {
+  if (event.key === 'Escape') {
+    event.preventDefault();
+    closeJiraSearchList();
+    return;
+  }
+  if (event.key === 'ArrowDown' || event.key === 'ArrowUp') {
+    if (!_jiraSearchHits.length) return;
+    event.preventDefault();
+    _jiraSearchOpen = true;
+    const step = event.key === 'ArrowDown' ? 1 : -1;
+    const count = _jiraSearchHits.length;
+    _jiraSearchIndex = (_jiraSearchIndex + step + count) % count;
+    paintJiraSearchList();
+    return;
+  }
+  if (event.key !== 'Enter') return;
+  event.preventDefault();
+  const hit = _jiraSearchHits[_jiraSearchIndex];
+  if (hit) {
+    loadJiraSearchIssue(hit.key);
+    return;
+  }
+  const text = String(event.target.value || '').trim();
+  const keys = window.TicketSearch && TicketSearch.ticketKeysInQuery(text);
+  if (keys && keys.length === 1) loadJiraSearchIssue(keys[0]);
+}
+
+function ticketViewerOn() {
+  return _userPrefs.ticketViewer !== false;
+}
+
+function paintTicketViewerToggle() {
+  const button = document.getElementById('ticket-viewer-toggle');
+  if (!button) return;
+  const on = ticketViewerOn();
+  button.classList.toggle('is-on', on);
+  button.setAttribute('aria-pressed', on ? 'true' : 'false');
+  const state = button.querySelector('.ticket-viewer-state');
+  if (state) state.textContent = on ? 'On' : 'Off';
+  button.title = on
+    ? 'Ticket viewer is on. Ticket clicks open the viewer.'
+    : 'Ticket viewer is off. Ticket clicks open Jira.';
+}
+
+async function toggleTicketViewer() {
+  const next = !ticketViewerOn();
+  _userPrefs.ticketViewer = next;
+  paintTicketViewerToggle();
+  try {
+    const response = await authFetch('/api/user-preferences/ticket-viewer', {
+      method: 'PUT',
+      body: JSON.stringify({ enabled: next }),
+    });
+    const result = await response.json().catch(() => ({}));
+    if (!response.ok) throw new Error(result.error || 'Could not save the ticket viewer setting.');
+    _userPrefs.ticketViewer = result.ticketViewer !== false;
+  } catch (err) {
+    _userPrefs.ticketViewer = !next;
+    console.warn('[ticket-viewer]', err.message);
+  }
+  paintTicketViewerToggle();
+}
+
+function adfToPlainText(node) {
+  if (node == null) return '';
+  if (typeof node === 'string') return node;
+  if (typeof node !== 'object') return '';
+  if (node.type === 'text') return node.text || '';
+  if (node.type === 'hardBreak') return '\n';
+  if (node.type === 'mention') return node.attrs && node.attrs.text ? node.attrs.text : '';
+  if (Array.isArray(node.content)) {
+    const block = node.type === 'paragraph' || node.type === 'heading' || node.type === 'listItem' || node.type === 'blockquote';
+    const inner = node.content.map(adfToPlainText).join('');
+    return block ? inner + '\n' : inner;
+  }
+  if (node.content) return adfToPlainText(node.content);
+  return '';
+}
+
+function issueDescriptionText(issue) {
+  const raw = issue && issue.fields && issue.fields.description;
+  if (raw == null || raw === '') return '';
+  if (typeof raw === 'string') return raw.trim();
+  return adfToPlainText(raw).replace(/\n{3,}/g, '\n\n').trim();
+}
+
+function ticketViewerFieldIds() {
+  const ids = ['summary', 'description', 'comment', 'issuelinks', 'subtasks', 'status', 'issuetype', 'priority', 'assignee', 'reporter', 'parent', 'fixVersions', 'updated', 'created'];
+  ALL_FIELDS.forEach(field => {
+    if (field.custom) ids.push(jiraId(field));
+  });
+  return [...new Set(ids.filter(Boolean))];
+}
+
+function adfSafeHref(url) {
+  const href = String(url || '').trim();
+  return /^https?:\/\//i.test(href) ? href : '';
+}
+
+function adfRenderText(node) {
+  let html = esc(node && node.text || '');
+  (node && node.marks || []).forEach(mark => {
+    if (!mark) return;
+    if (mark.type === 'strong') html = '<strong>' + html + '</strong>';
+    else if (mark.type === 'em') html = '<em>' + html + '</em>';
+    else if (mark.type === 'code') html = '<code>' + html + '</code>';
+    else if (mark.type === 'strike') html = '<s>' + html + '</s>';
+    else if (mark.type === 'link') {
+      const href = adfSafeHref(mark.attrs && mark.attrs.href);
+      if (href) html = '<a href="' + esc(href) + '" target="_blank" rel="noopener">' + html + '</a>';
+    }
+  });
+  return html;
+}
+
+function adfSpan(tag, node) {
+  const attrs = node && node.attrs || {};
+  const span = [];
+  const col = Number(attrs.colspan);
+  const row = Number(attrs.rowspan);
+  if (col > 1) span.push(' colspan="' + col + '"');
+  if (row > 1) span.push(' rowspan="' + row + '"');
+  return '<' + tag + span.join('') + '>' + adfToHtml(node.content) + '</' + tag + '>';
+}
+
+function adfToHtml(node) {
+  if (!node) return '';
+  if (Array.isArray(node)) return node.map(adfToHtml).join('');
+  if (typeof node === 'string') return '<p>' + esc(node) + '</p>';
+  if (node.type === 'text') return adfRenderText(node);
+  if (node.type === 'hardBreak') return '<br>';
+  if (node.type === 'mention') {
+    const text = node.attrs && node.attrs.text || '';
+    return text ? '<span class="ticket-mention">' + esc(text) + '</span>' : '';
+  }
+  if (node.type === 'emoji') {
+    const text = node.attrs && (node.attrs.text || node.attrs.shortName) || '';
+    return esc(text);
+  }
+  if (node.type === 'inlineCard') {
+    const href = adfSafeHref(node.attrs && node.attrs.url);
+    if (!href) return '';
+    let label = href;
+    try {
+      const url = new URL(href);
+      label = decodeURIComponent(url.pathname.split('/').filter(Boolean).pop() || url.hostname);
+    } catch (err) { label = href; }
+    return '<a href="' + esc(href) + '" target="_blank" rel="noopener">' + esc(label) + '</a>';
+  }
+  if (node.type === 'status') {
+    const text = node.attrs && node.attrs.text || '';
+    return text ? '<span class="badge b-todo">' + esc(text) + '</span>' : '';
+  }
+  if (node.type === 'paragraph') return '<p>' + adfToHtml(node.content) + '</p>';
+  if (node.type === 'heading') {
+    const level = node.attrs && node.attrs.level;
+    const tag = level >= 3 ? 'h4' : 'h3';
+    return '<' + tag + '>' + adfToHtml(node.content) + '</' + tag + '>';
+  }
+  if (node.type === 'bulletList') return '<ul>' + adfToHtml(node.content) + '</ul>';
+  if (node.type === 'orderedList') {
+    const start = Number(node.attrs && node.attrs.order);
+    const attr = start > 1 ? ' start="' + start + '"' : '';
+    return '<ol' + attr + '>' + adfToHtml(node.content) + '</ol>';
+  }
+  if (node.type === 'listItem' || node.type === 'taskItem') return '<li>' + adfToHtml(node.content) + '</li>';
+  if (node.type === 'taskList') return '<ul>' + adfToHtml(node.content) + '</ul>';
+  if (node.type === 'blockquote') return '<blockquote>' + adfToHtml(node.content) + '</blockquote>';
+  if (node.type === 'panel') return '<div class="ticket-panel">' + adfToHtml(node.content) + '</div>';
+  if (node.type === 'codeBlock') return '<pre><code>' + esc(adfToPlainText(node)) + '</code></pre>';
+  if (node.type === 'rule') return '<hr>';
+  if (node.type === 'table') return '<div class="ticket-table-wrap"><table>' + adfToHtml(node.content) + '</table></div>';
+  if (node.type === 'tableRow') return '<tr>' + adfToHtml(node.content) + '</tr>';
+  if (node.type === 'tableHeader') return adfSpan('th', node);
+  if (node.type === 'tableCell') return adfSpan('td', node);
+  if (node.type === 'mediaSingle' || node.type === 'mediaGroup' || node.type === 'layout' || node.type === 'layoutSection' || node.type === 'layoutColumn') return adfToHtml(node.content);
+  if (node.type === 'media') return '';
+  if (node.content) return adfToHtml(node.content);
+  return '';
+}
+
+function descriptionHtml(issue) {
+  const raw = issue && issue.fields && issue.fields.description;
+  if (raw == null || raw === '') return '';
+  if (typeof raw === 'string') {
+    return raw.trim().split(/\n{2,}/).map(part => '<p>' + esc(part).replace(/\n/g, '<br>') + '</p>').join('');
+  }
+  return adfToHtml(raw);
+}
+
+function issueIsSynced(key) {
+  const wanted = String(key || '').toUpperCase();
+  if (!wanted || !S.cache) return false;
+  return Object.keys(S.cache).some(projKey => {
+    const data = S.cache[projKey];
+    return data && Array.isArray(data.issues) && data.issues.some(issue => String(issue && issue.key || '').toUpperCase() === wanted);
+  });
+}
+
+function formatViewerDate(value) {
+  if (!value) return '';
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return String(value);
+  return date.toLocaleString(undefined, { year: 'numeric', month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' });
+}
+
+let _tvSeq = 0;
+
+function leaveTicketPage() {
+  _tvSeq++;
+  const back = S._ticketFrom && S._ticketFrom !== 'ticket' && isValidPageId(S._ticketFrom)
+    ? S._ticketFrom
+    : (S.creds.url ? getDefaultProjectPage() : 'setup');
+  nav(back);
+}
+
+function ticketFact(id) {
+  const field = ALL_FIELDS.find(item => item.id === id);
+  if (!field) return null;
+  const value = String(getCellValue(S._ticketIssue || S._ticketSeed || { fields: {} }, field) || '').trim();
+  if (!value) return null;
+  const fact = { label: field.label.replace(/^Assignee: /, ''), value };
+  if (id === 'cf_clarity' && window.ClarityDashboard) {
+    const caption = ClarityDashboard.clarityCaption(value);
+    const color = ClarityDashboard.clarityColor(value);
+    fact.html = `<span class="ticket-clarity"><span class="ticket-clarity-dot" style="background:${esc(color)}"></span>${esc(caption)}</span>`;
+  }
+  return fact;
+}
+
+function ticketInitials(name) {
+  const parts = String(name || '').trim().split(/\s+/).filter(Boolean);
+  if (!parts.length) return '?';
+  const last = parts.length > 1 ? parts[parts.length - 1].charAt(0) : '';
+  return (parts[0].charAt(0) + last).toUpperCase();
+}
+
+function ticketPersonHtml(name) {
+  return `<span class="ticket-person"><span class="ticket-avatar" aria-hidden="true">${esc(ticketInitials(name))}</span><span>${esc(name)}</span></span>`;
+}
+
+function ticketFactRows(ids, extra, person) {
+  const issue = S._ticketIssue || S._ticketSeed;
+  const rows = [];
+  ids.forEach(id => {
+    if (id === 'reporter') {
+      const name = issue && issue.fields && issue.fields.reporter && (issue.fields.reporter.displayName || issue.fields.reporter.name);
+      if (name) rows.push({ label: 'Reporter', value: name });
+      return;
+    }
+    if (id === 'created' || id === 'updated') {
+      const value = issue && issue.fields && issue.fields[id];
+      if (value) rows.push({ label: id === 'created' ? 'Created' : 'Updated', value: formatViewerDate(value) });
+      return;
+    }
+    const fact = ticketFact(id);
+    if (fact) rows.push(fact);
+  });
+  (extra || []).forEach(row => { if (row && row.value) rows.push(row); });
+  if (!rows.length) return '';
+  return `<dl class="ticket-dl">${rows.map(row => `<dt>${esc(row.label)}</dt><dd>${row.html || (person ? ticketPersonHtml(row.value) : esc(row.value))}</dd>`).join('')}</dl>`;
+}
+
+function ticketGroup(title, body) {
+  if (!body) return '';
+  return `<div class="ticket-group"><h4>${esc(title)}</h4>${body}</div>`;
+}
+
+function ticketSection(title, body, extra) {
+  if (!body) return '';
+  const count = extra && extra.count != null ? `<span class="ticket-count">${esc(String(extra.count))}</span>` : '';
+  const cls = extra && extra.className ? ' ' + extra.className : '';
+  return `<section class="ticket-sec${cls}"><div class="ticket-sec-head"><h3>${esc(title)}</h3>${count}</div>${body}</section>`;
+}
+
+function ticketSkeletonLines() {
+  return '<div class="ticket-skel-block" aria-hidden="true"><span class="ticket-skel w1"></span><span class="ticket-skel w2"></span><span class="ticket-skel w3"></span></div>';
+}
+
+function ticketFieldLabel(field) {
+  const label = String(field || '').trim();
+  if (!label) return 'Field';
+  if (label === label.toLowerCase()) return label.charAt(0).toUpperCase() + label.slice(1);
+  return label;
+}
+
+function ticketPriorityMark(priority) {
+  const name = String(priority || '').trim();
+  if (!name || name === 'None') return '';
+  const tone = /high|critical|blocker|highest/i.test(name) ? 'pri-high'
+    : /low|minor|lowest|trivial/i.test(name) ? 'pri-low'
+    : 'pri-med';
+  return `<span class="ticket-pri ${tone}">${esc(name)}</span>`;
+}
+
+function ticketRelations(issue) {
+  const fields = issue && issue.fields || {};
+  const rows = [];
+  if (fields.parent && fields.parent.key) {
+    const parentFields = fields.parent.fields || {};
+    rows.push({
+      role: 'Parent',
+      key: fields.parent.key,
+      summary: parentFields.summary || '',
+      status: parentFields.status && parentFields.status.name || '',
+    });
+  }
+  (fields.subtasks || []).forEach(sub => {
+    const subFields = sub && sub.fields || {};
+    rows.push({
+      role: 'Subtask',
+      key: sub.key,
+      summary: subFields.summary || '',
+      status: subFields.status && subFields.status.name || '',
+    });
+  });
+  (fields.issuelinks || []).forEach(link => {
+    const other = link.outwardIssue || link.inwardIssue;
+    if (!other || !other.key) return;
+    const otherFields = other.fields || {};
+    const rawRole = link.outwardIssue ? (link.type && link.type.outward) : (link.type && link.type.inward);
+    const role = rawRole ? rawRole.charAt(0).toUpperCase() + rawRole.slice(1) : 'Link';
+    rows.push({
+      role,
+      key: other.key,
+      summary: otherFields.summary || '',
+      status: otherFields.status && otherFields.status.name || '',
+    });
+  });
+  return rows;
+}
+
+function ticketActivity(issue) {
+  const histories = (issue && issue.changelog && issue.changelog.histories) || [];
+  const rows = [];
+  histories.forEach(history => {
+    (history.items || []).forEach(item => {
+      const field = String(item.field || '');
+      const id = String(item.fieldId || '');
+      const keep = id === 'status' || id === 'fixVersions' || id === 'assignee' || id === 'priority'
+        || /fix version|status|assignee|priority|scope|clarity|commitment/i.test(field);
+      if (!keep) return;
+      rows.push({
+        when: history.created,
+        who: history.author && (history.author.displayName || history.author.name) || '',
+        field: field || id,
+        from: item.fromString || '',
+        to: item.toString || '',
+      });
+    });
+  });
+  return rows.slice(-12).reverse();
+}
+
+function ticketComments(issue) {
+  const list = issue && issue.fields && issue.fields.comment && issue.fields.comment.comments || [];
+  return list.slice(-8).reverse();
+}
+
+function renderTicketPage() {
+  const host = document.getElementById('page-ticket');
+  if (!host) return;
+  const issue = S._ticketIssue || S._ticketSeed || { key: S._ticketKey || '', fields: {} };
+  const fields = issue.fields || {};
+  const key = String(S._ticketKey || issue.key || '').toUpperCase();
+  const loading = !S._ticketIssue && !S._ticketError;
+  const summary = fields.summary || (loading ? 'Loading from Jira…' : 'Ticket');
+  const typeName = fields.issuetype && fields.issuetype.name || '';
+  const statusName = fields.status && fields.status.name || '';
+  const priority = fields.priority && fields.priority.name || '';
+  const url = String((S.creds && S.creds.url) || '').replace(/\/+$/, '');
+  const jiraHref = url && key ? url + '/browse/' + encodeURIComponent(key) : '';
+  const title = document.getElementById('topbar-title');
+  if (title && S.page === 'ticket') title.textContent = key ? key + (fields.summary ? ' · ' + fields.summary : '') : 'Ticket';
+  const desc = loading
+    ? ticketSkeletonLines()
+    : `<div class="ticket-prose">${descriptionHtml(issue) || '<p class="ticket-empty">No description in Jira.</p>'}</div>`;
+  const relationRows = ticketRelations(issue);
+  const relations = relationRows.map(row => {
+    const status = row.status ? `<span class="badge ${statusBadgeClass(row.status)}">${esc(row.status)}</span>` : '';
+    return `<button type="button" class="ticket-rel" data-key="${esc(row.key)}" onclick="openTicketViewer(this.dataset.key)">
+      <span class="ticket-rel-role">${esc(row.role)}</span>
+      <span class="ticket-rel-main"><span class="ticket-rel-line"><span class="ticket-rel-key">${esc(row.key)}</span>${status}</span><span class="ticket-rel-sum">${esc(row.summary)}</span></span>
+    </button>`;
+  }).join('');
+  const activityRows = loading ? [] : ticketActivity(issue);
+  const arrow = '<svg class="ticket-arrow" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M5 12h14M13 6l6 6-6 6"/></svg>';
+  const activity = activityRows.map(row => {
+    const shift = row.from
+      ? `<span class="ticket-shift"><span class="ticket-from">${esc(row.from)}</span>${arrow}<span class="ticket-to">${esc(row.to || 'Empty')}</span></span>`
+      : `<span class="ticket-shift"><span class="ticket-to">${esc(row.to || 'Empty')}</span></span>`;
+    return `<li class="ticket-act"><time>${esc(formatViewerDate(row.when))}</time><div class="ticket-act-body"><strong>${esc(ticketFieldLabel(row.field))}</strong>${shift}${row.who ? `<span class="ticket-who">${esc(row.who)}</span>` : ''}</div></li>`;
+  }).join('');
+  const commentRows = loading ? [] : ticketComments(issue);
+  const comments = commentRows.map(comment => {
+    const who = comment.author && (comment.author.displayName || comment.author.name) || 'Jira';
+    const body = typeof comment.body === 'string'
+      ? '<p>' + esc(comment.body) + '</p>'
+      : (adfToHtml(comment.body) || '');
+    return `<article class="ticket-comment"><span class="ticket-avatar" aria-hidden="true">${esc(ticketInitials(who))}</span><div><div class="ticket-comment-head"><strong>${esc(who)}</strong><time>${esc(formatViewerDate(comment.created))}</time></div><div class="ticket-prose">${body}</div></div></article>`;
+  }).join('');
+  const local = _ticketNotes && _ticketNotes[key];
+  const localHtml = local
+    ? (local.note ? `<div class="ticket-local">${esc(local.note)}</div>` : '') + (local.comments || []).map(comment => {
+      const who = comment.author || comment.createdBy || 'Note';
+      return `<article class="ticket-comment"><span class="ticket-avatar" aria-hidden="true">${esc(ticketInitials(who))}</span><div><div class="ticket-comment-head"><strong>${esc(who)}</strong></div><div class="ticket-local">${esc(comment.body || '')}</div></div></article>`;
+    }).join('')
+    : '';
+  const unsynced = key && S._ticketIssue && !issueIsSynced(key);
+  const people = ticketFactRows(['assignee', 'cf_dev', 'cf_product', 'cf_devpart', 'reporter'], null, true);
+  const commitment = ticketFactRows(['cf_scope', 'cf_scopesc', 'cf_clarity', 'cf_custcom', 'cf_custint']);
+  const delivery = ticketFactRows(['fixVersions', 'cf_devest', 'cf_devact', 'created', 'updated']);
+  const detailBody = [ticketGroup('People', people), ticketGroup('Commitment', commitment), ticketGroup('Delivery', delivery)].join('');
+  const details = detailBody || (loading ? ticketSkeletonLines() : '<p class="ticket-empty">No fields on this ticket.</p>');
+  host.innerHTML = `<article class="ticket-page"${loading ? ' aria-busy="true"' : ''}>
+    <header class="ticket-mast">
+      <div class="ticket-mast-bar">
+        <button type="button" class="ticket-back" onclick="leaveTicketPage()"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M15 18l-6-6 6-6"/></svg>Back</button>
+        <div class="ticket-actions">
+          ${key ? ticketRowTools(key, fields.summary || '') : ''}
+          ${jiraHref ? `<a class="btn btn-sm primary" data-jira-direct href="${esc(jiraHref)}" target="_blank" rel="noopener">Open in Jira</a>` : ''}
+        </div>
+      </div>
+      <div class="ticket-identity">
+        <div class="ticket-id">
+          <span class="ticket-key">${esc(key)}</span>
+          ${typeName ? `<span class="badge b-todo">${esc(typeName)}</span>` : ''}
+          ${statusName ? `<span class="badge ${statusBadgeClass(statusName)}">${esc(statusName)}</span>` : ''}
+          ${ticketPriorityMark(priority)}
+          ${unsynced ? '<span class="ticket-live" title="This ticket is not in the synced list. This page is live from Jira.">Not in sync</span>' : ''}
+        </div>
+        <h2 class="ticket-summary">${esc(summary)}</h2>
+      </div>
+    </header>
+    ${S._ticketError ? `<div class="ticket-alert" role="alert"><strong>Could not load this ticket</strong>${esc(S._ticketError)}</div>` : ''}
+    <div class="ticket-layout">
+      <div class="ticket-main">
+        ${S._ticketError && !S._ticketIssue ? '' : ticketSection('Description', desc)}
+        ${ticketSection('Recent changes', activity ? `<ol class="ticket-timeline">${activity}</ol>` : '', { count: activityRows.length || null })}
+        ${ticketSection('Comments', comments, { count: commentRows.length || null })}
+        ${ticketSection('Notes', localHtml ? `<div class="ticket-notes">${localHtml}</div>` : '')}
+      </div>
+      <aside class="ticket-rail">
+        <section class="ticket-sheet"><h3>Details</h3>${details}</section>
+        ${relations ? `<section class="ticket-sheet"><h3>Related</h3>${relations}</section>` : ''}
+      </aside>
+    </div>
+  </article>`;
+}
+
+async function fetchTicketRecord(key) {
+  const creds = jiraAuthHeader();
+  const target = creds.url + '/rest/api/3/issue/' + encodeURIComponent(key)
+    + '?fields=' + encodeURIComponent(ticketViewerFieldIds().join(','))
+    + '&expand=changelog';
+  const response = await fetch(PROXY + '?target=' + encodeURIComponent(target), {
+    headers: { Authorization: creds.auth, Accept: 'application/json' },
+  });
+  const text = await response.text();
+  let json = {};
+  try { json = text ? JSON.parse(text) : {}; } catch (err) { json = {}; }
+  if (!response.ok) {
+    const detail = (json.errorMessages && json.errorMessages.join(' ')) || json.message || String(text || '').slice(0, 240);
+    throw new Error(detail || ('Jira returned HTTP ' + response.status));
+  }
+  if (!json || !json.key) throw new Error(key + ' was not found in Jira.');
+  return json;
+}
+
+async function loadTicketPage(key) {
+  const normalized = String(key || '').trim().toUpperCase();
+  if (!/^[A-Z][A-Z0-9]+-\d+$/.test(normalized)) return;
+  const seq = ++_tvSeq;
+  S._ticketLoading = true;
+  try {
+    const issue = await fetchTicketRecord(normalized);
+    if (seq !== _tvSeq || S._ticketKey !== normalized) return;
+    issue.key = normalized;
+    S._ticketIssue = issue;
+    S._ticketError = '';
+  } catch (err) {
+    if (seq !== _tvSeq || S._ticketKey !== normalized) return;
+    S._ticketError = err.message || 'Could not load that ticket from Jira.';
+  }
+  S._ticketLoading = false;
+  if (S.page === 'ticket') renderTicketPage();
+}
+
+function openTicketViewer(key, seed) {
+  const normalized = String(key || '').trim().toUpperCase();
+  if (!/^[A-Z][A-Z0-9]+-\d+$/.test(normalized)) return;
+  if (S.page !== 'ticket') S._ticketFrom = S.page || '';
+  S._ticketKey = normalized;
+  S._ticketSeed = seed && String(seed.key || '').toUpperCase() === normalized ? seed : null;
+  S._ticketIssue = null;
+  S._ticketError = '';
+  if (S.page === 'ticket') {
+    renderTicketPage();
+    loadTicketPage(normalized);
+    if (!_routeNavigating) syncRoute();
+    return;
+  }
+  nav('ticket');
+}
+
+function ticketKeyFromClick(event) {
+  if (!event || event.button !== 0) return '';
+  if (event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return '';
+  if (event.target.closest('[data-jira-direct]')) return '';
+  if (event.target.closest('button, input, select, textarea, label')) return '';
+  const keyed = event.target.closest('[data-issue-key]');
+  const fromRow = keyed && keyed.dataset.issueKey;
+  if (fromRow && /^[A-Z][A-Z0-9]+-\d+$/i.test(fromRow)) return fromRow.toUpperCase();
+  const link = event.target.closest('a[href*="/browse/"]');
+  if (link) {
+    const match = String(link.getAttribute('href') || '').match(/\/browse\/([A-Z][A-Z0-9]+-\d+)/i);
+    if (match) return match[1].toUpperCase();
+  }
+  const row = event.target.closest('tr[onclick]');
+  if (row) {
+    const match = String(row.getAttribute('onclick') || '').match(/\/browse\/([A-Z][A-Z0-9]+-\d+)/i);
+    if (match) return match[1].toUpperCase();
+  }
+  return '';
+}
+
+function onTicketViewerClick(event) {
+  if (!ticketViewerOn()) return;
+  const key = ticketKeyFromClick(event);
+  if (!key) return;
+  event.preventDefault();
+  event.stopPropagation();
+  openTicketViewer(key);
+}
+
+function dashboardProjectForLoadedIssue(issue) {
+  if (window.JiraSearch) {
+    const projects = getAllProjects().map(proj => ({ key: proj.key, jql: getProjectJql(proj), source: proj }));
+    const hit = JiraSearch.dashboardProjectForIssue(issue, projects);
+    if (hit && hit.source) return hit.source;
+  }
+  const moduleKey = qualityModuleFromKey(issue && issue.key);
+  return getAllProjects().find(proj => proj.key === moduleKey) || null;
+}
+
+function ensureJiraProjectFilterShows(moduleKey) {
+  if (!moduleKey || moduleKey === 'Other') return;
+  if (S._qiJiraProjectsNone) {
+    S._qiJiraProjectsNone = false;
+    S._qiJiraProjectFilter = new Set([moduleKey]);
+    return;
+  }
+  const selected = getSelectedJiraProjects();
+  if (selected.size && !selected.has(moduleKey)) selected.add(moduleKey);
+}
+
+function focusLoadedIssueRow(projKey, issueKey) {
+  const run = () => {
+    const box = document.getElementById('issues-' + projKey);
+    if (!box) return;
+    const safe = window.CSS && CSS.escape ? CSS.escape(issueKey) : issueKey;
+    const row = box.querySelector('tr[data-issue-key="' + safe + '"]');
+    if (!row) return;
+    row.classList.add('is-just-created');
+    row.scrollIntoView({ block: 'nearest' });
+  };
+  if (typeof requestAnimationFrame === 'function') requestAnimationFrame(run);
+  else setTimeout(run, 0);
+}
+
+function closeJiraLoadedTicket() {
+  const root = document.getElementById('jira-loaded-root');
+  if (root) root.hidden = true;
+}
+
+function showJiraLoadedTicket(issue) {
+  const root = document.getElementById('jira-loaded-root');
+  const body = document.getElementById('jira-loaded-body');
+  const title = document.getElementById('jira-loaded-title');
+  if (!root || !body || !title) return;
+  const fields = issue.fields || {};
+  const status = fields.status && fields.status.name || '';
+  const type = fields.issuetype && fields.issuetype.name || '';
+  const priority = fields.priority && fields.priority.name || '';
+  const assignee = fields.assignee && (fields.assignee.displayName || fields.assignee.name) || '';
+  const project = fields.project && (fields.project.name || fields.project.key) || qualityModuleFromKey(issue.key);
+  const url = String((S.creds && S.creds.url) || '').replace(/\/+$/, '');
+  const link = url ? (url + '/browse/' + encodeURIComponent(issue.key)) : '';
+  title.textContent = issue.key;
+  const meta = [type, priority, assignee, project].filter(Boolean).map(item => `<span>${esc(item)}</span>`).join('');
+  body.innerHTML = `
+    <div class="jira-loaded-actions">${ticketRowTools(issue.key, fields.summary || '')}</div>
+    <p class="jira-loaded-summary">${esc(fields.summary || '')}</p>
+    <div class="jira-loaded-meta">${status ? `<span class="badge ${statusBadgeClass(status)}">${esc(status)}</span>` : ''}${meta}</div>
+    <p class="jira-loaded-note">This ticket is not on a dashboard project, so it stays in this panel.</p>
+    ${link ? `<a class="btn btn-sm" href="${esc(link)}" target="_blank" rel="noopener">Open in Jira</a>` : ''}`;
+  root.hidden = false;
+}
+
+async function loadJiraSearchIssue(key) {
+  const normalized = String(key || '').trim().toUpperCase();
+  if (!/^[A-Z][A-Z0-9]+-\d+$/.test(normalized)) return;
+  clearTimeout(_jiraSearchTimer);
+  _jiraSearchSeq++;
+  _jiraSearchHits = [];
+  _jiraSearchIndex = -1;
+  _jiraSearchError = '';
+  _jiraSearchOpen = true;
+  _jiraSearchLoading = true;
+  const input = document.getElementById('jira-search-input');
+  if (input) input.value = normalized;
+  paintJiraSearchList();
+  const list = document.getElementById('jira-search-list');
+  if (list) list.innerHTML = '<div class="jira-search-empty">Loading ' + esc(normalized) + '…</div>';
+  try {
+    const result = await fetchJiraByJql('key = ' + normalized, 1, ['*navigable']);
+    const issue = result.issues && result.issues[0];
+    if (!issue) throw new Error(normalized + ' was not found in Jira.');
+    const slim = slimIssueForCache(issue);
+    slim.key = normalized;
+    if (ticketViewerOn()) {
+      _jiraSearchLoading = false;
+      closeJiraSearchList();
+      openTicketViewer(normalized, issue);
+      return;
+    }
+    const proj = dashboardProjectForLoadedIssue(slim);
+    _jiraSearchLoading = false;
+    closeJiraSearchList();
+    if (!proj) {
+      showJiraLoadedTicket(slim);
+      return;
+    }
+    closeJiraLoadedTicket();
+    rememberPinnedSearchIssue(proj.key, slim);
+    if (!issueMatchesListingSearchAndCols(proj, slim)) {
+      const filters = getProjectColFilters(proj.key);
+      filters.q = '';
+      filters.cols = {};
+    }
+    if (isQualityDashboardProject(proj)) ensureJiraProjectFilterShows(qualityModuleFromKey(slim.key));
+    nav(proj.id);
+    const parentKey = slim.fields && slim.fields.parent && slim.fields.parent.key;
+    if (parentKey) delete _epicCollapsed[epicCollapseId(proj.key, parentKey)];
+    if (issueHiddenFromListing(slim, proj.key)) {
+      if (!S.activeFilter) S.activeFilter = {};
+      S.activeFilter[proj.key] = issuePhaseLabel(slim);
+    }
+    refreshProjectListing(proj.key);
+    focusLoadedIssueRow(proj.key, slim.key);
+  } catch (err) {
+    _jiraSearchLoading = false;
+    _jiraSearchError = err.message || 'Could not load that ticket.';
+    _jiraSearchOpen = true;
+    paintJiraSearchList();
+  }
 }
 
 function onWorkspaceQueryInput(id, value) {
@@ -25361,6 +26472,7 @@ document.addEventListener('keydown', event => {
 
 // ── Init ──────────────────────────────────────────────────────────────────────
 async function initApp() {
+  bindJiraSearch();
   applyStoredMenuGroup('config');
   checkProxy();
   if (!S.log) S.log = [];

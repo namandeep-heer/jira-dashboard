@@ -77,6 +77,10 @@ function copyPackageFiles(outDir) {
     path.join(ROOT, 'lib', 'clarity-dashboard.js'),
     path.join(outDir, 'lib', 'clarity-dashboard.js')
   );
+  fs.copyFileSync(
+    path.join(ROOT, 'lib', 'jira-search.js'),
+    path.join(outDir, 'lib', 'jira-search.js')
+  );
 
   fs.copyFileSync(
     path.join(ROOT, 'README.md'),

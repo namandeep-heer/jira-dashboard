@@ -243,6 +243,12 @@ app.get('/lib/ticket-search.js', (req, res) => {
   res.sendFile(path.join(ROOT, 'lib', 'ticket-search.js'));
 });
 
+app.get('/lib/jira-search.js', (req, res) => {
+  res.setHeader('Cache-Control', 'no-store');
+  res.type('application/javascript');
+  res.sendFile(path.join(ROOT, 'lib', 'jira-search.js'));
+});
+
 // ── Health check endpoint ─────────────────────────────────────────────────────
 app.get('/health', (req, res) => {
   res.status(200).json({ status: 'ok', message: 'Proxy is running' });
@@ -561,6 +567,16 @@ app.put('/api/user-preferences/group-by-epic', (req, res) => {
   if (!user) return;
   try {
     res.json(userPreferences.setGroupByEpic(user.id, req.body?.enabled));
+  } catch (err) {
+    sendStoreError(res, err);
+  }
+});
+
+app.put('/api/user-preferences/ticket-viewer', (req, res) => {
+  const user = requireUser(req, res);
+  if (!user) return;
+  try {
+    res.json(userPreferences.setTicketViewer(user.id, req.body?.enabled));
   } catch (err) {
     sendStoreError(res, err);
   }
