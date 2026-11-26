@@ -423,6 +423,9 @@ assert.ok(dashboard.includes('cellsOf(rows[i]).forEach(cell => { cell.style.heig
 assert.ok(dashboard.includes('overflow-y: scroll'));
 assert.ok(dashboard.includes('follow(scroll, frozen)'));
 assert.ok(dashboard.includes('if (frozen.scrollTop !== scroll.scrollTop) frozen.scrollTop = scroll.scrollTop'));
+assert.ok(dashboard.includes('(scroll.offsetHeight - scroll.clientHeight) - (frozen.offsetHeight - frozen.clientHeight)'));
+assert.ok(dashboard.includes('frozen.scrollHeight - frozen.clientHeight'));
+assert.ok(dashboard.includes('overflow-anchor: none'));
 assert.ok(dashboard.includes('await syncAfterBulkEdit(projKey)'));
 assert.ok(dashboard.includes('syncWorkspacePage(projKey)'));
 assert.ok(dashboard.includes('class="bulk-col-check'));

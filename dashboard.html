@@ -630,7 +630,7 @@ table.issues th.is-freeze-anchor { box-shadow: inset 0 -2px 0 var(--blue); }
 table.issues th.is-freeze-preview { box-shadow: inset 0 -2px 0 var(--border2); }
 .proj-freeze-hint { font-size: 12px; color: var(--text2); }
 .proj-issues .proj-issue-split { flex: 1; min-height: 0; display: flex; overflow: hidden; background: var(--bg); border: 0.5px solid var(--border); border-radius: var(--radius-lg); }
-.proj-frozen-pane, .proj-scroll-pane { min-width: 0; min-height: 0; }
+.proj-frozen-pane, .proj-scroll-pane { min-width: 0; min-height: 0; overflow-anchor: none; }
 .proj-frozen-pane { flex: 0 0 auto; width: max-content; max-width: 50%; overflow-x: auto; overflow-y: scroll; border-right: 0.5px solid var(--border); scrollbar-width: none; }
 .proj-frozen-pane::-webkit-scrollbar { width: 0; height: 10px; }
 .proj-scroll-pane { flex: 1 1 auto; overflow: auto; }
@@ -9764,7 +9764,17 @@ function syncIssueSplit(root) {
     root._splitSyncing = false;
     const frozen = split.querySelector('.proj-frozen-pane');
     const scroll = split.querySelector('.proj-scroll-pane');
-    if (frozen && scroll && frozen.scrollTop !== scroll.scrollTop) frozen.scrollTop = scroll.scrollTop;
+    if (frozen && scroll) {
+      const bar = Math.max(0, (scroll.offsetHeight - scroll.clientHeight) - (frozen.offsetHeight - frozen.clientHeight));
+      const inset = bar ? bar + 'px' : '';
+      if (frozen.style.marginBottom !== inset) frozen.style.marginBottom = inset;
+      const currentPad = parseFloat(frozen.style.paddingBottom) || 0;
+      const gap = (scroll.scrollHeight - scroll.clientHeight) - (frozen.scrollHeight - frozen.clientHeight);
+      const pad = Math.max(0, Math.round(currentPad + gap));
+      const padCss = pad ? pad + 'px' : '';
+      if (frozen.style.paddingBottom !== padCss) frozen.style.paddingBottom = padCss;
+      if (frozen.scrollTop !== scroll.scrollTop) frozen.scrollTop = scroll.scrollTop;
+    }
     if (observer) {
       if (frozen) observer.observe(frozen);
       if (scroll) observer.observe(scroll);
@@ -9786,7 +9796,13 @@ function bindIssueSplit(root) {
     lock = false;
   }
   scroll.addEventListener('scroll', () => follow(scroll, frozen), { passive: true });
-  frozen.addEventListener('scroll', () => follow(frozen, scroll), { passive: true });
+  frozen.addEventListener('scroll', () => {
+    if (lock || frozen.scrollTop === scroll.scrollTop) return;
+    // The key pane cannot always scroll as far as the summary pane. Copying
+    // that clamp back stops a wheel gesture short of the last rows.
+    if (frozen.scrollTop < scroll.scrollTop && frozen.scrollTop >= frozen.scrollHeight - frozen.clientHeight - 1) return;
+    follow(frozen, scroll);
+  }, { passive: true });
   frozen.addEventListener('wheel', event => {
     if (Math.abs(event.deltaX) > Math.abs(event.deltaY)) return;
     scroll.scrollTop += event.deltaY;
