@@ -669,6 +669,10 @@ app.post('/api/jira/issue/:key', (req, res) => {
   handleJiraWrite(req, res, creds => jiraWrite.applyChange(creds, req.params.key, req.body));
 });
 
+app.delete('/api/jira/issue/:key', (req, res) => {
+  handleJiraWrite(req, res, creds => jiraWrite.deleteIssue(creds, req.params.key));
+});
+
 app.put('/api/credentials', (req, res) => {
   const user = requireUser(req, res);
   if (!user) return;

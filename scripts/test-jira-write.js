@@ -13,6 +13,7 @@ const {
   normalizeChange,
   planCreate,
   replaceIssueInState,
+  removeIssueFromState,
   insertIssueIntoState,
   trimTransitions,
   trimFieldMeta,
@@ -111,6 +112,28 @@ const updated = {
 assert.strictEqual(replaceIssueInState(state, updated), 2);
 assert.strictEqual(state.cache.NFS.issues[0].fields.summary, 'New');
 assert.strictEqual(state.releaseCache['2026.R2'].NFS.issues[0].fields.status.name, 'Closed');
+
+const sharedIssues = [
+  { key: 'NFS-1', fields: { summary: 'Go' } },
+  { key: 'NFS-2', fields: { summary: 'Stay' } },
+];
+const sharedBucket = { issues: sharedIssues, total: 2 };
+const otherIssue = { key: 'NFS-1', fields: { summary: 'Copy' } };
+const removeState = {
+  cache: { NFS: sharedBucket },
+  releaseCache: {
+    '2026.R2': { NFS: sharedBucket },
+    '2027.R1': { NFS: { issues: [otherIssue, { key: 'NFS-3' }], total: 4 } },
+  },
+};
+assert.strictEqual(removeIssueFromState(removeState, 'nfs-1'), 2);
+assert.deepStrictEqual(sharedIssues.map(issue => issue.key), ['NFS-2']);
+assert.strictEqual(sharedBucket.total, 1);
+assert.strictEqual(removeState.releaseCache['2027.R1'].NFS.issues.length, 1);
+assert.strictEqual(removeState.releaseCache['2027.R1'].NFS.issues[0].key, 'NFS-3');
+assert.strictEqual(removeState.releaseCache['2027.R1'].NFS.total, 3);
+assert.strictEqual(removeIssueFromState(removeState, 'NFS-9'), 0);
+assert.strictEqual(removeIssueFromState(null, 'NFS-1'), 0);
 
 const created = planCreate({
   projectKey: 'nfs',
@@ -352,6 +375,7 @@ assert.ok(writeUi.includes('recoverDays'));
 assert.ok(!writeUi.includes('Refresh and try again'));
 assert.ok(dashboard.includes('textarea.jw-summary'));
 assert.ok(proxy.includes("app.post('/api/jira/issue/:key'"));
+assert.ok(proxy.includes("app.delete('/api/jira/issue/:key'"));
 assert.ok(proxy.includes("app.post('/api/jira/issues'"));
 assert.ok(proxy.includes("app.get('/api/jira/create-meta'"));
 assert.ok(proxy.includes('/lib/jira-write-ui.js'));
@@ -361,7 +385,12 @@ assert.ok(writeUi.includes('openCreate'));
 assert.ok(writeUi.includes('function showCreatedPopup'));
 assert.ok(writeUi.includes('function ensureChoiceItems'));
 assert.ok(writeUi.includes('rememberIssue'));
+assert.ok(writeUi.includes('forgetIssue'));
 assert.ok(dashboard.includes('function applyBulkEdit'));
+assert.ok(dashboard.includes('function deleteBulkIssues'));
+assert.ok(dashboard.includes('class="btn btn-sm proj-bulk-delete"'));
+assert.ok(dashboard.includes('Jira moves them to the trash'));
+assert.ok(dashboard.includes("method: 'DELETE'"));
 assert.ok(dashboard.includes('data-load="versions"'));
 assert.ok(dashboard.includes('function fillBulkVersions'));
 assert.ok(dashboard.includes('function bulkVersionChange'));
@@ -448,6 +477,39 @@ assert.strictEqual(made.updatedCache, 1);
 assert.strictEqual(createdSaved.releaseCache['N2027.R1'].NFS.issues[0].key, 'NFS-9');
 assert.strictEqual(createdSaved.releaseCache['N2027.R1'].NFS.issues[1].key, 'NFS-1');
 assert.strictEqual(createCalls.find(call => call.method === 'POST').body.fields.summary, 'Add the export');
+
+const deleteCalls = [];
+let deletedSaved = null;
+const deleteState = {
+  cache: { NFS: { issues: [{ key: 'NFS-4' }, { key: 'NFS-5' }], total: 2 } },
+  releaseCache: { 'N2027.R1': { NFS: { issues: [{ key: 'NFS-4' }], total: 1 } } },
+};
+const deleteApi = createJiraWriteApi({
+  async jiraFetch(_creds, method, apiPath) {
+    deleteCalls.push({ method, apiPath });
+    if (apiPath.endsWith('/NFS-4')) return { ok: true, status: 204, json: null, text: '' };
+    if (apiPath.endsWith('/NFS-8')) return { ok: false, status: 404, json: { errorMessages: ['Issue does not exist.'] }, text: '' };
+    return { ok: false, status: 400, json: { errorMessages: ['The issue has subtasks.'] }, text: '' };
+  },
+  loadState() { return deleteState; },
+  saveState(next) { deletedSaved = next; },
+});
+const deleted = await deleteApi.deleteIssue({}, 'nfs-4');
+assert.strictEqual(deleted.key, 'NFS-4');
+assert.strictEqual(deleted.removed, 2);
+assert.strictEqual(deleted.missing, false);
+assert.strictEqual(deleteCalls[0].method, 'DELETE');
+assert.ok(deleteCalls[0].apiPath.endsWith('/rest/api/3/issue/NFS-4'));
+assert.deepStrictEqual(deleteState.cache.NFS.issues.map(issue => issue.key), ['NFS-5']);
+assert.strictEqual(deleteState.cache.NFS.total, 1);
+assert.strictEqual(deleteState.releaseCache['N2027.R1'].NFS.issues.length, 0);
+assert.strictEqual(deleteState.releaseCache['N2027.R1'].NFS.total, 0);
+assert.strictEqual(deletedSaved, deleteState);
+const missing = await deleteApi.deleteIssue({}, 'NFS-8');
+assert.strictEqual(missing.missing, true);
+assert.strictEqual(missing.removed, 0);
+await assert.rejects(() => deleteApi.deleteIssue({}, 'NFS-5'), /subtasks/);
+assert.strictEqual(deleteState.cache.NFS.issues[0].key, 'NFS-5');
 }
 
 runApply().then(() => {

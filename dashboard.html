@@ -511,7 +511,8 @@ table.issues td.epic-indent { padding-left: 22px; box-shadow: inset 2px 0 0 var(
   .epic-toggle svg { transition: none; }
 }
 .proj-sort-btn.is-on, .proj-views-btn.is-on, .proj-bulk-btn.is-on { color: var(--text); border-color: var(--border2); }
-.proj-bulk-btn:disabled { opacity: .4; cursor: default; }
+.proj-bulk-btn:disabled, .proj-bulk-delete:disabled { opacity: .4; cursor: default; }
+.proj-bulk-delete:not(:disabled) { color: var(--red); }
 .proj-views-btn { max-width: 180px; margin-left: auto; overflow: hidden; text-overflow: ellipsis; }
 .proj-sort-status { font-size: 12px; color: var(--text3); }
 .proj-sort-status.is-error { color: var(--red); }
@@ -2053,6 +2054,12 @@ code { font-family: monospace; font-size: 12px; background: var(--bg3); padding:
           <div id="pc-matrix" class="pc-matrix-wrap"></div>
           <div style="margin-bottom: 20px;">
             <span id="projects-save-msg" style="font-size: 12px; color: var(--text3);"></span>
+          </div>
+
+          <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:14px">
+            <button class="btn btn-sm" type="button" onclick="setProjectDeleteChecks(true)">All projects</button>
+            <button class="btn btn-sm" type="button" onclick="setProjectDeleteChecks(false)">None</button>
+            <button class="btn btn-sm" type="button" style="color:var(--red)" onclick="bulkDeleteProjects()">Delete selected</button>
           </div>
 
           <!-- Built-in -->
@@ -10388,12 +10395,17 @@ function applyBulkSelectionDom(projKey) {
       head.checked = keys.length > 0 && count === keys.length;
       head.indeterminate = count > 0 && count < keys.length;
     }
+    const busy = !!_bulkBusy[projKey];
     const button = root.querySelector('.proj-bulk-btn');
     if (button) {
-      const busy = !!_bulkBusy[projKey];
       button.disabled = !count || busy;
       button.classList.toggle('is-on', !!_bulkMode[projKey]);
       button.title = count ? 'Edit the selected tickets' : 'Select tickets to bulk edit';
+    }
+    const deleteButton = root.querySelector('.proj-bulk-delete');
+    if (deleteButton) {
+      deleteButton.disabled = !count || busy;
+      deleteButton.title = count ? 'Delete the selected tickets from Jira' : 'Select tickets to delete';
     }
   }
   const dialog = document.getElementById('bulk-edit-root');
@@ -10861,12 +10873,15 @@ function showBulkReport(projKey) {
   }
   const summary = document.getElementById('bulk-report-summary');
   const body = document.getElementById('bulk-report-body');
+  const titleEl = document.getElementById('bulk-report-title');
+  if (titleEl) titleEl.textContent = report.title || 'Bulk edit report';
   if (summary) summary.textContent = report.summary || '';
   if (body) {
     const lines = report.lines || [];
+    const hasColumn = lines.some(line => line.column);
     body.innerHTML = lines.length
-      ? `<table class="bulk-report-table"><thead><tr><th>Ticket</th><th>Column</th><th>Result</th></tr></thead><tbody>${lines.map(line => `<tr><td>${esc(line.key)}</td><td>${esc(line.column)}</td><td class="${line.ok ? 'bulk-report-ok' : 'bulk-report-fail'}">${esc(line.result)}</td></tr>`).join('')}</tbody></table>`
-      : '<p class="proj-bulk-status">No column changes were processed.</p>';
+      ? `<table class="bulk-report-table"><thead><tr><th>Ticket</th>${hasColumn ? '<th>Column</th>' : ''}<th>Result</th></tr></thead><tbody>${lines.map(line => `<tr><td>${esc(line.key)}</td>${hasColumn ? `<td>${esc(line.column || '')}</td>` : ''}<td class="${line.ok ? 'bulk-report-ok' : 'bulk-report-fail'}">${esc(line.result)}</td></tr>`).join('')}</tbody></table>`
+      : `<p class="proj-bulk-status">${esc(report.empty || 'No column changes were processed.')}</p>`;
   }
   root.hidden = false;
   document.addEventListener('keydown', onBulkReportKey);
@@ -11046,6 +11061,111 @@ async function applyBulkEdit(projKey) {
   const keyOrder = new Map(keys.map((key, index) => [key, index]));
   reportLines.sort((a, b) => (keyOrder.get(a.key) - keyOrder.get(b.key)) || (a.order - b.order));
   _bulkReport[projKey] = { summary, lines: reportLines };
+  setBulkStatus(projKey, summary + ' Syncing…', failedCount > 0);
+  refreshProjectListing(projKey);
+  showBulkReport(projKey);
+  await syncAfterBulkEdit(projKey);
+  setBulkStatus(projKey, summary, failedCount > 0);
+}
+
+async function dropDeletedFromWorkspaces(keys) {
+  const wanted = new Set(keys.map(key => String(key || '').toUpperCase()));
+  const targets = (_workspaces || []).filter(ws => (ws.items || []).some(item => wanted.has(String(item.key || '').toUpperCase())));
+  if (!targets.length) return;
+  let data = null;
+  for (const ws of targets) {
+    const drop = (ws.items || []).map(item => item.key).filter(key => wanted.has(String(key || '').toUpperCase()));
+    if (!drop.length) continue;
+    data = await workspaceRequest('/api/workspaces/' + encodeURIComponent(ws.id) + '/items/remove', {
+      method: 'POST',
+      body: JSON.stringify({ keys: drop }),
+    });
+  }
+  if (!data) return;
+  _workspaces = Array.isArray(data.workspaces) ? data.workspaces : _workspaces;
+  ensureWorkspacePages();
+  renderWorkspacesNav();
+  paintWorkspaceButtons();
+}
+
+async function deleteBulkIssues(projKey) {
+  if (_bulkBusy[projKey]) return;
+  const keys = bulkSelectedKeys(projKey);
+  if (!keys.length) {
+    setBulkStatus(projKey, 'Select at least one ticket.', true);
+    return;
+  }
+  const noun = keys.length === 1 ? '1 ticket' : keys.length + ' tickets';
+  const preview = keys.slice(0, 12).map(key => {
+    const issue = bulkIssue(projKey, key);
+    const summary = issue && issue.fields && issue.fields.summary;
+    return summary ? key + '  ' + summary : key;
+  }).join('\n');
+  const more = keys.length > 12 ? '\n…and ' + (keys.length - 12) + ' more' : '';
+  const message = 'Delete ' + noun + ' from Jira?\n\n' + preview + more + '\n\nJira moves them to the trash. A ticket that still has subtasks is left in place.';
+  if (!window.confirm(message)) return;
+  _bulkBusy[projKey] = true;
+  refreshProjectListing(projKey);
+  const reportLines = [];
+  const failed = new Set();
+  const removed = [];
+  let done = 0;
+  function paintProgress() {
+    const button = document.querySelector('#issues-' + projKey + ' .proj-bulk-delete');
+    if (button) button.textContent = 'Deleting ' + done + ' of ' + keys.length + '…';
+    setBulkStatus(projKey, 'Deleting ' + done + ' of ' + keys.length + '…', false);
+  }
+  paintProgress();
+
+  async function deleteOne(key) {
+    try {
+      const res = await authFetch('/api/jira/issue/' + encodeURIComponent(key), { method: 'DELETE' });
+      const json = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        failed.add(key);
+        reportLines.push({ key, ok: false, result: 'Failed. ' + (json.error || 'Could not delete in Jira.') });
+        return;
+      }
+      if (window.JiraWrite && JiraWrite.forgetIssue) JiraWrite.forgetIssue(key);
+      removed.push(key);
+      reportLines.push({ key, ok: true, result: json.missing ? 'Already gone from Jira' : 'Moved to the Jira trash' });
+    } catch (err) {
+      failed.add(key);
+      reportLines.push({ key, ok: false, result: 'Failed. ' + (err.message || 'Could not delete in Jira.') });
+    }
+  }
+
+  let cursor = 0;
+  async function worker() {
+    while (cursor < keys.length) {
+      const key = keys[cursor++];
+      await deleteOne(key);
+      done += 1;
+      paintProgress();
+    }
+  }
+  let workspaceNote = '';
+  try {
+    await Promise.all(Array.from({ length: Math.min(4, keys.length) }, () => worker()));
+    if (removed.length) {
+      try {
+        await dropDeletedFromWorkspaces(removed);
+      } catch (err) {
+        workspaceNote = ' Workspace folders still list ' + (removed.length === 1 ? 'it' : 'them') + '.';
+      }
+    }
+  } finally {
+    _bulkBusy[projKey] = false;
+  }
+  if (failed.size) _bulkSelected[projKey] = failed;
+  else delete _bulkSelected[projKey];
+  const failedCount = failed.size;
+  const summary = (failedCount
+    ? 'Deleted ' + removed.length + ' of ' + keys.length + ' tickets. ' + failedCount + ' still need attention.'
+    : 'Deleted ' + removed.length + ' of ' + keys.length + ' tickets.') + workspaceNote;
+  const keyOrder = new Map(keys.map((key, index) => [key, index]));
+  reportLines.sort((a, b) => (keyOrder.get(a.key) - keyOrder.get(b.key)));
+  _bulkReport[projKey] = { title: 'Bulk delete report', summary, lines: reportLines, empty: 'No tickets were deleted.' };
   setBulkStatus(projKey, summary + ' Syncing…', failedCount > 0);
   refreshProjectListing(projKey);
   showBulkReport(projKey);
@@ -11278,6 +11398,7 @@ function renderIssueTable(proj, issues, activeFilter) {
       <span class="proj-count">${countLabel}</span>
       <button class="btn btn-sm proj-views-btn${columnViewIsCustom(proj.key) ? ' is-on' : ''}" type="button" onclick='openColumnViewsDialog(${JSON.stringify(proj.key)})' title="${esc(columnViewButtonTitle(proj.key))}">${esc(columnViewButtonLabel(proj.key))}</button>
       <button class="btn btn-sm proj-bulk-btn${bulkOn ? ' is-on' : ''}" type="button" onclick='openBulkEdit(${JSON.stringify(proj.key)})' ${bulkCount && !bulkBusy ? '' : 'disabled'} title="${bulkCount ? 'Edit the selected tickets' : 'Select tickets to bulk edit'}">Bulk edit</button>
+      <button class="btn btn-sm proj-bulk-delete" type="button" onclick='deleteBulkIssues(${JSON.stringify(proj.key)})' ${bulkCount && !bulkBusy ? '' : 'disabled'} title="${bulkCount ? 'Delete the selected tickets from Jira' : 'Select tickets to delete'}">Bulk delete</button>
       <button class="btn btn-sm ws-bulk-add" type="button" data-proj="${esc(proj.key)}" onclick="event.stopPropagation();openWorkspacePicker(event)" ${bulkCount && !bulkBusy ? '' : 'disabled'} title="${bulkCount ? 'Add the selected tickets to a workspace' : 'Select tickets to add to a workspace'}">Add to workspace</button>
     </div>
     ${tableRegion}`;
@@ -23058,6 +23179,7 @@ async function renderProjectsConfig() {
     const modeLabel = formatReleaseModeLabel(getProjectReleaseMode(p.key, p));
     return `
     <div style="display:flex;align-items:center;gap:10px;padding:10px 14px;background:var(--bg2);border:0.5px solid var(--border);border-radius:var(--radius);font-size:13px;${removed ? 'opacity:.65' : ''}">
+      <input type="checkbox" class="pc-delete-check" data-key="${esc(p.key)}" aria-label="Select ${esc(p.name)}" ${removed ? 'disabled' : ''}>
       <span style="width:10px;height:10px;border-radius:50%;background:${p.color};flex-shrink:0"></span>
       <span style="font-weight:500;flex:0 0 180px">${esc(p.name)}</span>
       <span style="font-size:11px;color:var(--text3);flex:0 0 100px">${esc(category)}</span>
@@ -23097,6 +23219,7 @@ async function renderProjectsConfig() {
     row.className = 'custom-proj-row';
     row.style.cssText = 'display:flex;align-items:center;gap:10px;padding:10px 14px;background:var(--bg2);border:0.5px solid var(--border2);border-radius:var(--radius);font-size:13px';
     row.innerHTML = `
+      <input type="checkbox" class="pc-delete-check" data-key="${esc(p.key)}" aria-label="Select ${esc(p.name)}">
       <span style="width:10px;height:10px;border-radius:50%;background:${esc(p.color)};flex-shrink:0"></span>
       <span style="font-weight:500;flex:0 0 180px">${esc(p.name)}</span>
       <span style="font-size:11px;color:var(--text3);flex:0 0 100px">${esc(category)}</span>
@@ -23228,6 +23351,55 @@ async function saveProjectModal() {
   if (saved) {
     showProjectsSaveMessage(true);
   }
+}
+
+function setProjectDeleteChecks(checked) {
+  document.querySelectorAll('#page-projects-config .pc-delete-check').forEach(box => {
+    if (!box.disabled) box.checked = !!checked;
+  });
+}
+
+async function bulkDeleteProjects() {
+  const keys = [...document.querySelectorAll('#page-projects-config .pc-delete-check:checked')].map(box => box.getAttribute('data-key'));
+  const builtinKeys = new Set(PROJECTS.map(proj => proj.key));
+  const builtins = [];
+  const customs = [];
+  keys.forEach(key => {
+    if (!key) return;
+    if (builtinKeys.has(key)) {
+      const proj = PROJECTS.find(item => item.key === key);
+      if (proj && !getProjectSettings(key).removed) builtins.push(proj);
+      return;
+    }
+    const proj = (S.customProjects || []).find(item => item.key === key);
+    if (proj) customs.push(proj);
+  });
+  const chosen = builtins.concat(customs);
+  if (!chosen.length) {
+    setProjectsConfigNote('Select at least one project.', true);
+    return;
+  }
+  const customNote = customs.length ? ' Custom projects are deleted.' : '';
+  const builtinNote = builtins.length ? ' Built-in projects can be restored.' : '';
+  if (!confirm('Remove ' + chosen.length + ' project' + (chosen.length === 1 ? '' : 's') + '? ' + chosen.map(proj => proj.name).join(', ') + '.' + customNote + builtinNote)) return;
+  customs.forEach(proj => {
+    if (S.cache) delete S.cache[proj.key];
+    if (S.projectSettings) delete S.projectSettings[proj.key];
+  });
+  if (customs.length) {
+    const drop = new Set(customs.map(proj => proj.key));
+    S.customProjects = (S.customProjects || []).filter(proj => !drop.has(proj.key));
+  }
+  builtins.forEach(proj => {
+    const st = getProjectSettings(proj.key, true);
+    st.removed = true;
+    st.enabled = false;
+    if (S.cache) delete S.cache[proj.key];
+  });
+  const saved = await saveProjectsConfig();
+  rebuildDynamicUI();
+  await renderProjectsConfig();
+  setProjectsConfigNote(saved ? 'Removed ' + chosen.length + ' project' + (chosen.length === 1 ? '' : 's') + '.' : 'Could not save.', !saved);
 }
 
 async function deleteCustomProject(idx) {
