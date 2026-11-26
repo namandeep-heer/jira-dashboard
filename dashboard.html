@@ -28,6 +28,7 @@
   --green: #2d6a10; --green-bg: #EAF3DE;
   --red: #A32D2D; --red-bg: #FCEBEB;
   --amber: #7a4808; --amber-bg: #FAEEDA;
+  --bounced: #9a5555; --bounced-bg: #fdf2f2; --bounced-row: #fef7f7; --bounced-row-hover: #fdf1f1; --bounced-bar: #f0c8c8;
   --purple: #533AB7;
   --sidebar-w: 232px; --header-h: 52px;
   --radius: 8px; --radius-lg: 12px;
@@ -41,6 +42,7 @@
     --green: #7cb842; --green-bg: #1a3308;
     --red: #e07070; --red-bg: #3a1010;
     --amber: #e0a040; --amber-bg: #3a2000;
+    --bounced: #f0c4c4; --bounced-bg: #453030; --bounced-row: #322424; --bounced-row-hover: #3a2a2a; --bounced-bar: #c99090;
   }
 }
 /* Manual theme override takes precedence over OS preference */
@@ -52,6 +54,7 @@ body.theme-light {
   --green: #2d6a10; --green-bg: #EAF3DE;
   --red: #A32D2D; --red-bg: #FCEBEB;
   --amber: #7a4808; --amber-bg: #FAEEDA;
+  --bounced: #9a5555; --bounced-bg: #fdf2f2; --bounced-row: #fef7f7; --bounced-row-hover: #fdf1f1; --bounced-bar: #f0c8c8;
 }
 body.theme-dark {
   --bg: #1c1c1a; --bg2: #252523; --bg3: #2e2e2b;
@@ -61,6 +64,7 @@ body.theme-dark {
   --green: #7cb842; --green-bg: #1a3308;
   --red: #e07070; --red-bg: #3a1010;
   --amber: #e0a040; --amber-bg: #3a2000;
+  --bounced: #f0c4c4; --bounced-bg: #453030; --bounced-row: #322424; --bounced-row-hover: #3a2a2a; --bounced-bar: #c99090;
 }
 html, body { height: 100%; overflow: hidden; }
 body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif; font-size: 14px; background: var(--bg3); color: var(--text); }
@@ -627,7 +631,8 @@ table.issues th.is-freeze-preview { box-shadow: inset 0 -2px 0 var(--border2); }
 .proj-freeze-hint { font-size: 12px; color: var(--text2); }
 .proj-issues .proj-issue-split { flex: 1; min-height: 0; display: flex; overflow: hidden; background: var(--bg); border: 0.5px solid var(--border); border-radius: var(--radius-lg); }
 .proj-frozen-pane, .proj-scroll-pane { min-width: 0; min-height: 0; }
-.proj-frozen-pane { flex: 0 0 auto; width: max-content; max-width: 50%; overflow-x: auto; overflow-y: hidden; border-right: 0.5px solid var(--border); }
+.proj-frozen-pane { flex: 0 0 auto; width: max-content; max-width: 50%; overflow-x: auto; overflow-y: scroll; border-right: 0.5px solid var(--border); scrollbar-width: none; }
+.proj-frozen-pane::-webkit-scrollbar { width: 0; height: 10px; }
 .proj-scroll-pane { flex: 1 1 auto; overflow: auto; }
 .proj-issue-split table.issues { width: max-content; min-width: 0; }
 .proj-issue-split th.notes-col,
@@ -860,6 +865,28 @@ table.issues tr.is-just-created td { background: var(--bg2); }
 .b-done    { background: var(--green-bg); color: var(--green); }
 .b-blocked { background: var(--red-bg); color: var(--red); }
 .b-review  { background: var(--amber-bg); color: var(--amber); }
+.b-bounced { background: var(--bounced-bg); color: var(--bounced); font-weight: 650; }
+table.issues tr.is-bounced td,
+.qi-table tr.is-bounced td { background: var(--bounced-row); }
+table.issues tr.is-bounced:hover td,
+table.issues tr.is-bounced:hover td.notes-cell,
+.qi-table tr.is-bounced:hover td { background: var(--bounced-row-hover); }
+table.issues tr.is-bounced td:first-child,
+.qi-table tr.is-bounced td:first-child { box-shadow: inset 3px 0 0 var(--bounced-bar); }
+select.jw-choice.is-bounced { background: var(--bounced-bg); color: var(--bounced); font-weight: 650; border-radius: 999px; }
+.stat-card.is-bounced,
+.stat-card.is-bounced.active { border-color: var(--bounced-bar); background: var(--bounced-bg); }
+.stat-card.is-bounced .sl,
+.stat-card.is-bounced .sv,
+.stat-card.is-bounced.active .sl,
+.stat-card.is-bounced.active .sv { color: var(--bounced); }
+.plan-line.is-bounced { background: var(--bounced-row); }
+.plan-status.is-bounced,
+.plan-field-btn.is-bounced { color: var(--bounced); font-weight: 650; }
+table.issues tr.is-bulk-selected.is-bounced td,
+table.issues tr.is-bulk-selected.is-bounced:hover td,
+table.issues tr.is-bulk-selected.is-bounced:hover td.notes-cell,
+.proj-issue-split tr.is-bulk-selected.is-bounced.is-linked-hover td { background: var(--blue-bg); }
 .pri-high  { color: var(--red); font-weight: 600; }
 .pri-med   { color: var(--amber); }
 .pri-low   { color: var(--green); }
@@ -2959,6 +2986,20 @@ const PHASES = [
   { label: 'Rejected / Replied', re: /^(rejected|replied)/i,                                          color: '#c47a0f' },
   { label: 'Closed',            re: /^(closed|done|resolved|cancelled|fixed|all[\s-]*fixed|won't\s*fix)/i, color: '#555555' },
 ];
+
+function isBouncedStatus(statusName) {
+  return /^(rejected|replied)/i.test(String(statusName || '').trim());
+}
+
+function statusBadgeClass(statusName) {
+  const sl = String(statusName || '').trim();
+  if (isBouncedStatus(sl)) return 'b-bounced';
+  if (/progress|active|dev/i.test(sl)) return 'b-ip';
+  if (/done|closed|resolved|complete/i.test(sl)) return 'b-done';
+  if (/block/i.test(sl)) return 'b-blocked';
+  if (/review|test/i.test(sl)) return 'b-review';
+  return 'b-todo';
+}
 
 function getPhaseForStatus(statusName) {
   const externalPhase = getConfiguredPhaseName(statusName);
@@ -6957,7 +6998,7 @@ function renderProjectStatCards(projKey) {
     ? `<p class="stat-filter-note">Showing ${cur.total} of ${orig.total} issues. Original totals are under each card.</p>`
     : '';
   statsEl.innerHTML = (d.partialWarning || '') + note + `<div class="stat-strip">${visibleCards.map(({ label }) =>
-    `<div class="stat-card${active === label ? ' active' : ''}" data-filter-key="${esc(label)}" style="cursor:pointer" onclick="filterByCard('${esc(projKey)}','${esc(label)}')">
+    `<div class="stat-card${active === label ? ' active' : ''}${label === 'Rejected / Replied' ? ' is-bounced' : ''}" data-filter-key="${esc(label)}" style="cursor:pointer" onclick="filterByCard('${esc(projKey)}','${esc(label)}')">
       <div class="sl">${esc(label)}</div>
       <div class="sv">${cardCounts[label] || 0}</div>
       ${showOriginal ? `<div class="so">of ${origCounts[label] || 0}</div>` : ''}
@@ -9694,28 +9735,37 @@ function syncIssueSplit(root) {
   if (observer) observer.disconnect();
   root._splitSyncing = true;
   try {
+    const cellsOf = row => [...row.cells];
     for (let i = 0; i < count; i += 1) {
-      rowSets.forEach(rows => { rows[i].style.height = ''; });
+      rowSets.forEach(rows => {
+        rows[i].style.height = '';
+        cellsOf(rows[i]).forEach(cell => { cell.style.height = ''; });
+      });
     }
     const heights = new Array(count);
     for (let i = 0; i < count; i += 1) {
       let max = 0;
       rowSets.forEach(rows => {
-        if (rows[i].offsetHeight > max) max = rows[i].offsetHeight;
+        const height = rows[i].getBoundingClientRect().height;
+        if (height > max) max = height;
       });
       heights[i] = Math.ceil(max);
     }
     for (let i = 0; i < count; i += 1) {
+      if (!heights[i]) continue;
       const height = heights[i] + 'px';
       rowSets.forEach(rows => {
-        if (rows[i].style.height !== height) rows[i].style.height = height;
+        cellsOf(rows[i]).forEach(cell => {
+          if (cell.style.height !== height) cell.style.height = height;
+        });
       });
     }
   } finally {
     root._splitSyncing = false;
+    const frozen = split.querySelector('.proj-frozen-pane');
+    const scroll = split.querySelector('.proj-scroll-pane');
+    if (frozen && scroll && frozen.scrollTop !== scroll.scrollTop) frozen.scrollTop = scroll.scrollTop;
     if (observer) {
-      const frozen = split.querySelector('.proj-frozen-pane');
-      const scroll = split.querySelector('.proj-scroll-pane');
       if (frozen) observer.observe(frozen);
       if (scroll) observer.observe(scroll);
     }
@@ -9729,15 +9779,18 @@ function bindIssueSplit(root) {
   const scroll = split.querySelector('.proj-scroll-pane');
   if (!frozen || !scroll) return;
   let lock = false;
-  scroll.addEventListener('scroll', () => {
-    if (lock) return;
+  function follow(source, target) {
+    if (lock || source.scrollTop === target.scrollTop) return;
     lock = true;
-    frozen.scrollTop = scroll.scrollTop;
+    target.scrollTop = source.scrollTop;
     lock = false;
-  }, { passive: true });
+  }
+  scroll.addEventListener('scroll', () => follow(scroll, frozen), { passive: true });
+  frozen.addEventListener('scroll', () => follow(frozen, scroll), { passive: true });
   frozen.addEventListener('wheel', event => {
     if (Math.abs(event.deltaX) > Math.abs(event.deltaY)) return;
     scroll.scrollTop += event.deltaY;
+    if (frozen.scrollTop !== scroll.scrollTop) frozen.scrollTop = scroll.scrollTop;
     event.preventDefault();
   }, { passive: false });
   const bodies = [...split.querySelectorAll('table.issues tbody')].map(body => [...body.rows]);
@@ -11296,7 +11349,7 @@ function renderIssueTable(proj, issues, activeFilter) {
 
   function issueRow(issue, opts, ids) {
     const link = S.creds.url ? S.creds.url + '/browse/' + (issue.key || '') : '#';
-    const rowClass = [opts.rowClass, bulkHas(proj.key, issue.key) ? 'is-bulk-selected' : ''].filter(Boolean).join(' ');
+    const rowClass = [opts.rowClass, bulkHas(proj.key, issue.key) ? 'is-bulk-selected' : '', isBouncedStatus(getIssueStatusName(issue)) ? 'is-bounced' : ''].filter(Boolean).join(' ');
     const cls = rowClass ? ` class="${rowClass}"` : '';
     const hidden = opts.hidden ? ' hidden' : '';
     const parentAttr = opts.parentKey ? ` data-epic-parent="${esc(opts.parentKey)}"` : '';
@@ -11497,9 +11550,7 @@ function renderCell(f, issue) {
   }
   let html;
   if (f.id==='status') {
-    const sl=s.toLowerCase();
-    const cls=/progress|active|dev/i.test(sl)?'b-ip':/done|closed|resolved|complete/i.test(sl)?'b-done':/block/i.test(sl)?'b-blocked':/review|test/i.test(sl)?'b-review':'b-todo';
-    html = `<span class="badge ${cls}">${esc(s)}</span>`;
+    html = `<span class="badge ${statusBadgeClass(s)}">${esc(s)}</span>`;
   } else if (f.id==='priority') html = renderPriorityCell(s);
   else if (f.id==='issuetype') {
     const cl=s.toLowerCase()==='epic'?'type-epic':s.toLowerCase()==='enhancement'?'type-enh':'type-other';
@@ -11747,7 +11798,7 @@ function renderAnalytics() {
   const summaryCards = `
     <div class="stat-card"><div class="sl">Projects</div><div class="sv">${loaded.length}</div></div>
     <div class="stat-card"><div class="sl">Total issues</div><div class="sv">${totalAll}</div></div>
-    ${PHASES.map(p=>`<div class="stat-card"><div class="sl">${esc(p.label)}</div><div class="sv">${allPhaseCounts[p.label]}</div></div>`).join('')}`;
+    ${PHASES.map(p=>`<div class="stat-card${p.label === 'Rejected / Replied' ? ' is-bounced' : ''}"><div class="sl">${esc(p.label)}</div><div class="sv">${allPhaseCounts[p.label]}</div></div>`).join('')}`;
 
   body.innerHTML = `
     <div style="display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:12px;flex-wrap:wrap">
@@ -12995,7 +13046,7 @@ function renderDataGapsTable(section, tickets) {
   }
 
   const rows = sorted.map(ticket => `
-    <tr onclick="window.open('${jiraUrl}/browse/${esc(ticket.key)}','_blank')" style="cursor:pointer">
+    <tr class="${isBouncedStatus(ticket.status) ? 'is-bounced' : ''}" onclick="window.open('${jiraUrl}/browse/${esc(ticket.key)}','_blank')" style="cursor:pointer">
       <td class="ticket-key-cell">${ticketRowTools(ticket.key, ticket.summary)}<a class="key-link" href="${jiraUrl}/browse/${esc(ticket.key)}" target="_blank" onclick="event.stopPropagation()">${esc(ticket.key)}</a></td>
       <td title="${esc(ticket.summary)}">${esc(ticket.summary)}</td>
       <td><span style="color:${ticket.projectColor}">${esc(ticket.project)}</span></td>
@@ -14639,13 +14690,13 @@ function renderQualityTicketTable(rows, emptyText) {
   return `<table class="qi-table">
     <thead><tr><th>Key</th><th>Summary</th><th>Project</th><th>Queue</th><th>Priority</th><th>Status</th><th>Owner</th><th>Age</th><th>Bounces</th><th>Fix Version</th></tr></thead>
     <tbody>${rows.map(r => `
-      <tr>
+      <tr class="${isBouncedStatus(r.status) ? 'is-bounced' : ''}">
         <td class="ticket-key-cell">${ticketRowTools(r.key, r.summary)}${qualityJiraLink(r.key)}</td>
         <td>${esc(r.summary)}</td>
         <td><span style="display:inline-flex;align-items:center;gap:6px"><span style="width:8px;height:8px;border-radius:50%;background:${jiraProjectColor(r.module)};display:inline-block"></span>${esc(r.module)}</span></td>
         <td><span style="display:inline-flex;align-items:center;gap:6px"><span style="width:8px;height:8px;border-radius:50%;background:${r.color};display:inline-block"></span>${esc(r.projectName)}</span></td>
         <td>${renderPriorityCell(r.priority)}</td>
-        <td>${esc(r.status)}</td>
+        <td>${renderStatusBadge(r.status)}</td>
         <td>${esc(r.owner || 'Unowned')}</td>
         <td>${r.ageDays ? r.ageDays + 'd' : '—'}</td>
         <td>${r.bounces || 0}</td>
@@ -16893,12 +16944,7 @@ function getIssueStatusName(issue) {
 function renderStatusBadge(statusName) {
   const s = String(statusName || '').trim();
   if (!s) return '<span style="color:var(--text3)">—</span>';
-  const sl = s.toLowerCase();
-  const cls = /progress|active|dev/i.test(sl) ? 'b-ip'
-    : /done|closed|resolved|complete/i.test(sl) ? 'b-done'
-    : /block/i.test(sl) ? 'b-blocked'
-    : /review|test/i.test(sl) ? 'b-review' : 'b-todo';
-  return `<span class="badge ${cls}">${esc(s)}</span>`;
+  return `<span class="badge ${statusBadgeClass(s)}">${esc(s)}</span>`;
 }
 
 function getDev(issue) {
