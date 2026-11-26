@@ -576,6 +576,16 @@ app.put('/api/user-preferences/show-bounced', (req, res) => {
   }
 });
 
+app.put('/api/user-preferences/phase-visibility', (req, res) => {
+  const user = requireUser(req, res);
+  if (!user) return;
+  try {
+    res.json(userPreferences.setPhaseVisibility(user.id, req.body?.label, req.body?.enabled));
+  } catch (err) {
+    sendStoreError(res, err);
+  }
+});
+
 async function jiraFetchForUser(creds, method, apiPath, body) {
   if (!jiraBaseUrl) {
     const err = new Error('JIRA_URL is not configured');

@@ -15,7 +15,7 @@ const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'jira-dashboard-prefs-'));
 const filePath = path.join(tmpDir, 'user-preferences.json');
 const prefs = createUserPreferences({ filePath });
 
-assert.deepStrictEqual(prefs.get('user-a'), { version: 1, projectSorts: {}, groupByEpic: true, showBounced: true, columnWidths: {}, columnFreeze: {}, columnViews: {}, sortConfigs: {} });
+assert.deepStrictEqual(prefs.get('user-a'), { version: 1, projectSorts: {}, groupByEpic: true, showBounced: true, hiddenPhases: [], columnWidths: {}, columnFreeze: {}, columnViews: {}, sortConfigs: {} });
 
 const saved = prefs.setProjectSort('user-a', 'NFS', [
   { col: 'priority', dir: 'asc' },
@@ -91,17 +91,42 @@ assert.deepStrictEqual(prefs.get('user-a').projectSorts, {});
 assert.deepStrictEqual(createUserPreferences({ filePath }).get('user-a').groupByEpic, false);
 
 prefs.setGroupByEpic('user-a', true);
-assert.deepStrictEqual(prefs.get('user-a'), { version: 1, projectSorts: {}, groupByEpic: true, showBounced: true, columnWidths: {}, columnFreeze: {}, columnViews: {}, sortConfigs: {} });
+assert.deepStrictEqual(prefs.get('user-a'), { version: 1, projectSorts: {}, groupByEpic: true, showBounced: true, hiddenPhases: [], columnWidths: {}, columnFreeze: {}, columnViews: {}, sortConfigs: {} });
 assert.throws(() => prefs.setGroupByEpic('user-a', 'no'), /on or off/);
 
 const hiddenBounced = prefs.setShowBounced('user-a', false);
 assert.deepStrictEqual(hiddenBounced, { version: 1, showBounced: false });
 assert.strictEqual(prefs.get('user-a').showBounced, false);
+assert.deepStrictEqual(prefs.get('user-a').hiddenPhases, ['Rejected / Replied']);
 assert.strictEqual(createUserPreferences({ filePath }).get('user-a').showBounced, false);
 prefs.setShowBounced('user-a', true);
 assert.strictEqual(prefs.get('user-a').showBounced, true);
+assert.deepStrictEqual(prefs.get('user-a').hiddenPhases, []);
 assert.deepStrictEqual(prefs.get('user-a').projectSorts, {});
 assert.throws(() => prefs.setShowBounced('user-a', 'no'), /on or off/);
+
+const qaHidden = prefs.setPhaseVisibility('user-a', 'QA', false);
+assert.deepStrictEqual(qaHidden.hiddenPhases, ['QA']);
+assert.strictEqual(qaHidden.enabled, false);
+const bothHidden = prefs.setPhaseVisibility('user-a', 'Rejected / Replied', false);
+assert.deepStrictEqual(bothHidden.hiddenPhases, ['QA', 'Rejected / Replied']);
+assert.strictEqual(bothHidden.showBounced, false);
+assert.deepStrictEqual(createUserPreferences({ filePath }).get('user-a').hiddenPhases, ['QA', 'Rejected / Replied']);
+const qaShown = prefs.setPhaseVisibility('user-a', 'QA', true);
+assert.deepStrictEqual(qaShown.hiddenPhases, ['Rejected / Replied']);
+prefs.setPhaseVisibility('user-a', 'Rejected / Replied', true);
+assert.deepStrictEqual(prefs.get('user-a').hiddenPhases, []);
+assert.throws(() => prefs.setPhaseVisibility('user-a', 'Total', false), /status card/);
+assert.throws(() => prefs.setPhaseVisibility('user-a', 'QA', 'no'), /on or off/);
+
+const legacyPath = path.join(tmpDir, 'legacy-bounced.json');
+fs.writeFileSync(legacyPath, JSON.stringify({
+  version: 1,
+  users: { 'user-a': { showBounced: false, projectSorts: {} } },
+}), 'utf8');
+const legacy = createUserPreferences({ filePath: legacyPath });
+assert.deepStrictEqual(legacy.get('user-a').hiddenPhases, ['Rejected / Replied']);
+assert.strictEqual(legacy.get('user-a').showBounced, false);
 
 const widths = prefs.setColumnWidths('user-a', 'NFS', { summary: 280.4, notes: 88, 'nope field': 100 });
 assert.deepStrictEqual(widths.widths, { summary: 280, notes: 88 });
@@ -227,10 +252,10 @@ assert.ok(dashboard.includes('function loadSavedProjectSort'));
 assert.ok(dashboard.includes('sortConfigCategory'));
 assert.ok(dashboard.includes('Using the category default.'));
 assert.ok(proxy.includes("app.put('/api/user-preferences/sort-configs/:category'"));
-assert.ok(dashboard.includes('function setShowBounced'));
-assert.ok(dashboard.includes('function listingHidesBounced'));
-assert.ok(dashboard.includes('class="bounced-visibility"'));
-assert.ok(dashboard.includes("active !== 'Rejected / Replied'"));
-assert.ok(proxy.includes("app.put('/api/user-preferences/show-bounced'"));
+assert.ok(dashboard.includes('function setPhaseVisibility'));
+assert.ok(dashboard.includes('function issueHiddenFromListing'));
+assert.ok(dashboard.includes('class="phase-visibility"'));
+assert.ok(dashboard.includes('phaseTicketsShown(label)'));
+assert.ok(proxy.includes("app.put('/api/user-preferences/phase-visibility'"));
 
 console.log('user preferences ok');

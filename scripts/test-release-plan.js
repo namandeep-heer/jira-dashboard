@@ -224,7 +224,7 @@ assert.match(dashboard, /planSetFreeze/);
 assert.match(dashboard, /ticketActions: function \(ticket\) \{ return ticketRowTools\(ticket\.key, ticket\.summary\); \}/);
 const planSrc = fs.readFileSync(path.join(root, 'lib', 'release-plan.js'), 'utf8');
 assert.match(planSrc, /view\.ticketActions/);
-assert.match(planSrc, /plan-line' \+ bounced/);
+assert.match(planSrc, /plan-line' \+ planStatusTone/);
 assert.match(writeUi, /S\.page === 'release-plan'/);
 assert.match(writeUi, /is-bounced/);
 assert.match(dashboard, /function isBouncedStatus/);
@@ -242,5 +242,21 @@ const bouncedBoard = plan.renderReleasePlanBoard(plan.buildReleasePlan({
 }), { columns: { status: true }, linkBase: 'https://jira.example' });
 assert.match(bouncedBoard, /plan-line is-bounced/);
 assert.match(bouncedBoard, /plan-field-btn is-bounced/);
+const qaBoard = plan.renderReleasePlanBoard(plan.buildReleasePlan({
+  today,
+  capacityThrough: horizon,
+  zoom: 'day',
+  size: 'L',
+  colour: 'commitment',
+  rows: 'person',
+  tickets: [ticket({ key: 'NFS-Q', status: 'QA-Pending', phase: 'QA', estimate: 1 })],
+}), { columns: { status: true }, linkBase: 'https://jira.example' });
+assert.match(qaBoard, /plan-line is-qa/);
+assert.match(qaBoard, /plan-field-btn is-qa/);
+assert.match(dashboard, /function isQaStatus/);
+assert.match(dashboard, /\.b-qa/);
+assert.match(dashboard, /--qa-row: #f7fbf4/);
+assert.match(dashboard, /background: var\(--qa-row\)/);
+assert.match(writeUi, /is-qa/);
 
 console.log('release-plan: ok');

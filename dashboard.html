@@ -29,6 +29,7 @@
   --red: #A32D2D; --red-bg: #FCEBEB;
   --amber: #7a4808; --amber-bg: #FAEEDA;
   --bounced: #9a5555; --bounced-bg: #fdf2f2; --bounced-row: #fef7f7; --bounced-row-hover: #fdf1f1; --bounced-bar: #f0c8c8;
+  --qa: #6b8f62; --qa-bg: #f3f8ef; --qa-row: #f7fbf4; --qa-row-hover: #f1f7ec; --qa-bar: #d3e6c6;
   --purple: #533AB7;
   --sidebar-w: 232px; --header-h: 52px;
   --radius: 8px; --radius-lg: 12px;
@@ -43,6 +44,7 @@
     --red: #e07070; --red-bg: #3a1010;
     --amber: #e0a040; --amber-bg: #3a2000;
     --bounced: #f0c4c4; --bounced-bg: #453030; --bounced-row: #322424; --bounced-row-hover: #3a2a2a; --bounced-bar: #c99090;
+    --qa: #c5dcb4; --qa-bg: #303a2c; --qa-row: #262e24; --qa-row-hover: #2c3528; --qa-bar: #7ea36c;
   }
 }
 /* Manual theme override takes precedence over OS preference */
@@ -55,6 +57,7 @@ body.theme-light {
   --red: #A32D2D; --red-bg: #FCEBEB;
   --amber: #7a4808; --amber-bg: #FAEEDA;
   --bounced: #9a5555; --bounced-bg: #fdf2f2; --bounced-row: #fef7f7; --bounced-row-hover: #fdf1f1; --bounced-bar: #f0c8c8;
+  --qa: #6b8f62; --qa-bg: #f3f8ef; --qa-row: #f7fbf4; --qa-row-hover: #f1f7ec; --qa-bar: #d3e6c6;
 }
 body.theme-dark {
   --bg: #1c1c1a; --bg2: #252523; --bg3: #2e2e2b;
@@ -65,6 +68,7 @@ body.theme-dark {
   --red: #e07070; --red-bg: #3a1010;
   --amber: #e0a040; --amber-bg: #3a2000;
   --bounced: #f0c4c4; --bounced-bg: #453030; --bounced-row: #322424; --bounced-row-hover: #3a2a2a; --bounced-bar: #c99090;
+  --qa: #c5dcb4; --qa-bg: #303a2c; --qa-row: #262e24; --qa-row-hover: #2c3528; --qa-bar: #7ea36c;
 }
 html, body { height: 100%; overflow: hidden; }
 body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif; font-size: 14px; background: var(--bg3); color: var(--text); }
@@ -362,11 +366,19 @@ html.sidebar-collapsed #log-badge { position: absolute; top: 3px; right: 3px; ma
 .stat-card .sl { font-size: 11px; color: var(--text3); margin-bottom: 3px; white-space: nowrap; }
 .stat-card-top { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-bottom: 3px; }
 .stat-card-top .sl { margin-bottom: 0; }
-.bounced-visibility { border: 0.5px solid var(--bounced-bar); background: transparent; color: var(--bounced); border-radius: 999px; padding: 1px 8px; font: inherit; font-size: 11px; font-weight: 600; line-height: 1.5; cursor: pointer; flex-shrink: 0; }
-.bounced-visibility:hover { background: var(--bg); }
-.bounced-visibility[aria-pressed="false"] { background: var(--bounced); color: var(--bg); border-color: var(--bounced); }
-.stat-card.is-bounced.is-bounced-hidden .sv { opacity: 0.45; }
-.bounced-visibility:focus-visible { outline: 2px solid var(--bounced); outline-offset: 1px; }
+.phase-visibility { border: 0.5px solid var(--border2); background: transparent; color: var(--text2); border-radius: 999px; padding: 1px 8px; font: inherit; font-size: 11px; font-weight: 600; line-height: 1.5; cursor: pointer; flex-shrink: 0; }
+.phase-visibility:hover { background: var(--bg); color: var(--text); }
+.phase-visibility[aria-pressed="false"] { background: var(--text2); color: var(--bg); border-color: var(--text2); }
+.phase-visibility:focus-visible { outline: 2px solid var(--blue); outline-offset: 1px; }
+.stat-card.is-bounced .phase-visibility { border-color: var(--bounced-bar); color: var(--bounced); }
+.stat-card.is-bounced .phase-visibility:hover { background: var(--bg); }
+.stat-card.is-bounced .phase-visibility[aria-pressed="false"] { background: var(--bounced); color: var(--bg); border-color: var(--bounced); }
+.stat-card.is-bounced .phase-visibility:focus-visible { outline-color: var(--bounced); }
+.stat-card.is-qa .phase-visibility { border-color: var(--qa-bar); color: var(--qa); }
+.stat-card.is-qa .phase-visibility:hover { background: var(--bg); }
+.stat-card.is-qa .phase-visibility[aria-pressed="false"] { background: var(--qa); color: var(--bg); border-color: var(--qa); }
+.stat-card.is-qa .phase-visibility:focus-visible { outline-color: var(--qa); }
+.stat-card.is-phase-hidden .sv { opacity: 0.45; }
 .stat-card .sv { font-size: 22px; font-weight: 700; }
 .stat-card .so { font-size: 10px; color: var(--text3); margin-top: 2px; font-weight: 500; }
 .clarity-chart-block { margin: 4px 0 22px; }
@@ -873,27 +885,49 @@ table.issues tr.is-just-created td { background: var(--bg2); }
 .b-blocked { background: var(--red-bg); color: var(--red); }
 .b-review  { background: var(--amber-bg); color: var(--amber); }
 .b-bounced { background: var(--bounced-bg); color: var(--bounced); font-weight: 650; }
+.b-qa { background: var(--qa-bg); color: var(--qa); font-weight: 650; }
 table.issues tr.is-bounced td,
 .qi-table tr.is-bounced td { background: var(--bounced-row); }
+table.issues tr.is-qa td,
+.qi-table tr.is-qa td { background: var(--qa-row); }
 table.issues tr.is-bounced:hover td,
 table.issues tr.is-bounced:hover td.notes-cell,
 .qi-table tr.is-bounced:hover td { background: var(--bounced-row-hover); }
+table.issues tr.is-qa:hover td,
+table.issues tr.is-qa:hover td.notes-cell,
+.qi-table tr.is-qa:hover td { background: var(--qa-row-hover); }
 table.issues tr.is-bounced td:first-child,
 .qi-table tr.is-bounced td:first-child { box-shadow: inset 3px 0 0 var(--bounced-bar); }
+table.issues tr.is-qa td:first-child,
+.qi-table tr.is-qa td:first-child { box-shadow: inset 3px 0 0 var(--qa-bar); }
 select.jw-choice.is-bounced { background: var(--bounced-bg); color: var(--bounced); font-weight: 650; border-radius: 999px; }
+select.jw-choice.is-qa { background: var(--qa-bg); color: var(--qa); font-weight: 650; border-radius: 999px; }
 .stat-card.is-bounced,
 .stat-card.is-bounced.active { border-color: var(--bounced-bar); background: var(--bounced-bg); }
+.stat-card.is-qa,
+.stat-card.is-qa.active { border-color: var(--qa-bar); background: var(--qa-bg); }
 .stat-card.is-bounced .sl,
 .stat-card.is-bounced .sv,
 .stat-card.is-bounced.active .sl,
 .stat-card.is-bounced.active .sv { color: var(--bounced); }
+.stat-card.is-qa .sl,
+.stat-card.is-qa .sv,
+.stat-card.is-qa.active .sl,
+.stat-card.is-qa.active .sv { color: var(--qa); }
 .plan-line.is-bounced { background: var(--bounced-row); }
+.plan-line.is-qa { background: var(--qa-row); }
 .plan-status.is-bounced,
 .plan-field-btn.is-bounced { color: var(--bounced); font-weight: 650; }
+.plan-status.is-qa,
+.plan-field-btn.is-qa { color: var(--qa); font-weight: 650; }
 table.issues tr.is-bulk-selected.is-bounced td,
 table.issues tr.is-bulk-selected.is-bounced:hover td,
 table.issues tr.is-bulk-selected.is-bounced:hover td.notes-cell,
-.proj-issue-split tr.is-bulk-selected.is-bounced.is-linked-hover td { background: var(--blue-bg); }
+.proj-issue-split tr.is-bulk-selected.is-bounced.is-linked-hover td,
+table.issues tr.is-bulk-selected.is-qa td,
+table.issues tr.is-bulk-selected.is-qa:hover td,
+table.issues tr.is-bulk-selected.is-qa:hover td.notes-cell,
+.proj-issue-split tr.is-bulk-selected.is-qa.is-linked-hover td { background: var(--blue-bg); }
 .pri-high  { color: var(--red); font-weight: 600; }
 .pri-med   { color: var(--amber); }
 .pri-low   { color: var(--green); }
@@ -2998,9 +3032,26 @@ function isBouncedStatus(statusName) {
   return /^(rejected|replied)/i.test(String(statusName || '').trim());
 }
 
+function isQaStatus(statusName) {
+  return /^(qa|pqa|pending[\s-]*dep|eoa[\s-]*pending)/i.test(String(statusName || '').trim());
+}
+
+function issueToneClass(statusName) {
+  if (isBouncedStatus(statusName)) return 'is-bounced';
+  if (isQaStatus(statusName)) return 'is-qa';
+  return '';
+}
+
+function phaseCardTone(label) {
+  if (label === 'Rejected / Replied') return ' is-bounced';
+  if (label === 'QA') return ' is-qa';
+  return '';
+}
+
 function statusBadgeClass(statusName) {
   const sl = String(statusName || '').trim();
   if (isBouncedStatus(sl)) return 'b-bounced';
+  if (isQaStatus(sl)) return 'b-qa';
   if (/progress|active|dev/i.test(sl)) return 'b-ip';
   if (/done|closed|resolved|complete/i.test(sl)) return 'b-done';
   if (/block/i.test(sl)) return 'b-blocked';
@@ -7005,14 +7056,14 @@ function renderProjectStatCards(projKey) {
     ? `<p class="stat-filter-note">Showing ${cur.total} of ${orig.total} issues. Original totals are under each card.</p>`
     : '';
   statsEl.innerHTML = (d.partialWarning || '') + note + `<div class="stat-strip">${visibleCards.map(({ label }) =>
-    `<div class="stat-card${active === label ? ' active' : ''}${label === 'Rejected / Replied' ? ' is-bounced' : ''}${label === 'Rejected / Replied' && !showBouncedTickets() ? ' is-bounced-hidden' : ''}" data-filter-key="${esc(label)}" style="cursor:pointer" onclick="filterByCard('${esc(projKey)}','${esc(label)}')">
-      ${label === 'Rejected / Replied'
-        ? `<div class="stat-card-top"><div class="sl">${esc(label)}</div>${bouncedVisibilityButton()}</div>`
-        : `<div class="sl">${esc(label)}</div>`}
+    `<div class="stat-card${active === label ? ' active' : ''}${phaseCardTone(label)}${label !== 'Total' && !phaseTicketsShown(label) ? ' is-phase-hidden' : ''}" data-filter-key="${esc(label)}" style="cursor:pointer" onclick="filterByCard('${esc(projKey)}','${esc(label)}')">
+      ${label === 'Total'
+        ? `<div class="sl">${esc(label)}</div>`
+        : `<div class="stat-card-top"><div class="sl">${esc(label)}</div>${phaseVisibilityButton(label)}</div>`}
       <div class="sv">${cardCounts[label] || 0}</div>
       ${showOriginal ? `<div class="so">of ${origCounts[label] || 0}</div>` : ''}
     </div>`
-  ).join('')}</div>${_bouncedVisibilityError ? `<p class="stat-filter-note">${esc(_bouncedVisibilityError)}</p>` : ''}`;
+  ).join('')}</div>${_phaseVisibilityError ? `<p class="stat-filter-note">${esc(_phaseVisibilityError)}</p>` : ''}`;
 }
 
 function navToPhase(projId, phaseLabel, scopeCommitment) {
@@ -7234,9 +7285,8 @@ function listingFieldsForProject(proj) {
 function getFilteredProjectIssues(projKey) {
   const proj = listingProject(projKey);
   const jiraSelected = (proj && isQualityDashboardProject(proj)) ? getSelectedJiraProjects() : new Set();
-  const hideBounced = listingHidesBounced(projKey);
   return getPhaseFilteredProjectIssues(projKey).filter(issue => {
-    if (hideBounced && isBouncedStatus(getIssueStatusName(issue))) return false;
+    if (issueHiddenFromListing(issue, projKey)) return false;
     if (jiraSelected.size && !issueInSelectedJiraProjects(issue)) return false;
     return issueMatchesListingSearchAndCols(proj, issue);
   });
@@ -7292,8 +7342,8 @@ function compareProjectSortValues(a, b, dir) {
 }
 
 const MAX_PROJECT_SORT_LEVELS = 8;
-let _userPrefs = { projectSorts: {}, groupByEpic: true, showBounced: true, columnWidths: {}, columnFreeze: {}, columnViews: {}, sortConfigs: {} };
-let _bouncedVisibilityError = '';
+let _userPrefs = { projectSorts: {}, groupByEpic: true, showBounced: true, hiddenPhases: [], columnWidths: {}, columnFreeze: {}, columnViews: {}, sortConfigs: {} };
+let _phaseVisibilityError = '';
 let _columnWidthTimers = {};
 let _epicCollapsed = {};
 let _epicGroupStatus = {};
@@ -7439,7 +7489,8 @@ function rememberUserPreferences(data) {
   _userPrefs = {
     projectSorts,
     groupByEpic: !data || data.groupByEpic !== false,
-    showBounced: !data || data.showBounced !== false,
+    showBounced: !normalizeHiddenPhases(data && data.hiddenPhases, data && data.showBounced).includes('Rejected / Replied'),
+    hiddenPhases: normalizeHiddenPhases(data && data.hiddenPhases, data && data.showBounced),
     columnWidths,
     columnFreeze,
     columnViews,
@@ -9121,23 +9172,40 @@ function groupByEpicOn() {
   return _userPrefs.groupByEpic !== false && typeof EpicGroups !== 'undefined';
 }
 
-function showBouncedTickets() {
-  return _userPrefs.showBounced !== false;
+function normalizeHiddenPhases(list, showBounced) {
+  const next = [];
+  const seen = new Set();
+  (Array.isArray(list) ? list : []).forEach(item => {
+    const label = String(item == null ? '' : item).trim();
+    if (!label || label === 'Total' || label.length > 80 || seen.has(label)) return;
+    seen.add(label);
+    next.push(label);
+  });
+  if (showBounced === false && !seen.has('Rejected / Replied')) next.push('Rejected / Replied');
+  return next.slice(0, 40);
 }
 
-function listingHidesBounced(projKey) {
-  if (showBouncedTickets()) return false;
+function phaseTicketsShown(label) {
+  return !(_userPrefs.hiddenPhases || []).includes(label);
+}
+
+function issuePhaseLabel(issue) {
+  const name = String(getIssueStatusName(issue) || '').trim();
+  const phase = PHASES.find(p => p.re.test(name));
+  return phase ? phase.label : (name || 'Unknown');
+}
+
+function issueHiddenFromListing(issue, projKey) {
+  const label = issuePhaseLabel(issue);
+  if (phaseTicketsShown(label)) return false;
   const active = S.activeFilter && S.activeFilter[projKey];
-  return active !== 'Rejected / Replied';
+  return active !== label;
 }
 
-function bouncedVisibilityButton() {
-  const shown = showBouncedTickets();
-  const label = shown ? 'Hide' : 'Show';
-  const title = shown
-    ? 'Hide Rejected and Replied tickets on every project'
-    : 'Show Rejected and Replied tickets on every project';
-  return `<button type="button" class="bounced-visibility" aria-pressed="${shown ? 'true' : 'false'}" title="${title}" onclick="event.stopPropagation();setShowBounced(${shown ? 'false' : 'true'})">${label}</button>`;
+function phaseVisibilityButton(label) {
+  const shown = phaseTicketsShown(label);
+  const title = (shown ? 'Hide ' : 'Show ') + label + ' tickets on every project';
+  return `<button type="button" class="phase-visibility" aria-pressed="${shown ? 'true' : 'false'}" title="${esc(title)}" onclick="event.stopPropagation();setPhaseVisibility(decodeURIComponent('${encodeURIComponent(label)}'), ${shown ? 'false' : 'true'})">${shown ? 'Hide' : 'Show'}</button>`;
 }
 
 function refreshOpenProjectListings() {
@@ -9146,15 +9214,25 @@ function refreshOpenProjectListings() {
   });
 }
 
-async function setShowBounced(enabled) {
-  const next = !!enabled;
-  if (next === showBouncedTickets()) return;
-  _userPrefs.showBounced = next;
-  _bouncedVisibilityError = '';
-  if (!next && S.activeFilter) {
+function applyHiddenPhases(list) {
+  _userPrefs.hiddenPhases = normalizeHiddenPhases(list, true);
+  _userPrefs.showBounced = phaseTicketsShown('Rejected / Replied');
+}
+
+async function setPhaseVisibility(label, enabled) {
+  const name = String(label || '').trim();
+  if (!name || name === 'Total') return;
+  const shown = !!enabled;
+  if (shown === phaseTicketsShown(name)) return;
+  const previous = (_userPrefs.hiddenPhases || []).slice();
+  const next = previous.filter(item => item !== name);
+  if (!shown) next.push(name);
+  applyHiddenPhases(next);
+  _phaseVisibilityError = '';
+  if (!shown && S.activeFilter) {
     let cleared = false;
     Object.keys(S.activeFilter).forEach(key => {
-      if (S.activeFilter[key] === 'Rejected / Replied') {
+      if (S.activeFilter[key] === name) {
         S.activeFilter[key] = null;
         cleared = true;
       }
@@ -9163,16 +9241,16 @@ async function setShowBounced(enabled) {
   }
   refreshOpenProjectListings();
   try {
-    const response = await authFetch('/api/user-preferences/show-bounced', {
+    const response = await authFetch('/api/user-preferences/phase-visibility', {
       method: 'PUT',
-      body: JSON.stringify({ enabled: next }),
+      body: JSON.stringify({ label: name, enabled: shown }),
     });
     const result = await response.json().catch(() => ({}));
-    if (!response.ok) throw new Error(result.error || 'Could not save the Rejected / Replied setting.');
-    _userPrefs.showBounced = result.showBounced !== false;
+    if (!response.ok) throw new Error(result.error || 'Could not save which status cards are hidden.');
+    applyHiddenPhases(result.hiddenPhases);
   } catch (err) {
-    _userPrefs.showBounced = !next;
-    _bouncedVisibilityError = err.message || 'Could not save the Rejected / Replied setting.';
+    applyHiddenPhases(previous);
+    _phaseVisibilityError = err.message || 'Could not save which status cards are hidden.';
     refreshOpenProjectListings();
   }
 }
@@ -11434,7 +11512,7 @@ function renderIssueTable(proj, issues, activeFilter) {
 
   function issueRow(issue, opts, ids) {
     const link = S.creds.url ? S.creds.url + '/browse/' + (issue.key || '') : '#';
-    const rowClass = [opts.rowClass, bulkHas(proj.key, issue.key) ? 'is-bulk-selected' : '', isBouncedStatus(getIssueStatusName(issue)) ? 'is-bounced' : ''].filter(Boolean).join(' ');
+    const rowClass = [opts.rowClass, bulkHas(proj.key, issue.key) ? 'is-bulk-selected' : '', issueToneClass(getIssueStatusName(issue))].filter(Boolean).join(' ');
     const cls = rowClass ? ` class="${rowClass}"` : '';
     const hidden = opts.hidden ? ' hidden' : '';
     const parentAttr = opts.parentKey ? ` data-epic-parent="${esc(opts.parentKey)}"` : '';
@@ -11883,7 +11961,7 @@ function renderAnalytics() {
   const summaryCards = `
     <div class="stat-card"><div class="sl">Projects</div><div class="sv">${loaded.length}</div></div>
     <div class="stat-card"><div class="sl">Total issues</div><div class="sv">${totalAll}</div></div>
-    ${PHASES.map(p=>`<div class="stat-card${p.label === 'Rejected / Replied' ? ' is-bounced' : ''}"><div class="sl">${esc(p.label)}</div><div class="sv">${allPhaseCounts[p.label]}</div></div>`).join('')}`;
+    ${PHASES.map(p=>`<div class="stat-card${phaseCardTone(p.label)}"><div class="sl">${esc(p.label)}</div><div class="sv">${allPhaseCounts[p.label]}</div></div>`).join('')}`;
 
   body.innerHTML = `
     <div style="display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:12px;flex-wrap:wrap">
@@ -13131,7 +13209,7 @@ function renderDataGapsTable(section, tickets) {
   }
 
   const rows = sorted.map(ticket => `
-    <tr class="${isBouncedStatus(ticket.status) ? 'is-bounced' : ''}" onclick="window.open('${jiraUrl}/browse/${esc(ticket.key)}','_blank')" style="cursor:pointer">
+    <tr class="${issueToneClass(ticket.status)}" onclick="window.open('${jiraUrl}/browse/${esc(ticket.key)}','_blank')" style="cursor:pointer">
       <td class="ticket-key-cell">${ticketRowTools(ticket.key, ticket.summary)}<a class="key-link" href="${jiraUrl}/browse/${esc(ticket.key)}" target="_blank" onclick="event.stopPropagation()">${esc(ticket.key)}</a></td>
       <td title="${esc(ticket.summary)}">${esc(ticket.summary)}</td>
       <td><span style="color:${ticket.projectColor}">${esc(ticket.project)}</span></td>
@@ -14775,7 +14853,7 @@ function renderQualityTicketTable(rows, emptyText) {
   return `<table class="qi-table">
     <thead><tr><th>Key</th><th>Summary</th><th>Project</th><th>Queue</th><th>Priority</th><th>Status</th><th>Owner</th><th>Age</th><th>Bounces</th><th>Fix Version</th></tr></thead>
     <tbody>${rows.map(r => `
-      <tr class="${isBouncedStatus(r.status) ? 'is-bounced' : ''}">
+      <tr class="${issueToneClass(r.status)}">
         <td class="ticket-key-cell">${ticketRowTools(r.key, r.summary)}${qualityJiraLink(r.key)}</td>
         <td>${esc(r.summary)}</td>
         <td><span style="display:inline-flex;align-items:center;gap:6px"><span style="width:8px;height:8px;border-radius:50%;background:${jiraProjectColor(r.module)};display:inline-block"></span>${esc(r.module)}</span></td>
