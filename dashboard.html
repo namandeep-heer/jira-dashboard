@@ -360,6 +360,13 @@ html.sidebar-collapsed #log-badge { position: absolute; top: 3px; right: 3px; ma
 .stat-card.active .sl { color: var(--blue); }
 .stat-card.active .sv { color: var(--blue); }
 .stat-card .sl { font-size: 11px; color: var(--text3); margin-bottom: 3px; white-space: nowrap; }
+.stat-card-top { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-bottom: 3px; }
+.stat-card-top .sl { margin-bottom: 0; }
+.bounced-visibility { border: 0.5px solid var(--bounced-bar); background: transparent; color: var(--bounced); border-radius: 999px; padding: 1px 8px; font: inherit; font-size: 11px; font-weight: 600; line-height: 1.5; cursor: pointer; flex-shrink: 0; }
+.bounced-visibility:hover { background: var(--bg); }
+.bounced-visibility[aria-pressed="false"] { background: var(--bounced); color: var(--bg); border-color: var(--bounced); }
+.stat-card.is-bounced.is-bounced-hidden .sv { opacity: 0.45; }
+.bounced-visibility:focus-visible { outline: 2px solid var(--bounced); outline-offset: 1px; }
 .stat-card .sv { font-size: 22px; font-weight: 700; }
 .stat-card .so { font-size: 10px; color: var(--text3); margin-top: 2px; font-weight: 500; }
 .clarity-chart-block { margin: 4px 0 22px; }
@@ -6998,12 +7005,14 @@ function renderProjectStatCards(projKey) {
     ? `<p class="stat-filter-note">Showing ${cur.total} of ${orig.total} issues. Original totals are under each card.</p>`
     : '';
   statsEl.innerHTML = (d.partialWarning || '') + note + `<div class="stat-strip">${visibleCards.map(({ label }) =>
-    `<div class="stat-card${active === label ? ' active' : ''}${label === 'Rejected / Replied' ? ' is-bounced' : ''}" data-filter-key="${esc(label)}" style="cursor:pointer" onclick="filterByCard('${esc(projKey)}','${esc(label)}')">
-      <div class="sl">${esc(label)}</div>
+    `<div class="stat-card${active === label ? ' active' : ''}${label === 'Rejected / Replied' ? ' is-bounced' : ''}${label === 'Rejected / Replied' && !showBouncedTickets() ? ' is-bounced-hidden' : ''}" data-filter-key="${esc(label)}" style="cursor:pointer" onclick="filterByCard('${esc(projKey)}','${esc(label)}')">
+      ${label === 'Rejected / Replied'
+        ? `<div class="stat-card-top"><div class="sl">${esc(label)}</div>${bouncedVisibilityButton()}</div>`
+        : `<div class="sl">${esc(label)}</div>`}
       <div class="sv">${cardCounts[label] || 0}</div>
       ${showOriginal ? `<div class="so">of ${origCounts[label] || 0}</div>` : ''}
     </div>`
-  ).join('')}</div>`;
+  ).join('')}</div>${_bouncedVisibilityError ? `<p class="stat-filter-note">${esc(_bouncedVisibilityError)}</p>` : ''}`;
 }
 
 function navToPhase(projId, phaseLabel, scopeCommitment) {
@@ -7225,7 +7234,9 @@ function listingFieldsForProject(proj) {
 function getFilteredProjectIssues(projKey) {
   const proj = listingProject(projKey);
   const jiraSelected = (proj && isQualityDashboardProject(proj)) ? getSelectedJiraProjects() : new Set();
+  const hideBounced = listingHidesBounced(projKey);
   return getPhaseFilteredProjectIssues(projKey).filter(issue => {
+    if (hideBounced && isBouncedStatus(getIssueStatusName(issue))) return false;
     if (jiraSelected.size && !issueInSelectedJiraProjects(issue)) return false;
     return issueMatchesListingSearchAndCols(proj, issue);
   });
@@ -7281,7 +7292,8 @@ function compareProjectSortValues(a, b, dir) {
 }
 
 const MAX_PROJECT_SORT_LEVELS = 8;
-let _userPrefs = { projectSorts: {}, groupByEpic: true, columnWidths: {}, columnFreeze: {}, columnViews: {}, sortConfigs: {} };
+let _userPrefs = { projectSorts: {}, groupByEpic: true, showBounced: true, columnWidths: {}, columnFreeze: {}, columnViews: {}, sortConfigs: {} };
+let _bouncedVisibilityError = '';
 let _columnWidthTimers = {};
 let _epicCollapsed = {};
 let _epicGroupStatus = {};
@@ -7427,6 +7439,7 @@ function rememberUserPreferences(data) {
   _userPrefs = {
     projectSorts,
     groupByEpic: !data || data.groupByEpic !== false,
+    showBounced: !data || data.showBounced !== false,
     columnWidths,
     columnFreeze,
     columnViews,
@@ -9106,6 +9119,62 @@ function epicCollapseId(projKey, epicKey) {
 
 function groupByEpicOn() {
   return _userPrefs.groupByEpic !== false && typeof EpicGroups !== 'undefined';
+}
+
+function showBouncedTickets() {
+  return _userPrefs.showBounced !== false;
+}
+
+function listingHidesBounced(projKey) {
+  if (showBouncedTickets()) return false;
+  const active = S.activeFilter && S.activeFilter[projKey];
+  return active !== 'Rejected / Replied';
+}
+
+function bouncedVisibilityButton() {
+  const shown = showBouncedTickets();
+  const label = shown ? 'Hide' : 'Show';
+  const title = shown
+    ? 'Hide Rejected and Replied tickets on every project'
+    : 'Show Rejected and Replied tickets on every project';
+  return `<button type="button" class="bounced-visibility" aria-pressed="${shown ? 'true' : 'false'}" title="${title}" onclick="event.stopPropagation();setShowBounced(${shown ? 'false' : 'true'})">${label}</button>`;
+}
+
+function refreshOpenProjectListings() {
+  Object.keys(S._projData || {}).forEach(key => {
+    if (document.getElementById('stats-' + key) || document.getElementById('issues-' + key)) refreshProjectListing(key);
+  });
+}
+
+async function setShowBounced(enabled) {
+  const next = !!enabled;
+  if (next === showBouncedTickets()) return;
+  _userPrefs.showBounced = next;
+  _bouncedVisibilityError = '';
+  if (!next && S.activeFilter) {
+    let cleared = false;
+    Object.keys(S.activeFilter).forEach(key => {
+      if (S.activeFilter[key] === 'Rejected / Replied') {
+        S.activeFilter[key] = null;
+        cleared = true;
+      }
+    });
+    if (cleared && !_routeNavigating) syncRoute();
+  }
+  refreshOpenProjectListings();
+  try {
+    const response = await authFetch('/api/user-preferences/show-bounced', {
+      method: 'PUT',
+      body: JSON.stringify({ enabled: next }),
+    });
+    const result = await response.json().catch(() => ({}));
+    if (!response.ok) throw new Error(result.error || 'Could not save the Rejected / Replied setting.');
+    _userPrefs.showBounced = result.showBounced !== false;
+  } catch (err) {
+    _userPrefs.showBounced = !next;
+    _bouncedVisibilityError = err.message || 'Could not save the Rejected / Replied setting.';
+    refreshOpenProjectListings();
+  }
 }
 
 function epicToggleLabel(epicKey, summary, count, open) {
