@@ -30,6 +30,7 @@
   --amber: #7a4808; --amber-bg: #FAEEDA;
   --bounced: #9a5555; --bounced-bg: #fdf2f2; --bounced-row: #fef7f7; --bounced-row-hover: #fdf1f1; --bounced-bar: #f0c8c8;
   --qa: #6b8f62; --qa-bg: #f3f8ef; --qa-row: #f7fbf4; --qa-row-hover: #f1f7ec; --qa-bar: #d3e6c6;
+  --closed: #4a6a40; --closed-bg: #dceccf; --closed-row: #e4f1d8; --closed-row-hover: #d7e8c6; --closed-bar: #a8c78e;
   --purple: #533AB7;
   --sidebar-w: 232px; --header-h: 52px;
   --radius: 8px; --radius-lg: 12px;
@@ -45,6 +46,7 @@
     --amber: #e0a040; --amber-bg: #3a2000;
     --bounced: #f0c4c4; --bounced-bg: #453030; --bounced-row: #322424; --bounced-row-hover: #3a2a2a; --bounced-bar: #c99090;
     --qa: #c5dcb4; --qa-bg: #303a2c; --qa-row: #262e24; --qa-row-hover: #2c3528; --qa-bar: #7ea36c;
+    --closed: #96b47a; --closed-bg: #202a1c; --closed-row: #161e14; --closed-row-hover: #1c2816; --closed-bar: #567e46;
   }
 }
 /* Manual theme override takes precedence over OS preference */
@@ -58,6 +60,7 @@ body.theme-light {
   --amber: #7a4808; --amber-bg: #FAEEDA;
   --bounced: #9a5555; --bounced-bg: #fdf2f2; --bounced-row: #fef7f7; --bounced-row-hover: #fdf1f1; --bounced-bar: #f0c8c8;
   --qa: #6b8f62; --qa-bg: #f3f8ef; --qa-row: #f7fbf4; --qa-row-hover: #f1f7ec; --qa-bar: #d3e6c6;
+  --closed: #4a6a40; --closed-bg: #dceccf; --closed-row: #e4f1d8; --closed-row-hover: #d7e8c6; --closed-bar: #a8c78e;
 }
 body.theme-dark {
   --bg: #1c1c1a; --bg2: #252523; --bg3: #2e2e2b;
@@ -69,6 +72,7 @@ body.theme-dark {
   --amber: #e0a040; --amber-bg: #3a2000;
   --bounced: #f0c4c4; --bounced-bg: #453030; --bounced-row: #322424; --bounced-row-hover: #3a2a2a; --bounced-bar: #c99090;
   --qa: #c5dcb4; --qa-bg: #303a2c; --qa-row: #262e24; --qa-row-hover: #2c3528; --qa-bar: #7ea36c;
+  --closed: #96b47a; --closed-bg: #202a1c; --closed-row: #161e14; --closed-row-hover: #1c2816; --closed-bar: #567e46;
 }
 html, body { height: 100%; overflow: hidden; }
 body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif; font-size: 14px; background: var(--bg3); color: var(--text); }
@@ -378,6 +382,10 @@ html.sidebar-collapsed #log-badge { position: absolute; top: 3px; right: 3px; ma
 .stat-card.is-qa .phase-visibility:hover { background: var(--bg); }
 .stat-card.is-qa .phase-visibility[aria-pressed="false"] { background: var(--qa); color: var(--bg); border-color: var(--qa); }
 .stat-card.is-qa .phase-visibility:focus-visible { outline-color: var(--qa); }
+.stat-card.is-closed .phase-visibility { border-color: var(--closed-bar); color: var(--closed); }
+.stat-card.is-closed .phase-visibility:hover { background: var(--bg); }
+.stat-card.is-closed .phase-visibility[aria-pressed="false"] { background: var(--closed); color: var(--bg); border-color: var(--closed); }
+.stat-card.is-closed .phase-visibility:focus-visible { outline-color: var(--closed); }
 .stat-card.is-phase-hidden .sv { opacity: 0.45; }
 .stat-card .sv { font-size: 22px; font-weight: 700; }
 .stat-card .so { font-size: 10px; color: var(--text3); margin-top: 2px; font-weight: 500; }
@@ -534,7 +542,7 @@ table.issues td.epic-indent { padding-left: 22px; box-shadow: inset 2px 0 0 var(
   .epic-toggle svg { transition: none; }
 }
 .proj-sort-btn.is-on, .proj-views-btn.is-on, .proj-bulk-btn.is-on { color: var(--text); border-color: var(--border2); }
-.proj-bulk-btn:disabled, .proj-bulk-delete:disabled { opacity: .4; cursor: default; }
+.proj-bulk-btn:disabled, .proj-bulk-delete:disabled, .ws-bulk-add:disabled, .ws-bulk-remove:disabled { opacity: .4; cursor: default; }
 .proj-bulk-delete:not(:disabled) { color: var(--red); }
 .proj-views-btn { max-width: 180px; margin-left: auto; overflow: hidden; text-overflow: ellipsis; }
 .proj-sort-status { font-size: 12px; color: var(--text3); }
@@ -886,26 +894,37 @@ table.issues tr.is-just-created td { background: var(--bg2); }
 .b-review  { background: var(--amber-bg); color: var(--amber); }
 .b-bounced { background: var(--bounced-bg); color: var(--bounced); font-weight: 650; }
 .b-qa { background: var(--qa-bg); color: var(--qa); font-weight: 650; }
+.b-closed { background: var(--closed-bg); color: var(--closed); font-weight: 650; }
 table.issues tr.is-bounced td,
 .qi-table tr.is-bounced td { background: var(--bounced-row); }
 table.issues tr.is-qa td,
 .qi-table tr.is-qa td { background: var(--qa-row); }
+table.issues tr.is-closed td,
+.qi-table tr.is-closed td { background: var(--closed-row); }
 table.issues tr.is-bounced:hover td,
 table.issues tr.is-bounced:hover td.notes-cell,
 .qi-table tr.is-bounced:hover td { background: var(--bounced-row-hover); }
 table.issues tr.is-qa:hover td,
 table.issues tr.is-qa:hover td.notes-cell,
 .qi-table tr.is-qa:hover td { background: var(--qa-row-hover); }
+table.issues tr.is-closed:hover td,
+table.issues tr.is-closed:hover td.notes-cell,
+.qi-table tr.is-closed:hover td { background: var(--closed-row-hover); }
 table.issues tr.is-bounced td:first-child,
 .qi-table tr.is-bounced td:first-child { box-shadow: inset 3px 0 0 var(--bounced-bar); }
 table.issues tr.is-qa td:first-child,
 .qi-table tr.is-qa td:first-child { box-shadow: inset 3px 0 0 var(--qa-bar); }
+table.issues tr.is-closed td:first-child,
+.qi-table tr.is-closed td:first-child { box-shadow: inset 3px 0 0 var(--closed-bar); }
 select.jw-choice.is-bounced { background: var(--bounced-bg); color: var(--bounced); font-weight: 650; border-radius: 999px; }
 select.jw-choice.is-qa { background: var(--qa-bg); color: var(--qa); font-weight: 650; border-radius: 999px; }
+select.jw-choice.is-closed { background: var(--closed-bg); color: var(--closed); font-weight: 650; border-radius: 999px; }
 .stat-card.is-bounced,
 .stat-card.is-bounced.active { border-color: var(--bounced-bar); background: var(--bounced-bg); }
 .stat-card.is-qa,
 .stat-card.is-qa.active { border-color: var(--qa-bar); background: var(--qa-bg); }
+.stat-card.is-closed,
+.stat-card.is-closed.active { border-color: var(--closed-bar); background: var(--closed-bg); }
 .stat-card.is-bounced .sl,
 .stat-card.is-bounced .sv,
 .stat-card.is-bounced.active .sl,
@@ -914,12 +933,19 @@ select.jw-choice.is-qa { background: var(--qa-bg); color: var(--qa); font-weight
 .stat-card.is-qa .sv,
 .stat-card.is-qa.active .sl,
 .stat-card.is-qa.active .sv { color: var(--qa); }
+.stat-card.is-closed .sl,
+.stat-card.is-closed .sv,
+.stat-card.is-closed.active .sl,
+.stat-card.is-closed.active .sv { color: var(--closed); }
 .plan-line.is-bounced { background: var(--bounced-row); }
 .plan-line.is-qa { background: var(--qa-row); }
+.plan-line.is-closed { background: var(--closed-row); }
 .plan-status.is-bounced,
 .plan-field-btn.is-bounced { color: var(--bounced); font-weight: 650; }
 .plan-status.is-qa,
 .plan-field-btn.is-qa { color: var(--qa); font-weight: 650; }
+.plan-status.is-closed,
+.plan-field-btn.is-closed { color: var(--closed); font-weight: 650; }
 table.issues tr.is-bulk-selected.is-bounced td,
 table.issues tr.is-bulk-selected.is-bounced:hover td,
 table.issues tr.is-bulk-selected.is-bounced:hover td.notes-cell,
@@ -927,7 +953,11 @@ table.issues tr.is-bulk-selected.is-bounced:hover td.notes-cell,
 table.issues tr.is-bulk-selected.is-qa td,
 table.issues tr.is-bulk-selected.is-qa:hover td,
 table.issues tr.is-bulk-selected.is-qa:hover td.notes-cell,
-.proj-issue-split tr.is-bulk-selected.is-qa.is-linked-hover td { background: var(--blue-bg); }
+.proj-issue-split tr.is-bulk-selected.is-qa.is-linked-hover td,
+table.issues tr.is-bulk-selected.is-closed td,
+table.issues tr.is-bulk-selected.is-closed:hover td,
+table.issues tr.is-bulk-selected.is-closed:hover td.notes-cell,
+.proj-issue-split tr.is-bulk-selected.is-closed.is-linked-hover td { background: var(--blue-bg); }
 .pri-high  { color: var(--red); font-weight: 600; }
 .pri-med   { color: var(--amber); }
 .pri-low   { color: var(--green); }
@@ -3036,15 +3066,21 @@ function isQaStatus(statusName) {
   return /^(qa|pqa|pending[\s-]*dep|eoa[\s-]*pending)/i.test(String(statusName || '').trim());
 }
 
+function isClosedStatus(statusName) {
+  return /^(closed|done|resolved|cancelled|fixed|all[\s-]*fixed|won't\s*fix)/i.test(String(statusName || '').trim());
+}
+
 function issueToneClass(statusName) {
   if (isBouncedStatus(statusName)) return 'is-bounced';
   if (isQaStatus(statusName)) return 'is-qa';
+  if (isClosedStatus(statusName)) return 'is-closed';
   return '';
 }
 
 function phaseCardTone(label) {
   if (label === 'Rejected / Replied') return ' is-bounced';
   if (label === 'QA') return ' is-qa';
+  if (label === 'Closed') return ' is-closed';
   return '';
 }
 
@@ -3052,6 +3088,7 @@ function statusBadgeClass(statusName) {
   const sl = String(statusName || '').trim();
   if (isBouncedStatus(sl)) return 'b-bounced';
   if (isQaStatus(sl)) return 'b-qa';
+  if (isClosedStatus(sl)) return 'b-closed';
   if (/progress|active|dev/i.test(sl)) return 'b-ip';
   if (/done|closed|resolved|complete/i.test(sl)) return 'b-done';
   if (/block/i.test(sl)) return 'b-blocked';
@@ -10623,6 +10660,16 @@ function applyBulkSelectionDom(projKey) {
       deleteButton.disabled = !count || busy;
       deleteButton.title = count ? 'Delete the selected tickets from Jira' : 'Select tickets to delete';
     }
+    const addButton = root.querySelector('.ws-bulk-add');
+    if (addButton) {
+      addButton.disabled = !count || busy;
+      addButton.title = count ? 'Add the selected tickets to a workspace' : 'Select tickets to add to a workspace';
+    }
+    const removeButton = root.querySelector('.ws-bulk-remove');
+    if (removeButton) {
+      removeButton.disabled = !count || busy;
+      removeButton.title = count ? 'Remove the selected tickets from this workspace' : 'Select tickets to remove from this workspace';
+    }
   }
   const dialog = document.getElementById('bulk-edit-root');
   if (!dialog || dialog.hidden || dialog.getAttribute('data-proj') !== projKey) return;
@@ -11616,6 +11663,7 @@ function renderIssueTable(proj, issues, activeFilter) {
       <button class="btn btn-sm proj-bulk-btn${bulkOn ? ' is-on' : ''}" type="button" onclick='openBulkEdit(${JSON.stringify(proj.key)})' ${bulkCount && !bulkBusy ? '' : 'disabled'} title="${bulkCount ? 'Edit the selected tickets' : 'Select tickets to bulk edit'}">Bulk edit</button>
       <button class="btn btn-sm proj-bulk-delete" type="button" onclick='deleteBulkIssues(${JSON.stringify(proj.key)})' ${bulkCount && !bulkBusy ? '' : 'disabled'} title="${bulkCount ? 'Delete the selected tickets from Jira' : 'Select tickets to delete'}">Bulk delete</button>
       <button class="btn btn-sm ws-bulk-add" type="button" data-proj="${esc(proj.key)}" onclick="event.stopPropagation();openWorkspacePicker(event)" ${bulkCount && !bulkBusy ? '' : 'disabled'} title="${bulkCount ? 'Add the selected tickets to a workspace' : 'Select tickets to add to a workspace'}">Add to workspace</button>
+      ${workspaceById(proj.key) ? `<button class="btn btn-sm ws-bulk-remove" type="button" onclick='removeSelectedFromWorkspace(${JSON.stringify(proj.key)})' ${bulkCount && !bulkBusy ? '' : 'disabled'} title="${bulkCount ? 'Remove the selected tickets from this workspace' : 'Select tickets to remove from this workspace'}">Remove from workspace</button>` : ''}
     </div>
     ${tableRegion}`;
 
@@ -24936,6 +24984,45 @@ async function removeWorkspaceItem(id, key) {
   } catch (err) {
     setWorkspaceStatus(id, err.message, true);
     renderWorkspacePage();
+  }
+}
+
+async function removeSelectedFromWorkspace(id) {
+  if (_bulkBusy[id]) return;
+  const keys = bulkSelectedKeys(id);
+  if (!keys.length) {
+    setBulkStatus(id, 'Select at least one ticket.', true);
+    return;
+  }
+  if (keys.length > 200) {
+    setBulkStatus(id, 'Remove up to 200 tickets at a time.', true);
+    return;
+  }
+  const ws = workspaceById(id);
+  const name = ws && ws.name ? ws.name : 'this workspace';
+  const noun = keys.length === 1 ? '1 ticket' : (keys.length + ' tickets');
+  const preview = keys.slice(0, 12).join('\n');
+  const more = keys.length > 12 ? ('\n…and ' + (keys.length - 12) + ' more') : '';
+  if (!confirm('Remove ' + noun + ' from “' + name + '”?\n\n' + preview + more + '\n\nTickets stay in Jira.')) return;
+  _bulkBusy[id] = true;
+  refreshProjectListing(id);
+  try {
+    const data = await workspaceRequest('/api/workspaces/' + encodeURIComponent(id) + '/items/remove', {
+      method: 'POST',
+      body: JSON.stringify({ keys }),
+    });
+    const selected = _bulkSelected[id];
+    if (selected) {
+      keys.forEach(key => selected.delete(key));
+      if (!selected.size) delete _bulkSelected[id];
+    }
+    _bulkBusy[id] = false;
+    setWorkspaceStatus(id, 'Removed ' + noun + '.');
+    applyWorkspacesPayload(data);
+  } catch (err) {
+    _bulkBusy[id] = false;
+    setBulkStatus(id, err.message || 'Could not remove the tickets.', true);
+    refreshProjectListing(id);
   }
 }
 

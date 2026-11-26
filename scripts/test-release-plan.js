@@ -258,5 +258,21 @@ assert.match(dashboard, /\.b-qa/);
 assert.match(dashboard, /--qa-row: #f7fbf4/);
 assert.match(dashboard, /background: var\(--qa-row\)/);
 assert.match(writeUi, /is-qa/);
+const closedBoard = plan.renderReleasePlanBoard(plan.buildReleasePlan({
+  today,
+  capacityThrough: horizon,
+  zoom: 'day',
+  size: 'L',
+  colour: 'commitment',
+  rows: 'person',
+  tickets: [ticket({ key: 'NFS-C2', status: 'Closed', phase: 'Closed', estimate: 1 })],
+}), { columns: { status: true }, linkBase: 'https://jira.example' });
+assert.match(closedBoard, /plan-line is-closed/);
+assert.match(closedBoard, /plan-field-btn is-closed/);
+assert.match(dashboard, /function isClosedStatus/);
+assert.match(dashboard, /\.b-closed/);
+assert.match(dashboard, /--closed-row: #e4f1d8/);
+assert.match(dashboard, /background: var\(--closed-row\)/);
+assert.match(writeUi, /is-closed/);
 
 console.log('release-plan: ok');
