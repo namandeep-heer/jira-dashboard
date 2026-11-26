@@ -16,6 +16,7 @@
 <script src="/lib/release-plan.js"></script>
 <script src="/lib/menu.js"></script>
 <script src="/lib/clarity-dashboard.js"></script>
+<script src="/lib/ticket-search.js"></script>
 <script src="/lib/workspace-query.js"></script>
 <style>
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
@@ -139,6 +140,18 @@ body.theme-dark .theme-switch-btn:focus-visible { outline-color: #fff; }
 .auth-error { color:var(--red); background:var(--red-bg); font-size:12px; padding:9px 10px; border-radius:var(--radius); margin-top:12px; }
 #connector-page { max-width:none; }
 .pc-page { max-width:none; }
+.pc-matrix-wrap { overflow: auto; max-height: min(520px, 70vh); margin-bottom: 22px; border: 0.5px solid var(--border); border-radius: var(--radius); }
+.pc-matrix { width: 100%; border-collapse: separate; border-spacing: 0; font-size: 13px; }
+.pc-matrix th, .pc-matrix td { border-bottom: 0.5px solid var(--border); background: var(--bg); }
+.pc-matrix td { text-align: center; padding: 10px 8px; }
+.pc-matrix thead th { position: sticky; top: 0; z-index: 2; background: var(--bg2); }
+.pc-matrix-proj { position: sticky; left: 0; z-index: 1; width: 240px; padding: 10px 14px; text-align: left; font-weight: 500; background: var(--bg); white-space: nowrap; }
+.pc-matrix thead .pc-matrix-proj { z-index: 3; background: var(--bg2); }
+.pc-matrix-rel { padding: 10px 8px; text-align: center; font-weight: 600; }
+.pc-matrix-rel span { display: block; margin-bottom: 8px; font-size: 12px; white-space: nowrap; }
+.pc-matrix-rel input, .pc-matrix td input { width: 16px; height: 16px; margin: 0; accent-color: var(--blue); }
+.pc-matrix-dot { display: inline-block; width: 8px; height: 8px; margin-right: 8px; border-radius: 50%; vertical-align: middle; }
+.pc-matrix-empty { margin: 0; padding: 14px; font-size: 13px; color: var(--text3); }
 .connector-grid { display:grid; grid-template-columns:minmax(0, 1.2fr) minmax(320px, 0.8fr); gap:16px; align-items:start; }
 .connector-card { background:var(--bg2); border:0.5px solid var(--border); border-radius:var(--radius-lg); padding:18px; }
 .connector-card h3 { font-size:14px; font-weight:600; margin-bottom:5px; }
@@ -430,7 +443,7 @@ body.is-col-resize, body.is-col-resize * { cursor: col-resize !important; user-s
 .th-filter:hover, .th-filter.active, .th-filter.has-filter { opacity: 1; color: var(--blue); background: var(--blue-bg); }
 .th-filter svg { width: 11px; height: 11px; }
 .proj-table-tools { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; margin-bottom: 10px; position: relative; z-index: 5; overflow: visible; }
-.proj-search { padding: 6px 10px; border: 0.5px solid var(--border2); border-radius: var(--radius); background: var(--bg); color: var(--text); font-size: 13px; font-family: inherit; width: 240px; }
+.proj-search { padding: 6px 10px; border: 0.5px solid var(--border2); border-radius: var(--radius); background: var(--bg); color: var(--text); font-size: 13px; font-family: inherit; width: 320px; }
 .proj-search:focus { outline: 2px solid var(--blue); outline-offset: -1px; }
 .proj-count { font-size: 12px; color: var(--text3); }
 .epic-layout-toggle { display: inline-flex; align-items: center; gap: 2px; padding: 2px; border: 0.5px solid var(--border2); border-radius: 12px; background: var(--bg2); }
@@ -510,8 +523,32 @@ table.issues td.epic-indent { padding-left: 22px; box-shadow: inset 2px 0 0 var(
 #proj-sort-root.open .proj-sort-backdrop, #proj-views-root.open .proj-sort-backdrop { opacity: 1; }
 #proj-sort-root.open .proj-sort-panel, #proj-views-root.open .proj-sort-panel { transform: translate(-50%, -50%) scale(1); opacity: 1; }
 .proj-sort-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 16px; padding: 20px 20px 0; }
+.proj-sort-head > div { flex: 1; min-width: 0; }
 .proj-sort-head h2 { font-size: 17px; font-weight: 600; letter-spacing: -0.02em; }
-.proj-sort-kicker { max-width: 40ch; margin-top: 4px; font-size: 12px; line-height: 1.45; color: var(--text3); }
+.proj-sort-kicker { max-width: 52ch; margin-top: 4px; font-size: 12px; line-height: 1.45; color: var(--text3); }
+.proj-sort-head .proj-sort-kicker { max-width: none; }
+.proj-sort-configs { display: flex; align-items: center; flex-wrap: nowrap; gap: 8px; padding: 12px 20px 0; min-width: 0; }
+.proj-sort-configs > .proj-sort-config-row { display: contents; }
+.proj-sort-configs .btn { flex: 0 0 auto; }
+.proj-sort-config-label { display: flex; align-items: center; gap: 8px; flex: 1 1 220px; min-width: 180px; font-size: 12px; font-weight: 600; color: var(--text3); white-space: nowrap; }
+.proj-sort-configs select, .proj-sort-configs input[type="text"] { height: 32px; min-width: 0; padding: 0 10px; border: 0.5px solid var(--border2); border-radius: 8px; background: var(--bg); color: var(--text); font: inherit; font-size: 13px; }
+.proj-sort-configs select { flex: 1; width: auto; min-width: 120px; }
+.proj-sort-configs input[type="text"] { width: 108px; flex: 0 1 108px; min-width: 72px; }
+.proj-sort-configs select:focus, .proj-sort-configs input[type="text"]:focus { outline: 2px solid var(--blue); outline-offset: -1px; }
+.proj-sort-config-default { display: inline-flex; align-items: center; gap: 6px; flex: 0 0 auto; font-size: 12px; font-weight: 600; color: var(--text3); white-space: nowrap; cursor: pointer; }
+.proj-sort-config-default input { width: 16px; height: 16px; margin: 0; accent-color: var(--blue); }
+.proj-sort-info { position: relative; flex: 0 0 auto; width: 28px; height: 28px; display: inline-flex; align-items: center; justify-content: center; padding: 0; border: none; border-radius: 50%; background: transparent; color: var(--text3); cursor: help; }
+.proj-sort-info[hidden] { display: none !important; }
+.proj-sort-info svg { width: 16px; height: 16px; }
+.proj-sort-info.is-error { color: var(--red); }
+.proj-sort-info:hover, .proj-sort-info:focus-visible { color: var(--text); background: var(--bg2); outline: none; }
+.proj-sort-info.is-fresh { animation: proj-sort-info-pop .45s cubic-bezier(.2,.8,.2,1); }
+.proj-sort-info.is-error.is-fresh { animation-name: proj-sort-info-shake; }
+.proj-sort-info-tip { position: absolute; top: calc(100% + 8px); right: 0; z-index: 3; width: max-content; max-width: 260px; padding: 8px 10px; border-radius: 8px; background: var(--text); color: var(--bg); font-size: 12px; font-weight: 500; line-height: 1.4; text-align: left; white-space: normal; pointer-events: none; opacity: 0; transform: translateY(-4px); transition: opacity .16s ease, transform .16s ease; }
+.proj-sort-info:hover .proj-sort-info-tip, .proj-sort-info:focus-visible .proj-sort-info-tip, .proj-sort-info.is-fresh .proj-sort-info-tip { opacity: 1; transform: none; }
+@keyframes proj-sort-info-pop { 0% { transform: scale(1); } 40% { transform: scale(1.22); } 100% { transform: scale(1); } }
+@keyframes proj-sort-info-shake { 0%, 100% { transform: translateX(0); } 30% { transform: translateX(-2px); } 70% { transform: translateX(2px); } }
+@media (prefers-reduced-motion: reduce) { .proj-sort-info.is-fresh { animation: none; } }
 .proj-sort-body { flex: 1; min-height: 0; display: grid; grid-template-columns: 232px minmax(0, 1fr); }
 .proj-sort-nav { min-height: 0; display: flex; flex-direction: column; gap: 8px; padding: 12px 10px; border-right: 0.5px solid var(--border); }
 .proj-sort-levels { flex: 1; min-height: 0; display: flex; flex-direction: column; gap: 2px; overflow: auto; }
@@ -668,20 +705,25 @@ textarea.jw-summary { display: block; min-height: 96px; resize: vertical; line-h
 .jw-muted { color: var(--text3); font-size: 12px; }
 .jw-foot { justify-content: flex-end; border-top: 0.5px solid var(--border); }
 .jw-foot-note { margin-right: auto; font-size: 12px; color: var(--text3); }
-.jw-created { position: fixed; z-index: 960; left: 50%; bottom: 20px; display: flex; align-items: stretch; width: min(420px, calc(100vw - 24px)); background: var(--bg); color: var(--text); border: 0.5px solid var(--border2); border-radius: 16px; box-shadow: 0 16px 40px rgba(0,0,0,.16); transform: translateX(-50%) translateY(10px); opacity: 0; transition: opacity .22s cubic-bezier(.2,.8,.2,1), transform .28s cubic-bezier(.2,.8,.2,1); }
+.jw-created { position: fixed; z-index: 960; left: 50%; bottom: 20px; display: flex; align-items: center; width: min(420px, calc(100vw - 24px)); background: var(--bg); color: var(--text); border: 0.5px solid var(--border2); border-radius: 16px; box-shadow: 0 16px 40px rgba(0,0,0,.16); transform: translateX(-50%) translateY(10px); opacity: 0; transition: opacity .22s cubic-bezier(.2,.8,.2,1), transform .28s cubic-bezier(.2,.8,.2,1); }
 .jw-created.is-in { opacity: 1; transform: translateX(-50%) translateY(0); }
 .jw-created[hidden] { display: none !important; }
-.jw-created-link { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px; padding: 12px 8px 12px 14px; border-radius: 16px 0 0 16px; color: inherit; text-decoration: none; }
+.jw-created-link { flex: 1; min-width: 0; display: flex; align-items: center; gap: 8px; padding: 10px 8px 10px 12px; border-radius: 16px 0 0 16px; color: inherit; text-decoration: none; }
 .jw-created-link:hover .jw-created-name, .jw-created-link:focus-visible .jw-created-name { text-decoration: underline; }
 .jw-created-link:focus-visible, .jw-created-close:focus-visible { outline: 2px solid var(--blue); outline-offset: -2px; }
-.jw-created-kicker { font-size: 11px; font-weight: 600; letter-spacing: .04em; text-transform: uppercase; color: var(--text3); }
-.jw-created-key { font-family: monospace; font-size: 12px; font-weight: 600; color: var(--blue); }
-.jw-created-name { font-size: 14px; font-weight: 600; letter-spacing: -0.01em; line-height: 1.35; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.jw-created-close { flex-shrink: 0; margin: 8px 8px 8px 0; padding: 0 12px; border: none; border-radius: 12px; background: transparent; color: var(--text3); font: inherit; font-size: 13px; cursor: pointer; }
+.jw-created-timer { width: 18px; height: 18px; flex: 0 0 auto; }
+.jw-created-timer-track, .jw-created-timer-arc { fill: none; stroke-width: 2; }
+.jw-created-timer-track { stroke: var(--border2); }
+.jw-created-timer-arc { stroke: var(--blue); stroke-linecap: round; transform: rotate(-90deg); transform-origin: 9px 9px; stroke-dasharray: 44; stroke-dashoffset: 0; animation: jw-created-drain 900s linear forwards; }
+@keyframes jw-created-drain { to { stroke-dashoffset: 44; } }
+.jw-created-key { flex: 0 0 auto; font-family: monospace; font-size: 12px; font-weight: 600; color: var(--blue); }
+.jw-created-name { min-width: 0; font-size: 13px; font-weight: 600; letter-spacing: -0.01em; line-height: 1.35; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.jw-created-close { flex-shrink: 0; width: 32px; height: 32px; margin: 0 6px 0 0; padding: 0; border: none; border-radius: 10px; background: transparent; color: var(--text3); font: inherit; font-size: 16px; line-height: 1; cursor: pointer; }
 .jw-created-close:hover { background: var(--bg2); color: var(--text); }
 table.issues tr.is-just-created td { background: var(--bg2); }
 @media (prefers-reduced-motion: reduce) {
   .jw-edit, .jw-created, .proj-sync-arc, .proj-sync-notice { transition: none; }
+  .jw-created-timer-arc { animation: none; }
 }
 #content:has(.proj-page.active) { overflow: hidden; display: flex; flex-direction: column; }
 .proj-page.page.active { display: flex; flex-direction: column; flex: 1; min-height: 0; overflow: hidden; }
@@ -1681,9 +1723,26 @@ code { font-family: monospace; font-size: 12px; background: var(--bg3); padding:
         <div class="proj-sort-head">
           <div>
             <h2 id="proj-sort-title">Sort</h2>
-            <p class="proj-sort-kicker">Pick a level on the left. The issue list updates as you edit it. Apply saves the sort.</p>
+            <p class="proj-sort-kicker">Edits update the list. Save shares the sort with this category. Apply overrides this project.</p>
           </div>
           <button class="btn btn-sm" type="button" onclick="closeProjectSortDialog()">Close</button>
+        </div>
+        <div class="proj-sort-configs">
+          <div class="proj-sort-config-row">
+            <label class="proj-sort-config-label" for="proj-sort-config">Saved
+              <select id="proj-sort-config" onchange="loadSavedProjectSort(this.value)"></select>
+            </label>
+            <input id="proj-sort-config-name" type="text" maxlength="40" placeholder="Name this sort" aria-label="Saved sort name" />
+            <button class="btn btn-sm" type="button" onclick="saveProjectSortConfig()">Save</button>
+            <button class="btn btn-sm" type="button" onclick="deleteProjectSortConfig()">Delete</button>
+          </div>
+          <div class="proj-sort-config-row">
+            <label class="proj-sort-config-default" for="proj-sort-default"><input id="proj-sort-default" type="checkbox" onchange="setSavedSortDefault(this.checked)"> Category default</label>
+            <button type="button" class="proj-sort-info" id="proj-sort-config-note" hidden aria-label="Sort status">
+              <svg viewBox="0 0 16 16" aria-hidden="true"><circle cx="8" cy="8" r="6.25" fill="none" stroke="currentColor" stroke-width="1.4"/><path d="M8 7.1v4" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/><circle cx="8" cy="4.7" r="0.8" fill="currentColor"/></svg>
+              <span class="proj-sort-info-tip" id="proj-sort-config-tip"></span>
+            </button>
+          </div>
         </div>
         <div class="proj-sort-body">
           <div class="proj-sort-nav">
@@ -1693,6 +1752,7 @@ code { font-family: monospace; font-size: 12px; background: var(--bg3); padding:
           <div class="proj-sort-editor" id="proj-sort-editor"></div>
         </div>
         <div class="proj-sort-foot">
+          <button class="btn btn-sm" id="proj-sort-use-default" type="button" onclick="useCategoryDefaultSort()" hidden>Use default</button>
           <button class="btn btn-sm" type="button" onclick="clearProjectSortDialog()">Clear sort</button>
           <button class="btn btn-sm primary" type="button" onclick="applyProjectSortDialog()">Apply</button>
         </div>
@@ -1771,6 +1831,7 @@ code { font-family: monospace; font-size: 12px; background: var(--bg3); padding:
           <label class="deck-opt" id="deck-opt-milestones-wrap"><input type="checkbox" id="deck-opt-milestones" checked /> Milestone dates</label>
           <label class="deck-opt"><input type="checkbox" id="deck-opt-portfolio" checked /> Portfolio summary</label>
           <label class="deck-opt"><input type="checkbox" id="deck-opt-highValue" checked /> High-value deliverables</label>
+          <label class="deck-opt"><input type="checkbox" id="deck-opt-scopeChange" checked /> Scope change summary</label>
           <label class="deck-opt"><input type="checkbox" id="deck-opt-risks" checked /> Risks and issues</label>
         </div>
 
@@ -1987,6 +2048,9 @@ code { font-family: monospace; font-size: 12px; background: var(--bg3); padding:
             Enable/disable projects, remove/restore built-ins, and edit JQL per project. Each project can include market releases with their patches, market releases only, or patch releases only. Custom projects can also be added, edited, and deleted.
             <br><strong>Saved to config/projects.json</strong>
           </p>
+          <div class="section-h">Release access</div>
+          <p style="font-size:12px;color:var(--text3);margin:-6px 0 10px">Each box enables that market release on that project. The box under a release name sets every project.</p>
+          <div id="pc-matrix" class="pc-matrix-wrap"></div>
           <div style="margin-bottom: 20px;">
             <span id="projects-save-msg" style="font-size: 12px; color: var(--text3);"></span>
           </div>
@@ -5597,7 +5661,7 @@ function collectRouteParams() {
     const proj = getAllProjects().find(p => p.id === page);
     const f = proj && S.activeFilter?.[proj.key];
     if (f) params.set('filter', f);
-    const sortLevels = proj ? getProjectSortLevels(proj.key) : [];
+    const sortLevels = proj ? routeSortLevels(proj.key) : [];
     if (sortLevels.length === 1 && !(sortLevels[0].order && sortLevels[0].order.length)) {
       params.set('sort', sortLevels[0].col);
       params.set('dir', sortLevels[0].dir < 0 ? 'desc' : 'asc');
@@ -6803,10 +6867,15 @@ function issuesForProjectStatCardsOriginal(projKey) {
 function issueMatchesListingSearchAndCols(proj, issue) {
   const vf = listingFieldsForProject(proj);
   const st = getProjectColFilters(proj && proj.key);
-  const q = (st.q || '').trim().toLowerCase();
-  if (q) {
-    const hay = (vf.map(f => String(getCellValue(issue, f))).join(' ') + ' ' + ticketNotesSearchText(issue.key)).toLowerCase();
-    if (!hay.includes(q)) return false;
+  const rawQ = (st.q || '').trim();
+  if (rawQ) {
+    const listed = window.TicketSearch && TicketSearch.keyListMatch(rawQ, issue.key);
+    if (listed === false) return false;
+    if (listed !== true) {
+      const q = window.TicketSearch ? TicketSearch.plainSearchText(rawQ) : rawQ.toLowerCase();
+      const hay = (vf.map(f => String(getCellValue(issue, f))).join(' ') + ' ' + ticketNotesSearchText(issue.key)).toLowerCase();
+      if (q && !hay.includes(q)) return false;
+    }
   }
   for (const [fieldId, selected] of Object.entries(st.cols || {})) {
     if (!selected || !selected.size) continue;
@@ -7164,7 +7233,7 @@ function compareProjectSortValues(a, b, dir) {
 }
 
 const MAX_PROJECT_SORT_LEVELS = 8;
-let _userPrefs = { projectSorts: {}, groupByEpic: true, columnWidths: {}, columnFreeze: {}, columnViews: {} };
+let _userPrefs = { projectSorts: {}, groupByEpic: true, columnWidths: {}, columnFreeze: {}, columnViews: {}, sortConfigs: {} };
 let _columnWidthTimers = {};
 let _epicCollapsed = {};
 let _epicGroupStatus = {};
@@ -7232,12 +7301,36 @@ function parseSortLevelParam(part) {
   return { col, dir: mode === 'desc' ? -1 : 1 };
 }
 
-function getProjectSortLevels(projKey) {
-  const sort = S._projSort && S._projSort[projKey];
-  if (!sort) return [];
+function categoryDefaultConfig(projKey) {
+  const proj = listingProject(projKey);
+  if (!proj) return null;
+  return defaultSortConfig(sortConfigsFor(sortConfigCategory(proj)));
+}
+
+function defaultSortConfig(configs) {
+  const list = configs || [];
+  return list.find(item => item.default) || (list.length === 1 ? list[0] : null);
+}
+
+function projectSortState(projKey) {
+  return S._projSort && S._projSort[projKey];
+}
+
+function routeSortLevels(projKey) {
+  const sort = projectSortState(projKey);
+  if (!sort || sort.none) return [];
   if (Array.isArray(sort.levels)) return normalizeClientSortLevels(sort.levels);
   if (sort.col) return normalizeClientSortLevels([{ col: sort.col, dir: sort.dir }]);
   return [];
+}
+
+function getProjectSortLevels(projKey) {
+  const sort = projectSortState(projKey);
+  if (sort && sort.none) return [];
+  if (sort && Array.isArray(sort.levels)) return normalizeClientSortLevels(sort.levels);
+  if (sort && sort.col) return normalizeClientSortLevels([{ col: sort.col, dir: sort.dir }]);
+  const fallback = categoryDefaultConfig(projKey);
+  return fallback ? normalizeClientSortLevels(fallback.levels) : [];
 }
 
 function savedProjectSortLevels(projKey) {
@@ -7262,9 +7355,11 @@ function applyRouteProjectSort(proj, params) {
   if (!S._projSort) S._projSort = {};
   const routed = parseRouteSortLevels(params);
   if (!routed) {
-    const saved = savedProjectSortLevels(proj.key);
-    if (saved.length) S._projSort[proj.key] = { levels: saved };
-    else delete S._projSort[proj.key];
+    const saved = _userPrefs.projectSorts && _userPrefs.projectSorts[proj.key];
+    if (Array.isArray(saved)) {
+      const clean = normalizeClientSortLevels(saved);
+      S._projSort[proj.key] = clean.length ? { levels: clean } : { none: true, levels: [] };
+    } else delete S._projSort[proj.key];
     delete _projSortHoldSave[proj.key];
     return;
   }
@@ -7280,17 +7375,20 @@ function rememberUserPreferences(data) {
   const columnWidths = data && data.columnWidths && typeof data.columnWidths === 'object' ? data.columnWidths : {};
   const columnFreeze = data && data.columnFreeze && typeof data.columnFreeze === 'object' ? data.columnFreeze : {};
   const columnViews = data && data.columnViews && typeof data.columnViews === 'object' ? data.columnViews : {};
+  const sortConfigs = data && data.sortConfigs && typeof data.sortConfigs === 'object' ? data.sortConfigs : {};
   _userPrefs = {
     projectSorts,
     groupByEpic: !data || data.groupByEpic !== false,
     columnWidths,
     columnFreeze,
     columnViews,
+    sortConfigs,
   };
   if (!S._projSort) S._projSort = {};
   Object.entries(projectSorts).forEach(([key, levels]) => {
     const clean = normalizeClientSortLevels(levels);
     if (clean.length) S._projSort[key] = { levels: clean };
+    else if (Array.isArray(levels)) S._projSort[key] = { none: true, levels: [] };
   });
 }
 
@@ -7331,21 +7429,22 @@ function scheduleSaveProjectSort(projKey) {
 
 async function saveProjectSort(projKey) {
   if (_projSortHoldSave[projKey]) return;
-  const levels = getProjectSortLevels(projKey);
+  const sort = projectSortState(projKey);
+  const none = !!(sort && sort.none);
+  const inherit = !sort;
+  const levels = inherit || none ? [] : normalizeClientSortLevels(sort.levels || []);
   if (!_userPrefs.projectSorts) _userPrefs.projectSorts = {};
-  if (levels.length) _userPrefs.projectSorts[projKey] = levels.map(cloneSortLevel);
-  else delete _userPrefs.projectSorts[projKey];
+  if (inherit) delete _userPrefs.projectSorts[projKey];
+  else _userPrefs.projectSorts[projKey] = levels.map(cloneSortLevel);
   try {
     const response = await authFetch('/api/user-preferences/project-sorts/' + encodeURIComponent(projKey), {
       method: 'PUT',
-      body: JSON.stringify({ levels }),
+      body: JSON.stringify({ levels, inherit, none }),
     });
     const result = await response.json().catch(() => ({}));
     if (!response.ok) throw new Error(result.error || 'Could not save the sort.');
-    if (Array.isArray(result.levels)) {
-      if (result.levels.length) _userPrefs.projectSorts[projKey] = result.levels;
-      else delete _userPrefs.projectSorts[projKey];
-    }
+    if (result.inherit) delete _userPrefs.projectSorts[projKey];
+    else if (Array.isArray(result.levels)) _userPrefs.projectSorts[projKey] = result.levels;
     if (_projSortStatus[projKey]) {
       delete _projSortStatus[projKey];
       if (S.page && getAllProjects().some(p => p.key === projKey && p.id === S.page)) refreshProjectListing(projKey);
@@ -7358,16 +7457,21 @@ async function saveProjectSort(projKey) {
 
 function commitProjectSort(projKey, levels, opts = {}) {
   _projSortSnapshot = null;
+  _projSortSnapshotMode = null;
   if (!S._projSort) S._projSort = {};
   const clean = normalizeClientSortLevels(levels);
-  if (clean.length) S._projSort[projKey] = { levels: clean };
-  else delete S._projSort[projKey];
-  delete _projSortHoldSave[projKey];
-  if (opts.persist !== false) {
-    if (!_userPrefs.projectSorts) _userPrefs.projectSorts = {};
-    if (clean.length) _userPrefs.projectSorts[projKey] = clean.map(cloneSortLevel);
-    else delete _userPrefs.projectSorts[projKey];
+  if (!_userPrefs.projectSorts) _userPrefs.projectSorts = {};
+  if (opts.inherit) {
+    delete S._projSort[projKey];
+    if (opts.persist !== false) delete _userPrefs.projectSorts[projKey];
+  } else if (!clean.length) {
+    S._projSort[projKey] = { none: true, levels: [] };
+    if (opts.persist !== false) _userPrefs.projectSorts[projKey] = [];
+  } else {
+    S._projSort[projKey] = { levels: clean };
+    if (opts.persist !== false) _userPrefs.projectSorts[projKey] = clean.map(cloneSortLevel);
   }
+  delete _projSortHoldSave[projKey];
   closeProjectSortDialog();
   const filter = S.activeFilter && S.activeFilter[projKey];
   renderIssueTable({ key: projKey }, getFilteredProjectIssues(projKey), filter);
@@ -7550,6 +7654,7 @@ let _projSortDrag = null;
 let _projSortFocus = null;
 let _projSortActive = 0;
 let _projSortSnapshot = null;
+let _projSortSnapshotMode = null;
 
 function projectSortLevelPreview(level) {
   const field = listingFieldById(level.col);
@@ -7681,11 +7786,16 @@ function previewDraftProjectSort() {
 function restoreProjectSortSnapshot() {
   const projKey = _projSortDialogKey;
   const snapshot = _projSortSnapshot;
-  if (!projKey || !snapshot) return;
+  const mode = _projSortSnapshotMode;
+  if (!projKey || !snapshot || !mode) return;
   if (!S._projSort) S._projSort = {};
-  const clean = normalizeClientSortLevels(snapshot);
-  if (clean.length) S._projSort[projKey] = { levels: clean };
-  else delete S._projSort[projKey];
+  if (mode === 'inherit') delete S._projSort[projKey];
+  else if (mode === 'none') S._projSort[projKey] = { none: true, levels: [] };
+  else {
+    const clean = normalizeClientSortLevels(snapshot);
+    if (clean.length) S._projSort[projKey] = { levels: clean };
+    else delete S._projSort[projKey];
+  }
   const filter = S.activeFilter && S.activeFilter[projKey];
   renderIssueTable({ key: projKey }, getFilteredProjectIssues(projKey), filter);
 }
@@ -7695,6 +7805,8 @@ function openProjectSortDialog(projKey) {
   const proj = listingProject(projKey);
   _projSortDialogKey = projKey;
   _projSortActive = 0;
+  const savedSort = _userPrefs.projectSorts && _userPrefs.projectSorts[projKey];
+  _projSortSnapshotMode = Array.isArray(savedSort) ? (normalizeClientSortLevels(savedSort).length ? 'levels' : 'none') : 'inherit';
   _projSortSnapshot = getProjectSortLevels(projKey).map(cloneSortLevel);
   _projSortDraft = getProjectSortLevels(projKey).map(level => materializeSortLevel(projKey, level));
   if (!_projSortDraft.length) {
@@ -7705,6 +7817,8 @@ function openProjectSortDialog(projKey) {
   const title = document.getElementById('proj-sort-title');
   if (title) title.textContent = proj ? 'Sort ' + proj.name : 'Sort';
   renderProjectSortDialog();
+  renderSavedSortConfigs(matchingSavedSortId(projKey, _projSortSnapshot));
+  adoptCategoryDefault(projKey);
   if (!root) return;
   root.hidden = false;
   requestAnimationFrame(() => root.classList.add('open'));
@@ -7718,6 +7832,8 @@ function closeProjectSortDialog() {
   _projSortDialogKey = null;
   _projSortDraft = [];
   _projSortSnapshot = null;
+  _projSortSnapshotMode = null;
+  _sortConfigStatusText = '';
   if (!root) return;
   root.classList.remove('open');
   window.setTimeout(() => {
@@ -7819,6 +7935,346 @@ function projectSortValueDrop(ev, levelIndex, valueIndex) {
   _projSortDrag = null;
   if (fromLevel !== levelIndex || !Number.isInteger(fromIndex)) return;
   moveProjectSortValue(levelIndex, fromIndex, valueIndex);
+}
+
+function sortConfigCategory(proj) {
+  if (!proj) return 'Delivery';
+  if (proj.workspace) return 'Workspace';
+  if (isQualityDashboardProject(proj)) return 'Quality';
+  return String(proj.category || '').trim() || 'Delivery';
+}
+
+function sortConfigsFor(category) {
+  const all = _userPrefs.sortConfigs && typeof _userPrefs.sortConfigs === 'object' ? _userPrefs.sortConfigs : {};
+  const list = all[category];
+  return Array.isArray(list) ? list : [];
+}
+
+function cloneSortConfig(item) {
+  const row = {
+    id: item.id,
+    name: item.name,
+    levels: (item.levels || []).map(cloneSortLevel),
+  };
+  if (item.default) row.default = true;
+  return row;
+}
+
+function sortConfigIdFor(name, configs) {
+  let base = String(name || '').toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '').slice(0, 32);
+  if (!base || !/^[a-z0-9]/.test(base)) base = 'sort';
+  const used = new Set((configs || []).map(item => item.id));
+  let id = base;
+  let n = 2;
+  while (used.has(id) || !/^[a-z0-9][a-z0-9_-]{0,31}$/.test(id)) {
+    id = (base.slice(0, 28) + '-' + n).slice(0, 32);
+    n += 1;
+    if (n > 40) return 'sort-' + Date.now().toString(36).slice(-6);
+  }
+  return id;
+}
+
+function matchingSavedSortId(projKey, levels) {
+  const proj = listingProject(projKey);
+  const key = sortLevelsKey(levels);
+  if (!key) return '';
+  const found = sortConfigsFor(sortConfigCategory(proj)).find(item => sortLevelsKey(item.levels) === key);
+  return found ? found.id : '';
+}
+
+let _sortConfigStatusText = '';
+let _sortConfigStatusTimer = 0;
+
+function setSortConfigStatus(message, isError) {
+  const note = document.getElementById('proj-sort-config-note');
+  const tip = document.getElementById('proj-sort-config-tip');
+  if (!note) return;
+  const text = message || '';
+  const changed = text !== _sortConfigStatusText;
+  _sortConfigStatusText = text;
+  note.hidden = !text;
+  note.title = text;
+  note.setAttribute('aria-label', text || 'Sort status');
+  note.classList.toggle('is-error', !!isError && !!text);
+  if (tip) tip.textContent = text;
+  if (!changed || !text) return;
+  note.classList.remove('is-fresh');
+  void note.offsetWidth;
+  note.classList.add('is-fresh');
+  clearTimeout(_sortConfigStatusTimer);
+  _sortConfigStatusTimer = setTimeout(() => note.classList.remove('is-fresh'), 2200);
+}
+
+function renderSavedSortConfigs(selectedId) {
+  const select = document.getElementById('proj-sort-config');
+  const nameInput = document.getElementById('proj-sort-config-name');
+  const proj = listingProject(_projSortDialogKey);
+  const category = sortConfigCategory(proj);
+  const configs = sortConfigsFor(category);
+  if (select) {
+    const current = selectedId == null ? select.value : selectedId;
+    select.innerHTML = '<option value="">Choose a saved sort</option>' + configs.map(item =>
+      `<option value="${esc(item.id)}"${item.id === current ? ' selected' : ''}>${esc(item.name)}</option>`
+    ).join('');
+    if (current && !configs.some(item => item.id === current)) select.value = '';
+  }
+  const selected = configs.find(item => item.id === (select && select.value));
+  const categoryDefault = defaultSortConfig(configs);
+  if (nameInput && selected) nameInput.value = selected.name;
+  const box = document.getElementById('proj-sort-default');
+  if (box) box.checked = !!(selected && categoryDefault && selected.id === categoryDefault.id);
+  updateSortDefaultButton();
+  setSortConfigStatus(sortConfigShareText(category), false);
+}
+
+function projectSortMatchesConfig(projKey, config) {
+  if (!config) return false;
+  const saved = _userPrefs.projectSorts && _userPrefs.projectSorts[projKey];
+  if (!Array.isArray(saved)) return false;
+  return sortLevelsKey(saved) === sortLevelsKey(config.levels);
+}
+
+function sortConfigShareText(category) {
+  const configs = sortConfigsFor(category);
+  const def = defaultSortConfig(configs);
+  const saved = _userPrefs.projectSorts && _userPrefs.projectSorts[_projSortDialogKey];
+  const own = Array.isArray(saved);
+  if (own && !normalizeClientSortLevels(saved).length) return 'No sort on this project.';
+  if (def && (!own || projectSortMatchesConfig(_projSortDialogKey, def))) return 'Using the category default.';
+  if (own) return 'Own sort on this project.';
+  return '';
+}
+
+function updateSortDefaultButton() {
+  const btn = document.getElementById('proj-sort-use-default');
+  if (!btn) return;
+  const def = categoryDefaultConfig(_projSortDialogKey);
+  const saved = _userPrefs.projectSorts && _userPrefs.projectSorts[_projSortDialogKey];
+  const differs = Array.isArray(saved) && def && sortLevelsKey(saved) !== sortLevelsKey(def.levels);
+  btn.hidden = !def || !differs;
+  btn.disabled = !differs;
+}
+
+async function adoptCategoryDefault(projKey) {
+  const proj = listingProject(projKey);
+  if (!proj) return;
+  const category = sortConfigCategory(proj);
+  let configs = sortConfigsFor(category).map(cloneSortConfig);
+  if (configs.length && !configs.some(item => item.default)) {
+    configs[0].default = true;
+    try {
+      await persistSortConfigs(category, configs);
+    } catch (err) {
+      if (_projSortDialogKey === projKey) setSortConfigStatus(err.message || 'Could not save the default.', true);
+      return;
+    }
+    configs = sortConfigsFor(category);
+  }
+  if (_projSortDialogKey !== projKey) return;
+  const def = defaultSortConfig(configs);
+  const matches = def ? getAllProjects().filter(item => sortConfigCategory(item) === category && projectSortMatchesConfig(item.key, def)) : [];
+  if (!def || !matches.length) {
+    renderSavedSortConfigs(matchingSavedSortId(projKey, _projSortSnapshot));
+    return;
+  }
+  await Promise.all(matches.map(async item => {
+    if (_userPrefs.projectSorts) delete _userPrefs.projectSorts[item.key];
+    if (item.key === projKey) {
+      if (S._projSort) delete S._projSort[item.key];
+      _projSortSnapshotMode = 'inherit';
+      _projSortSnapshot = getProjectSortLevels(projKey).map(cloneSortLevel);
+    } else if (S._projSort) delete S._projSort[item.key];
+    const response = await authFetch('/api/user-preferences/project-sorts/' + encodeURIComponent(item.key), {
+      method: 'PUT',
+      body: JSON.stringify({ levels: [], inherit: true }),
+    });
+    if (!response.ok) {
+      const result = await response.json().catch(() => ({}));
+      throw new Error(result.error || 'Could not use the category default.');
+    }
+  })).catch(err => {
+    if (_projSortDialogKey === projKey) setSortConfigStatus(err.message || 'Could not use the category default.', true);
+  });
+  if (_projSortDialogKey !== projKey) return;
+  renderSavedSortConfigs(def.id);
+  const filter = S.activeFilter && S.activeFilter[projKey];
+  renderIssueTable({ key: projKey }, getFilteredProjectIssues(projKey), filter);
+}
+
+function refreshInheritedSorts(category) {
+  getAllProjects().forEach(proj => {
+    if (proj.key === _projSortDialogKey) return;
+    if (sortConfigCategory(proj) !== category) return;
+    const saved = _userPrefs.projectSorts && _userPrefs.projectSorts[proj.key];
+    if (Array.isArray(saved)) return;
+    if (S._projSort) delete S._projSort[proj.key];
+    if (S.page === proj.id) refreshProjectListing(proj.key);
+  });
+  if (category === 'Workspace' && _projSortDialogKey !== workspaceIdFromPage(S.page) && isWorkspacePageId(S.page)) {
+    const id = workspaceIdFromPage(S.page);
+    const saved = _userPrefs.projectSorts && _userPrefs.projectSorts[id];
+    if (!Array.isArray(saved)) {
+      if (S._projSort) delete S._projSort[id];
+      refreshWorkspaceListing();
+    }
+  }
+}
+
+function loadSavedProjectSort(id) {
+  if (!_projSortDialogKey) return;
+  const proj = listingProject(_projSortDialogKey);
+  const config = sortConfigsFor(sortConfigCategory(proj)).find(item => item.id === id);
+  const nameInput = document.getElementById('proj-sort-config-name');
+  const box = document.getElementById('proj-sort-default');
+  if (!config) {
+    if (nameInput && !id) nameInput.value = '';
+    if (box) box.checked = false;
+    setSortConfigStatus(sortConfigShareText(sortConfigCategory(proj)), false);
+    return;
+  }
+  _projSortDraft = config.levels.map(level => materializeSortLevel(_projSortDialogKey, level));
+  _projSortActive = 0;
+  if (nameInput) nameInput.value = config.name;
+  if (box) box.checked = !!config.default;
+  renderProjectSortDialog();
+  setSortConfigStatus('Loaded.', false);
+}
+
+let _sortConfigSaveToken = 0;
+
+function rememberSortConfigs(category, configs) {
+  if (!_userPrefs.sortConfigs || typeof _userPrefs.sortConfigs !== 'object') _userPrefs.sortConfigs = {};
+  if (configs.length) _userPrefs.sortConfigs[category] = configs.map(cloneSortConfig);
+  else delete _userPrefs.sortConfigs[category];
+}
+
+async function persistSortConfigs(category, configs) {
+  const token = ++_sortConfigSaveToken;
+  const response = await authFetch('/api/user-preferences/sort-configs/' + encodeURIComponent(category), {
+    method: 'PUT',
+    body: JSON.stringify({ configs }),
+  });
+  const result = await response.json().catch(() => ({}));
+  if (!response.ok) throw new Error(result.error || 'Could not save the sort.');
+  if (token !== _sortConfigSaveToken) return result.configs || configs;
+  rememberSortConfigs(category, Array.isArray(result.configs) ? result.configs : configs);
+  refreshInheritedSorts(category);
+  return result.configs || [];
+}
+
+async function saveProjectSortConfig() {
+  if (!_projSortDialogKey) return;
+  const proj = listingProject(_projSortDialogKey);
+  const category = sortConfigCategory(proj);
+  const nameInput = document.getElementById('proj-sort-config-name');
+  const name = String(nameInput && nameInput.value || '').replace(/\s+/g, ' ').trim();
+  if (!name) {
+    setSortConfigStatus('Name this sort.', true);
+    if (nameInput) nameInput.focus();
+    return;
+  }
+  if (name.length > 40) {
+    setSortConfigStatus('Use 40 characters or less.', true);
+    return;
+  }
+  const levels = normalizeClientSortLevels(_projSortDraft).map(cloneSortLevel);
+  if (!levels.length) {
+    setSortConfigStatus('Add a level before saving.', true);
+    return;
+  }
+  const makeDefault = !!(document.getElementById('proj-sort-default') && document.getElementById('proj-sort-default').checked);
+  const configs = sortConfigsFor(category).map(cloneSortConfig);
+  const existing = configs.find(item => item.name.toLowerCase() === name.toLowerCase());
+  let selectedId = existing && existing.id;
+  if (makeDefault) configs.forEach(item => { delete item.default; });
+  if (existing) {
+    existing.levels = levels.map(cloneSortLevel);
+    if (makeDefault) existing.default = true;
+    else if (defaultSortConfig(configs) && defaultSortConfig(configs).id !== existing.id) delete existing.default;
+  } else {
+    if (configs.length >= 12) {
+      setSortConfigStatus('Save up to 12 sorts for this category.', true);
+      return;
+    }
+    selectedId = sortConfigIdFor(name, configs);
+    const created = { id: selectedId, name, levels };
+    if (makeDefault) created.default = true;
+    configs.push(created);
+  }
+  if (!configs.some(item => item.default)) {
+    const target = configs.find(item => item.id === selectedId);
+    if (target) target.default = true;
+  }
+  try {
+    await persistSortConfigs(category, configs);
+    renderSavedSortConfigs(selectedId);
+    setSortConfigStatus(makeDefault ? 'Saved as the default.' : 'Saved.', false);
+  } catch (err) {
+    setSortConfigStatus(err.message || 'Could not save the sort.', true);
+  }
+}
+
+async function deleteProjectSortConfig() {
+  if (!_projSortDialogKey) return;
+  const select = document.getElementById('proj-sort-config');
+  const id = select && select.value;
+  const proj = listingProject(_projSortDialogKey);
+  const category = sortConfigCategory(proj);
+  if (!id) {
+    setSortConfigStatus('Choose a saved sort to delete.', true);
+    return;
+  }
+  const configs = sortConfigsFor(category);
+  const current = configs.find(item => item.id === id);
+  if (!current) return;
+  if (!window.confirm('Delete “' + current.name + '” for every ' + category + ' project?')) return;
+  const next = configs.filter(item => item.id !== id).map(cloneSortConfig);
+  try {
+    await persistSortConfigs(category, next);
+    const nameInput = document.getElementById('proj-sort-config-name');
+    if (nameInput) nameInput.value = '';
+    renderSavedSortConfigs('');
+    setSortConfigStatus('Deleted from ' + category + '.', false);
+  } catch (err) {
+    setSortConfigStatus(err.message || 'Could not delete the sort.', true);
+  }
+}
+
+async function setSavedSortDefault(checked) {
+  if (!_projSortDialogKey) return;
+  const select = document.getElementById('proj-sort-config');
+  const id = select && select.value;
+  const proj = listingProject(_projSortDialogKey);
+  const category = sortConfigCategory(proj);
+  if (!id) {
+    const box = document.getElementById('proj-sort-default');
+    if (box) box.checked = false;
+    setSortConfigStatus('Save this sort, then mark it as the default.', true);
+    return;
+  }
+  const configs = sortConfigsFor(category).map(cloneSortConfig);
+  configs.forEach(item => {
+    if (item.id !== id) {
+      if (checked) delete item.default;
+      return;
+    }
+    if (checked) item.default = true;
+    else delete item.default;
+  });
+  try {
+    await persistSortConfigs(category, configs);
+    renderSavedSortConfigs(id);
+    setSortConfigStatus(checked ? 'Marked as the default.' : 'Cleared the default.', false);
+  } catch (err) {
+    const box = document.getElementById('proj-sort-default');
+    if (box) box.checked = !checked;
+    setSortConfigStatus(err.message || 'Could not update the default.', true);
+  }
+}
+
+function useCategoryDefaultSort() {
+  if (!_projSortDialogKey) return;
+  commitProjectSort(_projSortDialogKey, [], { inherit: true });
 }
 
 function applyProjectSortDialog() {
@@ -9050,6 +9506,9 @@ let _bulkColumns = {};
 let _bulkBusy = {};
 let _bulkStatus = {};
 let _bulkReport = {};
+let _bulkVersionCatalog = {};
+let _bulkVersionRows = {};
+let _bulkVersionFlight = {};
 
 function projectColumnLabel(colId) {
   if (colId === 'notes') return 'Notes';
@@ -9881,7 +10340,7 @@ function captureBulkColumns(projKey) {
     const valueEl = row.querySelector('.bulk-value');
     const enabled = !!(row.querySelector('.bulk-col-check') && row.querySelector('.bulk-col-check').checked);
     const old = prev.find(item => item.field === fieldId);
-    if (!valueEl || valueEl.getAttribute('data-load') === 'choices') {
+    if (!valueEl || valueEl.getAttribute('data-load')) {
       return { field: fieldId, value: old ? old.value : '', enabled };
     }
     return { field: fieldId, value: valueEl.value, enabled };
@@ -9940,6 +10399,7 @@ function applyBulkSelectionDom(projKey) {
   const dialog = document.getElementById('bulk-edit-root');
   if (!dialog || dialog.hidden || dialog.getAttribute('data-proj') !== projKey) return;
   paintBulkPickList(projKey);
+  fillBulkVersions(projKey);
   const clearBtn = dialog.querySelector('.bulk-clear');
   if (clearBtn) clearBtn.disabled = !count || !!_bulkBusy[projKey];
 }
@@ -9971,6 +10431,8 @@ function openBulkEdit(projKey) {
   const selected = _bulkSelected[projKey];
   if (!selected || !selected.size) return;
   _bulkMode[projKey] = true;
+  const existingDialog = document.getElementById('bulk-edit-root');
+  if (existingDialog) existingDialog.removeAttribute('data-versions');
   const proj = listingProject(projKey) || { key: projKey };
   const fields = bulkEditableFields(listingFieldsForProject(proj));
   const allowed = new Set(fields.map(field => field.id));
@@ -10052,8 +10514,7 @@ function bulkValueControl(projKey, field, value, issues) {
     return `<select class="bulk-value" aria-label="Person for ${esc(field.label)}" onchange='${call}'>${bulkOptionHtml(options, value)}</select>`;
   }
   if (kind === 'versions') {
-    const options = [{ id: '', label: 'None' }].concat(bulkVersionOptions(issues));
-    return `<select class="bulk-value" aria-label="Fix version" onchange='${call}'>${bulkOptionHtml(options, value)}</select>`;
+    return `<select class="bulk-value" data-load="versions" data-field="${esc(field.id)}" aria-label="Fix version" onchange='${call}'><option value="">Loading…</option></select>`;
   }
   return '';
 }
@@ -10129,17 +10590,21 @@ function paintBulkPickList(projKey) {
   if (!list) return;
   const keys = bulkSelectedKeys(projKey);
   const search = document.getElementById('bulk-edit-search');
-  const query = (search && search.value || '').trim().toLowerCase();
-  const terms = query ? query.split(/\s+/).filter(Boolean) : [];
+  const rawQuery = (search && search.value || '').trim();
+  const listedKeys = window.TicketSearch && TicketSearch.ticketListQuery(rawQuery);
+  const query = window.TicketSearch ? TicketSearch.plainSearchText(rawQuery) : rawQuery.toLowerCase();
+  const terms = !listedKeys && query ? query.split(/\s+/).filter(Boolean) : [];
   const summaries = bulkSummaryByKey(projKey);
-  const shown = terms.length
+  const shown = listedKeys
+    ? keys.filter(key => listedKeys.indexOf(String(key || '').toUpperCase()) !== -1)
+    : terms.length
     ? keys.filter(key => {
       const hay = (key + ' ' + (summaries.get(key) || '')).toLowerCase();
       return terms.every(term => hay.indexOf(term) >= 0);
     })
     : keys;
   if (meta) {
-    meta.textContent = terms.length
+    meta.textContent = (listedKeys || terms.length)
       ? shown.length + ' of ' + keys.length + ' selected'
       : keys.length + ' selected';
   }
@@ -10209,10 +10674,128 @@ function syncBulkDialog(projKey, fields, columns, issues, count, busy) {
     fillBulkChoices(projKey);
   }
   document.addEventListener('keydown', onBulkEditKey);
+  fillBulkVersions(projKey);
   if (opening) {
     const closeBtn = root.querySelector('.bulk-edit-close');
     if (closeBtn) closeBtn.focus();
   }
+}
+
+function bulkJiraProjects(projKey) {
+  const projects = [];
+  const seen = new Set();
+  bulkSelectedKeys(projKey).forEach(key => {
+    const project = qualityModuleFromKey(key);
+    if (!project || project === 'Other' || seen.has(project)) return;
+    seen.add(project);
+    projects.push(project);
+  });
+  return projects;
+}
+
+function bulkVersionLabel(row, projects) {
+  const have = (projects || []).filter(project => row.projects && row.projects[project]);
+  let label = row.name || '';
+  if (projects.length > 1 && have.length && have.length < projects.length) label += ' (' + have.join(', ') + ')';
+  if (row.released) label += ' (released)';
+  return label;
+}
+
+function paintBulkVersionSelects(projKey, rows, projects) {
+  const root = document.getElementById('bulk-edit-root');
+  if (!root || root.getAttribute('data-proj') !== projKey) return;
+  const selects = [...root.querySelectorAll('select.bulk-value[data-load="versions"], select.bulk-value[data-versions="1"]')];
+  selects.forEach(select => {
+    const fieldId = select.getAttribute('data-field') || 'fixVersions';
+    const saved = (_bulkColumns[projKey] || []).find(col => col.field === fieldId);
+    const draft = select.getAttribute('data-load') === 'versions'
+      ? (saved && saved.value) || ''
+      : select.value;
+    const options = [{ id: '', label: 'None' }].concat((rows || []).map(row => ({
+      id: row.name,
+      label: bulkVersionLabel(row, projects),
+    })));
+    select.innerHTML = bulkOptionHtml(options, draft);
+    select.removeAttribute('data-load');
+    select.setAttribute('data-versions', '1');
+    onBulkColumnValue(projKey, fieldId, select.value);
+  });
+}
+
+function paintCachedBulkVersions(projKey) {
+  const root = document.getElementById('bulk-edit-root');
+  if (!root || root.getAttribute('data-proj') !== projKey) return;
+  const issues = (S._projData && S._projData[projKey] && S._projData[projKey].issues) || [];
+  const options = [{ id: '', label: 'None' }].concat(bulkVersionOptions(issues));
+  root.querySelectorAll('select.bulk-value[data-load="versions"]').forEach(select => {
+    const fieldId = select.getAttribute('data-field') || 'fixVersions';
+    const saved = (_bulkColumns[projKey] || []).find(col => col.field === fieldId);
+    select.innerHTML = bulkOptionHtml(options, (saved && saved.value) || '');
+    select.removeAttribute('data-load');
+    select.setAttribute('data-versions', '1');
+    onBulkColumnValue(projKey, fieldId, select.value);
+  });
+}
+
+async function fillBulkVersions(projKey) {
+  const root = document.getElementById('bulk-edit-root');
+  if (!root || root.hidden || root.getAttribute('data-proj') !== projKey) return;
+  const projects = bulkJiraProjects(projKey);
+  if (!projects.length) {
+    paintCachedBulkVersions(projKey);
+    return;
+  }
+  const needs = root.querySelector('select.bulk-value[data-load="versions"]');
+  const has = root.querySelector('select.bulk-value[data-versions="1"]');
+  if (!needs && !has) return;
+  const stamp = projects.join(',');
+  if (root.getAttribute('data-versions') === stamp && _bulkVersionRows[projKey]) {
+    if (needs) paintBulkVersionSelects(projKey, _bulkVersionRows[projKey], projects);
+    return;
+  }
+  if (_bulkVersionFlight[projKey] === stamp) return;
+  _bulkVersionFlight[projKey] = stamp;
+  try {
+    const res = await authFetch('/api/jira/versions?projects=' + encodeURIComponent(stamp));
+    const json = await res.json().catch(() => ({}));
+    if (_bulkVersionFlight[projKey] !== stamp) return;
+    const current = document.getElementById('bulk-edit-root');
+    if (!current || current !== root || current.getAttribute('data-proj') !== projKey) return;
+    if (!res.ok) throw new Error(json.error || 'Could not load fix versions.');
+    const rows = Array.isArray(json.versions) ? json.versions : [];
+    _bulkVersionRows[projKey] = rows;
+    _bulkVersionCatalog[projKey] = new Map(rows.map(row => [row.name, row]));
+    current.setAttribute('data-versions', stamp);
+    paintBulkVersionSelects(projKey, rows, projects);
+    if (json.failed && json.failed.length) {
+      setBulkStatus(projKey, 'Could not load fix versions for ' + json.failed.join(', ') + '.', true);
+    }
+  } catch (err) {
+    if (_bulkVersionFlight[projKey] !== stamp) return;
+    delete _bulkVersionCatalog[projKey];
+    delete _bulkVersionRows[projKey];
+    const current = document.getElementById('bulk-edit-root');
+    if (current && current.getAttribute('data-proj') === projKey) current.setAttribute('data-versions', stamp);
+    paintCachedBulkVersions(projKey);
+    setBulkStatus(projKey, err.message || 'Could not load fix versions.', true);
+  } finally {
+    if (_bulkVersionFlight[projKey] === stamp) delete _bulkVersionFlight[projKey];
+  }
+}
+
+function bulkVersionChange(projKey, issueKey, value) {
+  const text = String(value || '').trim();
+  if (!text) return { type: 'versions', versions: [] };
+  const catalog = _bulkVersionCatalog[projKey];
+  const row = catalog && catalog.get(text);
+  if (row) {
+    const project = qualityModuleFromKey(issueKey);
+    const id = row.projects && row.projects[project];
+    if (!id) throw new Error('That fix version is not in ' + project + '.');
+    return { type: 'versions', versions: [{ id: String(id) }] };
+  }
+  if (/^\d{1,20}$/.test(text)) return { type: 'versions', versions: [{ id: text }] };
+  throw new Error('Choose a fix version.');
 }
 
 async function fillBulkChoices(projKey) {
@@ -10331,7 +10914,7 @@ async function applyBulkEdit(projKey) {
   if (_bulkBusy[projKey]) return;
   const keys = [...(_bulkSelected[projKey] || [])];
   const root = document.getElementById('bulk-edit-root');
-  if (root && root.querySelector('.bulk-value[data-load="choices"]')) {
+  if (root && root.querySelector('.bulk-value[data-load]')) {
     setBulkStatus(projKey, 'Choices are still loading.', true);
     return;
   }
@@ -10404,10 +10987,13 @@ async function applyBulkEdit(projKey) {
     for (let i = 0; i < edits.length; i++) {
       const edit = edits[i];
       try {
+        const change = JiraWrite.fieldKind(edit.field.id) === 'versions'
+          ? bulkVersionChange(projKey, key, edit.value)
+          : edit.change;
         const res = await authFetch('/api/jira/issue/' + encodeURIComponent(key), {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ updated, change: edit.change }),
+          body: JSON.stringify({ updated, change }),
         });
         const json = await res.json().catch(() => ({}));
         if (res.status === 409) {
@@ -10460,9 +11046,19 @@ async function applyBulkEdit(projKey) {
   const keyOrder = new Map(keys.map((key, index) => [key, index]));
   reportLines.sort((a, b) => (keyOrder.get(a.key) - keyOrder.get(b.key)) || (a.order - b.order));
   _bulkReport[projKey] = { summary, lines: reportLines };
-  setBulkStatus(projKey, summary, failedCount > 0);
+  setBulkStatus(projKey, summary + ' Syncing…', failedCount > 0);
   refreshProjectListing(projKey);
   showBulkReport(projKey);
+  await syncAfterBulkEdit(projKey);
+  setBulkStatus(projKey, summary, failedCount > 0);
+}
+
+async function syncAfterBulkEdit(projKey) {
+  if (workspaceById(projKey)) {
+    await syncWorkspacePage(projKey);
+    return;
+  }
+  await syncProjectPage(projKey);
 }
 
 function renderIssueTable(proj, issues, activeFilter) {
@@ -10661,7 +11257,7 @@ function renderIssueTable(proj, issues, activeFilter) {
   issuesEl.innerHTML = `
     <div class="proj-table-tools">
       ${jiraFilterHtml}
-      <input id="proj-search-${proj.key}" class="proj-search" type="search" placeholder="Search issues…" value="${esc(colSt.q || '')}" oninput='onProjectSearchInput(${JSON.stringify(proj.key)},this.value)' />
+      <input id="proj-search-${proj.key}" class="proj-search" type="search" placeholder="Search or paste keys…" title="Paste ticket keys separated by spaces, commas, semicolons, or new lines" value="${esc(colSt.q || '')}" oninput='onProjectSearchInput(${JSON.stringify(proj.key)},this.value)' />
       ${hasProjectColFilters(proj.key) ? `<button class="btn btn-sm" onclick='clearProjectFilters(${JSON.stringify(proj.key)})'>Clear filters</button>` : ''}
       <button class="btn btn-sm proj-sort-btn${sortLevels.length ? ' is-on' : ''}" type="button" onclick='openProjectSortDialog(${JSON.stringify(proj.key)})' title="${esc(sortLevels.length ? projectSortSummary(sortLevels) : 'Define a nested sort')}">${esc(projectSortButtonLabel(sortLevels))}</button>
       <span class="proj-freeze-hint"${_freezePick[proj.key] ? '' : ' hidden'}>${_freezePick[proj.key] ? `Click another column to freeze through ${esc(projectColumnLabel(_freezePick[proj.key]))}.` : ''}</span>
@@ -13050,7 +13646,7 @@ function releaseReportFileStem() {
   return (S.activeRelease || _releaseReport?.releaseName || 'release').replace(/[^\w.-]+/g, '-') || 'release';
 }
 
-const DECK_SECTION_KEYS = ['clarityChart', 'statusChart', 'milestones', 'portfolio', 'qualityReport', 'preGoLive', 'postGoLive', 'highValue', 'mustFix', 'risks'];
+const DECK_SECTION_KEYS = ['clarityChart', 'statusChart', 'milestones', 'portfolio', 'qualityReport', 'preGoLive', 'postGoLive', 'highValue', 'scopeChange', 'mustFix', 'risks'];
 const DECK_QUALITY_KEYS = ['qualityReport', 'mustFix', 'preGoLive', 'postGoLive'];
 
 // Mirrors the matching in lib/release-report-pptx.js so counts match the slides.
@@ -13188,7 +13784,12 @@ async function downloadReleaseReportPptx(deckOptions, includeHtml = true, includ
       fetch(API_BASE + '/api/release-report/pptx', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ report: _releaseReport, qualityReport: _releaseQualityReport, options: deckOptions }),
+        body: JSON.stringify({
+          report: _releaseReport,
+          qualityReport: _releaseQualityReport,
+          options: deckOptions,
+          scopeChange: deckOptions.sections && deckOptions.sections.scopeChange ? buildScopeChangeDeckSummary() : null,
+        }),
       }),
       includeHtml
         ? fetch(API_BASE + '/api/release-report/html', {
@@ -15748,7 +16349,9 @@ function breakdownListCell(row, col, multi) {
 }
 
 function breakdownListQuery(state) {
-  return String((state && state.query) || '').trim().toLowerCase();
+  const raw = String((state && state.query) || '').trim();
+  if (window.TicketSearch) return TicketSearch.plainSearchText(raw);
+  return raw.toLowerCase();
 }
 
 function setBreakdownListSearch(value) {
@@ -15785,9 +16388,12 @@ function breakdownListSorted(rows, state) {
 }
 
 function breakdownListFiltered(state) {
+  const rawQuery = String((state && state.query) || '');
   const query = breakdownListQuery(state);
   return (state.tickets || []).filter(row => {
-    if (query) {
+    const listed = window.TicketSearch && TicketSearch.keyListMatch(rawQuery, row.key);
+    if (listed === false) return false;
+    if (listed !== true && query) {
       const hay = breakdownListColumns(state.multi).map(col => breakdownListCell(row, col.id, state.multi)).join(' ').toLowerCase();
       if (hay.indexOf(query) === -1) return false;
     }
@@ -17002,7 +17608,8 @@ function renderTeam() {
   const fProducts = S._msState.product;
   const fAssignees = S._msState.assignee;
   const fScopes = S._msState.scope;
-  const fSearch = (document.getElementById('team-search')?.value || '').toLowerCase();
+  const rawSearch = document.getElementById('team-search')?.value || '';
+  const fSearch = window.TicketSearch ? TicketSearch.plainSearchText(rawSearch) : rawSearch.trim().toLowerCase();
 
   // Filter
   let filtered = allIssues.filter(({proj, issue}) => {
@@ -17032,7 +17639,9 @@ function renderTeam() {
     
     if (fScopes.size && !fScopes.has(getScopeCommitment(issue))) return false;
     if (!ticketMatchesPriorityFilter(qualityIssuePriorityName(issue))) return false;
-    if (fSearch) {
+    const listed = window.TicketSearch && TicketSearch.keyListMatch(rawSearch, issue.key);
+    if (listed === false) return false;
+    if (listed !== true && fSearch) {
       const key = (issue.key || '').toLowerCase();
       const sum = (issue.fields?.summary || '').toLowerCase();
       if (!key.includes(fSearch) && !sum.includes(fSearch)) return false;
@@ -17181,6 +17790,60 @@ function scopeIssueIsNewer(next, prev) {
   return nextLen >= prevLen;
 }
 
+function buildScopeChangeDeckSummary() {
+  if (!window.ScopeChange) {
+    return { added: 0, removed: 0, net: 0, spans: [], note: 'Scope change is unavailable until the dashboard server is restarted.' };
+  }
+  const selected = getSelectedReleaseReportProjects();
+  let rows = scopeChangeRows();
+  if (selected.size) rows = rows.filter(row => selected.has(row.proj.key));
+  const events = [];
+  let unready = 0;
+  rows.forEach(({ proj, issue }) => {
+    if (!ScopeChange.hasFixVersionHistory(issue)) unready += 1;
+    const target = scopeChangeTarget(proj);
+    if (!target.blank && !target.scopeNames.length) return;
+    ScopeChange.collectScopeEvents(issue, {
+      scopeNames: target.scopeNames,
+      blank: target.blank,
+      effort: scopeEffortFromIssue(issue),
+    }).forEach(event => events.push(event));
+  });
+  const milestoneCtx = scopeMilestoneContext();
+  const marks = (milestoneCtx.milestones || []).map(milestone => ({
+    id: milestone.id,
+    label: milestone.id || milestone.label,
+    time: new Date(milestone.date.getFullYear(), milestone.date.getMonth(), milestone.date.getDate()).getTime(),
+  }));
+  const discovery = marks.some(mark => mark.id === 'DA');
+  const spans = ScopeChange.summarizeBetweenMilestones(events, marks);
+  const visible = spans.filter((span, index) => {
+    if (index === 0 && discovery) return false;
+    const between = index > 0 && index < spans.length - 1;
+    return between || span.addedCount || span.removedCount;
+  }).map(span => ({
+    label: span.label,
+    when: formatScopeSpanWhen(span),
+    added: span.addedCount,
+    removed: span.removedCount,
+    net: span.addedCount - span.removedCount,
+  }));
+  const added = visible.reduce((sum, span) => sum + span.added, 0);
+  const removed = visible.reduce((sum, span) => sum + span.removed, 0);
+  let note = '';
+  if (!events.length && unready && unready === rows.length) note = 'Sync the release to include fix version history.';
+  else if (!events.length) note = 'No scope changes in the loaded tickets.';
+  else if (unready) note = unready + ' ticket' + (unready === 1 ? '' : 's') + ' still have no fix version history.';
+  return {
+    releaseName: (milestoneCtx.release && milestoneCtx.release.name) || S.activeRelease || '',
+    added,
+    removed,
+    net: added - removed,
+    spans: visible,
+    note,
+  };
+}
+
 function scopeChangeRows() {
   const projects = new Map(getDeliveryProjects().map(proj => [proj.key, proj]));
   const byKey = new Map();
@@ -17232,6 +17895,23 @@ function formatScopeMeasure(value, measure) {
   if (!rounded) return '0d';
   const text = Number.isInteger(rounded) ? String(rounded) : rounded.toFixed(1);
   return (n < 0 ? '-' : '') + text + 'd';
+}
+
+function showScopePeriodList(row, kind, period) {
+  const host = document.getElementById('scope-change-chart-list');
+  if (!host || !row) return;
+  const key = row.key + ':' + kind;
+  if (host.dataset.key === key && !host.hidden) {
+    host.hidden = true;
+    host.innerHTML = '';
+    delete host.dataset.key;
+    return;
+  }
+  const events = (row.events || []).filter(event => kind === 'removed' ? event.kind === 'removed' : event.kind !== 'removed');
+  const title = (kind === 'removed' ? 'Removed' : 'Added') + ' · ' + formatPeriodLabel(row.key, period);
+  host.hidden = false;
+  host.dataset.key = key;
+  host.innerHTML = `<div style="font-size:13px;font-weight:600;margin:0 0 8px">${esc(title)}</div>${scopeEventTableHtml(events)}`;
 }
 
 function scopeEventTableHtml(events, collapseKey) {
@@ -18265,10 +18945,11 @@ function renderScopeChange() {
         <h3 style="font-size:15px;font-weight:600;margin:0">Added and removed scope</h3>
         ${scopeChartFsButton('trend')}
       </div>
-      <p style="font-size:12px;color:var(--text3);margin-bottom:14px">By ${measure === 'effort' ? 'effort' : 'ticket count'}. A ticket that left this release is included when another synced release still has it.${milestoneCaption}</p>
+      <p style="font-size:12px;color:var(--text3);margin-bottom:14px">By ${measure === 'effort' ? 'effort' : 'ticket count'}. Click a bar to list those tickets. A ticket that left this release is included when another synced release still has it.${milestoneCaption}</p>
       <div class="scope-chart-plot" style="position:relative;width:100%;height:280px">
         <canvas id="scope-change-chart" role="img" aria-label="Added and removed scope"></canvas>
       </div>
+      <div id="scope-change-chart-list" hidden style="margin-top:12px"></div>
     </div>` : ''}
     ${spanRowsHtml ? `<div class="card" style="margin-bottom:20px">
       <h3 style="font-size:15px;font-weight:600;margin:0 0 4px">Between milestones</h3>
@@ -18355,6 +19036,17 @@ function renderScopeChange() {
             title: { display: true, text: measure === 'effort' ? 'Days' : 'Tickets' },
             ticks: { precision: measure === 'effort' ? 1 : 0 },
           },
+        },
+        onHover(event, elements, chart) {
+          chart.canvas.style.cursor = elements && elements.length ? 'pointer' : 'default';
+        },
+        onClick(event, elements) {
+          const hit = elements && elements[0];
+          if (!hit) return;
+          const row = periods[hit.index];
+          const dataset = this.data.datasets[hit.datasetIndex];
+          if (!row || !dataset || !dataset.data[hit.index]) return;
+          showScopePeriodList(row, dataset.label === 'Removed' ? 'removed' : 'added', period);
         },
       },
     });
@@ -22133,6 +22825,141 @@ async function saveProjectsConfig() {
 }
 
 // Helper to show save status message for projects
+function configurableProjects() {
+  return [...PROJECTS, ...(S.customProjects || [])].filter(proj => proj && !getProjectSettings(proj.key).removed);
+}
+
+function renderProjectReleaseMatrix() {
+  const host = document.getElementById('pc-matrix');
+  if (!host) return;
+  const left = host.scrollLeft;
+  const top = host.scrollTop;
+  const releases = getSelectableReleases();
+  const projects = configurableProjects();
+  if (!releases.length || !projects.length) {
+    host.innerHTML = '<p class="pc-matrix-empty">Add a market release, then enable it on each project here.</p>';
+    return;
+  }
+  const head = releases.map(release => `
+    <th class="pc-matrix-rel">
+      <span>${esc(release.name)}</span>
+      <input type="checkbox" class="pc-matrix-col" data-release="${esc(release.name)}" aria-label="All projects for ${esc(release.name)}">
+    </th>`).join('');
+  const body = projects.map(proj => {
+    const enabled = new Set(getProjectReleases(proj.key, proj));
+    const cells = releases.map(release => `
+      <td><input type="checkbox" class="pc-matrix-cell" data-project="${esc(proj.key)}" data-release="${esc(release.name)}" ${enabled.has(release.name) ? 'checked' : ''} aria-label="${esc(release.name)} on ${esc(proj.name)}"></td>`).join('');
+    return `<tr><th class="pc-matrix-proj"><span class="pc-matrix-dot" style="background:${esc(proj.color || '#888')}"></span>${esc(proj.name)}</th>${cells}</tr>`;
+  }).join('');
+  host.innerHTML = `<table class="pc-matrix"><thead><tr><th class="pc-matrix-proj">Project</th>${head}</tr></thead><tbody>${body}</tbody></table>`;
+  host.querySelectorAll('.pc-matrix-col').forEach(box => {
+    const name = box.getAttribute('data-release');
+    const cells = [...host.querySelectorAll('.pc-matrix-cell')].filter(cell => cell.getAttribute('data-release') === name);
+    const on = cells.filter(cell => cell.checked).length;
+    box.checked = cells.length > 0 && on === cells.length;
+    box.indeterminate = on > 0 && on < cells.length;
+  });
+  if (!host._pcMatrixBound) {
+    host._pcMatrixBound = true;
+    host.addEventListener('change', onProjectReleaseMatrixChange);
+  }
+  host.scrollLeft = left;
+  host.scrollTop = top;
+}
+
+function onProjectReleaseMatrixChange(event) {
+  const box = event.target;
+  if (!box || !box.classList) return;
+  if (box.classList.contains('pc-matrix-cell')) {
+    setProjectReleaseCell(box.getAttribute('data-project'), box.getAttribute('data-release'), box.checked);
+  } else if (box.classList.contains('pc-matrix-col')) {
+    setReleaseForProjects(box.getAttribute('data-release'), box.checked);
+  }
+}
+
+async function setProjectReleaseCell(key, releaseName, enabled) {
+  const proj = configurableProjects().find(item => item.key === key);
+  if (!proj || !releaseName) return;
+  const current = getProjectReleases(key, proj);
+  const next = enabled ? current.concat(releaseName) : current.filter(name => name !== releaseName);
+  if (!next.length) {
+    setProjectsConfigNote(proj.name + ' needs at least one market release.', true);
+    renderProjectReleaseMatrix();
+    return;
+  }
+  setProjectReleaseList(key, proj, next);
+  if (S.cache) delete S.cache[key];
+  const saved = await saveProjectsConfig();
+  if (!saved) {
+    showProjectsSaveMessage(false);
+    await renderProjectsConfig();
+    return;
+  }
+  rebuildDynamicUI();
+  await renderProjectsConfig();
+  setProjectsConfigNote((enabled ? 'Enabled ' : 'Removed ') + releaseName + ' on ' + proj.name + '.');
+}
+
+async function setReleaseForProjects(releaseName, enabled) {
+  if (!releaseName) return;
+  let changed = 0;
+  let kept = 0;
+  configurableProjects().forEach(proj => {
+    const current = getProjectReleases(proj.key, proj);
+    const has = current.includes(releaseName);
+    if (has === !!enabled) return;
+    const next = enabled ? current.concat(releaseName) : current.filter(name => name !== releaseName);
+    if (!next.length) {
+      kept += 1;
+      return;
+    }
+    setProjectReleaseList(proj.key, proj, next);
+    if (S.cache) delete S.cache[proj.key];
+    changed += 1;
+  });
+  if (!changed) {
+    setProjectsConfigNote(kept ? 'Each project needs at least one market release.' : releaseName + ' is already ' + (enabled ? 'enabled' : 'off') + ' for these projects.', true);
+    renderProjectReleaseMatrix();
+    return;
+  }
+  const saved = await saveProjectsConfig();
+  if (!saved) {
+    showProjectsSaveMessage(false);
+    await renderProjectsConfig();
+    return;
+  }
+  rebuildDynamicUI();
+  await renderProjectsConfig();
+  const note = (enabled ? 'Enabled ' : 'Removed ') + releaseName + ' on ' + changed + ' project' + (changed === 1 ? '' : 's') + '.';
+  setProjectsConfigNote(kept ? note + ' ' + kept + ' kept its last release.' : note);
+}
+
+function setProjectReleaseList(key, proj, releases) {
+  const list = uniqueReleaseNames(releases);
+  const base = stripFixVersionFromJql(getProjectJql(proj));
+  const finalJql = injectFixVersionIntoJql(base, list);
+  const custom = (S.customProjects || []).find(item => item.key === key);
+  if (custom) {
+    custom.releases = [...list];
+    custom.jql = finalJql;
+    delete custom.release;
+  }
+  const st = getProjectSettings(key, true);
+  st.releases = [...list];
+  delete st.release;
+  if (custom) delete st.jql;
+  else st.jql = finalJql;
+}
+
+function setProjectsConfigNote(message, isError) {
+  const msgEl = document.getElementById('projects-save-msg');
+  if (!msgEl) return;
+  msgEl.style.color = isError ? 'var(--red)' : 'var(--green)';
+  msgEl.textContent = message || '';
+  clearTimeout(setProjectsConfigNote._timer);
+  setProjectsConfigNote._timer = setTimeout(() => { msgEl.textContent = ''; }, 4000);
+}
+
 function showProjectsSaveMessage(success) {
   const msgEl = document.getElementById('projects-save-msg');
   if (!msgEl) return;
@@ -22246,6 +23073,7 @@ async function renderProjectsConfig() {
       <span style="font-size:11px;color:var(--text3);flex-shrink:0">built-in</span>
     </div>`;
   }).join('');
+  renderProjectReleaseMatrix();
 
   // Custom list
   const customEl  = document.getElementById('pc-custom');
@@ -22599,7 +23427,7 @@ function renderReleasesList() {
   let html = '';
   S.releases.forEach((release, index) => {
     html += `
-      <div class="release-card" style="
+      <div class="release-card" id="release-card-${index}" style="
         border: 0.5px solid var(--border);
         border-radius: var(--radius);
         padding: 16px;
@@ -22870,13 +23698,15 @@ async function duplicateRelease(index) {
   const original = S.releases[index];
   const duplicate = JSON.parse(JSON.stringify(original));
   duplicate.name = `${duplicate.name} (Copy)`;
-  normalizeReleasePatches(duplicate);
+  duplicate.patches = [];
   
-  S.releases.splice(index + 1, 0, duplicate);
+  S.releases.unshift(duplicate);
   const saved = await saveReleasesConfig();
   showSaveMessage(saved);
   renderReleasesList();
   updateGlobalReleaseSelector();
+  const card = document.getElementById('release-card-0');
+  if (card) card.scrollIntoView({ behavior: 'smooth', block: 'start' });
 }
 
 async function deleteRelease(index) {
@@ -23701,6 +24531,19 @@ async function addWorkspaceSearchResults(id, mode) {
   }
 }
 
+async function deleteWorkspace(id) {
+  const ws = workspaceById(id);
+  const name = ws && ws.name ? ws.name : 'this workspace';
+  if (!confirm('Delete “' + name + '”? Tickets stay in Jira. This only removes the folder.')) return;
+  try {
+    const data = await workspaceRequest('/api/workspaces/' + encodeURIComponent(id), { method: 'DELETE' });
+    applyWorkspacesPayload(data);
+  } catch (err) {
+    setWorkspaceStatus(id, err.message, true);
+    renderWorkspacePage();
+  }
+}
+
 async function removeWorkspaceItem(id, key) {
   try {
     const data = await workspaceRequest('/api/workspaces/' + encodeURIComponent(id) + '/items/remove', {
@@ -23944,7 +24787,7 @@ function renderWorkspacePage() {
         <h2 id="ws-search-title">Add tickets</h2>
         <button type="button" class="btn btn-sm" onclick="closeWorkspaceSearch()">Close</button>
       </div>
-      <p class="ws-kicker">Search a key such as NFS-123, several keys, or a JQL query. Adding a ticket stores a reference. The table shows that ticket from its project page.</p>
+      <p class="ws-kicker">Search a key such as NFS-123, several keys separated by spaces, commas, or new lines, or a JQL query. Adding a ticket stores a reference. The table shows that ticket from its project page.</p>
       <input id="ws-query" class="ws-query" type="search" placeholder="NFS-123 or project = NFS AND status = Open" aria-label="Search tickets" value="${esc(search.query || '')}" oninput="onWorkspaceQueryInput('${esc(id)}', this.value)" onkeydown="onWorkspaceQueryKey(event, '${esc(id)}')">
       <div class="ws-search-actions">
         <button type="button" class="btn btn-sm primary" onclick="searchWorkspaceTickets('${esc(id)}')" ${search.loading ? 'disabled' : ''}>Search</button>

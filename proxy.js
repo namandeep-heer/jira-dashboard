@@ -237,6 +237,12 @@ app.get('/lib/workspace-query.js', (req, res) => {
   res.sendFile(path.join(ROOT, 'lib', 'workspace-query.js'));
 });
 
+app.get('/lib/ticket-search.js', (req, res) => {
+  res.setHeader('Cache-Control', 'no-store');
+  res.type('application/javascript');
+  res.sendFile(path.join(ROOT, 'lib', 'ticket-search.js'));
+});
+
 // ── Health check endpoint ─────────────────────────────────────────────────────
 app.get('/health', (req, res) => {
   res.status(200).json({ status: 'ok', message: 'Proxy is running' });
@@ -498,7 +504,21 @@ app.put('/api/user-preferences/project-sorts/:projectKey', (req, res) => {
   const user = requireUser(req, res);
   if (!user) return;
   try {
-    res.json(userPreferences.setProjectSort(user.id, req.params.projectKey, req.body?.levels));
+    const body = req.body && typeof req.body === 'object' ? req.body : {};
+    res.json(userPreferences.setProjectSort(user.id, req.params.projectKey, body.levels, {
+      inherit: body.inherit === true,
+      none: body.none === true,
+    }));
+  } catch (err) {
+    sendStoreError(res, err);
+  }
+});
+
+app.put('/api/user-preferences/sort-configs/:category', (req, res) => {
+  const user = requireUser(req, res);
+  if (!user) return;
+  try {
+    res.json(userPreferences.setSortConfigs(user.id, req.params.category, req.body?.configs));
   } catch (err) {
     sendStoreError(res, err);
   }
@@ -623,6 +643,10 @@ app.get('/api/jira/issue/:key/meta', (req, res) => {
 
 app.get('/api/jira/issue/:key/versions', (req, res) => {
   handleJiraWrite(req, res, creds => jiraWrite.versions(creds, req.params.key));
+});
+
+app.get('/api/jira/versions', (req, res) => {
+  handleJiraWrite(req, res, creds => jiraWrite.versionCatalog(creds, req.query.projects));
 });
 
 app.get('/api/jira/users', (req, res) => {
@@ -810,7 +834,7 @@ app.post('/api/release-report/pptx', async (req, res) => {
       res.status(400).json({ error: 'Missing generated report' });
       return;
     }
-    const buf = await buildReleaseReportPptx(report, req.body?.options, req.body?.qualityReport);
+    const buf = await buildReleaseReportPptx(report, req.body?.options, req.body?.qualityReport, req.body?.scopeChange);
     const name = sanitizeFilename(report.releaseName) + '-release-report.pptx';
     res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.presentationml.presentation');
     res.setHeader('Content-Disposition', `attachment; filename="${name}"`);

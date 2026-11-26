@@ -497,6 +497,7 @@ async function testPptx() {
   assert.strictEqual(normalizeDeckOptions().mode, 'by-project');
   assert.strictEqual(normalizeDeckOptions({ mode: 'cumulative', sections: { milestones: true } }).sections.milestones, false);
   assert.strictEqual(normalizeDeckOptions({ sections: { risks: false } }).sections.risks, false);
+  assert.strictEqual(normalizeDeckOptions().sections.scopeChange, true);
 
   const cumBuf = await buildReleaseReportPptx(clarityReport, { mode: 'cumulative' });
   const detBuf = await buildReleaseReportPptx(clarityReport, { mode: 'by-project' });
@@ -590,6 +591,30 @@ async function testPptx() {
   if (process.env.DECK_OUT_DIR) { // optional: dump sample decks for visual review
     require('fs').writeFileSync(process.env.DECK_OUT_DIR + '/cumulative.pptx', cumBuf);
     require('fs').writeFileSync(process.env.DECK_OUT_DIR + '/by-project.pptx', detBuf);
+  }
+  const scopeOff = await buildReleaseReportPptx(clarityReport, { sections: { ...allSections, scopeChange: false } });
+  const scopeMissing = await buildReleaseReportPptx(clarityReport, { sections: { ...allSections, scopeChange: true } });
+  assert.strictEqual(scopeOff.length, scopeMissing.length);
+  const scopeBuf = await buildReleaseReportPptx(clarityReport, { sections: { ...allSections, scopeChange: true } }, null, {
+    releaseName: 'N2027.R1',
+    added: 57,
+    removed: 26,
+    net: 31,
+    spans: [{ label: 'DA → KO', when: 'Sep 15 – Sep 28', added: 14, removed: 9, net: 5 }],
+    note: '2 tickets still have no fix version history.',
+  });
+  assert.ok(scopeBuf.length > scopeOff.length);
+  const JSZipScope = (() => { try { return require('jszip'); } catch (e) { return null; } })();
+  if (JSZipScope) {
+    const zip = await JSZipScope.loadAsync(scopeBuf);
+    const names = Object.keys(zip.files).filter(name => /^ppt\/slides\/slide\d+\.xml$/.test(name));
+    let found = '';
+    for (const name of names) {
+      const xml = await zip.file(name).async('string');
+      const text = (xml.match(/<a:t>[^<]*<\/a:t>/g) || []).map(t => t.replace(/<[^>]+>/g, '')).join('|');
+      if (text.includes('Scope change')) found = text;
+    }
+    assert.ok(found.includes('57') && found.includes('DA → KO') && found.includes('Sep 15 – Sep 28'), found);
   }
   console.log('release-report pptx options: ok');
 }

@@ -13,6 +13,7 @@
   "releases": [
     "Blank",
     "UnPlanned",
+    "N2027.R2",
     "N2027.R1",
     "N2026.R2"
   ],
@@ -20,12 +21,14 @@
     "N2026.R2": 1440,
     "N2027.R1": 15,
     "Blank": 1440,
-    "UnPlanned": 1440
+    "UnPlanned": 1440,
+    "N2027.R2": 1440
   },
   "scheduleEnabled": true,
   "scheduleReleases": [
     "Blank",
     "UnPlanned",
+    "N2027.R2",
     "N2027.R1",
     "N2026.R2"
   ]

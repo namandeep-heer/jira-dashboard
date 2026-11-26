@@ -15,7 +15,7 @@ const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'jira-dashboard-prefs-'));
 const filePath = path.join(tmpDir, 'user-preferences.json');
 const prefs = createUserPreferences({ filePath });
 
-assert.deepStrictEqual(prefs.get('user-a'), { version: 1, projectSorts: {}, groupByEpic: true, columnWidths: {}, columnFreeze: {}, columnViews: {} });
+assert.deepStrictEqual(prefs.get('user-a'), { version: 1, projectSorts: {}, groupByEpic: true, columnWidths: {}, columnFreeze: {}, columnViews: {}, sortConfigs: {} });
 
 const saved = prefs.setProjectSort('user-a', 'NFS', [
   { col: 'priority', dir: 'asc' },
@@ -91,7 +91,7 @@ assert.deepStrictEqual(prefs.get('user-a').projectSorts, {});
 assert.deepStrictEqual(createUserPreferences({ filePath }).get('user-a').groupByEpic, false);
 
 prefs.setGroupByEpic('user-a', true);
-assert.deepStrictEqual(prefs.get('user-a'), { version: 1, projectSorts: {}, groupByEpic: true, columnWidths: {}, columnFreeze: {}, columnViews: {} });
+assert.deepStrictEqual(prefs.get('user-a'), { version: 1, projectSorts: {}, groupByEpic: true, columnWidths: {}, columnFreeze: {}, columnViews: {}, sortConfigs: {} });
 assert.throws(() => prefs.setGroupByEpic('user-a', 'no'), /on or off/);
 
 const widths = prefs.setColumnWidths('user-a', 'NFS', { summary: 280.4, notes: 88, 'nope field': 100 });
@@ -163,5 +163,60 @@ assert.throws(() => prefs.setColumnViews('user-a', 'NFS', {
 }), /at least one column/);
 assert.deepStrictEqual(prefs.setColumnViews('user-a', 'NFS', null).columnViews, { active: 'default', order: [], views: [] });
 assert.deepStrictEqual(prefs.get('user-a').columnViews, {});
+
+const scopeSort = prefs.setSortConfigs('user-a', 'Core Modules', [
+  { id: 'Scope-first', name: '  Scope first  ', levels: [{ col: 'cf_scope', dir: 'asc', order: ['Committed', 'Committed'] }] },
+]);
+assert.strictEqual(scopeSort.category, 'Core Modules');
+assert.deepStrictEqual(scopeSort.configs, [{
+  id: 'scope-first',
+  name: 'Scope first',
+  levels: [{ col: 'cf_scope', dir: 1, order: ['Committed'] }],
+}]);
+assert.deepStrictEqual(prefs.get('user-a').sortConfigs['Core Modules'][0].name, 'Scope first');
+assert.deepStrictEqual(createUserPreferences({ filePath }).get('user-a').sortConfigs['Core Modules'][0].levels[0].col, 'cf_scope');
+prefs.setSortConfigs('user-a', 'Infrastructure', [
+  { id: 'priority', name: 'Priority', levels: [{ col: 'priority', dir: -1 }] },
+]);
+assert.deepStrictEqual(Object.keys(prefs.get('user-a').sortConfigs).sort(), ['Core Modules', 'Infrastructure']);
+assert.deepStrictEqual(prefs.get('user-b').sortConfigs, {});
+const withDefault = prefs.setSortConfigs('user-a', 'Core Modules', [
+  { id: 'scope-first', name: 'Scope first', levels: [{ col: 'cf_scope', dir: 1 }], default: true },
+  { id: 'priority', name: 'Priority', levels: [{ col: 'priority', dir: -1 }] },
+]);
+assert.strictEqual(withDefault.configs[0].default, true);
+assert.strictEqual(withDefault.configs[1].default, undefined);
+assert.throws(() => prefs.setSortConfigs('user-a', 'Core Modules', [
+  { id: 'a', name: 'One', levels: [{ col: 'key', dir: 1 }], default: true },
+  { id: 'b', name: 'Two', levels: [{ col: 'summary', dir: 1 }], default: true },
+]), /Only one saved sort can be the default/);
+const noneSort = prefs.setProjectSort('user-a', 'GL', [], { none: true });
+assert.deepStrictEqual(noneSort.levels, []);
+assert.strictEqual(noneSort.inherit, false);
+assert.deepStrictEqual(prefs.get('user-a').projectSorts.GL, []);
+const inherited = prefs.setProjectSort('user-a', 'GL', [], { inherit: true });
+assert.strictEqual(inherited.inherit, true);
+assert.strictEqual(prefs.get('user-a').projectSorts.GL, undefined);
+assert.deepStrictEqual(prefs.setSortConfigs('user-a', 'Core Modules', []).configs, []);
+assert.deepStrictEqual(prefs.get('user-a').sortConfigs['Core Modules'], undefined);
+assert.throws(() => prefs.setSortConfigs('user-a', 'Core Modules', [
+  { id: 'a', name: 'One', levels: [{ col: 'key', dir: 1 }] },
+  { id: 'b', name: 'one', levels: [{ col: 'summary', dir: 1 }] },
+]), /already uses that name/);
+assert.throws(() => prefs.setSortConfigs('user-a', 'Core Modules', [
+  { id: 'empty', name: 'Empty', levels: [] },
+]), /at least one level/);
+assert.throws(() => prefs.setSortConfigs('user-a', 'bad/name', []), /Unknown category/);
+
+const dashboard = fs.readFileSync(path.join(__dirname, '..', 'dashboard.html'), 'utf8');
+const proxy = fs.readFileSync(path.join(__dirname, '..', 'proxy.js'), 'utf8');
+assert.ok(dashboard.includes('function saveProjectSortConfig'));
+assert.ok(dashboard.includes('function setSavedSortDefault'));
+assert.ok(dashboard.includes('function useCategoryDefaultSort'));
+assert.ok(dashboard.includes('id="proj-sort-default"'));
+assert.ok(dashboard.includes('function loadSavedProjectSort'));
+assert.ok(dashboard.includes('sortConfigCategory'));
+assert.ok(dashboard.includes('Using the category default.'));
+assert.ok(proxy.includes("app.put('/api/user-preferences/sort-configs/:category'"));
 
 console.log('user preferences ok');

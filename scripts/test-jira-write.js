@@ -19,6 +19,7 @@ const {
   trimIssueTypes,
   trimCreateFields,
   trimUsers,
+  mergeVersionCatalog,
   jiraErrorMessage,
 } = require('../lib/jira-write');
 
@@ -361,6 +362,26 @@ assert.ok(writeUi.includes('function showCreatedPopup'));
 assert.ok(writeUi.includes('function ensureChoiceItems'));
 assert.ok(writeUi.includes('rememberIssue'));
 assert.ok(dashboard.includes('function applyBulkEdit'));
+assert.ok(dashboard.includes('data-load="versions"'));
+assert.ok(dashboard.includes('function fillBulkVersions'));
+assert.ok(dashboard.includes('function bulkVersionChange'));
+assert.ok(dashboard.includes("'/api/jira/versions?projects='"));
+assert.ok(proxy.includes("app.get('/api/jira/versions'"));
+
+const versionRows = mergeVersionCatalog([
+  { projectKey: 'NFS', versions: [
+    { id: '1', name: 'N2026.R2', released: true, archived: false },
+    { id: '2', name: 'N2027.R1', released: false, archived: false },
+    { id: '3', name: 'Old', released: true, archived: true },
+  ] },
+  { projectKey: 'FCO', versions: [
+    { id: '9', name: 'N2027.R1', released: false, archived: false },
+    { id: '8', name: 'FCO only', released: false, archived: false },
+  ] },
+]);
+assert.deepStrictEqual(versionRows.map(row => row.name), ['FCO only', 'N2027.R1', 'N2026.R2']);
+assert.deepStrictEqual(versionRows.find(row => row.name === 'N2027.R1').projects, { NFS: '2', FCO: '9' });
+assert.strictEqual(versionRows.find(row => row.name === 'N2026.R2').released, true);
 assert.ok(dashboard.includes('class="bulk-check'));
 assert.ok(dashboard.includes("field.id === 'summary' || field.id === 'status'"));
 assert.ok(dashboard.includes("type: 'versions'"));
@@ -368,9 +389,14 @@ assert.ok(dashboard.includes('Replace fix versions'));
 assert.ok(dashboard.includes("authFetch('/api/jira/issue/'"));
 assert.ok(dashboard.includes('JiraWrite.rememberIssue'));
 assert.ok(dashboard.includes('function showBulkReport'));
+assert.ok(dashboard.includes('function syncAfterBulkEdit'));
+assert.ok(dashboard.includes('await syncAfterBulkEdit(projKey)'));
+assert.ok(dashboard.includes('syncWorkspacePage(projKey)'));
 assert.ok(dashboard.includes('class="bulk-col-check'));
 assert.ok(dashboard.includes('Bulk edit report'));
 assert.ok(writeUi.includes('function revealCreatedIssue'));
+assert.ok(writeUi.includes('15 * 60 * 1000'));
+assert.ok(writeUi.includes('jw-created-timer'));
 assert.ok(writeUi.includes('jw-created-key'));
 assert.ok(writeUi.includes('jw-created-name'));
 assert.ok(dashboard.includes('data-issue-key'));
@@ -401,6 +427,11 @@ const createApi = createJiraWriteApi({
   loadState() { return { releaseCache: { 'N2027.R1': { NFS: { issues: [{ key: 'NFS-1', fields: { summary: 'Stay' } }] } } } }; },
   saveState(next) { createdSaved = next; },
 });
+const catalog = await createApi.versionCatalog({}, 'NFS,FCO,NFS');
+assert.deepStrictEqual(catalog.versions.map(row => row.name), ['N2027.R1']);
+assert.strictEqual(catalog.versions[0].projects.NFS, '42');
+assert.strictEqual(catalog.versions[0].projects.FCO, '42');
+assert.deepStrictEqual(catalog.failed, []);
 const meta = await createApi.createMeta({}, 'NFS');
 assert.strictEqual(meta.issueTypes[0].name, 'Enhancement');
 assert.strictEqual(meta.versions[0].name, 'N2027.R1');
